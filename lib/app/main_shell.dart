@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../features/action_support/presentation/pages/action_support_page.dart';
+import '../features/all_features/presentation/pages/all_features_page.dart';
 import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
 import '../features/chat/presentation/pages/chat_landing_page.dart';
+import '../features/daily/presentation/pages/daily_page.dart';
 import '../features/home/presentation/pages/home_page.dart';
-import '../features/personalization/presentation/pages/personalization_page.dart';
 import '../features/settings/presentation/pages/settings_page.dart';
 import '../l10n/app_localizations.dart';
 
@@ -24,7 +24,7 @@ class _MainShellState extends State<MainShell> {
   DateTime _tabEnteredAt = DateTime.now();
   AnalyticsService? _analytics;
 
-  static const _tabKeys = ['home', 'activities', 'chat', 'about_you'];
+  static const _tabKeys = ['dashboard', 'daily', 'chat', 'all_features'];
 
   @override
   void didChangeDependencies() {
@@ -62,19 +62,20 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
 
     final pages = const [
       HomePage(),
-      ActionSupportPage(),
+      DailyPage(),
       ChatLandingPage(),
-      PersonalizationPage(),
+      AllFeaturesPage(),
     ];
 
     final titles = [
-      l10n.homeTab,
-      l10n.actionTab,
+      'Dashboard',
+      isEn ? 'Daily For You' : '每日 / Daily',
       l10n.chatTab,
-      l10n.contextTab,
+      isEn ? 'All' : '全部 / All',
     ];
 
     return Scaffold(
@@ -124,16 +125,16 @@ class _MainShellState extends State<MainShell> {
         onDestinationSelected: _switchTab,
         destinations: [
           NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home),
-            label: l10n.homeTab,
-            tooltip: l10n.homeTab,
+            icon: const Icon(Icons.dashboard_outlined),
+            selectedIcon: const Icon(Icons.dashboard),
+            label: 'Dashboard',
+            tooltip: 'Dashboard',
           ),
           NavigationDestination(
-            icon: const Icon(Icons.spa_outlined),
-            selectedIcon: const Icon(Icons.spa),
-            label: l10n.actionTab,
-            tooltip: l10n.actionTab,
+            icon: const Icon(Icons.wb_sunny_outlined),
+            selectedIcon: const Icon(Icons.wb_sunny),
+            label: isEn ? 'Daily' : '每日',
+            tooltip: isEn ? 'Daily For You' : '每日推薦',
           ),
           NavigationDestination(
             icon: const Icon(Icons.forum_outlined),
@@ -142,10 +143,10 @@ class _MainShellState extends State<MainShell> {
             tooltip: l10n.chatTab,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.person_pin_circle_outlined),
-            selectedIcon: const Icon(Icons.person_pin_circle),
-            label: l10n.contextTab,
-            tooltip: l10n.contextTab,
+            icon: const Icon(Icons.apps_rounded),
+            selectedIcon: const Icon(Icons.apps_rounded),
+            label: isEn ? 'All' : '全部',
+            tooltip: isEn ? 'All Features' : '全部功能',
           ),
         ],
       ),
