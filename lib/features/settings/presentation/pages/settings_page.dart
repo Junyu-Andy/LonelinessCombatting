@@ -551,6 +551,46 @@ class _AboutCard extends StatelessWidget {
               '呢個 demo 目的係展示點樣用簡單嘅結構，陪長者一齊面對孤獨感。',
               style: theme.textTheme.bodyLarge,
             ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF4E5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF8A1538), width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF8A1538),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Text(
+                      'HKU',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '由香港大學工業及製造系統工程學系開發\nHKU Department of Industrial & Manufacturing Systems Engineering',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF6B0F2A),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 12),
             Row(
               children: [

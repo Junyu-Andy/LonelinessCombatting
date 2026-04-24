@@ -18,13 +18,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get contextTab => '了解你';
 
   @override
-  String get actionTab => '行動支援';
+  String get actionTab => '做點活動';
 
   @override
   String get followUpTab => '跟進';
 
   @override
   String get settingsTab => '設定';
+
+  @override
+  String get chatTab => '傾偈';
+
+  @override
+  String get chatSubtitle => '搵個傾偈，由你揀。';
+
+  @override
+  String get developerCredit => '由香港大學工業及製造系統工程學系開發';
+
+  @override
+  String get developerCreditShort => 'HKU IMSE';
 
   @override
   String get homeSubtitle => '呢度係 demo 嘅首頁總覽。';
@@ -34,10 +46,10 @@ class AppLocalizationsZh extends AppLocalizations {
       '四個核心模組：建立信任 → 理解情境 → 行動支援 → 持續跟進。';
 
   @override
-  String get contextSubtitle => 'Check-in、社交圈，同最近互動。';
+  String get contextSubtitle => '你嘅資料、最近狀態、跟進節奏。';
 
   @override
-  String get actionSubtitle => '建議、開場白、活動。';
+  String get actionSubtitle => '揀件令自己舒服啲嘅事，做返一啲就得。';
 
   @override
   String get followUpSubtitle => '提醒、進度同節奏。';
@@ -102,13 +114,25 @@ class AppLocalizationsZhHantHk extends AppLocalizationsZh {
   String get contextTab => '了解你';
 
   @override
-  String get actionTab => '行動支援';
+  String get actionTab => '做點活動';
 
   @override
   String get followUpTab => '跟進';
 
   @override
   String get settingsTab => '設定';
+
+  @override
+  String get chatTab => '傾偈';
+
+  @override
+  String get chatSubtitle => '搵個傾偈，由你揀。';
+
+  @override
+  String get developerCredit => '由香港大學工業及製造系統工程學系開發';
+
+  @override
+  String get developerCreditShort => 'HKU IMSE';
 
   @override
   String get homeSubtitle => '呢度係 demo 嘅首頁總覽。';
@@ -118,10 +142,10 @@ class AppLocalizationsZhHantHk extends AppLocalizationsZh {
       '四個核心模組：建立信任 → 理解情境 → 行動支援 → 持續跟進。';
 
   @override
-  String get contextSubtitle => 'Check-in、社交圈，同最近互動。';
+  String get contextSubtitle => '你嘅資料、最近狀態、跟進節奏。';
 
   @override
-  String get actionSubtitle => '建議、開場白、活動。';
+  String get actionSubtitle => '揀件令自己舒服啲嘅事，做返一啲就得。';
 
   @override
   String get followUpSubtitle => '提醒、進度同節奏。';

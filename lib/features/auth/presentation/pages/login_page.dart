@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/auth_service.dart';
 import '../../data/user_profile.dart';
 
@@ -66,6 +67,9 @@ class _LoginPageState extends State<LoginPage> {
               : _contactPhoneCtrl.text.trim(),
           preferredLanguage: settings.locale.languageCode,
         );
+        if (mounted) {
+          AnalyticsScope.of(context).logAuth('signed_up');
+        }
       } else {
         profile = await widget.authService.signIn(
           email: _emailCtrl.text,
@@ -221,10 +225,60 @@ class _LoginPageState extends State<LoginPage> {
                   currentLocale: settings.locale,
                   onChanged: (locale) => settings.locale = locale,
                 ),
+                const SizedBox(height: 22),
+                const _HkuBadge(),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _HkuBadge extends StatelessWidget {
+  const _HkuBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: Color(0xFF8A1538),
+              shape: BoxShape.circle,
+            ),
+            child: const Text(
+              'HKU',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '由香港大學工業及製造系統工程學系開發',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'HKU Department of Industrial & Manufacturing Systems Engineering',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

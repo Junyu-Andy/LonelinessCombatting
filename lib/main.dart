@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'app/app.dart';
 import 'app/app_settings.dart';
+import 'features/analytics/data/analytics_service.dart';
 import 'features/auth/data/auth_service.dart';
 import 'firebase_options.dart';
 
@@ -31,6 +32,7 @@ Future<void> main() async {
         locale: const Locale('zh'),
       ),
       authService: AuthService(available: firebaseReady),
+      analytics: AnalyticsService(firebaseReady: firebaseReady),
     ),
   );
 }
