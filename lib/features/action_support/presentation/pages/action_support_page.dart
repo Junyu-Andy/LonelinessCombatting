@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/figure_placeholder.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import '../../../resources/presentation/pages/community_resources_page.dart';
 import '../../../wellbeing/presentation/pages/calm_page.dart';
@@ -32,12 +33,18 @@ class ActionSupportPage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
             l10n.actionSubtitle,
             style: theme.textTheme.bodyLarge,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          const FigurePlaceholder(
+            description: '插畫：腳印一步一步行向陽光下嘅小門，象徵微小但具體嘅行動。',
+            height: 130,
+            icon: Icons.directions_walk,
+          ),
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
@@ -77,23 +84,29 @@ class ActionSupportPage extends StatelessWidget {
           const SizedBox(height: 14),
           const _TinyStepCard(
             effort: '2 分鐘',
-            title: '傳一個短訊畀表姐',
-            detail: '「早晨，最近身體點？有空飲茶。」',
-            why: '表姐通常肯回應，係你其中一個穩定嘅支持。',
+            icon: Icons.sms_outlined,
+            title: '傳短訊畀表姐',
+            detail: '「早晨，幾時飲茶？」',
+            why: '穩定支持',
+            whyIcon: Icons.favorite_outline,
           ),
           const SizedBox(height: 14),
           const _TinyStepCard(
             effort: '5 分鐘',
-            title: '打個電話畀阿May',
-            detail: '問下佢週末點樣，聽聲比打字更貼近啲。',
-            why: '近排同阿May少咗見面，一通短短嘅電話可以重新接返條線。',
+            icon: Icons.phone_in_talk_outlined,
+            title: '打電話畀阿May',
+            detail: '問聲週末點。',
+            why: '重新接線',
+            whyIcon: Icons.link_rounded,
           ),
           const SizedBox(height: 14),
           const _TinyStepCard(
             effort: '15 分鐘',
-            title: '落樓下公園坐一陣',
-            detail: '帶少少水，唔需要特登搵人傾偈。',
-            why: '換一換環境，孤獨感會散啲。就算淨係見到人嚟嚟往往都有幫助。',
+            icon: Icons.park_outlined,
+            title: '落公園坐一陣',
+            detail: '帶水　•　唔使傾偈。',
+            why: '換環境',
+            whyIcon: Icons.refresh_rounded,
           ),
           const SizedBox(height: 28),
           _SectionHeader(
@@ -103,17 +116,20 @@ class ActionSupportPage extends StatelessWidget {
           const SizedBox(height: 14),
           const _OpenerCard(
             audience: '畀屋企人',
-            line: '「今日突然諗起你，想問聲好。食咗飯未？」',
+            icon: Icons.family_restroom,
+            line: '「諗起你，食咗飯未？」',
           ),
           const SizedBox(height: 12),
           const _OpenerCard(
             audience: '畀朋友',
-            line: '「好耐冇傾，最近忙緊啲乜？我想知你點。」',
+            icon: Icons.group_outlined,
+            line: '「好耐冇傾，你最近點？」',
           ),
           const SizedBox(height: 12),
           const _OpenerCard(
             audience: '畀舊同學／同事',
-            line: '「見到一樣嘢諗起你，所以想同你講聲 hi。」',
+            icon: Icons.school_outlined,
+            line: '「見到一樣嘢諗起你，講聲 hi。」',
           ),
           const SizedBox(height: 28),
           _SectionHeader(
@@ -205,15 +221,19 @@ class _SectionHeader extends StatelessWidget {
 
 class _TinyStepCard extends StatelessWidget {
   final String effort;
+  final IconData icon;
   final String title;
   final String detail;
   final String why;
+  final IconData whyIcon;
 
   const _TinyStepCard({
     required this.effort,
+    required this.icon,
     required this.title,
     required this.detail,
     required this.why,
+    required this.whyIcon,
   });
 
   @override
@@ -221,35 +241,47 @@ class _TinyStepCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  width: 56,
+                  height: 56,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Icon(icon,
+                      size: 30, color: theme.colorScheme.onPrimaryContainer),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.timer_outlined,
-                        size: 20,
-                        color: theme.colorScheme.onPrimaryContainer,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        effort,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
+                      Text(title, style: theme.textTheme.titleLarge),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          _Chip(
+                            icon: Icons.timer_outlined,
+                            label: effort,
+                            color: theme.colorScheme.primaryContainer,
+                            textColor: theme.colorScheme.onPrimaryContainer,
+                          ),
+                          _Chip(
+                            icon: whyIcon,
+                            label: why,
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            textColor: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -257,42 +289,7 @@ class _TinyStepCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              title,
-              style: theme.textTheme.titleLarge,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              detail,
-              style: theme.textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 22,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      why,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            Text(detail, style: theme.textTheme.bodyLarge),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -300,7 +297,7 @@ class _TinyStepCard extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: () {},
                     icon: const Icon(Icons.check_rounded, size: 24),
-                    label: const Text('會試吓'),
+                    label: const Text('會試'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -308,7 +305,7 @@ class _TinyStepCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () {},
                     icon: const Icon(Icons.skip_next_rounded, size: 24),
-                    label: const Text('今次唔啱'),
+                    label: const Text('唔啱'),
                   ),
                 ),
               ],
@@ -320,40 +317,96 @@ class _TinyStepCard extends StatelessWidget {
   }
 }
 
+class _Chip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color textColor;
+
+  const _Chip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _OpenerCard extends StatelessWidget {
   final String audience;
+  final IconData icon;
   final String line;
 
-  const _OpenerCard({required this.audience, required this.line});
+  const _OpenerCard({
+    required this.audience,
+    required this.icon,
+    required this.line,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(14),
+        child: Row(
           children: [
-            Text(
-              audience,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.primary,
+            Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon,
+                  size: 26, color: theme.colorScheme.onPrimaryContainer),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    audience,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(line, style: theme.textTheme.bodyLarge),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              line,
-              style: theme.textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.copy_rounded, size: 22),
-                label: const Text('複製呢句'),
-              ),
+            IconButton(
+              onPressed: () {},
+              tooltip: '複製',
+              icon: const Icon(Icons.copy_rounded, size: 24),
             ),
           ],
         ),
@@ -370,23 +423,31 @@ class _ActivityGrid extends StatelessWidget {
     final activities = const [
       _Activity(
         icon: Icons.self_improvement,
-        title: '靜靜坐 3 分鐘',
-        tag: '一個人都得',
+        title: '靜坐 3 分鐘',
+        tag: '一個人',
+        tagIcon: Icons.person_outline,
+        accent: Color(0xFFB6E1C9),
       ),
       _Activity(
         icon: Icons.directions_walk,
-        title: '去附近行 10 分鐘',
-        tag: '一個人都得',
+        title: '行 10 分鐘',
+        tag: '一個人',
+        tagIcon: Icons.person_outline,
+        accent: Color(0xFFB6E1C9),
       ),
       _Activity(
         icon: Icons.local_cafe_outlined,
-        title: '約舊朋友飲茶',
-        tag: '需要約人',
+        title: '約朋友飲茶',
+        tag: '約人',
+        tagIcon: Icons.handshake_outlined,
+        accent: Color(0xFFFFD8A8),
       ),
       _Activity(
         icon: Icons.volunteer_activism_outlined,
-        title: '去社區中心／長者中心',
-        tag: '會見到人',
+        title: '長者／社區中心',
+        tag: '見到人',
+        tagIcon: Icons.groups_2_outlined,
+        accent: Color(0xFFCFD8FF),
       ),
     ];
 
@@ -394,7 +455,7 @@ class _ActivityGrid extends StatelessWidget {
       children: activities
           .map(
             (activity) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 10),
               child: _ActivityTile(activity: activity),
             ),
           )
@@ -407,8 +468,16 @@ class _Activity {
   final IconData icon;
   final String title;
   final String tag;
+  final IconData tagIcon;
+  final Color accent;
 
-  const _Activity({required this.icon, required this.title, required this.tag});
+  const _Activity({
+    required this.icon,
+    required this.title,
+    required this.tag,
+    required this.tagIcon,
+    required this.accent,
+  });
 }
 
 class _ActivityTile extends StatelessWidget {
@@ -421,45 +490,47 @@ class _ActivityTile extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(16),
+                color: activity.accent,
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(
-                activity.icon,
-                size: 30,
-                color: theme.colorScheme.onPrimaryContainer,
+              child: Icon(activity.icon, size: 28, color: Colors.black87),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                activity.title,
+                style: theme.textTheme.titleMedium,
               ),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: activity.accent.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    activity.title,
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
+                  Icon(activity.tagIcon, size: 16, color: Colors.black87),
+                  const SizedBox(width: 4),
                   Text(
                     activity.tag,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
                     ),
                   ),
                 ],
               ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 30,
-              color: theme.colorScheme.onSurfaceVariant,
             ),
           ],
         ),
@@ -500,12 +571,14 @@ class _SafetyFooter extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '如果情緒好低落或者覺得撐唔住，請直接聯絡屋企人或者撥 999。',
-                      style: theme.textTheme.bodyLarge,
+                      '撐唔住？　→　撥 999',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
-                      '按呢度睇所有即時支援熱線',
+                      '睇所有支援熱線',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w600,

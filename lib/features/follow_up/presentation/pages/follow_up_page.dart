@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/figure_placeholder.dart';
 
 enum _Pace { daily, everyOther, weekly }
 
@@ -59,12 +60,18 @@ class _FollowUpPageState extends State<FollowUpPage> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
             l10n.followUpSubtitle,
             style: theme.textTheme.bodyLarge,
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 16),
+          const FigurePlaceholder(
+            description: '插畫：日曆上幾朵小花，象徵每星期慢慢培養嘅小習慣。',
+            height: 120,
+            icon: Icons.calendar_today_outlined,
+          ),
+          const SizedBox(height: 24),
           _SectionHeader(
             icon: Icons.alarm_outlined,
             title: '即將到嘅提醒',
@@ -267,9 +274,13 @@ class _WeeklyProgressCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Check-in 次數',
-              style: theme.textTheme.titleMedium,
+            Row(
+              children: [
+                Icon(Icons.favorite,
+                    size: 20, color: theme.colorScheme.primary),
+                const SizedBox(width: 6),
+                Text('Check-in', style: theme.textTheme.titleMedium),
+              ],
             ),
             const SizedBox(height: 10),
             Row(
@@ -300,13 +311,13 @@ class _WeeklyProgressCard extends StatelessWidget {
             const SizedBox(height: 20),
             _StatRow(
               icon: Icons.directions_run,
-              label: '試過嘅行動',
+              label: '行動',
               value: '$stepsTried 次',
             ),
             const SizedBox(height: 10),
             _StatRow(
               icon: Icons.forum_outlined,
-              label: '有傾過偈嘅朋友',
+              label: '傾偈朋友',
               value: '$contactsReached 位',
             ),
             const SizedBox(height: 16),
@@ -327,9 +338,10 @@ class _WeeklyProgressCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '已經完成大部分，最後差少少就夠今個星期嘅目標。',
+                      '差少少就達標 🎉',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: theme.colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -389,9 +401,9 @@ class _PaceCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     final options = const [
-      (_Pace.daily, '每日', '每日有少少聯絡'),
-      (_Pace.everyOther, '隔日', '兩至三日一次'),
-      (_Pace.weekly, '每週幾次', '一星期幾次就夠'),
+      (_Pace.daily, '每日', 7),
+      (_Pace.everyOther, '隔日', 3),
+      (_Pace.weekly, '每週', 2),
     ];
 
     return Card(
@@ -400,9 +412,13 @@ class _PaceCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '你希望幾密會收到提醒？',
-              style: theme.textTheme.titleMedium,
+            Row(
+              children: [
+                Icon(Icons.alarm_on_outlined,
+                    size: 22, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text('提醒頻率', style: theme.textTheme.titleMedium),
+              ],
             ),
             const SizedBox(height: 14),
             ...options.map((option) {
@@ -437,24 +453,19 @@ class _PaceCard extends StatelessWidget {
                               ? theme.colorScheme.primary
                               : theme.colorScheme.onSurfaceVariant,
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                option.$2,
-                                style: theme.textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                option.$3,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            option.$2,
+                            style: theme.textTheme.titleMedium,
                           ),
+                        ),
+                        _PaceDots(
+                          activeDots: option.$3,
+                          activeColor: selected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant,
+                          inactiveColor: theme.colorScheme.outlineVariant,
                         ),
                       ],
                     ),
@@ -469,6 +480,35 @@ class _PaceCard extends StatelessWidget {
   }
 }
 
+class _PaceDots extends StatelessWidget {
+  final int activeDots;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  const _PaceDots({
+    required this.activeDots,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(7, (i) {
+        return Container(
+          width: 10,
+          height: 10,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: i < activeDots ? activeColor : inactiveColor,
+            shape: BoxShape.circle,
+          ),
+        );
+      }),
+    );
+  }
+}
+
 class _CelebrationCard extends StatelessWidget {
   const _CelebrationCard();
 
@@ -477,50 +517,38 @@ class _CelebrationCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     final moments = const [
-      '連續 4 日完成 check-in',
-      '主動傳咗一個短訊畀表姐',
-      '踏出屋企行咗一轉',
+      (Icons.check_circle, '連續 4 日 check-in'),
+      (Icons.send_rounded, '傳短訊畀表姐'),
+      (Icons.directions_walk, '行出屋企一轉'),
     ];
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '今個星期值得肯定自己嘅地方',
-              style: theme.textTheme.titleMedium,
+            Row(
+              children: [
+                const Text('🎉', style: TextStyle(fontSize: 24)),
+                const SizedBox(width: 8),
+                Text('值得肯定', style: theme.textTheme.titleMedium),
+              ],
             ),
             const SizedBox(height: 12),
             ...moments.map(
               (moment) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.check_circle,
-                      size: 26,
-                      color: theme.colorScheme.primary,
-                    ),
+                    Icon(moment.$1,
+                        size: 24, color: theme.colorScheme.primary),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        moment,
-                        style: theme.textTheme.bodyLarge,
-                      ),
+                      child: Text(moment.$2, style: theme.textTheme.bodyLarge),
                     ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '就算行得慢，方向都係啱嘅。',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontStyle: FontStyle.italic,
               ),
             ),
           ],

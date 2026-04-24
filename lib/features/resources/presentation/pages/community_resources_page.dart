@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/figure_placeholder.dart';
 
 class CommunityResourcesPage extends StatelessWidget {
   const CommunityResourcesPage({super.key});
@@ -14,11 +15,26 @@ class CommunityResourcesPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         children: [
-          Text(
-            '身邊其實有好多可以支持你嘅地方。揀一個最近、最方便嘅就得。',
-            style: theme.textTheme.bodyLarge,
+          Row(
+            children: [
+              Icon(Icons.place_outlined,
+                  size: 26, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '揀一個最近嘅就得。',
+                  style: theme.textTheme.bodyLarge,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 16),
+          const FigurePlaceholder(
+            description: '地圖縮圖：標示用戶位置同三個附近長者中心嘅小圓點。',
+            height: 130,
+            icon: Icons.map_outlined,
+          ),
+          const SizedBox(height: 24),
           _SectionHeader(
             icon: Icons.elderly_outlined,
             title: '附近嘅長者中心',
@@ -80,15 +96,17 @@ class CommunityResourcesPage extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           const _ServiceCard(
-            name: '「耆暖計劃」義工電話探訪',
-            description: '有義工每星期打電話嚟傾吓偈，唔使出街都有陪伴。',
-            actionLabel: '了解申請方法',
+            icon: Icons.phone_in_talk_outlined,
+            name: '「耆暖計劃」電話探訪',
+            description: '義工每週嚟電傾偈。',
+            actionLabel: '申請',
           ),
           const SizedBox(height: 12),
           const _ServiceCard(
-            name: '社區送餐同家訪',
-            description: '由社工或義工定期家訪，亦可協助送飯盒。',
-            actionLabel: '睇下點樣申請',
+            icon: Icons.delivery_dining_outlined,
+            name: '社區送餐／家訪',
+            description: '社工定期上門。',
+            actionLabel: '申請',
           ),
           const SizedBox(height: 28),
           _SectionHeader(
@@ -349,11 +367,13 @@ class _EventCard extends StatelessWidget {
 }
 
 class _ServiceCard extends StatelessWidget {
+  final IconData icon;
   final String name;
   final String description;
   final String actionLabel;
 
   const _ServiceCard({
+    required this.icon,
     required this.name,
     required this.description,
     required this.actionLabel,
@@ -364,27 +384,39 @@ class _ServiceCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(14),
+        child: Row(
           children: [
-            Text(
-              name,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              description,
-              style: theme.textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 14),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.arrow_forward_rounded, size: 22),
-                label: Text(actionLabel),
+            Container(
+              width: 56,
+              height: 56,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(16),
               ),
+              child: Icon(icon,
+                  size: 30, color: theme.colorScheme.onPrimaryContainer),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 2),
+                  Text(
+                    description,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            FilledButton.tonal(
+              onPressed: () {},
+              child: Text(actionLabel),
             ),
           ],
         ),

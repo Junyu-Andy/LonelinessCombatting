@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/figure_placeholder.dart';
 
 class OnboardingSlide extends StatelessWidget {
   final IconData icon;
   final String title;
   final String body;
   final List<String> bullets;
+  final String? figureDescription;
 
   const OnboardingSlide({
     super.key,
@@ -12,6 +14,7 @@ class OnboardingSlide extends StatelessWidget {
     required this.title,
     required this.body,
     this.bullets = const [],
+    this.figureDescription,
   });
 
   @override
@@ -39,16 +42,24 @@ class OnboardingSlide extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 36),
+          const SizedBox(height: 28),
           Text(
             title,
             style: theme.textTheme.headlineLarge,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           Text(
             body,
             style: theme.textTheme.bodyLarge,
           ),
+          if (figureDescription != null) ...[
+            const SizedBox(height: 20),
+            FigurePlaceholder(
+              description: figureDescription!,
+              height: 130,
+              icon: icon,
+            ),
+          ],
           if (bullets.isNotEmpty) ...[
             const SizedBox(height: 28),
             Card(
