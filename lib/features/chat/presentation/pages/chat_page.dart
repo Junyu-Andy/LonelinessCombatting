@@ -33,10 +33,14 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     super.initState();
     // Greet the user with a persona-flavoured opener.
+    final greeting = switch (widget.persona) {
+      ChatPersona.casual => '嗨～今日過得點？傾乜都得。',
+      ChatPersona.consult => '你好。我喺度。今日有啲乜想傾？',
+      ChatPersona.faq =>
+        '你好！我係小助。你可以問關於呢個 app 嘅功能、設定、私隱或者其他問題。',
+    };
     _messages.add(ChatMessage(
-      text: widget.persona == ChatPersona.casual
-          ? '嗨～今日過得點？傾乜都得。'
-          : '你好。我喺度。今日有啲乜想傾？',
+      text: greeting,
       fromUser: false,
       sentAt: DateTime.now(),
     ));

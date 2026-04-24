@@ -1,7 +1,7 @@
-/// Two distinct chat personas. The casual one is a friendly companion for
-/// daily small-talk; the consult one is a more measured, professional voice
-/// for moments the user wants something closer to advice.
-enum ChatPersona { casual, consult }
+/// Chat personas. `casual` is the companion for daily small-talk; `consult`
+/// is a more measured professional voice; `faq` is the in-app helpdesk
+/// linked from the bottom of the FAQ page.
+enum ChatPersona { casual, consult, faq }
 
 class ChatMessage {
   final String text;
@@ -34,6 +34,14 @@ extension ChatPersonaSystemPrompt on ChatPersona {
 可以幫用戶整理情緒、提出反思問題，但唔好提供醫療診斷；
 如果察覺危機跡象，提醒用戶搵專業人士或屋企人。回答最多五句。
 ''';
+      case ChatPersona.faq:
+        return '''
+你係「小助」，呢個陪伴型 app 嘅內置客服助手。主要回答用戶對 app 功能、
+私隱、設定、無障礙、提醒等嘅問題。用簡單嘅繁體中文（或英文，跟住用戶語言），
+每次回覆最多四句。如果問題超出 app 範圍（例如醫療、法律），
+禮貌地建議用戶搵適合嘅專業人士；如果係危機傾向，提醒撥 999 或聯絡屋企人。
+''';
     }
   }
 }
+

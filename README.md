@@ -1,139 +1,193 @@
-# Companion Demo (陪伴型 App Demo)
+# Companion Demo · 陪伴型 App Demo
 
 > Built by **HKU Department of Industrial & Manufacturing Systems Engineering**
 > 香港大學工業及製造系統工程學系
 
-A Flutter-based demo of a companion app designed to help older adults
-navigate everyday loneliness. The product wraps four cooperating surfaces —
-**Home → Activities → Chat → About-you** — around a gentle, low-pressure
-interface with elder-friendly type sizes, big tap targets, and optional
-high-contrast theming. Settings sit in the AppBar gear so they're reachable
-from every tab.
+## 🤝 What is this?
 
-> Status: design + interaction demo. Most interactions log events but the
-> backend (Firestore) is only wired up for auth and profile today. See the
-> Roadmap section.
+A mobile app that helps **older adults in Hong Kong gently push back
+against loneliness**. It is not a clinical tool. Think of it as a patient,
+low-pressure pocket companion that remembers who matters to the user,
+nudges small daily connections, and sits next to them during rough
+moments.
 
----
+The app is a **Flutter design + interaction demo** — all surfaces are
+interactive, auth + profile are on Firebase, the chat module talks to
+DeepSeek (falls back to scripted replies if no key is configured).
 
-## Quick start
+## ✨ What users can do
+
+| Inside the app | One-sentence summary |
+| --- | --- |
+| 🏠 **Home (首頁)** | Friendly greeting, today's vibe, a social-log (who did I talk to today?), and quick-action tiles |
+| 🌿 **做點活動** | Warm, positive prompts for pleasant micro-activities — "send aunt a text", "sit in the park 15 mins" |
+| 💬 **傾偈 (Chat)** | Pick an AI companion — casual **阿暖** for small-talk, serious **李醫師** for reflection. Text or voice input |
+| 👤 **了解你 (About You)** | Profile + emergency contact editor, recent check-in glance, follow-up reminders & weekly progress |
+| ⚙️ **Settings gear** | High-contrast mode, language (繁中 / English), boundaries, FAQ with an **「我仲有問題」AI helpdesk** |
+
+Plus reachable from Home: quick check-in, social map, 静一静 breathing,
+community resources, emergency hotlines.
+
+## 👵 Who it's designed for
+
+- Hong Kong older adults (60+), Cantonese-first
+- Caregivers or family who set it up
+- Elder-friendly by default: body text is 20 pt with 1.55 line height,
+  every primary button is at least 60 px tall, optional **high-contrast
+  theme** flips everything to pure black-on-white with thick borders.
+
+## 🗺️ How the four tabs fit together
+
+```
+┌─────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
+│  Home   │ → │ 做點活動 │ → │  傾偈    │ → │ 了解你   │
+│ greet   │   │ feel     │   │ talk     │   │ remember │
+└─────────┘   └──────────┘   └──────────┘   └──────────┘
+                                                    ▲
+                               Settings gear ───────┘
+                               (in AppBar, every tab)
+```
+
+## 🚀 Run it
 
 ```bash
 flutter pub get
 flutter run
 ```
 
-The app boots in **guest mode** when Firebase isn't configured, so you can
-explore the UI without credentials. Language and high-contrast toggles
-still work; the login page shows an amber "guest mode" banner.
+The app **boots even without Firebase configured** — you'll land in guest
+mode where the UI, theme, and language switching all work. To enable real
+login + profile storage, follow **[SETUP_FIREBASE.md](./SETUP_FIREBASE.md)**.
 
-To turn real email/password auth on, follow **[SETUP_FIREBASE.md](./SETUP_FIREBASE.md)**.
+To enable real AI chat, see the _Chat module_ section further down.
 
-## Tech stack
+## 🧰 Tech stack
 
-- **Flutter** (Dart 3.9+) targeting Android, iOS, web, macOS, Windows, Linux.
-- **Material 3** theming with a custom elder-friendly base theme
-  (large type, tall buttons, comfortable density) and a high-contrast variant.
-- **Firebase Auth** (email/password) and **Cloud Firestore** for profile +
-  analytics persistence.
-- **flutter_localizations** + generated `AppLocalizations` (繁體中文 / English).
-- No external state-management package — a small `ChangeNotifier`
-  (`AppSettings`) surfaced through `InheritedNotifier` keeps theme, locale
-  and the current profile in sync across the tree.
+- **Flutter** (Dart 3.9+) — Android / iOS / web / macOS / Windows / Linux.
+- **Material 3** with an elder-friendly base theme + a high-contrast variant (`lib/app/app_theme.dart`).
+- **Firebase Auth + Cloud Firestore** for auth, profile, and analytics writes.
+- **DeepSeek API** (placeholder) for the chat personas.
+- **flutter_localizations** — 繁體中文 + English, switchable at runtime.
+- No extra state-management package: a `ChangeNotifier` called `AppSettings` exposed through `InheritedNotifier` carries theme / locale / profile.
 
-## Tab map
+## 📚 Documentation map
 
-| Tab | File entry point | Purpose |
+| File | What's in it |
+| --- | --- |
+| [`README.md`](./README.md) | This file — overview + where things live |
+| [`REPORT.md`](./REPORT.md) | Capability snapshot (what's shipped / missing / next) |
+| [`SETUP_FIREBASE.md`](./SETUP_FIREBASE.md) | Step-by-step to turn Firebase on |
+
+---
+
+## 🧭 Where each feature lives
+
+### Tabs
+
+| Tab | Entry point | Notes |
 | --- | --- | --- |
-| Home (首頁) | `lib/features/home/presentation/pages/home_page.dart` | Greeting hero, today's vibe, social-log card, quick actions |
-| 做點活動 (Activities) | `lib/features/action_support/presentation/pages/action_support_page.dart` | Pleasant micro-activities, opener lines, things to try |
-| 傾偈 (Chat) | `lib/features/chat/presentation/pages/chat_landing_page.dart` | Two AI personas — casual `阿暖` and consult `李醫師` — text + voice input |
-| 了解你 (About You) | `lib/features/personalization/presentation/pages/personalization_page.dart` | Profile editor, recent state glance, follow-up (reminders / progress / pace) |
-
-Settings (顯示、語言、提醒、簡介) live behind the AppBar gear icon — reachable from every tab.
+| Home | `lib/features/home/presentation/pages/home_page.dart` | Greeting hero, vibe bars, social log, quick actions |
+| 做點活動 | `lib/features/action_support/presentation/pages/action_support_page.dart` | Positive reframing of old "support" tab |
+| 傾偈 | `lib/features/chat/presentation/pages/chat_landing_page.dart` | Persona picker → `chat_page.dart` |
+| 了解你 | `lib/features/personalization/presentation/pages/personalization_page.dart` | Profile editor + recent state + follow-up |
 
 ### Surfaces reachable from Home / Activities
 
-| Module | File entry point | Purpose |
+| Area | Entry point |
+| --- | --- |
+| Auth | `lib/features/auth/` |
+| Quick check-in / social map / reflection | `lib/features/context/presentation/pages/` |
+| 靜一靜 breathing | `lib/features/wellbeing/presentation/pages/calm_page.dart` |
+| Emergency | `lib/features/crisis/presentation/pages/emergency_support_page.dart` |
+| Community resources | `lib/features/resources/presentation/pages/community_resources_page.dart` |
+| Follow-up page | `lib/features/follow_up/presentation/pages/follow_up_page.dart` |
+
+### Settings (behind the AppBar gear)
+
+`lib/features/settings/presentation/pages/settings_page.dart` — font
+scale preview, high-contrast, language, notifications, profile card,
+boundaries, **FAQ** (with the "我仲有問題" AI helpdesk at the bottom),
+and privacy policy (`zhaojyxs@connect.hku.hk`, 香港大學 趙先生).
+
+## 💬 Chat module
+
+`lib/features/chat/` — three personas, each with their own avatar,
+gradient, and system prompt:
+
+| Persona | Where it appears | Purpose |
 | --- | --- | --- |
-| Auth | `lib/features/auth/` | Email/password sign-in & sign-up, profile capture, guest-mode fallback |
-| Context (legacy) | `lib/features/context/presentation/pages/` | Quick check-in, social map, reflection (linked from Home grid) |
-| Wellbeing | `lib/features/wellbeing/presentation/pages/calm_page.dart` | Guided breathing + 5-4-3-2-1 grounding |
-| Crisis | `lib/features/crisis/presentation/pages/emergency_support_page.dart` | Hotlines + immediate help |
-| Resources | `lib/features/resources/presentation/pages/community_resources_page.dart` | Elder centres, events, volunteer services |
-| Follow-up (page) | `lib/features/follow_up/presentation/pages/follow_up_page.dart` | Standalone follow-up surface; same `FollowUpSection` widget is also embedded in 了解你 |
+| **阿暖** — `casual` | Chat tab | Light daily small-talk, warm and short |
+| **李醫師** — `consult` | Chat tab | Measured, reflection-oriented |
+| **小助** — `faq` | Bottom of FAQ page | Answers questions about the app itself |
 
-## Chat module
+All three share the same backend pipeline:
 
-`lib/features/chat/` contains the conversation surfaces:
+```
+ChatPage ── ChatBackend (interface)
+            ├── ScriptedChatBackend   (offline, canned replies — ships today)
+            └── DeepseekChatBackend   (calls DeepSeek /chat/completions)
+```
 
-- `data/chat_models.dart` — `ChatPersona { casual, consult }` + per-persona system prompts
-- `data/chat_backend.dart` — abstract `ChatBackend`; `ScriptedChatBackend` for the offline demo, `DeepseekChatBackend` skeleton with TODOs for the real DeepSeek wiring
-- `presentation/pages/chat_landing_page.dart` — picks a persona
-- `presentation/pages/chat_page.dart` — animated chat surface with text input, a voice-input stub (fake recording for ~1s, then drops a placeholder string), typing indicator, fade-in bubbles
-- `presentation/widgets/persona_avatar.dart` — gradient avatars wrapped in a `Hero` so they fly from landing → chat header
+To wire DeepSeek for real:
 
-To wire DeepSeek for real, follow the TODOs in `chat_backend.dart`: add `http: ^1.2.0`, pass an API key via `--dart-define=DEEPSEEK_API_KEY=...`, and POST to `/chat/completions`.
+1. `flutter pub add http`
+2. Pass the key at run time: `--dart-define=DEEPSEEK_API_KEY=sk-…`
+3. Fill in the `TODO(deepseek)` block inside `chat_backend.dart` — POST
+   to `https://api.deepseek.com/chat/completions` with
+   `persona.systemPrompt` as the system message.
 
-## Architecture notes
+Voice input in `chat_page.dart` is currently a visual stub (pulses the
+mic for 1s, drops a placeholder string). Wire `speech_to_text` later.
 
-- `lib/app/` holds the root-level scaffolding: `MyApp`, `MainShell` (bottom
-  nav), theme, and the `AppSettings` notifier plus its inherited scope.
-- Each feature follows `lib/features/<name>/data|presentation/pages|widgets/`.
-- `lib/shared/widgets/figure_placeholder.dart` is a highlighted box that
-  marks where a real illustration / photo / map should eventually sit. The
+## 📊 Analytics
+
+`AnalyticsService` (`lib/features/analytics/data/analytics_service.dart`)
+records behaviour to `users/{uid}/events/` in Firestore. Guest sessions
+buffer in memory and flush on sign-in.
+
+Captured events: `session_start` / `session_end` (with
+`duration_seconds`), `tab_view`, `check_in_submitted`,
+`social_log_entry`, `opener_copied`, `emergency_opened`, and auth
+events. No PII in payloads — the social-log event stores
+`summaryLength` (int) rather than the text itself.
+
+## 🏗️ Architecture notes
+
+- `lib/app/` — root scaffolding (`MyApp`, `MainShell` with bottom nav,
+  theme, `AppSettings` notifier + scope).
+- `lib/features/<name>/data|presentation/pages|widgets/` — feature slice.
+- `lib/shared/widgets/figure_placeholder.dart` — highlighted amber box
+  that marks where a real illustration / photo / map should sit. The
   design brief for each placeholder is embedded in the source.
-- Localization: strings live in `lib/l10n/app_{en,zh}.arb`; the Dart
-  classes in `lib/l10n/app_localizations*.dart` are also committed to the
-  repo (matching existing project convention).
+- Localization: ARBs in `lib/l10n/`; the generated Dart classes are
+  checked in alongside to match project convention.
 
-## Accessibility
+## ♿ Accessibility
 
-- Base body text size 20px with 1.55 line-height; headlines from 22–32px.
-- Buttons are minimum 56–60px tall.
-- **High-contrast mode** (Settings → 顯示設定): swaps to pure black-on-white
-  with 2px borders. Controlled by `AppSettings.highContrast`, applied via
-  `AppTheme.highContrast`.
-- **Language switcher** (Settings → 語言): toggles between 繁體中文 and
-  English; takes effect immediately. Persisted per-user in Firestore.
+- Body 20 pt, line-height 1.55, headlines 22–32 pt.
+- Primary buttons ≥ 60 px tall.
+- **High-contrast mode** — pure black-on-white with 2 px borders on
+  cards and inputs. Controlled by `AppSettings.highContrast`, applied
+  via `AppTheme.highContrast`.
+- **Language** — zh / en switchable at runtime via Settings → 語言;
+  choice round-trips through the Firestore profile.
 
-## Analytics / data collection
-
-User behaviour is recorded through `AnalyticsService`
-(`lib/features/analytics/data/analytics_service.dart`). Every signed-in
-session writes events to `users/{uid}/events/`; guest sessions are buffered
-in memory and printed in debug builds.
-
-What's captured today:
-
-- **Session lifecycle** — `session_start`, `session_end` with
-  `duration_seconds` (app foreground/background time).
-- **Tab dwell time** — `tab_view` with `tab` + `duration_seconds` as the
-  user moves around the bottom nav.
-- **Check-in submissions** — mood / loneliness / social-energy values.
-- **Social log entries** — who the user said they reached out to, the
-  written summary length, and the feeling chip selected.
-- **Conversation openers** — which opener was copied and to whom.
-- **Navigation into crisis surfaces** — when the emergency / calm / resources
-  pages are opened.
-- **Auth events** — sign-up, sign-in, sign-out.
-
-See **[REPORT.md](./REPORT.md)** for a snapshot of current capabilities and
-what's missing.
-
-## Roadmap (short-term)
+## 🛣️ Roadmap
 
 - Persist locale + high-contrast to disk for guest sessions
   (`shared_preferences`).
-- Remote config for the daily suggestion, tiny steps, and opener copy.
-- Replace the `FigurePlaceholder` boxes with real illustrations.
-- Harden Firestore rules (see `SETUP_FIREBASE.md`).
+- Remote config for the daily suggestion, tiny steps, opener copy.
+- Replace `FigurePlaceholder` boxes with real illustrations.
+- Harden Firestore security rules (template in `SETUP_FIREBASE.md`).
+- Real voice input (`speech_to_text`) in the chat module.
 
-## Credits
+## 👥 Credits & contact
 
-Built by the **Department of Industrial & Manufacturing Systems Engineering,
-The University of Hong Kong (HKU IMSE)** as a research / teaching prototype.
-香港大學工業及製造系統工程學系。
+Built by the **Department of Industrial & Manufacturing Systems
+Engineering, The University of Hong Kong (HKU IMSE)** as a research /
+teaching prototype. 香港大學工業及製造系統工程學系。
+
+Privacy / general contact: **zhaojyxs@connect.hku.hk** — 香港大學 趙先生.
 
 ## Licence
 
