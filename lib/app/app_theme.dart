@@ -6,13 +6,29 @@ class AppTheme {
   static const Color _inkMuted = Color(0xFF334155);
   static const Color _surface = Color(0xFFF8FAFC);
 
-  static ThemeData get light {
-    final colorScheme = ColorScheme.fromSeed(
+  static ThemeData get light => _build(highContrast: false);
+
+  static ThemeData get highContrast => _build(highContrast: true);
+
+  static ThemeData _build({required bool highContrast}) {
+    final Color ink = highContrast ? Colors.black : _ink;
+    final Color inkMuted = highContrast ? Colors.black : _inkMuted;
+    final Color surface = highContrast ? Colors.white : _surface;
+    final Color cardColor = Colors.white;
+    final Color primary = highContrast ? Colors.black : _seed;
+    final Color outline = highContrast ? Colors.black : const Color(0xFFCBD5E1);
+
+    final baseScheme = ColorScheme.fromSeed(
       seedColor: _seed,
       brightness: Brightness.light,
-    ).copyWith(
-      onSurface: _ink,
-      onSurfaceVariant: _inkMuted,
+    );
+    final colorScheme = baseScheme.copyWith(
+      primary: primary,
+      onPrimary: Colors.white,
+      onSurface: ink,
+      onSurfaceVariant: inkMuted,
+      outline: outline,
+      outlineVariant: outline,
     );
 
     final baseTextTheme = ThemeData.light().textTheme;
@@ -65,33 +81,35 @@ class AppTheme {
             fontWeight: FontWeight.w600,
           ),
         )
-        .apply(bodyColor: _ink, displayColor: _ink);
+        .apply(bodyColor: ink, displayColor: ink);
+
+    final borderWidth = highContrast ? 2.0 : 1.0;
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: _surface,
+      scaffoldBackgroundColor: surface,
       textTheme: textTheme,
       visualDensity: VisualDensity.comfortable,
-      iconTheme: const IconThemeData(size: 28, color: _ink),
-      primaryIconTheme: const IconThemeData(size: 28, color: _ink),
+      iconTheme: IconThemeData(size: 28, color: ink),
+      primaryIconTheme: IconThemeData(size: 28, color: ink),
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
         toolbarHeight: 72,
-        backgroundColor: _surface,
-        foregroundColor: _ink,
+        backgroundColor: surface,
+        foregroundColor: ink,
         titleTextStyle: textTheme.headlineSmall,
-        iconTheme: const IconThemeData(size: 32, color: _ink),
+        iconTheme: IconThemeData(size: 32, color: ink),
       ),
       cardTheme: CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
-        color: Colors.white,
+        color: cardColor,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: colorScheme.outlineVariant),
+          side: BorderSide(color: outline, width: borderWidth),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
@@ -141,42 +159,44 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: cardColor,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-        hintStyle: const TextStyle(fontSize: 18, color: _inkMuted),
+        hintStyle: TextStyle(fontSize: 18, color: inkMuted),
         labelStyle: const TextStyle(fontSize: 18),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: colorScheme.outlineVariant),
+          borderSide: BorderSide(color: outline, width: borderWidth),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: colorScheme.outlineVariant),
+          borderSide: BorderSide(color: outline, width: borderWidth),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+          borderSide: BorderSide(color: primary, width: borderWidth + 1),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: 88,
-        backgroundColor: Colors.white,
-        indicatorColor: colorScheme.primaryContainer,
+        backgroundColor: cardColor,
+        indicatorColor: highContrast ? primary : colorScheme.primaryContainer,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return TextStyle(
             fontSize: 15,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? colorScheme.primary : _inkMuted,
+            color: selected ? primary : inkMuted,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
             size: 30,
-            color: selected ? colorScheme.primary : _inkMuted,
+            color: selected
+                ? (highContrast ? Colors.white : primary)
+                : inkMuted,
           );
         }),
       ),
