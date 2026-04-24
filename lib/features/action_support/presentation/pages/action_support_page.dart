@@ -11,8 +11,99 @@ class ActionSupportPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+
+    final tinySteps = isEn
+        ? const [
+            _StepData(
+              effort: '2 min',
+              icon: Icons.sms_outlined,
+              title: 'Send a text to a relative',
+              detail: '"Good morning — hope you\'re well!"',
+              why: 'Feel connected',
+              whyIcon: Icons.favorite_outline,
+            ),
+            _StepData(
+              effort: '5 min',
+              icon: Icons.phone_in_talk_outlined,
+              title: 'Call a friend',
+              detail: 'Ask how their weekend went. Share one small thing about yours.',
+              why: 'Reconnect',
+              whyIcon: Icons.link_rounded,
+            ),
+            _StepData(
+              effort: '15 min',
+              icon: Icons.park_outlined,
+              title: 'Stroll in the park',
+              detail: 'Bring water  •  enjoy the sunshine.',
+              why: 'Refresh body & mind',
+              whyIcon: Icons.wb_sunny_outlined,
+            ),
+          ]
+        : const [
+            _StepData(
+              effort: '2 分鐘',
+              icon: Icons.sms_outlined,
+              title: '同表姐傳個短訊',
+              detail: '「早晨，幾時飲茶？」',
+              why: '感受連結',
+              whyIcon: Icons.favorite_outline,
+            ),
+            _StepData(
+              effort: '5 分鐘',
+              icon: Icons.phone_in_talk_outlined,
+              title: '打電話畀阿May',
+              detail: '問聲週末點，順便分享你今日嘅一件小事。',
+              why: '重新接線',
+              whyIcon: Icons.link_rounded,
+            ),
+            _StepData(
+              effort: '15 分鐘',
+              icon: Icons.park_outlined,
+              title: '落公園散下步',
+              detail: '帶水　•　享受陽光。',
+              why: '舒展身心',
+              whyIcon: Icons.wb_sunny_outlined,
+            ),
+          ];
+
+    final openers = isEn
+        ? const [
+            _OpenerData(
+              audience: 'For family',
+              icon: Icons.family_restroom,
+              line: '"Thinking of you — have you eaten yet?"',
+            ),
+            _OpenerData(
+              audience: 'For friends',
+              icon: Icons.group_outlined,
+              line: '"It\'s been a while — how have you been lately?"',
+            ),
+            _OpenerData(
+              audience: 'For old classmates / colleagues',
+              icon: Icons.school_outlined,
+              line: '"Saw something and thought of you — just saying hi."',
+            ),
+          ]
+        : const [
+            _OpenerData(
+              audience: '畀屋企人',
+              icon: Icons.family_restroom,
+              line: '「諗起你，食咗飯未？」',
+            ),
+            _OpenerData(
+              audience: '畀朋友',
+              icon: Icons.group_outlined,
+              line: '「好耐冇傾，你最近點？」',
+            ),
+            _OpenerData(
+              audience: '畀舊同學／同事',
+              icon: Icons.school_outlined,
+              line: '「見到一樣嘢諗起你，講聲 hi。」',
+            ),
+          ];
 
     return SafeArea(
       child: ListView(
@@ -42,8 +133,10 @@ class ActionSupportPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const FigurePlaceholder(
-            description: '插畫：陽光照入窗，桌上有一壺熱茶同一本攤開嘅書，氣氛舒服。',
+          FigurePlaceholder(
+            description: isEn
+                ? 'Illustration: sunlight through a window, warm tea and an open book on a table.'
+                : '插畫：陽光照入窗，桌上有一壺熱茶同一本攤開嘅書，氣氛舒服。',
             height: 130,
             icon: Icons.local_florist_outlined,
           ),
@@ -53,7 +146,7 @@ class ActionSupportPage extends StatelessWidget {
               Expanded(
                 child: _QuickTile(
                   icon: Icons.self_improvement,
-                  label: '靜一靜',
+                  label: isEn ? 'Calm Down' : '靜一靜',
                   onTap: () {
                     AnalyticsScope.of(context)
                         .logEmergencyOpened(from: 'action_calm_tile');
@@ -69,7 +162,7 @@ class ActionSupportPage extends StatelessWidget {
               Expanded(
                 child: _QuickTile(
                   icon: Icons.map_outlined,
-                  label: '社區資源',
+                  label: isEn ? 'Community' : '社區資源',
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -84,71 +177,70 @@ class ActionSupportPage extends StatelessWidget {
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.local_florist_outlined,
-            title: '今日做啲令自己舒服嘅事',
+            title: isEn
+                ? 'Something comfortable for today'
+                : '今日做啲令自己舒服嘅事',
           ),
           const SizedBox(height: 14),
-          const _TinyStepCard(
-            effort: '2 分鐘',
-            icon: Icons.sms_outlined,
-            title: '同表姐傳個短訊',
-            detail: '「早晨，幾時飲茶？」',
-            why: '感受連結',
-            whyIcon: Icons.favorite_outline,
-          ),
+          ...tinySteps.map((s) => Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _TinyStepCard(step: s, isEn: isEn),
+              )),
           const SizedBox(height: 14),
-          const _TinyStepCard(
-            effort: '5 分鐘',
-            icon: Icons.phone_in_talk_outlined,
-            title: '打電話畀阿May',
-            detail: '問聲週末點，順便分享你今日嘅一件小事。',
-            why: '重新接線',
-            whyIcon: Icons.link_rounded,
-          ),
-          const SizedBox(height: 14),
-          const _TinyStepCard(
-            effort: '15 分鐘',
-            icon: Icons.park_outlined,
-            title: '落公園散下步',
-            detail: '帶水　•　享受陽光。',
-            why: '舒展身心',
-            whyIcon: Icons.wb_sunny_outlined,
-          ),
-          const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.chat_bubble_outline,
-            title: '想開口問候人？揀一句用得',
+            title: isEn
+                ? 'Want to reach out? Pick a line'
+                : '想開口問候人？揀一句用得',
           ),
           const SizedBox(height: 14),
-          const _OpenerCard(
-            audience: '畀屋企人',
-            icon: Icons.family_restroom,
-            line: '「諗起你，食咗飯未？」',
-          ),
-          const SizedBox(height: 12),
-          const _OpenerCard(
-            audience: '畀朋友',
-            icon: Icons.group_outlined,
-            line: '「好耐冇傾，你最近點？」',
-          ),
-          const SizedBox(height: 12),
-          const _OpenerCard(
-            audience: '畀舊同學／同事',
-            icon: Icons.school_outlined,
-            line: '「見到一樣嘢諗起你，講聲 hi。」',
-          ),
-          const SizedBox(height: 28),
+          ...openers.map((o) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _OpenerCard(data: o, isEn: isEn),
+              )),
+          const SizedBox(height: 14),
           _SectionHeader(
             icon: Icons.celebration_outlined,
-            title: '揀件喜歡嘅嚟試吓',
+            title: isEn ? 'Pick one you like and try it' : '揀件喜歡嘅嚟試吓',
           ),
           const SizedBox(height: 14),
-          const _ActivityGrid(),
+          _ActivityGrid(isEn: isEn),
           const SizedBox(height: 28),
-          const _SafetyFooter(),
+          _SafetyFooter(isEn: isEn),
         ],
       ),
     );
   }
+}
+
+class _StepData {
+  final String effort;
+  final IconData icon;
+  final String title;
+  final String detail;
+  final String why;
+  final IconData whyIcon;
+
+  const _StepData({
+    required this.effort,
+    required this.icon,
+    required this.title,
+    required this.detail,
+    required this.why,
+    required this.whyIcon,
+  });
+}
+
+class _OpenerData {
+  final String audience;
+  final IconData icon;
+  final String line;
+
+  const _OpenerData({
+    required this.audience,
+    required this.icon,
+    required this.line,
+  });
 }
 
 class _QuickTile extends StatelessWidget {
@@ -225,21 +317,10 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _TinyStepCard extends StatelessWidget {
-  final String effort;
-  final IconData icon;
-  final String title;
-  final String detail;
-  final String why;
-  final IconData whyIcon;
+  final _StepData step;
+  final bool isEn;
 
-  const _TinyStepCard({
-    required this.effort,
-    required this.icon,
-    required this.title,
-    required this.detail,
-    required this.why,
-    required this.whyIcon,
-  });
+  const _TinyStepCard({required this.step, required this.isEn});
 
   @override
   Widget build(BuildContext context) {
@@ -260,7 +341,7 @@ class _TinyStepCard extends StatelessWidget {
                     color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(icon,
+                  child: Icon(step.icon,
                       size: 30, color: theme.colorScheme.onPrimaryContainer),
                 ),
                 const SizedBox(width: 12),
@@ -268,7 +349,7 @@ class _TinyStepCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: theme.textTheme.titleLarge),
+                      Text(step.title, style: theme.textTheme.titleLarge),
                       const SizedBox(height: 4),
                       Wrap(
                         spacing: 6,
@@ -276,13 +357,13 @@ class _TinyStepCard extends StatelessWidget {
                         children: [
                           _Chip(
                             icon: Icons.timer_outlined,
-                            label: effort,
+                            label: step.effort,
                             color: theme.colorScheme.primaryContainer,
                             textColor: theme.colorScheme.onPrimaryContainer,
                           ),
                           _Chip(
-                            icon: whyIcon,
-                            label: why,
+                            icon: step.whyIcon,
+                            label: step.why,
                             color: theme.colorScheme.surfaceContainerHighest,
                             textColor: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -294,7 +375,7 @@ class _TinyStepCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Text(detail, style: theme.textTheme.bodyLarge),
+            Text(step.detail, style: theme.textTheme.bodyLarge),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -302,7 +383,7 @@ class _TinyStepCard extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: () {},
                     icon: const Icon(Icons.check_rounded, size: 24),
-                    label: const Text('會試'),
+                    label: Text(isEn ? 'I\'ll try' : '會試'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -310,7 +391,7 @@ class _TinyStepCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () {},
                     icon: const Icon(Icons.skip_next_rounded, size: 24),
-                    label: const Text('唔啱'),
+                    label: Text(isEn ? 'Not now' : '唔啱'),
                   ),
                 ),
               ],
@@ -363,15 +444,10 @@ class _Chip extends StatelessWidget {
 }
 
 class _OpenerCard extends StatelessWidget {
-  final String audience;
-  final IconData icon;
-  final String line;
+  final _OpenerData data;
+  final bool isEn;
 
-  const _OpenerCard({
-    required this.audience,
-    required this.icon,
-    required this.line,
-  });
+  const _OpenerCard({required this.data, required this.isEn});
 
   @override
   Widget build(BuildContext context) {
@@ -389,7 +465,7 @@ class _OpenerCard extends StatelessWidget {
                 color: theme.colorScheme.primaryContainer,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon,
+              child: Icon(data.icon,
                   size: 26, color: theme.colorScheme.onPrimaryContainer),
             ),
             const SizedBox(width: 12),
@@ -398,28 +474,28 @@ class _OpenerCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    audience,
+                    data.audience,
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: theme.colorScheme.primary,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(line, style: theme.textTheme.bodyLarge),
+                  Text(data.line, style: theme.textTheme.bodyLarge),
                 ],
               ),
             ),
             IconButton(
               onPressed: () {
                 AnalyticsScope.of(context)
-                    .logOpenerCopied(audience: audience);
+                    .logOpenerCopied(audience: data.audience);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('已複製：$line'),
+                    content: Text(isEn ? 'Copied: ${data.line}' : '已複製：${data.line}'),
                     duration: const Duration(seconds: 2),
                   ),
                 );
               },
-              tooltip: '複製',
+              tooltip: isEn ? 'Copy' : '複製',
               icon: const Icon(Icons.copy_rounded, size: 24),
             ),
           ],
@@ -430,40 +506,72 @@ class _OpenerCard extends StatelessWidget {
 }
 
 class _ActivityGrid extends StatelessWidget {
-  const _ActivityGrid();
+  final bool isEn;
+  const _ActivityGrid({required this.isEn});
 
   @override
   Widget build(BuildContext context) {
-    final activities = const [
-      _Activity(
-        icon: Icons.self_improvement,
-        title: '靜坐 3 分鐘',
-        tag: '一個人',
-        tagIcon: Icons.person_outline,
-        accent: Color(0xFFB6E1C9),
-      ),
-      _Activity(
-        icon: Icons.directions_walk,
-        title: '行 10 分鐘',
-        tag: '一個人',
-        tagIcon: Icons.person_outline,
-        accent: Color(0xFFB6E1C9),
-      ),
-      _Activity(
-        icon: Icons.local_cafe_outlined,
-        title: '約朋友飲茶',
-        tag: '約人',
-        tagIcon: Icons.handshake_outlined,
-        accent: Color(0xFFFFD8A8),
-      ),
-      _Activity(
-        icon: Icons.volunteer_activism_outlined,
-        title: '長者／社區中心',
-        tag: '見到人',
-        tagIcon: Icons.groups_2_outlined,
-        accent: Color(0xFFCFD8FF),
-      ),
-    ];
+    final activities = isEn
+        ? const [
+            _Activity(
+              icon: Icons.self_improvement,
+              title: 'Sit quietly 3 min',
+              tag: 'Solo',
+              tagIcon: Icons.person_outline,
+              accent: Color(0xFFB6E1C9),
+            ),
+            _Activity(
+              icon: Icons.directions_walk,
+              title: 'Walk 10 min',
+              tag: 'Solo',
+              tagIcon: Icons.person_outline,
+              accent: Color(0xFFB6E1C9),
+            ),
+            _Activity(
+              icon: Icons.local_cafe_outlined,
+              title: 'Meet a friend for tea',
+              tag: 'Social',
+              tagIcon: Icons.handshake_outlined,
+              accent: Color(0xFFFFD8A8),
+            ),
+            _Activity(
+              icon: Icons.volunteer_activism_outlined,
+              title: 'Elderly / community centre',
+              tag: 'With others',
+              tagIcon: Icons.groups_2_outlined,
+              accent: Color(0xFFCFD8FF),
+            ),
+          ]
+        : const [
+            _Activity(
+              icon: Icons.self_improvement,
+              title: '靜坐 3 分鐘',
+              tag: '一個人',
+              tagIcon: Icons.person_outline,
+              accent: Color(0xFFB6E1C9),
+            ),
+            _Activity(
+              icon: Icons.directions_walk,
+              title: '行 10 分鐘',
+              tag: '一個人',
+              tagIcon: Icons.person_outline,
+              accent: Color(0xFFB6E1C9),
+            ),
+            _Activity(
+              icon: Icons.local_cafe_outlined,
+              title: '約朋友飲茶',
+              tag: '約人',
+              tagIcon: Icons.handshake_outlined,
+              accent: Color(0xFFFFD8A8),
+            ),
+            _Activity(
+              icon: Icons.volunteer_activism_outlined,
+              title: '長者／社區中心',
+              tag: '見到人',
+              tagIcon: Icons.groups_2_outlined,
+              accent: Color(0xFFCFD8FF),
+            ),
+          ];
 
     return Column(
       children: activities
@@ -554,7 +662,8 @@ class _ActivityTile extends StatelessWidget {
 }
 
 class _SafetyFooter extends StatelessWidget {
-  const _SafetyFooter();
+  final bool isEn;
+  const _SafetyFooter({required this.isEn});
 
   @override
   Widget build(BuildContext context) {
@@ -587,14 +696,14 @@ class _SafetyFooter extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '撐唔住？　→　撥 999',
+                      isEn ? 'Can\'t cope? → Call 999' : '撐唔住？　→　撥 999',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '睇所有支援熱線',
+                      isEn ? 'View all support hotlines' : '睇所有支援熱線',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w600,

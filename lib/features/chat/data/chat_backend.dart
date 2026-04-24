@@ -1,15 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
+
+import 'package:http/http.dart' as http;
 
 import 'chat_models.dart';
 
-/// Strategy interface for "how does the bot reply?". Lets the UI stay
-/// ignorant of whether responses come from a scripted demo or a real
-/// remote model.
+/// Strategy interface for "how does the bot reply?".
 abstract class ChatBackend {
-  /// Returns the assistant's reply for the given user message. Implementations
-  /// should treat [history] as read-only context (the latest user turn is
-  /// already appended at the end).
   Future<String> reply({
     required ChatPersona persona,
     required List<ChatMessage> history,
@@ -17,9 +15,7 @@ abstract class ChatBackend {
   });
 }
 
-/// Default offline backend so the demo works without an API key. Picks a
-/// gentle response from a small canned set per persona, with a small
-/// artificial delay so the typing indicator has something to render.
+/// Default offline backend so the demo works without an API key.
 class ScriptedChatBackend implements ChatBackend {
   static final _rand = Random();
 
@@ -63,32 +59,21 @@ class ScriptedChatBackend implements ChatBackend {
   }
 }
 
-/// Skeleton for the DeepSeek-powered backend.
-///
-/// **Not wired yet.** To finish:
-///
-/// 1. Add `http: ^1.2.0` to pubspec.yaml.
-/// 2. Set `_apiKey` from `--dart-define=DEEPSEEK_API_KEY=...` instead of
-///    hard-coding it. Do not commit a real key.
-/// 3. Implement [reply] by POSTing to
-///    `https://api.deepseek.com/chat/completions` with the chat history
-///    converted to `{role, content}` pairs and `persona.systemPrompt`
-///    as the first system message.
-/// 4. Surface failures as a friendly bot message instead of throwing so
-///    the UI never gets stuck.
-///
-/// Until then [reply] just defers to [ScriptedChatBackend] so the rest of
-/// the app keeps working.
+/// DeepSeek-powered backend. Pass the API key at build time via
+/// `--dart-define=DEEPSEEK_API_KEY=sk-...`; falls back to
+/// [ScriptedChatBackend] when no key is present.
 class DeepseekChatBackend implements ChatBackend {
-  DeepseekChatBackend({String? apiKey, ChatBackend? fallback})
-      : _apiKey = apiKey,
-        _fallback = fallback ?? ScriptedChatBackend();
+  static const _apiKey = String.fromEnvironment('DEEPSEEK_API_KEY');
+  static const _endpoint = 'https://api.deepseek.com/chat/completions';
 
-  // ignore: unused_field — placeholder for the real impl.
-  final String? _apiKey;
   final ChatBackend _fallback;
+  final http.Client _client;
 
-  bool get isConfigured => _apiKey != null && _apiKey.isNotEmpty;
+  DeepseekChatBackend({ChatBackend? fallback, http.Client? client})
+      : _fallback = fallback ?? ScriptedChatBackend(),
+        _client = client ?? http.Client();
+
+  bool get isConfigured => _apiKey.isNotEmpty;
 
   @override
   Future<String> reply({
@@ -103,8 +88,48 @@ class DeepseekChatBackend implements ChatBackend {
         userMessage: userMessage,
       );
     }
-    // TODO(deepseek): POST to /chat/completions with persona.systemPrompt
-    // as the first message and history mapped to {role, content}.
+
+    final messages = <Map<String, String>>[
+      {'role': 'system', 'content': persona.systemPrompt},
+      // Include prior turns for context (skip the last — it's the user turn
+      // we're replying to, already included as userMessage below).
+      for (final m in history.take(history.length - 1))
+        {'role': m.fromUser ? 'user' : 'assistant', 'content': m.text},
+      {'role': 'user', 'content': userMessage},
+    ];
+
+    try {
+      final response = await _client
+          .post(
+            Uri.parse(_endpoint),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $_apiKey',
+            },
+            body: jsonEncode({
+              'model': 'deepseek-chat',
+              'messages': messages,
+              'max_tokens': 256,
+              'temperature': 0.7,
+            }),
+          )
+          .timeout(const Duration(seconds: 20));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final content =
+            data['choices'][0]['message']['content'] as String? ?? '';
+        return content.trim().isNotEmpty ? content.trim() : await _fallback.reply(
+          persona: persona,
+          history: history,
+          userMessage: userMessage,
+        );
+      }
+      // Non-200: fall through to fallback.
+    } catch (_) {
+      // Network error or timeout: fall through to fallback.
+    }
+
     return _fallback.reply(
       persona: persona,
       history: history,
