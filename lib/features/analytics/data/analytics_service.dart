@@ -165,7 +165,10 @@ class AnalyticsService {
   static String _newId() {
     final rand = Random.secure();
     final now = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
-    final noise = rand.nextInt(1 << 32).toRadixString(36);
+    // Use the literal 2^32 instead of `1 << 32` because bit-shifts on
+    // Dart-for-web (JS) are limited to 32 bits and `1 << 32` evaluates
+    // to 0, which makes Random.nextInt throw RangeError.
+    final noise = rand.nextInt(0x100000000).toRadixString(36);
     return '$now-$noise';
   }
 }
