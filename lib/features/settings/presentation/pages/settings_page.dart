@@ -32,27 +32,16 @@ class _SettingsPageState extends State<SettingsPage> {
     final isEn = settings.locale.languageCode == 'en';
     final language = isEn ? _AppLanguage.english : _AppLanguage.cantonese;
 
-    return SafeArea(
+    return Scaffold(
+      appBar: AppBar(
+        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
+        title: Text(l10n.settingsTab),
+        toolbarHeight: 64,
+      ),
+      body: SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.settings,
-                size: 36,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  l10n.settingsTab,
-                  style: theme.textTheme.headlineMedium,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
           Text(
             l10n.settingsSubtitle,
             style: theme.textTheme.bodyLarge,
@@ -166,6 +155,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
