@@ -34,10 +34,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get developerCredit =>
-      'Built by HKU Department of Industrial & Manufacturing Systems Engineering';
+      'Built by HKU Department of Data and Systems Engineering';
 
   @override
-  String get developerCreditShort => 'HKU IMSE';
+  String get developerCreditShort => 'HKU DSE';
 
   @override
   String get homeSubtitle => 'This is the home overview for the demo.';

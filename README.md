@@ -1,7 +1,7 @@
 # Companion Demo · 陪伴型 App Demo
 
-> **HKU Department of Industrial & Manufacturing Systems Engineering**
-> 香港大學工業及製造系統工程學系
+> **HKU Department of Data and Systems Engineering**
+> 香港大學數據及系統工程學系
 
 A Flutter demo app that helps **older adults in Hong Kong gently push back against loneliness** — not a clinical tool, but a low-pressure companion for daily connection.
 
@@ -56,7 +56,7 @@ flutter run --dart-define=DEEPSEEK_API_KEY=sk-...
 ## TODO
 
 - [ ] **Voice input** — wire `speech_to_text` package in `chat_page.dart` (`_toggleVoice`)
-- [ ] **Illustrations** — replace `FigurePlaceholder` amber boxes with real artwork
+- [ ] **Illustrations** — replace `FigurePlaceholder` amber boxes with real artwork. See **[IMAGES.md](./IMAGES.md)** for prompts and drop-in instructions.
 - [ ] **Guest persistence** — save locale + high-contrast to `shared_preferences` for guest sessions
 - [ ] **Remote content** — move daily suggestions, tiny steps, and opener lines to remote config
 - [ ] **Local notifications** — follow-up reminders via `flutter_local_notifications`
@@ -71,6 +71,7 @@ flutter run --dart-define=DEEPSEEK_API_KEY=sk-...
 | `README.md` | This file |
 | `REPORT.md` | Capability snapshot |
 | `SETUP_FIREBASE.md` | Firebase setup steps |
+| `IMAGES.md` | Image-prompt checklist for illustration swap-in |
 
 ---
 
