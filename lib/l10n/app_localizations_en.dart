@@ -15,16 +15,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeTab => 'Home';
 
   @override
-  String get contextTab => 'Context';
+  String get contextTab => 'About You';
 
   @override
-  String get actionTab => 'Support';
+  String get actionTab => 'Activities';
 
   @override
   String get followUpTab => 'Follow-up';
 
   @override
   String get settingsTab => 'Settings';
+
+  @override
+  String get chatTab => 'Chat';
+
+  @override
+  String get chatSubtitle => 'Pick someone to chat with.';
+
+  @override
+  String get developerCredit =>
+      'Built by HKU Department of Industrial & Manufacturing Systems Engineering';
+
+  @override
+  String get developerCreditShort => 'HKU IMSE';
 
   @override
   String get homeSubtitle => 'This is the home overview for the demo.';
@@ -34,10 +47,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Four modules: Trust → Context → Action → Follow-up.';
 
   @override
-  String get contextSubtitle => 'Check-ins, social map, recent moments.';
+  String get contextSubtitle => 'Your details, recent state, follow-up cadence.';
 
   @override
-  String get actionSubtitle => 'Prompts, openers, activities.';
+  String get actionSubtitle => 'Pick something pleasant and just start.';
 
   @override
   String get followUpSubtitle => 'Reminders, progress, pacing.';

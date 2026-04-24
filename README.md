@@ -1,10 +1,14 @@
 # Companion Demo (陪伴型 App Demo)
 
+> Built by **HKU Department of Industrial & Manufacturing Systems Engineering**
+> 香港大學工業及製造系統工程學系
+
 A Flutter-based demo of a companion app designed to help older adults
-navigate everyday loneliness. The product wraps four cooperating modules —
-**trust building → context understanding → action support → steady
-follow-up** — around a gentle, low-pressure interface with elder-friendly
-type sizes, big tap targets, and optional high-contrast theming.
+navigate everyday loneliness. The product wraps four cooperating surfaces —
+**Home → Activities → Chat → About-you** — around a gentle, low-pressure
+interface with elder-friendly type sizes, big tap targets, and optional
+high-contrast theming. Settings sit in the AppBar gear so they're reachable
+from every tab.
 
 > Status: design + interaction demo. Most interactions log events but the
 > backend (Firestore) is only wired up for auth and profile today. See the
@@ -37,19 +41,39 @@ To turn real email/password auth on, follow **[SETUP_FIREBASE.md](./SETUP_FIREBA
   (`AppSettings`) surfaced through `InheritedNotifier` keeps theme, locale
   and the current profile in sync across the tree.
 
-## Feature map
+## Tab map
+
+| Tab | File entry point | Purpose |
+| --- | --- | --- |
+| Home (首頁) | `lib/features/home/presentation/pages/home_page.dart` | Greeting hero, today's vibe, social-log card, quick actions |
+| 做點活動 (Activities) | `lib/features/action_support/presentation/pages/action_support_page.dart` | Pleasant micro-activities, opener lines, things to try |
+| 傾偈 (Chat) | `lib/features/chat/presentation/pages/chat_landing_page.dart` | Two AI personas — casual `阿暖` and consult `李醫師` — text + voice input |
+| 了解你 (About You) | `lib/features/personalization/presentation/pages/personalization_page.dart` | Profile editor, recent state glance, follow-up (reminders / progress / pace) |
+
+Settings (顯示、語言、提醒、簡介) live behind the AppBar gear icon — reachable from every tab.
+
+### Surfaces reachable from Home / Activities
 
 | Module | File entry point | Purpose |
 | --- | --- | --- |
 | Auth | `lib/features/auth/` | Email/password sign-in & sign-up, profile capture, guest-mode fallback |
-| Home | `lib/features/home/presentation/pages/home_page.dart` | Greeting hero, today's vibe, social-log card, quick actions |
-| Context | `lib/features/context/presentation/pages/` | Quick check-in, social map, reflection |
-| Action support | `lib/features/action_support/presentation/pages/action_support_page.dart` | Tiny next steps, opener lines, activity suggestions |
-| Follow-up | `lib/features/follow_up/presentation/pages/follow_up_page.dart` | Reminders, weekly progress, pace adjustment, celebrations |
+| Context (legacy) | `lib/features/context/presentation/pages/` | Quick check-in, social map, reflection (linked from Home grid) |
 | Wellbeing | `lib/features/wellbeing/presentation/pages/calm_page.dart` | Guided breathing + 5-4-3-2-1 grounding |
 | Crisis | `lib/features/crisis/presentation/pages/emergency_support_page.dart` | Hotlines + immediate help |
 | Resources | `lib/features/resources/presentation/pages/community_resources_page.dart` | Elder centres, events, volunteer services |
-| Settings | `lib/features/settings/presentation/pages/settings_page.dart` | Font scale, high-contrast, language, profile, sign-out |
+| Follow-up (page) | `lib/features/follow_up/presentation/pages/follow_up_page.dart` | Standalone follow-up surface; same `FollowUpSection` widget is also embedded in 了解你 |
+
+## Chat module
+
+`lib/features/chat/` contains the conversation surfaces:
+
+- `data/chat_models.dart` — `ChatPersona { casual, consult }` + per-persona system prompts
+- `data/chat_backend.dart` — abstract `ChatBackend`; `ScriptedChatBackend` for the offline demo, `DeepseekChatBackend` skeleton with TODOs for the real DeepSeek wiring
+- `presentation/pages/chat_landing_page.dart` — picks a persona
+- `presentation/pages/chat_page.dart` — animated chat surface with text input, a voice-input stub (fake recording for ~1s, then drops a placeholder string), typing indicator, fade-in bubbles
+- `presentation/widgets/persona_avatar.dart` — gradient avatars wrapped in a `Hero` so they fly from landing → chat header
+
+To wire DeepSeek for real, follow the TODOs in `chat_backend.dart`: add `http: ^1.2.0`, pass an API key via `--dart-define=DEEPSEEK_API_KEY=...`, and POST to `/chat/completions`.
 
 ## Architecture notes
 
@@ -104,6 +128,12 @@ what's missing.
 - Remote config for the daily suggestion, tiny steps, and opener copy.
 - Replace the `FigurePlaceholder` boxes with real illustrations.
 - Harden Firestore rules (see `SETUP_FIREBASE.md`).
+
+## Credits
+
+Built by the **Department of Industrial & Manufacturing Systems Engineering,
+The University of Hong Kong (HKU IMSE)** as a research / teaching prototype.
+香港大學工業及製造系統工程學系。
 
 ## Licence
 

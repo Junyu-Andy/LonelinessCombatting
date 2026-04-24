@@ -1,26 +1,29 @@
 # Capability report — Companion Demo
 
-_Snapshot: reflects the state of `main` at the time this file was written.
+_Built by **HKU Department of Industrial & Manufacturing Systems Engineering**.
+Snapshot: reflects the state of `main` at the time this file was written.
 The app is a design + interaction demo: UI is production-quality, the data
-backend is partially wired (auth + profile + analytics writes). No ML /
-LLM components yet._
+backend is partially wired (auth + profile + analytics writes). LLM chat
+backend is scaffolded with a scripted fallback; DeepSeek hookup is left as
+a clearly-marked TODO._
 
 ## 1. Product surface
 
 | Area | State | Notes |
 | --- | --- | --- |
-| Home dashboard | ✅ | Gradient greeting hero, today's vibe bars, social-log card with inline entries, 8-tile quick-actions grid, daily-suggestion quote, boundary card |
-| Check-in | ✅ | Three sliders (mood / loneliness / social energy). Values flow to analytics |
-| Social map | ✅ | Static mock of close ties + acquaintance circles |
-| Reflection (互動反思) | ✅ | Prompt cards — no LLM follow-up yet |
-| Action support | ✅ | Tiny steps (effort + purpose chips), opener cards, activity grid colour-coded by social load |
-| Follow-up | ✅ | Reminder toggles, weekly progress bar, pace picker with dot meter, celebration list |
+| Bottom-nav shell | ✅ | 4 tabs — Home / 做點活動 / 傾偈 / 了解你. Settings sits in the AppBar gear, reachable from every tab. Animated tab title + cross-fade body |
+| Home dashboard | ✅ | Gradient greeting hero (with HKU IMSE chip), today's vibe bars, social-log card, 8-tile quick-actions grid, daily-suggestion quote, boundary card |
+| 做點活動 (Activities) | ✅ | Reframed positively. Pleasant micro-activities, opener lines, activity grid colour-coded by social load |
+| 傾偈 (Chat) | ✅ | Two AI personas (`阿暖` casual / `李醫師` consult) with distinct avatars, chat themes, system prompts. Animated bubbles, typing indicator, `Hero` avatar. Text input working; voice input is a stub |
+| 了解你 (About You) | ✅ | Profile card with bottom-sheet editor (`AuthService.updateProfile` → Firestore), recent state glance, embedded follow-up section |
+| Check-in | ✅ | Three sliders. Values flow to analytics |
+| Social map / reflection | ✅ | Linked from Home grid |
 | Calm / breathing | ✅ | Animated 4-4-6 box-breath cycle + grounding + tip cards |
-| Community resources | ✅ | Mock elder centres, events, volunteer services, link tiles |
-| Crisis / emergency | ✅ | Hotlines and immediate steps |
-| Settings | ✅ | Font scale (preview only), high-contrast (applied), language (applied), quiet hours + voice readback (toggle stubs), profile, sign-out |
+| Community resources | ✅ | Mock elder centres, events, volunteer services |
+| Crisis / emergency | ✅ | Hotlines, immediate steps |
+| Settings (modal) | ✅ | Font-scale preview, high-contrast (applied), language (applied), profile + sign-out, HKU IMSE attribution |
 | Auth (email/password) | ✅ | Firebase Auth, Firestore profile, sign-up captures display name / age group / emergency contact |
-| Onboarding | 🟡 | Slide deck exists but routed out of the app flow so it can be shown externally |
+| Onboarding | 🟡 | Slide deck still in repo but routed out of the in-app flow (shown externally) |
 
 ## 2. Platform & runtime
 
@@ -73,13 +76,15 @@ in.
 
 ## 6. What's next
 
-1. Ship real illustrations or stock imagery into the `FigurePlaceholder`
-   slots and remove the amber boxes.
-2. Add `shared_preferences` persistence for locale and high-contrast so
-   guest-mode choices survive restarts.
-3. Schedule local notifications for reminders on `flutter_local_notifications`.
-4. Firestore security rules (template in `SETUP_FIREBASE.md`).
-5. Analytics dashboard — either BigQuery export or a small admin view that
-   reads `users/{uid}/events`.
-6. LLM-assisted reflection (optional, behind a flag) once the core loop
-   is validated with real users.
+1. Wire `DeepseekChatBackend` to the real `/chat/completions` endpoint
+   (TODOs in `lib/features/chat/data/chat_backend.dart`). Pass the API key
+   via `--dart-define=DEEPSEEK_API_KEY=...`. Add `http: ^1.2.0` to pubspec.
+2. Replace the voice-input stub in `chat_page.dart` with `speech_to_text`
+   for real STT.
+3. Ship real illustrations into the `FigurePlaceholder` slots.
+4. `shared_preferences` persistence for locale + high-contrast so guest
+   choices survive cold restarts.
+5. Local notifications for reminders (`flutter_local_notifications`).
+6. Tighten Firestore security rules (template in `SETUP_FIREBASE.md`).
+7. Analytics surfacing — BigQuery export or an admin view over
+   `users/{uid}/events`.

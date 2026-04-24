@@ -21,8 +21,8 @@ class ActionSupportPage extends StatelessWidget {
           Row(
             children: [
               Icon(
-                Icons.lightbulb,
-                size: 36,
+                Icons.spa_rounded,
+                size: 34,
                 color: theme.colorScheme.primary,
               ),
               const SizedBox(width: 12),
@@ -34,16 +34,18 @@ class ActionSupportPage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             l10n.actionSubtitle,
-            style: theme.textTheme.bodyLarge,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 16),
           const FigurePlaceholder(
-            description: '插畫：腳印一步一步行向陽光下嘅小門，象徵微小但具體嘅行動。',
+            description: '插畫：陽光照入窗，桌上有一壺熱茶同一本攤開嘅書，氣氛舒服。',
             height: 130,
-            icon: Icons.directions_walk,
+            icon: Icons.local_florist_outlined,
           ),
           const SizedBox(height: 20),
           Row(
@@ -81,16 +83,16 @@ class ActionSupportPage extends StatelessWidget {
           ),
           const SizedBox(height: 28),
           _SectionHeader(
-            icon: Icons.stairs_outlined,
-            title: '今日可以行嘅一小步',
+            icon: Icons.local_florist_outlined,
+            title: '今日做啲令自己舒服嘅事',
           ),
           const SizedBox(height: 14),
           const _TinyStepCard(
             effort: '2 分鐘',
             icon: Icons.sms_outlined,
-            title: '傳短訊畀表姐',
+            title: '同表姐傳個短訊',
             detail: '「早晨，幾時飲茶？」',
-            why: '穩定支持',
+            why: '感受連結',
             whyIcon: Icons.favorite_outline,
           ),
           const SizedBox(height: 14),
@@ -98,7 +100,7 @@ class ActionSupportPage extends StatelessWidget {
             effort: '5 分鐘',
             icon: Icons.phone_in_talk_outlined,
             title: '打電話畀阿May',
-            detail: '問聲週末點。',
+            detail: '問聲週末點，順便分享你今日嘅一件小事。',
             why: '重新接線',
             whyIcon: Icons.link_rounded,
           ),
@@ -106,15 +108,15 @@ class ActionSupportPage extends StatelessWidget {
           const _TinyStepCard(
             effort: '15 分鐘',
             icon: Icons.park_outlined,
-            title: '落公園坐一陣',
-            detail: '帶水　•　唔使傾偈。',
-            why: '換環境',
-            whyIcon: Icons.refresh_rounded,
+            title: '落公園散下步',
+            detail: '帶水　•　享受陽光。',
+            why: '舒展身心',
+            whyIcon: Icons.wb_sunny_outlined,
           ),
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.chat_bubble_outline,
-            title: '唔知點開口？揀一句用得',
+            title: '想開口問候人？揀一句用得',
           ),
           const SizedBox(height: 14),
           const _OpenerCard(
@@ -136,8 +138,8 @@ class ActionSupportPage extends StatelessWidget {
           ),
           const SizedBox(height: 28),
           _SectionHeader(
-            icon: Icons.park_outlined,
-            title: '想換下節奏？試吓呢啲',
+            icon: Icons.celebration_outlined,
+            title: '揀件喜歡嘅嚟試吓',
           ),
           const SizedBox(height: 14),
           const _ActivityGrid(),

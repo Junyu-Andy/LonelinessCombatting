@@ -139,6 +139,18 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settingsTab;
 
+  /// No description provided for @chatTab.
+  String get chatTab;
+
+  /// No description provided for @chatSubtitle.
+  String get chatSubtitle;
+
+  /// No description provided for @developerCredit.
+  String get developerCredit;
+
+  /// No description provided for @developerCreditShort.
+  String get developerCreditShort;
+
   /// No description provided for @homeSubtitle.
   ///
   /// In en, this message translates to:
