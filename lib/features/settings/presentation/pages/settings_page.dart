@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../crisis/presentation/pages/emergency_support_page.dart';
+import 'faq_page.dart';
+import 'privacy_policy_page.dart';
 
 enum _FontScale { standard, large, xlarge }
 
@@ -116,7 +119,13 @@ class _SettingsPageState extends State<SettingsPage> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const FaqPage(),
+                  ),
+                );
+              },
               icon: const Icon(Icons.help_outline_rounded, size: 26),
               label: const Text('常見問題'),
             ),
@@ -125,7 +134,13 @@ class _SettingsPageState extends State<SettingsPage> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const PrivacyPolicyPage(),
+                  ),
+                );
+              },
               icon: const Icon(Icons.policy_outlined, size: 26),
               label: const Text('私隱政策'),
             ),
@@ -440,31 +455,46 @@ class _BoundaryCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.emergency_outlined,
-                    size: 26,
-                    color: theme.colorScheme.onErrorContainer,
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const EmergencySupportPage(),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      '如果有即時危機，請立即撥 999 或者搵屋企人。',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onErrorContainer,
-                        fontWeight: FontWeight.w600,
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.emergency_outlined,
+                      size: 26,
+                      color: theme.colorScheme.onErrorContainer,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '如果有即時危機，請立即撥 999 或者搵屋企人。',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onErrorContainer,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 26,
+                      color: theme.colorScheme.onErrorContainer,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

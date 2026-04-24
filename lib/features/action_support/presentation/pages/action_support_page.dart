@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../crisis/presentation/pages/emergency_support_page.dart';
+import '../../../resources/presentation/pages/community_resources_page.dart';
+import '../../../wellbeing/presentation/pages/calm_page.dart';
 
 class ActionSupportPage extends StatelessWidget {
   const ActionSupportPage({super.key});
@@ -33,6 +36,38 @@ class ActionSupportPage extends StatelessWidget {
           Text(
             l10n.actionSubtitle,
             style: theme.textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: _QuickTile(
+                  icon: Icons.self_improvement,
+                  label: '靜一靜',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const CalmPage(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _QuickTile(
+                  icon: Icons.map_outlined,
+                  label: '社區資源',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const CommunityResourcesPage(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 28),
           _SectionHeader(
@@ -90,6 +125,55 @@ class ActionSupportPage extends StatelessWidget {
           const SizedBox(height: 28),
           const _SafetyFooter(),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _QuickTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          child: Column(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  icon,
+                  size: 30,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                label,
+                style: theme.textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -391,24 +475,52 @@ class _SafetyFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              Icons.health_and_safety_outlined,
-              size: 28,
-              color: theme.colorScheme.primary,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const EmergencySupportPage(),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                '如果情緒好低落或者覺得撐唔住，請直接聯絡屋企人或者撥打緊急求助電話 999。',
-                style: theme.textTheme.bodyLarge,
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.health_and_safety_outlined,
+                size: 28,
+                color: theme.colorScheme.primary,
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '如果情緒好低落或者覺得撐唔住，請直接聯絡屋企人或者撥 999。',
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '按呢度睇所有即時支援熱線',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 28,
+                color: theme.colorScheme.primary,
+              ),
+            ],
+          ),
         ),
       ),
     );

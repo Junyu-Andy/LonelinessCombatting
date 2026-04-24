@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../context/presentation/pages/check_in_page.dart';
 import '../../../context/presentation/pages/social_map_page.dart';
+import '../../../crisis/presentation/pages/emergency_support_page.dart';
+import '../../../wellbeing/presentation/pages/calm_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -37,11 +39,29 @@ class HomePage extends StatelessWidget {
             },
           ),
           const SizedBox(height: 20),
+          _CalmShortcutCard(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const CalmPage(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
           const _ConnectionMomentCard(),
           const SizedBox(height: 20),
           _StructureHintCard(text: l10n.homeStructureHint),
           const SizedBox(height: 20),
-          const _BoundaryReminderCard(),
+          _BoundaryReminderCard(
+            onEmergency: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const EmergencySupportPage(),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -332,7 +352,9 @@ class _StructureHintCard extends StatelessWidget {
 }
 
 class _BoundaryReminderCard extends StatelessWidget {
-  const _BoundaryReminderCard();
+  final VoidCallback onEmergency;
+
+  const _BoundaryReminderCard({required this.onEmergency});
 
   @override
   Widget build(BuildContext context) {
@@ -369,7 +391,77 @@ class _BoundaryReminderCard extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onEmergency,
+                icon: const Icon(Icons.health_and_safety_outlined, size: 26),
+                label: const Text('打開即時支援'),
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CalmShortcutCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _CalmShortcutCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Icon(
+                  Icons.self_improvement,
+                  size: 36,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '覺得心煩？靜一靜',
+                      style: theme.textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '跟住節奏呼吸幾次，約一分鐘。',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 30,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
         ),
       ),
     );
