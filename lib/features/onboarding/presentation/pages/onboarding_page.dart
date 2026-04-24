@@ -46,11 +46,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
         icon: Icons.handshake_outlined,
         title: l10n.onboardingWelcomeTitle,
         body: l10n.onboardingWelcomeBody,
+        figureDescription: '插畫：兩隻手輕輕互相扶持嘅暖色 illustration。',
       ),
       _SlideData(
         icon: Icons.lightbulb_outline,
         title: l10n.onboardingHelpTitle,
         body: l10n.onboardingHelpBody,
+        figureDescription: '插畫：四個小圖示串連 — check-in、社交圈、行動、跟進。',
       ),
       _SlideData(
         icon: Icons.shield_outlined,
@@ -90,6 +92,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         title: slide.title,
                         body: slide.body,
                         bullets: slide.bullets,
+                        figureDescription: slide.figureDescription,
                       ),
                     )
                     .toList(),
@@ -166,11 +169,13 @@ class _SlideData {
   final String title;
   final String body;
   final List<String> bullets;
+  final String? figureDescription;
 
   const _SlideData({
     required this.icon,
     required this.title,
     required this.body,
     this.bullets = const [],
+    this.figureDescription,
   });
 }

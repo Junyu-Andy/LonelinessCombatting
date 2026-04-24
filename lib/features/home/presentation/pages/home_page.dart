@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/figure_placeholder.dart';
 import '../../../action_support/presentation/pages/action_support_page.dart';
 import '../../../context/presentation/pages/check_in_page.dart';
 import '../../../context/presentation/pages/reflection_page.dart';
@@ -56,7 +57,7 @@ class _HomePageState extends State<HomePage> {
           _SectionHeader(
             icon: Icons.apps_rounded,
             title: '想由邊度開始？',
-            subtitle: '揀一個你而家想用嘅功能。',
+            subtitle: '揀一個功能。',
           ),
           const SizedBox(height: 14),
           _QuickActionsGrid(
@@ -112,6 +113,12 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           const SizedBox(height: 24),
+          const FigurePlaceholder(
+            description: '插畫：兩個輪廓喺手機兩端微笑，象徵簡短嘅問候已經有溫度。',
+            height: 110,
+            icon: Icons.chat_bubble_outline,
+          ),
+          const SizedBox(height: 16),
           _DailySuggestionCard(
             onReachOut: () => _open(const SocialMapPage()),
           ),
@@ -214,13 +221,22 @@ class _GreetingHero extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            '歡迎返嚟 $appTitle。\n唔使急，揀一件你而家做到嘅事就得。',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.95),
-              height: 1.5,
-            ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Icon(Icons.spa_outlined,
+                  size: 20, color: Colors.white.withValues(alpha: 0.9)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '揀一件你而家做到嘅事 — $appTitle 陪你。',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.95),
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -392,19 +408,28 @@ class _SocialLogCardState extends State<_SocialLogCard> {
               ],
             ),
             const SizedBox(height: 6),
-            Text(
-              '寫低同邊個傾過、做過啲乜，幫你之後再睇返。',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+            Row(
+              children: [
+                Icon(Icons.note_alt_outlined,
+                    size: 18, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '寫低　•　之後睇返',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _personController,
               style: theme.textTheme.bodyLarge,
               decoration: const InputDecoration(
-                labelText: '同邊個？（可以唔填）',
-                hintText: '例如：阿May、表姐、同事',
+                labelText: '同邊個？',
+                hintText: '阿May / 表姐…',
                 prefixIcon: Icon(Icons.person_outline, size: 24),
               ),
             ),
@@ -415,15 +440,23 @@ class _SocialLogCardState extends State<_SocialLogCard> {
               style: theme.textTheme.bodyLarge,
               decoration: const InputDecoration(
                 labelText: '做咗啲乜？',
-                hintText: '例如：傳咗個語音問候，傾咗五分鐘。',
+                hintText: '傳語音、傾咗 5 分鐘…',
+                prefixIcon: Icon(Icons.edit_outlined, size: 24),
               ),
             ),
             const SizedBox(height: 14),
-            Text(
-              '感覺點？',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+            Row(
+              children: [
+                Icon(Icons.mood_outlined,
+                    size: 20, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Text(
+                  '感覺點？',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -703,23 +736,43 @@ class _DailySuggestionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              '試吓揀一個你熟悉嘅人，傳一句簡單嘅問候，例如：',
-              style: theme.textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: theme.colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Text(
-                '「早晨，今日你身體精神嗎？我諗起你。」',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Row(
+                children: [
+                  Icon(Icons.format_quote_rounded,
+                      size: 26, color: theme.colorScheme.onPrimaryContainer),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '「早晨，諗起你。」',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.bolt_outlined,
+                    size: 18, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '一句已經夠。',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
             SizedBox(
@@ -763,15 +816,27 @@ class _BoundaryReminderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Text(
-              '呢個 app 可以陪你整理心情同諗下下一步，但唔可以取代緊急支援。',
-              style: theme.textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '如果有即時需要，請聯絡屋企人、醫生，或者撥 999。',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w600,
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.emergency_outlined,
+                      size: 24, color: theme.colorScheme.onErrorContainer),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '緊急情況　→　撥 999',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 14),

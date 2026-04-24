@@ -31,63 +31,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeStructureHint =>
-      'This demo presents the product through four core modules: trust building, context understanding, action support, and steady follow-up.';
+      'Four modules: Trust → Context → Action → Follow-up.';
 
   @override
-  String get contextSubtitle =>
-      'Quick check-ins, social map, and recent interaction reflection will live here.';
+  String get contextSubtitle => 'Check-ins, social map, recent moments.';
 
   @override
-  String get actionSubtitle =>
-      'Tailored prompts, conversation starters, and activity suggestions will live here.';
+  String get actionSubtitle => 'Prompts, openers, activities.';
 
   @override
-  String get followUpSubtitle =>
-      'Reminders, progress review, and adaptive pacing will live here.';
+  String get followUpSubtitle => 'Reminders, progress, pacing.';
 
   @override
-  String get settingsSubtitle =>
-      'Language, system boundaries, and about this demo will live here.';
+  String get settingsSubtitle => 'Language, boundaries, about.';
 
   @override
-  String get onboardingWelcomeTitle => 'A calmer way to begin';
+  String get onboardingWelcomeTitle => 'A calmer start';
 
   @override
-  String get onboardingWelcomeBody =>
-      'This demo shows the overall structure of the app and how each core module connects together.';
+  String get onboardingWelcomeBody => "A quick look at the app's structure.";
 
   @override
-  String get onboardingHelpTitle => 'What this app can help with';
+  String get onboardingHelpTitle => 'How it can help';
 
   @override
   String get onboardingHelpBody =>
-      'It can guide check-ins, surface social context, suggest small next steps, and support steady follow-up.';
+      'Check-ins  •  social map  •  small steps  •  follow-up.';
 
   @override
   String get onboardingBoundaryTitle => 'System boundaries';
 
   @override
-  String get onboardingBoundaryBody =>
-      'This demo gives structure and suggestions. It does not replace emergency help, diagnosis, or professional care.';
+  String get onboardingBoundaryBody => 'Structure and suggestions only.';
 
   @override
-  String get onboardingBoundaryItemOne =>
-      'It can help you reflect and prepare.';
+  String get onboardingBoundaryItemOne => 'Reflect & prepare';
 
   @override
-  String get onboardingBoundaryItemTwo =>
-      'It can suggest small, concrete actions.';
+  String get onboardingBoundaryItemTwo => 'Small concrete actions';
 
   @override
-  String get onboardingBoundaryItemThree =>
-      'It should not be treated as crisis support.';
+  String get onboardingBoundaryItemThree => '❌ Not for crisis support';
 
   @override
-  String get onboardingStartTitle => 'Ready to enter the demo';
+  String get onboardingStartTitle => 'Enter the demo';
 
   @override
-  String get onboardingStartBody =>
-      'You can start with the main structure first. Detailed content for each module will be added step by step.';
+  String get onboardingStartBody => 'Explore at your own pace.';
 
   @override
   String get back => 'Back';
