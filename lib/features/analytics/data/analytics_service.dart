@@ -1,0 +1,171 @@
+import 'dart:async';
+import 'dart:math';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+
+/// Lightweight behaviour-analytics pipeline.
+///
+/// Design goals:
+/// - Works whether or not the user is signed in. When the user is a guest
+///   events are queued in memory and flushed on first sign-in, so we never
+///   lose the "first-touch" context.
+/// - Works whether or not Firebase is configured. When Firestore is
+///   unreachable we fall back to debug-printing so developers can still see
+///   the event stream while building.
+/// - Zero PII in payloads. Callers pass primitives (counts, enum names,
+///   durations); free-text fields are summarised to length rather than
+///   shipped verbatim.
+class AnalyticsService {
+  AnalyticsService({required this.firebaseReady})
+      : _sessionId = _newId();
+
+  /// Mirrors `AuthService.available` — when false the Firestore writer is
+  /// short-circuited and events only ever live in [_buffer].
+  final bool firebaseReady;
+
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
+
+  String? _uid;
+  String _sessionId;
+  DateTime? _sessionStartedAt;
+  final List<Map<String, dynamic>> _buffer = [];
+
+  /// Context that rides along with every event. Set by the app shell when
+  /// the user changes locale / toggles contrast / signs in so downstream
+  /// analysts can slice by surface state without each call site caring.
+  String _locale = 'zh';
+  bool _highContrast = false;
+
+  String get sessionId => _sessionId;
+
+  void setEnvironment({String? locale, bool? highContrast}) {
+    if (locale != null) _locale = locale;
+    if (highContrast != null) _highContrast = highContrast;
+  }
+
+  /// Called whenever the signed-in user changes. When transitioning from
+  /// guest → signed-in we flush the buffered events under the new uid.
+  Future<void> setUser(String? uid) async {
+    final previouslyGuest = _uid == null;
+    _uid = uid;
+    if (uid != null && previouslyGuest && _buffer.isNotEmpty) {
+      final buffered = List<Map<String, dynamic>>.from(_buffer);
+      _buffer.clear();
+      for (final event in buffered) {
+        await _persist(event);
+      }
+    }
+  }
+
+  /// Records app moving to the foreground. Safe to call repeatedly —
+  /// re-invoking before a matching [endSession] rolls the session id over.
+  Future<void> startSession({String? platform}) async {
+    _sessionId = _newId();
+    _sessionStartedAt = DateTime.now();
+    await logEvent('session_start', {
+      if (platform != null) 'platform': platform,
+    });
+  }
+
+  Future<void> endSession() async {
+    if (_sessionStartedAt == null) return;
+    final duration = DateTime.now().difference(_sessionStartedAt!).inSeconds;
+    _sessionStartedAt = null;
+    await logEvent('session_end', {
+      'durationSeconds': duration,
+    });
+  }
+
+  /// Core logging primitive. Everything else is a thin wrapper.
+  Future<void> logEvent(
+    String name, [
+    Map<String, dynamic> params = const {},
+  ]) async {
+    final event = <String, dynamic>{
+      'name': name,
+      'params': params,
+      'sessionId': _sessionId,
+      'locale': _locale,
+      'highContrast': _highContrast,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    if (kDebugMode) {
+      debugPrint('[analytics] $name ${params.isEmpty ? '' : params}');
+    }
+
+    if (_uid == null) {
+      _buffer.add(event);
+      return;
+    }
+
+    await _persist(event);
+  }
+
+  Future<void> _persist(Map<String, dynamic> event) async {
+    if (!firebaseReady || _uid == null) return;
+    try {
+      await _db
+          .collection('users')
+          .doc(_uid)
+          .collection('events')
+          .add({
+        ...event,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[analytics] persist failed: $e');
+      }
+    }
+  }
+
+  // Convenience helpers — each call site stays short and readable.
+
+  Future<void> logTabView({
+    required String tab,
+    required int durationSeconds,
+  }) =>
+      logEvent('tab_view', {
+        'tab': tab,
+        'durationSeconds': durationSeconds,
+      });
+
+  Future<void> logCheckIn({
+    required int mood,
+    required int loneliness,
+    required int socialEnergy,
+  }) =>
+      logEvent('check_in_submitted', {
+        'mood': mood,
+        'loneliness': loneliness,
+        'socialEnergy': socialEnergy,
+      });
+
+  Future<void> logSocialLogEntry({
+    required bool hasPerson,
+    required int summaryLength,
+    required String feeling,
+  }) =>
+      logEvent('social_log_entry', {
+        'hasPerson': hasPerson,
+        'summaryLength': summaryLength,
+        'feeling': feeling,
+      });
+
+  Future<void> logOpenerCopied({required String audience}) =>
+      logEvent('opener_copied', {'audience': audience});
+
+  Future<void> logEmergencyOpened({required String from}) =>
+      logEvent('emergency_opened', {'from': from});
+
+  Future<void> logAuth(String kind) => logEvent('auth_$kind');
+
+  static String _newId() {
+    final rand = Random.secure();
+    final now = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    final noise = rand.nextInt(1 << 32).toRadixString(36);
+    return '$now-$noise';
+  }
+}

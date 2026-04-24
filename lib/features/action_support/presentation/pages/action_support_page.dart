@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/figure_placeholder.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import '../../../resources/presentation/pages/community_resources_page.dart';
 import '../../../wellbeing/presentation/pages/calm_page.dart';
@@ -52,6 +53,8 @@ class ActionSupportPage extends StatelessWidget {
                   icon: Icons.self_improvement,
                   label: '靜一靜',
                   onTap: () {
+                    AnalyticsScope.of(context)
+                        .logEmergencyOpened(from: 'action_calm_tile');
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => const CalmPage(),
@@ -404,7 +407,16 @@ class _OpenerCard extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: () {},
+              onPressed: () {
+                AnalyticsScope.of(context)
+                    .logOpenerCopied(audience: audience);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('已複製：$line'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
               tooltip: '複製',
               icon: const Icon(Icons.copy_rounded, size: 24),
             ),
@@ -549,6 +561,8 @@ class _SafetyFooter extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: () {
+          AnalyticsScope.of(context)
+              .logEmergencyOpened(from: 'action_safety_footer');
           Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => const EmergencySupportPage(),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../analytics/data/analytics_service.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
+
 class CheckInPage extends StatefulWidget {
   const CheckInPage({super.key});
 
@@ -11,13 +14,37 @@ class _CheckInPageState extends State<CheckInPage> {
   int _mood = 3;
   int _loneliness = 3;
   int _socialEnergy = 3;
+  bool _touched = false;
+  AnalyticsService? _analytics;
   final TextEditingController _recentExperienceController =
       TextEditingController();
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _analytics = AnalyticsScope.of(context);
+  }
+
+  @override
   void dispose() {
+    // Log the most recent slider values whenever the user touched anything
+    // on the page — treat the page exit as the "submit" in a live-summary UI.
+    if (_touched) {
+      _analytics?.logCheckIn(
+        mood: _mood,
+        loneliness: _loneliness,
+        socialEnergy: _socialEnergy,
+      );
+    }
     _recentExperienceController.dispose();
     super.dispose();
+  }
+
+  void _onSliderChange(void Function() mutate) {
+    setState(() {
+      _touched = true;
+      mutate();
+    });
   }
 
   String _scoreLabel(int value) {
@@ -58,7 +85,7 @@ class _CheckInPageState extends State<CheckInPage> {
             helperLow: '低落',
             helperHigh: '開心',
             value: _mood,
-            onChanged: (value) => setState(() => _mood = value),
+            onChanged: (value) => _onSliderChange(() => _mood = value),
           ),
           const SizedBox(height: 24),
           _RatingSection(
@@ -66,7 +93,7 @@ class _CheckInPageState extends State<CheckInPage> {
             helperLow: '好少',
             helperHigh: '好強',
             value: _loneliness,
-            onChanged: (value) => setState(() => _loneliness = value),
+            onChanged: (value) => _onSliderChange(() => _loneliness = value),
           ),
           const SizedBox(height: 24),
           _RatingSection(
@@ -74,7 +101,7 @@ class _CheckInPageState extends State<CheckInPage> {
             helperLow: '好攰',
             helperHigh: '有精神',
             value: _socialEnergy,
-            onChanged: (value) => setState(() => _socialEnergy = value),
+            onChanged: (value) => _onSliderChange(() => _socialEnergy = value),
           ),
           const SizedBox(height: 28),
           Text(

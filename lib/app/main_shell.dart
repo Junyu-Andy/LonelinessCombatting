@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../features/analytics/data/analytics_service.dart';
+import '../features/analytics/presentation/analytics_scope.dart';
 import '../l10n/app_localizations.dart';
 import '../features/home/presentation/pages/home_page.dart';
 import '../features/context/presentation/pages/context_page.dart';
@@ -15,6 +17,41 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  DateTime _tabEnteredAt = DateTime.now();
+  AnalyticsService? _analytics;
+
+  static const _tabNames = ['home', 'context', 'action', 'follow_up', 'settings'];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _analytics = AnalyticsScope.of(context);
+  }
+
+  void _switchTab(int index) {
+    final now = DateTime.now();
+    final dwellSeconds = now.difference(_tabEnteredAt).inSeconds;
+    _analytics?.logTabView(
+      tab: _tabNames[_currentIndex],
+      durationSeconds: dwellSeconds,
+    );
+    setState(() {
+      _currentIndex = index;
+      _tabEnteredAt = now;
+    });
+  }
+
+  @override
+  void dispose() {
+    // Emit a final tab_view so nothing is lost when the user logs out /
+    // backgrounds the app while this widget is still mounted.
+    final dwellSeconds = DateTime.now().difference(_tabEnteredAt).inSeconds;
+    _analytics?.logTabView(
+      tab: _tabNames[_currentIndex],
+      durationSeconds: dwellSeconds,
+    );
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,11 +84,7 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onDestinationSelected: _switchTab,
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.home_outlined),

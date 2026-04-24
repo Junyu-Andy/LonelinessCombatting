@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/figure_placeholder.dart';
 import '../../../action_support/presentation/pages/action_support_page.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../context/presentation/pages/check_in_page.dart';
 import '../../../context/presentation/pages/reflection_page.dart';
 import '../../../context/presentation/pages/social_map_page.dart';
@@ -108,7 +109,11 @@ class _HomePageState extends State<HomePage> {
                 icon: Icons.health_and_safety_outlined,
                 label: '即時支援',
                 color: const Color(0xFFFFE4E6),
-                onTap: () => _open(const EmergencySupportPage()),
+                onTap: () {
+                  AnalyticsScope.of(context)
+                      .logEmergencyOpened(from: 'home_quick_actions');
+                  _open(const EmergencySupportPage());
+                },
               ),
             ],
           ),
@@ -124,7 +129,11 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 20),
           _BoundaryReminderCard(
-            onEmergency: () => _open(const EmergencySupportPage()),
+            onEmergency: () {
+              AnalyticsScope.of(context)
+                  .logEmergencyOpened(from: 'home_boundary_card');
+              _open(const EmergencySupportPage());
+            },
           ),
         ],
       ),
@@ -370,14 +379,18 @@ class _SocialLogCardState extends State<_SocialLogCard> {
       );
       return;
     }
+    final hasPerson = _personController.text.trim().isNotEmpty;
     widget.onAdd(_SocialEntry(
-      person: _personController.text.trim().isEmpty
-          ? '冇指定對象'
-          : _personController.text.trim(),
+      person: hasPerson ? _personController.text.trim() : '冇指定對象',
       summary: summary,
       feeling: _feeling,
       time: TimeOfDay.fromDateTime(DateTime.now()),
     ));
+    AnalyticsScope.of(context).logSocialLogEntry(
+      hasPerson: hasPerson,
+      summaryLength: summary.length,
+      feeling: _feeling.name,
+    );
     _personController.clear();
     _summaryController.clear();
     setState(() => _feeling = _Feeling.warm);

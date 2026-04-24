@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/auth_service.dart';
 import '../../data/user_profile.dart';
 
@@ -66,6 +67,9 @@ class _LoginPageState extends State<LoginPage> {
               : _contactPhoneCtrl.text.trim(),
           preferredLanguage: settings.locale.languageCode,
         );
+        if (mounted) {
+          AnalyticsScope.of(context).logAuth('signed_up');
+        }
       } else {
         profile = await widget.authService.signIn(
           email: _emailCtrl.text,
