@@ -603,7 +603,7 @@ class _AboutCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '由香港大學工業及製造系統工程學系開發\nHKU Department of Industrial & Manufacturing Systems Engineering',
+                      '由香港大學數據及系統工程學系開發\nHKU Department of Data and Systems Engineering',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: const Color(0xFF6B0F2A),
                         height: 1.4,

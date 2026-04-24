@@ -290,7 +290,7 @@ class _GreetingHero extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                isEn ? 'IMSE, The University of Hong Kong' : '工業及製造系統工程學系',
+                isEn ? 'Data and Systems Engineering, HKU' : '數據及系統工程學系',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: Colors.white.withValues(alpha: 0.85),
                 ),

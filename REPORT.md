@@ -1,6 +1,6 @@
 # Capability report — Companion Demo
 
-_Built by **HKU Department of Industrial & Manufacturing Systems Engineering**.
+_Built by **HKU Department of Data and Systems Engineering**.
 Snapshot: reflects the state of `main` at the time this file was written.
 The app is a design + interaction demo: UI is production-quality, the data
 backend is partially wired (auth + profile + analytics writes). LLM chat
@@ -12,7 +12,7 @@ a clearly-marked TODO._
 | Area | State | Notes |
 | --- | --- | --- |
 | Bottom-nav shell | ✅ | 4 tabs — Home / 做點活動 / 傾偈 / 了解你. Settings sits in the AppBar gear, reachable from every tab. Animated tab title + cross-fade body |
-| Home dashboard | ✅ | Gradient greeting hero (with HKU IMSE chip), today's vibe bars, social-log card, 8-tile quick-actions grid, daily-suggestion quote, boundary card |
+| Home dashboard | ✅ | Gradient greeting hero (with HKU DSE chip), today's vibe bars, social-log card, 8-tile quick-actions grid, daily-suggestion quote, boundary card |
 | 做點活動 (Activities) | ✅ | Reframed positively. Pleasant micro-activities, opener lines, activity grid colour-coded by social load |
 | 傾偈 (Chat) | ✅ | Two AI personas (`阿暖` casual / `李醫師` consult) with distinct avatars, chat themes, system prompts. Animated bubbles, typing indicator, `Hero` avatar. Text input working; voice input is a stub |
 | 了解你 (About You) | ✅ | Profile card with bottom-sheet editor (`AuthService.updateProfile` → Firestore), recent state glance, embedded follow-up section |
@@ -21,7 +21,7 @@ a clearly-marked TODO._
 | Calm / breathing | ✅ | Animated 4-4-6 box-breath cycle + grounding + tip cards |
 | Community resources | ✅ | Mock elder centres, events, volunteer services |
 | Crisis / emergency | ✅ | Hotlines, immediate steps |
-| Settings (modal) | ✅ | Font-scale preview, high-contrast (applied), language (applied), profile + sign-out, HKU IMSE attribution |
+| Settings (modal) | ✅ | Font-scale preview, high-contrast (applied), language (applied), profile + sign-out, HKU DSE attribution |
 | Auth (email/password) | ✅ | Firebase Auth, Firestore profile, sign-up captures display name / age group / emergency contact |
 | Onboarding | 🟡 | Slide deck still in repo but routed out of the in-app flow (shown externally) |
 

@@ -264,7 +264,7 @@ class _HkuBadge extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '由香港大學工業及製造系統工程學系開發',
+            '由香港大學數據及系統工程學系開發',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -272,7 +272,7 @@ class _HkuBadge extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            'HKU Department of Industrial & Manufacturing Systems Engineering',
+            'HKU Department of Data and Systems Engineering',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

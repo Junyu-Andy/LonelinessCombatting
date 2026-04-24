@@ -33,10 +33,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatSubtitle => '搵個傾偈，由你揀。';
 
   @override
-  String get developerCredit => '由香港大學工業及製造系統工程學系開發';
+  String get developerCredit => '由香港大學數據及系統工程學系開發';
 
   @override
-  String get developerCreditShort => 'HKU IMSE';
+  String get developerCreditShort => 'HKU DSE';
 
   @override
   String get homeSubtitle => '呢度係 demo 嘅首頁總覽。';
@@ -129,10 +129,10 @@ class AppLocalizationsZhHantHk extends AppLocalizationsZh {
   String get chatSubtitle => '搵個傾偈，由你揀。';
 
   @override
-  String get developerCredit => '由香港大學工業及製造系統工程學系開發';
+  String get developerCredit => '由香港大學數據及系統工程學系開發';
 
   @override
-  String get developerCreditShort => 'HKU IMSE';
+  String get developerCreditShort => 'HKU DSE';
 
   @override
   String get homeSubtitle => '呢度係 demo 嘅首頁總覽。';

@@ -43,13 +43,13 @@ class _ChatPageState extends State<ChatPage> {
           Localizations.localeOf(context).languageCode == 'en';
       final greeting = switch (widget.persona) {
         ChatPersona.casual => isEn
-            ? 'Hi~ How's your day going? Feel free to share anything.'
+            ? "Hi~ How's your day going? Feel free to share anything."
             : '嗨～今日過得點？傾乜都得。',
         ChatPersona.consult => isEn
-            ? 'Hello. I'm here. What would you like to talk about today?'
+            ? "Hello. I'm here. What would you like to talk about today?"
             : '你好。我喺度。今日有啲乜想傾？',
         ChatPersona.faq => isEn
-            ? 'Hi! I'm Xiao Zhu. Ask me anything about this app — features, settings, privacy, or more.'
+            ? "Hi! I'm Xiao Zhu. Ask me anything about this app - features, settings, privacy, or more."
             : '你好！我係小助。你可以問關於呢個 app 嘅功能、設定、私隱或者其他問題。',
       };
       _messages.add(ChatMessage(
