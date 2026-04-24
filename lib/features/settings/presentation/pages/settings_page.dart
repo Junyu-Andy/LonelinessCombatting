@@ -313,31 +313,33 @@ class _LanguageCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Column(
-          children: options.map((option) {
-            final selected = option.$1 == value;
-            return RadioListTile<_AppLanguage>(
-              value: option.$1,
-              groupValue: value,
-              onChanged: (selectedValue) {
-                if (selectedValue != null) onChanged(selectedValue);
-              },
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              title: Text(
-                option.$2,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              subtitle: Text(
-                option.$3,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              activeColor: Theme.of(context).colorScheme.primary,
-              selected: selected,
-            );
-          }).toList(),
+        child: RadioGroup<_AppLanguage>(
+          value: value,
+          onChanged: (selectedValue) {
+            if (selectedValue != null) onChanged(selectedValue);
+          },
+          child: Column(
+            children: options.map((option) {
+              final selected = option.$1 == value;
+              return RadioListTile<_AppLanguage>(
+                value: option.$1,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                title: Text(
+                  option.$2,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                subtitle: Text(
+                  option.$3,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                activeColor: Theme.of(context).colorScheme.primary,
+                selected: selected,
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
