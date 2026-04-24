@@ -39,6 +39,7 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       appBar: AppBar(
         title: Text(titles[_currentIndex]),
+        toolbarHeight: 76,
       ),
       body: IndexedStack(
         index: _currentIndex,
@@ -56,26 +57,31 @@ class _MainShellState extends State<MainShell> {
             icon: const Icon(Icons.home_outlined),
             selectedIcon: const Icon(Icons.home),
             label: l10n.homeTab,
+            tooltip: l10n.homeTab,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.insights_outlined),
-            selectedIcon: const Icon(Icons.insights),
+            icon: const Icon(Icons.favorite_outline),
+            selectedIcon: const Icon(Icons.favorite),
             label: l10n.contextTab,
+            tooltip: l10n.contextTab,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.bolt_outlined),
-            selectedIcon: const Icon(Icons.bolt),
+            icon: const Icon(Icons.lightbulb_outline),
+            selectedIcon: const Icon(Icons.lightbulb),
             label: l10n.actionTab,
+            tooltip: l10n.actionTab,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.history_outlined),
-            selectedIcon: const Icon(Icons.history),
+            icon: const Icon(Icons.event_note_outlined),
+            selectedIcon: const Icon(Icons.event_note),
             label: l10n.followUpTab,
+            tooltip: l10n.followUpTab,
           ),
           NavigationDestination(
             icon: const Icon(Icons.settings_outlined),
             selectedIcon: const Icon(Icons.settings),
             label: l10n.settingsTab,
+            tooltip: l10n.settingsTab,
           ),
         ],
       ),

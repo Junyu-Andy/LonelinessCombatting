@@ -39,6 +39,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
 
     final slides = [
       _SlideData(
@@ -95,7 +96,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
               child: Column(
                 children: [
                   Row(
@@ -104,40 +105,51 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       slides.length,
                       (index) => AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: _currentIndex == index ? 24 : 8,
-                        height: 8,
+                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        width: _currentIndex == index ? 32 : 12,
+                        height: 12,
                         decoration: BoxDecoration(
                           color: _currentIndex == index
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).colorScheme.outlineVariant,
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outlineVariant,
                           borderRadius: BorderRadius.circular(999),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      if (_currentIndex > 0)
-                        TextButton(
-                          onPressed: () => _goToPage(_currentIndex - 1),
-                          child: Text(l10n.back),
-                        )
-                      else
-                        const SizedBox(width: 72),
-                      const Spacer(),
-                      FilledButton(
-                        onPressed: () {
-                          if (isLastPage) {
-                            _enterDemo();
-                            return;
-                          }
-                          _goToPage(_currentIndex + 1);
-                        },
-                        child: Text(isLastPage ? l10n.enterDemo : l10n.next),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        if (isLastPage) {
+                          _enterDemo();
+                          return;
+                        }
+                        _goToPage(_currentIndex + 1);
+                      },
+                      icon: Icon(
+                        isLastPage
+                            ? Icons.play_arrow_rounded
+                            : Icons.arrow_forward_rounded,
+                        size: 28,
                       ),
-                    ],
+                      label: Text(isLastPage ? l10n.enterDemo : l10n.next),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 56,
+                    child: _currentIndex > 0
+                        ? TextButton.icon(
+                            onPressed: () => _goToPage(_currentIndex - 1),
+                            icon: const Icon(
+                              Icons.arrow_back_rounded,
+                              size: 26,
+                            ),
+                            label: Text(l10n.back),
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 ],
               ),

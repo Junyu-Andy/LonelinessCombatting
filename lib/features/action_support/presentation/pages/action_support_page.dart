@@ -7,14 +7,30 @@ class ActionSupportPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         children: [
+          Row(
+            children: [
+              Icon(
+                Icons.lightbulb,
+                size: 36,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                l10n.actionTab,
+                style: theme.textTheme.headlineMedium,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           Text(
             l10n.actionSubtitle,
-            style: Theme.of(context).textTheme.bodyLarge,
+            style: theme.textTheme.bodyLarge,
           ),
         ],
       ),

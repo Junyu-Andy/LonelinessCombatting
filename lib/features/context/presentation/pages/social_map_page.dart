@@ -5,6 +5,8 @@ class SocialMapPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     final contacts = [
       const _SocialPerson(
         name: '阿May',
@@ -38,41 +40,77 @@ class SocialMapPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Social Map'),
+        title: const Text('社交關係圖'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         children: [
           Text(
-            '呢頁模擬社交關係圖，幫你睇到邊啲關係重要、邊啲人比較有支援感。',
-            style: Theme.of(context).textTheme.bodyLarge,
+            '呢頁幫你睇到身邊邊啲關係重要，邊啲人容易聯絡、邊啲人比較有支援感。',
+            style: theme.textTheme.bodyLarge,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           ...contacts.map(
             (person) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.only(bottom: 18),
               child: Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        person.name,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                      Row(
                         children: [
-                          Chip(label: Text('關係：${person.relation}')),
-                          Chip(label: Text('連結感：${person.closeness}/5')),
-                          Chip(label: Text('可聯絡程度：${person.availability}/5')),
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundColor: theme.colorScheme.primaryContainer,
+                            child: Text(
+                              person.name.characters.first,
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: theme.colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  person.name,
+                                  style: theme.textTheme.titleLarge,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  person.relation,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Text(person.note),
+                      const SizedBox(height: 18),
+                      _ScoreRow(
+                        icon: Icons.favorite_outline,
+                        label: '連結感',
+                        value: person.closeness,
+                      ),
+                      const SizedBox(height: 10),
+                      _ScoreRow(
+                        icon: Icons.phone_in_talk_outlined,
+                        label: '可聯絡程度',
+                        value: person.availability,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        person.note,
+                        style: theme.textTheme.bodyLarge,
+                      ),
                     ],
                   ),
                 ),
@@ -81,6 +119,51 @@ class SocialMapPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ScoreRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final int value;
+
+  const _ScoreRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 26, color: theme.colorScheme.primary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: theme.textTheme.bodyLarge,
+          ),
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(5, (index) {
+            final filled = index < value;
+            return Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Icon(
+                filled ? Icons.star_rounded : Icons.star_border_rounded,
+                size: 28,
+                color: filled
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outlineVariant,
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 }
