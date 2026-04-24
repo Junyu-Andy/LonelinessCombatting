@@ -10,17 +10,17 @@ class ContextPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         children: [
           Text(
-            '呢個模組負責理解使用者目前狀態，等之後嘅建議可以更貼地。',
+            '呢個模組負責理解你目前嘅狀態，等之後嘅建議可以更貼近你嘅生活。',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           _ContextEntryCard(
             icon: Icons.monitor_heart_outlined,
             title: '快速 Check-in',
-            subtitle: '收集目前心情、孤獨感，同最近社交經驗。',
+            subtitle: '睇下今日心情、孤獨感同最近社交經驗。',
             buttonText: '打開 Check-in',
             onTap: () {
               Navigator.of(context).push(
@@ -30,12 +30,12 @@ class ContextPage extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _ContextEntryCard(
             icon: Icons.people_outline,
-            title: 'Social Map',
-            subtitle: '整理重要關係、支援感，同邊啲人比較容易聯絡。',
-            buttonText: '打開 Social Map',
+            title: '社交關係圖',
+            subtitle: '整理身邊嘅重要關係，睇下邊啲人比較容易聯絡。',
+            buttonText: '打開社交關係圖',
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -44,11 +44,11 @@ class ContextPage extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _ContextEntryCard(
             icon: Icons.forum_outlined,
             title: '互動反思',
-            subtitle: '回顧最近接觸，睇下邊度有連結感，邊度仲有落差。',
+            subtitle: '回顧最近同人接觸嘅感覺，邊度有連結，邊度仲有落差。',
             buttonText: '打開反思頁',
             onTap: () {
               Navigator.of(context).push(
@@ -81,47 +81,58 @@ class _ContextEntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                icon,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium,
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 40,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton.tonal(
-                    onPressed: onTap,
-                    child: Text(buttonText),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleLarge,
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 14),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onTap,
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 26),
+                  label: Text(buttonText),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

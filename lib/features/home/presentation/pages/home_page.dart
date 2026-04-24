@@ -7,27 +7,49 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         children: [
           Text(
             l10n.appTitle,
-            style: Theme.of(context).textTheme.headlineMedium,
+            style: theme.textTheme.headlineLarge,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             l10n.homeSubtitle,
-            style: Theme.of(context).textTheme.bodyLarge,
+            style: theme.textTheme.bodyLarge,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                l10n.homeStructureHint,
-                style: Theme.of(context).textTheme.bodyMedium,
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Icon(
+                      Icons.menu_book_outlined,
+                      size: 36,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    child: Text(
+                      l10n.homeStructureHint,
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
