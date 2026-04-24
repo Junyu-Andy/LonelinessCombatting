@@ -86,5 +86,14 @@ PersonaVisual personaVisual(ChatPersona persona) {
         displayName: '李醫師',
         tagline: '想認真傾下？我喺度。',
       );
+    case ChatPersona.faq:
+      return const PersonaVisual(
+        icon: Icons.support_agent_rounded,
+        gradient: [Color(0xFF4FD1C5), Color(0xFF2BB3A6)],
+        accent: Color(0xFF2BB3A6),
+        bubbleColor: Color(0xFFE6FAF7),
+        displayName: '小助',
+        tagline: '有問題？問我就得。',
+      );
   }
 }

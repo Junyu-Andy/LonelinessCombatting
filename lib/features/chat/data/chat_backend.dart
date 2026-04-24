@@ -39,6 +39,14 @@ class ScriptedChatBackend implements ChatBackend {
     '我建議你可以將呢段筆記同你信任嘅人或社工分享，呢個唔係你一個人要扛嘅事。',
   ];
 
+  static const _faqReplies = <String>[
+    '我喺依度幫你解答 app 相關嘅問題。可以講清楚少少你想了解邊方面？',
+    '關於呢個功能，你可以入「設定」→ 相關分類睇吓；如果搵唔到，再詳細講畀我知你想做啲乜。',
+    '呢個 demo 版本有啲功能仲未上線，但我可以話畀你知應該點用現有功能去解決。',
+    '好問題。如果係私隱相關疑問，可以電郵 zhaojyxs@connect.hku.hk 同我哋直接聯絡。',
+    '多謝你嘅反饋，我會將呢個問題交畀團隊跟進。暫時有冇其他想問嘅？',
+  ];
+
   @override
   Future<String> reply({
     required ChatPersona persona,
@@ -46,7 +54,11 @@ class ScriptedChatBackend implements ChatBackend {
     required String userMessage,
   }) async {
     await Future.delayed(const Duration(milliseconds: 700));
-    final pool = persona == ChatPersona.casual ? _casualReplies : _consultReplies;
+    final pool = switch (persona) {
+      ChatPersona.casual => _casualReplies,
+      ChatPersona.consult => _consultReplies,
+      ChatPersona.faq => _faqReplies,
+    };
     return pool[_rand.nextInt(pool.length)];
   }
 }

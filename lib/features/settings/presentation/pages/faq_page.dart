@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../chat/data/chat_models.dart';
+import '../../../chat/presentation/pages/chat_page.dart';
+import '../../../chat/presentation/widgets/persona_avatar.dart';
+
 class FaqPage extends StatelessWidget {
   const FaqPage({super.key});
 
@@ -98,7 +102,96 @@ class FaqPage extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          const _AskMoreCard(),
         ],
+      ),
+    );
+  }
+}
+
+/// Bottom-of-FAQ CTA. Tapping it opens a ChatPage with the `faq` persona
+/// — which routes through `DeepseekChatBackend` → scripted fallback when
+/// no API key is configured.
+class _AskMoreCard extends StatelessWidget {
+  const _AskMoreCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final spec = personaVisual(ChatPersona.faq);
+    return Material(
+      color: spec.bubbleColor,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () {
+          Navigator.of(context).push(
+            PageRouteBuilder(
+              transitionDuration: const Duration(milliseconds: 320),
+              reverseTransitionDuration: const Duration(milliseconds: 220),
+              pageBuilder: (_, animation, __) => FadeTransition(
+                opacity: animation,
+                child: const ChatPage(persona: ChatPersona.faq),
+              ),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const PersonaAvatar(persona: ChatPersona.faq, size: 56),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          '我仲有問題',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: spec.accent,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: spec.accent,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text(
+                            'AI',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '搵唔到答案？撳入去問「小助」，佢會即時回覆。\n由 DeepSeek 提供支援。',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.brown.shade800,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  size: 28, color: spec.accent),
+            ],
+          ),
+        ),
       ),
     );
   }
