@@ -32,18 +32,32 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
-    // Greet the user with a persona-flavoured opener.
-    final greeting = switch (widget.persona) {
-      ChatPersona.casual => '嗨～今日過得點？傾乜都得。',
-      ChatPersona.consult => '你好。我喺度。今日有啲乜想傾？',
-      ChatPersona.faq =>
-        '你好！我係小助。你可以問關於呢個 app 嘅功能、設定、私隱或者其他問題。',
-    };
-    _messages.add(ChatMessage(
-      text: greeting,
-      fromUser: false,
-      sentAt: DateTime.now(),
-    ));
+    // Greet is set in didChangeDependencies once locale is available.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_messages.isEmpty) {
+      final isEn =
+          Localizations.localeOf(context).languageCode == 'en';
+      final greeting = switch (widget.persona) {
+        ChatPersona.casual => isEn
+            ? 'Hi~ How's your day going? Feel free to share anything.'
+            : '嗨～今日過得點？傾乜都得。',
+        ChatPersona.consult => isEn
+            ? 'Hello. I'm here. What would you like to talk about today?'
+            : '你好。我喺度。今日有啲乜想傾？',
+        ChatPersona.faq => isEn
+            ? 'Hi! I'm Xiao Zhu. Ask me anything about this app — features, settings, privacy, or more.'
+            : '你好！我係小助。你可以問關於呢個 app 嘅功能、設定、私隱或者其他問題。',
+      };
+      _messages.add(ChatMessage(
+        text: greeting,
+        fromUser: false,
+        sentAt: DateTime.now(),
+      ));
+    }
   }
 
   @override
@@ -84,9 +98,12 @@ class _ChatPageState extends State<ChatPage> {
       _scrollToBottom();
     } catch (_) {
       if (!mounted) return;
+      final isEn = Localizations.localeOf(context).languageCode == 'en';
       setState(() {
         _messages.add(ChatMessage(
-          text: '對唔住，依家連唔到。試多次，或者過陣再嚟。',
+          text: isEn
+              ? 'Sorry, connection failed. Please try again later.'
+              : '對唔住，依家連唔到。試多次，或者過陣再嚟。',
           fromUser: false,
           sentAt: DateTime.now(),
         ));
@@ -115,11 +132,14 @@ class _ChatPageState extends State<ChatPage> {
     // TODO(speech): replace with `speech_to_text` once we add the dep.
     await Future.delayed(const Duration(milliseconds: 1100));
     if (!mounted) return;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final placeholder =
+        isEn ? '(Voice input: pending backend support)' : '（語音輸入：待後台支援）';
     setState(() {
       _recording = false;
       _controller.text = _controller.text.isEmpty
-          ? '（語音輸入：待後台支援）'
-          : '${_controller.text} （語音輸入：待後台支援）';
+          ? placeholder
+          : '${_controller.text} $placeholder';
       _controller.selection = TextSelection.fromPosition(
         TextPosition(offset: _controller.text.length),
       );
@@ -331,6 +351,7 @@ class _InputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return SafeArea(
       top: false,
       child: Container(
@@ -359,7 +380,9 @@ class _InputBar extends StatelessWidget {
                 textInputAction: TextInputAction.send,
                 onSubmitted: onSend,
                 decoration: InputDecoration(
-                  hintText: recording ? '錄緊音…' : '寫低或者撳咪講…',
+                  hintText: recording
+                      ? (isEn ? 'Recording…' : '錄緊音…')
+                      : (isEn ? 'Type or tap mic to speak…' : '寫低或者撳咪講…'),
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 12),
@@ -445,7 +468,7 @@ class _MicButtonState extends State<_MicButton>
           scale: scale,
           child: IconButton(
             onPressed: widget.onPressed,
-            tooltip: widget.recording ? '停止錄音' : '語音輸入',
+            tooltip: widget.recording ? 'Stop' : 'Voice input',
             icon: Icon(
               widget.recording ? Icons.stop_circle : Icons.mic_none_rounded,
               color: widget.accent,

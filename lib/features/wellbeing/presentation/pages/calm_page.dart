@@ -120,30 +120,33 @@ class _CalmPageState extends State<CalmPage>
     _runPhase();
   }
 
-  String get _phaseLabel {
+  String _phaseLabel(bool isEn) {
     switch (_phase) {
       case _BreathPhase.inhale:
-        return '慢慢吸氣';
+        return isEn ? 'Breathe in' : '慢慢吸氣';
       case _BreathPhase.hold:
-        return '停一停';
+        return isEn ? 'Hold' : '停一停';
       case _BreathPhase.exhale:
-        return '慢慢呼氣';
+        return isEn ? 'Breathe out' : '慢慢呼氣';
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('靜一靜'),
+        title: Text(isEn ? 'Calm Down' : '靜一靜'),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         children: [
           Text(
-            '如果覺得心煩、心跳快、或者唔舒服，可以跟住下面嘅節奏呼吸幾次。',
+            isEn
+                ? 'Feeling anxious, heart racing, or uneasy? Follow the rhythm below for a few breaths.'
+                : '如果覺得心煩、心跳快、或者唔舒服，可以跟住下面嘅節奏呼吸幾次。',
             style: theme.textTheme.bodyLarge,
           ),
           const SizedBox(height: 24),
@@ -177,7 +180,9 @@ class _CalmPageState extends State<CalmPage>
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  _running ? _phaseLabel : '準備好就開始',
+                                  _running
+                                      ? _phaseLabel(isEn)
+                                      : (isEn ? 'Ready to start' : '準備好就開始'),
                                   style: theme.textTheme.titleLarge?.copyWith(
                                     color:
                                         theme.colorScheme.onPrimaryContainer,
@@ -205,8 +210,12 @@ class _CalmPageState extends State<CalmPage>
                   const SizedBox(height: 16),
                   Text(
                     _running
-                        ? '第 ${_cycleCount + 1} / $_totalCycles 次'
-                        : '總共 $_totalCycles 次循環，大約 1 分鐘。',
+                        ? (isEn
+                            ? 'Cycle ${_cycleCount + 1} / $_totalCycles'
+                            : '第 ${_cycleCount + 1} / $_totalCycles 次')
+                        : (isEn
+                            ? '$_totalCycles cycles total — about 1 minute.'
+                            : '總共 $_totalCycles 次循環，大約 1 分鐘。'),
                     style: theme.textTheme.bodyLarge?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -220,7 +229,8 @@ class _CalmPageState extends State<CalmPage>
                         _running ? Icons.stop_rounded : Icons.play_arrow_rounded,
                         size: 28,
                       ),
-                      label: Text(_running ? '停低' : '開始'),
+                      label: Text(
+                          _running ? (isEn ? 'Stop' : '停低') : (isEn ? 'Start' : '開始')),
                     ),
                   ),
                 ],
@@ -230,32 +240,38 @@ class _CalmPageState extends State<CalmPage>
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.visibility_outlined,
-            title: '5-4-3-2-1 定神練習',
+            title: isEn ? '5-4-3-2-1 Grounding' : '5-4-3-2-1 定神練習',
           ),
           const SizedBox(height: 14),
-          const _GroundingCard(),
+          _GroundingCard(isEn: isEn),
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.tips_and_updates_outlined,
-            title: '其他溫柔嘅方法',
+            title: isEn ? 'Other Gentle Methods' : '其他溫柔嘅方法',
           ),
           const SizedBox(height: 14),
-          const _TipCard(
+          _TipCard(
             icon: Icons.local_drink_outlined,
-            title: '飲一啖暖水',
-            body: '慢慢啖住，感受水流過喉嚨，畀自己幾秒鐘。',
+            title: isEn ? 'Sip some warm water' : '飲一啖暖水',
+            body: isEn
+                ? 'Sip slowly and feel the warmth travel down. Give yourself a few seconds.'
+                : '慢慢啖住，感受水流過喉嚨，畀自己幾秒鐘。',
           ),
           const SizedBox(height: 12),
-          const _TipCard(
+          _TipCard(
             icon: Icons.pan_tool_outlined,
-            title: '搓吓雙手',
-            body: '磨擦雙手 10 秒鐘，然後將暖咗嘅手放喺心口。',
+            title: isEn ? 'Rub your hands together' : '搓吓雙手',
+            body: isEn
+                ? 'Rub hands for 10 seconds, then rest the warm palms on your chest.'
+                : '磨擦雙手 10 秒鐘，然後將暖咗嘅手放喺心口。',
           ),
           const SizedBox(height: 12),
-          const _TipCard(
+          _TipCard(
             icon: Icons.music_note_outlined,
-            title: '聽一首熟悉嘅歌',
-            body: '熟悉嘅旋律通常可以令情緒沉澱落嚟。',
+            title: isEn ? 'Listen to a familiar song' : '聽一首熟悉嘅歌',
+            body: isEn
+                ? 'A familiar melody can help emotions settle and slow down.'
+                : '熟悉嘅旋律通常可以令情緒沉澱落嚟。',
           ),
         ],
       ),
@@ -288,18 +304,27 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _GroundingCard extends StatelessWidget {
-  const _GroundingCard();
+  final bool isEn;
+  const _GroundingCard({required this.isEn});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final items = const [
-      (5, '樣嘢你見到', Icons.remove_red_eye_outlined),
-      (4, '樣嘢你摸到', Icons.back_hand_outlined),
-      (3, '種聲音你聽到', Icons.hearing_outlined),
-      (2, '種味道你聞到', Icons.air_outlined),
-      (1, '種味覺你感受到', Icons.restaurant_outlined),
-    ];
+    final items = isEn
+        ? const [
+            (5, 'things you can see', Icons.remove_red_eye_outlined),
+            (4, 'things you can touch', Icons.back_hand_outlined),
+            (3, 'sounds you can hear', Icons.hearing_outlined),
+            (2, 'smells you can notice', Icons.air_outlined),
+            (1, 'taste you can sense', Icons.restaurant_outlined),
+          ]
+        : const [
+            (5, '樣嘢你見到', Icons.remove_red_eye_outlined),
+            (4, '樣嘢你摸到', Icons.back_hand_outlined),
+            (3, '種聲音你聽到', Icons.hearing_outlined),
+            (2, '種味道你聞到', Icons.air_outlined),
+            (1, '種味覺你感受到', Icons.restaurant_outlined),
+          ];
 
     return Card(
       child: Padding(
@@ -308,7 +333,9 @@ class _GroundingCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '慢慢望一望四周，嘗試逐樣講出：',
+              isEn
+                  ? 'Look around slowly and name each one:'
+                  : '慢慢望一望四周，嘗試逐樣講出：',
               style: theme.textTheme.bodyLarge,
             ),
             const SizedBox(height: 14),

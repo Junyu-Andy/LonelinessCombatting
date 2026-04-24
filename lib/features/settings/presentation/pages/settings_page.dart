@@ -29,9 +29,8 @@ class _SettingsPageState extends State<SettingsPage> {
     final theme = Theme.of(context);
     final settings = AppSettingsScope.of(context);
     final highContrast = settings.highContrast;
-    final language = settings.locale.languageCode == 'en'
-        ? _AppLanguage.english
-        : _AppLanguage.cantonese;
+    final isEn = settings.locale.languageCode == 'en';
+    final language = isEn ? _AppLanguage.english : _AppLanguage.cantonese;
 
     return SafeArea(
       child: ListView(
@@ -60,30 +59,33 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           if (settings.profile != null) ...[
             const SizedBox(height: 20),
-            _ProfileCard(profile: settings.profile!),
+            _ProfileCard(profile: settings.profile!, isEn: isEn),
           ],
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.text_fields_rounded,
-            title: '顯示設定',
+            title: isEn ? 'Display' : '顯示設定',
           ),
           const SizedBox(height: 14),
           _FontScaleCard(
             value: _fontScale,
             onChanged: (value) => setState(() => _fontScale = value),
+            isEn: isEn,
           ),
           const SizedBox(height: 14),
           _SwitchTileCard(
             icon: Icons.contrast_rounded,
-            title: '高對比模式',
-            subtitle: '字體同背景顏色對比更加清楚。',
+            title: isEn ? 'High-Contrast Mode' : '高對比模式',
+            subtitle: isEn
+                ? 'Stronger contrast between text and background.'
+                : '字體同背景顏色對比更加清楚。',
             value: highContrast,
             onChanged: (value) => settings.highContrast = value,
           ),
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.language_rounded,
-            title: '語言',
+            title: isEn ? 'Language' : '語言',
           ),
           const SizedBox(height: 14),
           _LanguageCard(
@@ -97,38 +99,42 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.notifications_none_rounded,
-            title: '通知',
+            title: isEn ? 'Notifications' : '通知',
           ),
           const SizedBox(height: 14),
           _SwitchTileCard(
             icon: Icons.nightlight_round,
-            title: '安靜時段',
-            subtitle: '晚上 10 點到早上 8 點唔會出聲提醒。',
+            title: isEn ? 'Quiet Hours' : '安靜時段',
+            subtitle: isEn
+                ? 'No reminders between 10 pm and 8 am.'
+                : '晚上 10 點到早上 8 點唔會出聲提醒。',
             value: _quietHours,
             onChanged: (value) => setState(() => _quietHours = value),
           ),
           const SizedBox(height: 14),
           _SwitchTileCard(
             icon: Icons.record_voice_over_outlined,
-            title: '語音讀出內容',
-            subtitle: '打開後，主要文字會有語音朗讀。',
+            title: isEn ? 'Voice Read-back' : '語音讀出內容',
+            subtitle: isEn
+                ? 'Main text will be read aloud when enabled.'
+                : '打開後，主要文字會有語音朗讀。',
             value: _voiceReadback,
             onChanged: (value) => setState(() => _voiceReadback = value),
           ),
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.shield_outlined,
-            title: '系統界線',
+            title: isEn ? 'System Boundaries' : '系統界線',
           ),
           const SizedBox(height: 14),
-          const _BoundaryCard(),
+          _BoundaryCard(isEn: isEn),
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.info_outline_rounded,
-            title: '關於同支援',
+            title: isEn ? 'About & Support' : '關於同支援',
           ),
           const SizedBox(height: 14),
-          const _AboutCard(version: '1.0.0 demo'),
+          _AboutCard(version: '1.0.0 demo', isEn: isEn),
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
@@ -141,7 +147,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 );
               },
               icon: const Icon(Icons.help_outline_rounded, size: 26),
-              label: const Text('常見問題'),
+              label: Text(isEn ? 'FAQ' : '常見問題'),
             ),
           ),
           const SizedBox(height: 12),
@@ -156,7 +162,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 );
               },
               icon: const Icon(Icons.policy_outlined, size: 26),
-              label: const Text('私隱政策'),
+              label: Text(isEn ? 'Privacy Policy' : '私隱政策'),
             ),
           ),
         ],
@@ -192,18 +198,25 @@ class _SectionHeader extends StatelessWidget {
 class _FontScaleCard extends StatelessWidget {
   final _FontScale value;
   final ValueChanged<_FontScale> onChanged;
+  final bool isEn;
 
-  const _FontScaleCard({required this.value, required this.onChanged});
+  const _FontScaleCard({required this.value, required this.onChanged, required this.isEn});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final options = const [
-      (_FontScale.standard, '標準', 18.0),
-      (_FontScale.large, '大', 22.0),
-      (_FontScale.xlarge, '特大', 26.0),
-    ];
+    final options = isEn
+        ? const [
+            (_FontScale.standard, 'Std', 18.0),
+            (_FontScale.large, 'Large', 22.0),
+            (_FontScale.xlarge, 'X-Large', 26.0),
+          ]
+        : const [
+            (_FontScale.standard, '標準', 18.0),
+            (_FontScale.large, '大', 22.0),
+            (_FontScale.xlarge, '特大', 26.0),
+          ];
 
     return Card(
       child: Padding(
@@ -212,12 +225,12 @@ class _FontScaleCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '字體大小',
+              isEn ? 'Text Size' : '字體大小',
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 6),
             Text(
-              '預覽效果會即時反映喺下面。',
+              isEn ? 'The preview below updates instantly.' : '預覽效果會即時反映喺下面。',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -275,7 +288,9 @@ class _FontScaleCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                '預覽：今日心情幾好，試吓打個電話畀阿May。',
+                isEn
+                    ? 'Preview: Feeling good today — maybe call a friend.'
+                    : '預覽：今日心情幾好，試吓打個電話畀阿May。',
                 style: TextStyle(
                   fontSize: options
                       .firstWhere((option) => option.$1 == value)
@@ -414,24 +429,26 @@ class _SwitchTileCard extends StatelessWidget {
 }
 
 class _BoundaryCard extends StatelessWidget {
-  const _BoundaryCard();
+  final bool isEn;
+  const _BoundaryCard({required this.isEn});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final items = const [
-      (Icons.check_circle_outline, '幫你整理心情、諗下下一步。'),
-      (Icons.check_circle_outline, '提供細小、具體嘅行動建議。'),
-      (
-        Icons.do_disturb_on_outlined,
-        '唔可以取代醫生、治療或者緊急支援。',
-      ),
-      (
-        Icons.do_disturb_on_outlined,
-        '唔應該當成危機求助工具。',
-      ),
-    ];
+    final items = isEn
+        ? const [
+            (Icons.check_circle_outline, 'Helps you organise feelings and plan next steps.'),
+            (Icons.check_circle_outline, 'Provides small, concrete action suggestions.'),
+            (Icons.do_disturb_on_outlined, 'Cannot replace a doctor, therapist, or emergency service.'),
+            (Icons.do_disturb_on_outlined, 'Should not be used as a crisis-support tool.'),
+          ]
+        : const [
+            (Icons.check_circle_outline, '幫你整理心情、諗下下一步。'),
+            (Icons.check_circle_outline, '提供細小、具體嘅行動建議。'),
+            (Icons.do_disturb_on_outlined, '唔可以取代醫生、治療或者緊急支援。'),
+            (Icons.do_disturb_on_outlined, '唔應該當成危機求助工具。'),
+          ];
 
     return Card(
       child: Padding(
@@ -440,7 +457,7 @@ class _BoundaryCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '呢個 app 可以做同唔做啲乜',
+              isEn ? 'What this app can and cannot do' : '呢個 app 可以做同唔做啲乜',
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 14),
@@ -495,7 +512,9 @@ class _BoundaryCard extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '如果有即時危機，請立即撥 999 或者搵屋企人。',
+                        isEn
+                            ? 'If you are in immediate crisis, call 999 or contact family now.'
+                            : '如果有即時危機，請立即撥 999 或者搵屋企人。',
                         style: theme.textTheme.bodyLarge?.copyWith(
                           color: theme.colorScheme.onErrorContainer,
                           fontWeight: FontWeight.w600,
@@ -520,8 +539,9 @@ class _BoundaryCard extends StatelessWidget {
 
 class _AboutCard extends StatelessWidget {
   final String version;
+  final bool isEn;
 
-  const _AboutCard({required this.version});
+  const _AboutCard({required this.version, required this.isEn});
 
   @override
   Widget build(BuildContext context) {
@@ -541,14 +561,16 @@ class _AboutCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  '陪伴型 App Demo',
+                  isEn ? 'Companion App Demo' : '陪伴型 App Demo',
                   style: theme.textTheme.titleMedium,
                 ),
               ],
             ),
             const SizedBox(height: 10),
             Text(
-              '呢個 demo 目的係展示點樣用簡單嘅結構，陪長者一齊面對孤獨感。',
+              isEn
+                  ? 'This demo shows how a simple structure can help older adults gently face loneliness.'
+                  : '呢個 demo 目的係展示點樣用簡單嘅結構，陪長者一齊面對孤獨感。',
               style: theme.textTheme.bodyLarge,
             ),
             const SizedBox(height: 14),
@@ -601,7 +623,7 @@ class _AboutCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '版本：$version',
+                  isEn ? 'Version: $version' : '版本：$version',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -617,8 +639,9 @@ class _AboutCard extends StatelessWidget {
 
 class _ProfileCard extends StatelessWidget {
   final UserProfile profile;
+  final bool isEn;
 
-  const _ProfileCard({required this.profile});
+  const _ProfileCard({required this.profile, required this.isEn});
 
   @override
   Widget build(BuildContext context) {
@@ -628,13 +651,17 @@ class _ProfileCard extends StatelessWidget {
       (Icons.person_outline, profile.displayName),
       (Icons.mail_outline, profile.email),
       if (profile.ageGroup != null)
-        (Icons.cake_outlined, '年齡組別：${profile.ageGroup}'),
+        (Icons.cake_outlined, isEn ? 'Age group: ${profile.ageGroup}' : '年齡組別：${profile.ageGroup}'),
       if (profile.emergencyContactName != null)
         (
           Icons.favorite_outline,
           emergencyPhone != null
-              ? '緊急聯絡：${profile.emergencyContactName} ($emergencyPhone)'
-              : '緊急聯絡：${profile.emergencyContactName}'
+              ? (isEn
+                  ? 'Emergency: ${profile.emergencyContactName} ($emergencyPhone)'
+                  : '緊急聯絡：${profile.emergencyContactName} ($emergencyPhone)')
+              : (isEn
+                  ? 'Emergency: ${profile.emergencyContactName}'
+                  : '緊急聯絡：${profile.emergencyContactName}')
         ),
     ];
     return Card(
@@ -658,7 +685,7 @@ class _ProfileCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('你嘅資料', style: theme.textTheme.titleLarge),
+                  child: Text(isEn ? 'Your Profile' : '你嘅資料', style: theme.textTheme.titleLarge),
                 ),
                 _SignOutButton(),
               ],
@@ -700,7 +727,10 @@ class _SignOutButton extends StatelessWidget {
         settings.profile = null;
       },
       icon: const Icon(Icons.logout_rounded, size: 20),
-      label: const Text('登出'),
+      label: Builder(builder: (ctx) {
+        final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+        return Text(isEn ? 'Sign out' : '登出');
+      }),
     );
   }
 }

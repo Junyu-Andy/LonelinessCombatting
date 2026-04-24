@@ -19,21 +19,35 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<_SocialEntry> _todayEntries = [
-    _SocialEntry(
-      person: '表姐',
-      summary: '喺家庭群組講咗幾句日常嘢，氣氛輕鬆。',
-      feeling: _Feeling.warm,
-      time: const TimeOfDay(hour: 10, minute: 24),
-    ),
-  ];
+  late final List<_SocialEntry> _todayEntries;
+  bool _entriesInitialised = false;
 
   void _addEntry(_SocialEntry entry) {
     setState(() => _todayEntries.insert(0, entry));
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_entriesInitialised) {
+      _entriesInitialised = true;
+      final isEn = Localizations.localeOf(context).languageCode == 'en';
+      _todayEntries = [
+        _SocialEntry(
+          person: isEn ? 'Cousin' : '表姐',
+          summary: isEn
+              ? 'Chatted a bit in the family group — nice and casual.'
+              : '喺家庭群組講咗幾句日常嘢，氣氛輕鬆。',
+          feeling: _Feeling.warm,
+          time: const TimeOfDay(hour: 10, minute: 24),
+        ),
+      ];
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final l10n = AppLocalizations.of(context)!;
     final now = DateTime.now();
 
@@ -57,57 +71,57 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 24),
           _SectionHeader(
             icon: Icons.apps_rounded,
-            title: '想由邊度開始？',
-            subtitle: '揀一個功能。',
+            title: isEn ? 'Where to start?' : '想由邊度開始？',
+            subtitle: isEn ? 'Pick a feature.' : '揀一個功能。',
           ),
           const SizedBox(height: 14),
           _QuickActionsGrid(
             actions: [
               _QuickAction(
                 icon: Icons.favorite_outline,
-                label: '快速 Check-in',
+                label: isEn ? 'Check-in' : '快速 Check-in',
                 color: const Color(0xFFFEE2E2),
                 onTap: () => _open(const CheckInPage()),
               ),
               _QuickAction(
                 icon: Icons.people_outline,
-                label: '社交關係圖',
+                label: isEn ? 'Social Map' : '社交關係圖',
                 color: const Color(0xFFDBEAFE),
                 onTap: () => _open(const SocialMapPage()),
               ),
               _QuickAction(
                 icon: Icons.forum_outlined,
-                label: '互動反思',
+                label: isEn ? 'Reflect' : '互動反思',
                 color: const Color(0xFFE0E7FF),
                 onTap: () => _open(const ReflectionPage()),
               ),
               _QuickAction(
                 icon: Icons.self_improvement,
-                label: '靜一靜',
+                label: isEn ? 'Calm Down' : '靜一靜',
                 color: const Color(0xFFD1FAE5),
                 onTap: () => _open(const CalmPage()),
               ),
               _QuickAction(
                 icon: Icons.lightbulb_outline,
-                label: '行動支援',
+                label: isEn ? 'Activities' : '行動支援',
                 color: const Color(0xFFFEF3C7),
                 onTap: () => _open(const ActionSupportPage()),
               ),
               _QuickAction(
                 icon: Icons.event_note_outlined,
-                label: '跟進提醒',
+                label: isEn ? 'Follow-up' : '跟進提醒',
                 color: const Color(0xFFFCE7F3),
                 onTap: () => _open(const FollowUpPage()),
               ),
               _QuickAction(
                 icon: Icons.handshake_outlined,
-                label: '社區資源',
+                label: isEn ? 'Community' : '社區資源',
                 color: const Color(0xFFCCFBF1),
                 onTap: () => _open(const CommunityResourcesPage()),
               ),
               _QuickAction(
                 icon: Icons.health_and_safety_outlined,
-                label: '即時支援',
+                label: isEn ? 'Crisis Support' : '即時支援',
                 color: const Color(0xFFFFE4E6),
                 onTap: () {
                   AnalyticsScope.of(context)
@@ -118,8 +132,10 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           const SizedBox(height: 24),
-          const FigurePlaceholder(
-            description: '插畫：兩個輪廓喺手機兩端微笑，象徵簡短嘅問候已經有溫度。',
+          FigurePlaceholder(
+            description: isEn
+                ? 'Illustration: two silhouettes smiling across phones — a short greeting already feels warm.'
+                : '插畫：兩個輪廓喺手機兩端微笑，象徵簡短嘅問候已經有溫度。',
             height: 110,
             icon: Icons.chat_bubble_outline,
           ),
@@ -155,29 +171,34 @@ class _GreetingHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     final hour = now.hour;
     final String greeting;
     final IconData icon;
     if (hour >= 5 && hour < 11) {
-      greeting = '早晨！';
+      greeting = isEn ? 'Good morning!' : '早晨！';
       icon = Icons.wb_sunny_outlined;
     } else if (hour >= 11 && hour < 14) {
-      greeting = '午安！';
+      greeting = isEn ? 'Good noon!' : '午安！';
       icon = Icons.light_mode_outlined;
     } else if (hour >= 14 && hour < 18) {
-      greeting = '下午好';
+      greeting = isEn ? 'Good afternoon' : '下午好';
       icon = Icons.wb_cloudy_outlined;
     } else if (hour >= 18 && hour < 22) {
-      greeting = '夜晚好';
+      greeting = isEn ? 'Good evening' : '夜晚好';
       icon = Icons.nights_stay_outlined;
     } else {
-      greeting = '夜深喇，慢慢嚟';
+      greeting = isEn ? 'It\'s late — take it easy' : '夜深喇，慢慢嚟';
       icon = Icons.bedtime_outlined;
     }
 
-    const weekdayNames = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
-    final dateLine = '${now.month} 月 ${now.day} 日　${weekdayNames[now.weekday - 1]}';
+    final weekdayNames = isEn
+        ? const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        : const ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+    final dateLine = isEn
+        ? '${weekdayNames[now.weekday - 1]}, ${now.month}/${now.day}'
+        : '${now.month} 月 ${now.day} 日　${weekdayNames[now.weekday - 1]}';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
@@ -238,7 +259,7 @@ class _GreetingHero extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  '揀一件你而家做到嘅事 — $appTitle 陪你。',
+                  isEn ? 'Pick something you can do right now — $appTitle is with you.' : '揀一件你而家做到嘅事 — $appTitle 陪你。',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: Colors.white.withValues(alpha: 0.95),
                     height: 1.4,
@@ -269,7 +290,7 @@ class _GreetingHero extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                '工業及製造系統工程學系',
+                isEn ? 'IMSE, The University of Hong Kong' : '工業及製造系統工程學系',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: Colors.white.withValues(alpha: 0.85),
                 ),
@@ -313,7 +334,10 @@ class _TodayVibeCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text('今日狀態', style: theme.textTheme.titleLarge),
+                  child: Builder(builder: (ctx) {
+                    final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                    return Text(isEn ? 'Today\'s Status' : '今日狀態', style: Theme.of(ctx).textTheme.titleLarge);
+                  }),
                 ),
                 TextButton.icon(
                   onPressed: onCheckIn,
@@ -323,11 +347,18 @@ class _TodayVibeCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            _VibeBar(label: '心情', value: mood),
-            const SizedBox(height: 12),
-            _VibeBar(label: '孤獨感', value: loneliness),
-            const SizedBox(height: 12),
-            _VibeBar(label: '社交能量', value: socialEnergy),
+            Builder(builder: (ctx) {
+              final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+              return Column(
+                children: [
+                  _VibeBar(label: isEn ? 'Mood' : '心情', value: mood),
+                  const SizedBox(height: 12),
+                  _VibeBar(label: isEn ? 'Loneliness' : '孤獨感', value: loneliness),
+                  const SizedBox(height: 12),
+                  _VibeBar(label: isEn ? 'Social energy' : '社交能量', value: socialEnergy),
+                ],
+              );
+            }),
           ],
         ),
       ),
@@ -401,16 +432,19 @@ class _SocialLogCardState extends State<_SocialLogCard> {
   }
 
   void _save() {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final summary = _summaryController.text.trim();
     if (summary.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('請寫低少少今日嘅互動再儲存。')),
+        SnackBar(content: Text(isEn
+            ? 'Please write a little about today\'s interaction before saving.'
+            : '請寫低少少今日嘅互動再儲存。')),
       );
       return;
     }
     final hasPerson = _personController.text.trim().isNotEmpty;
     widget.onAdd(_SocialEntry(
-      person: hasPerson ? _personController.text.trim() : '冇指定對象',
+      person: hasPerson ? _personController.text.trim() : (isEn ? 'No specific person' : '冇指定對象'),
       summary: summary,
       feeling: _feeling,
       time: TimeOfDay.fromDateTime(DateTime.now()),
@@ -444,7 +478,10 @@ class _SocialLogCardState extends State<_SocialLogCard> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text('今日社交記錄', style: theme.textTheme.titleLarge),
+                  child: Builder(builder: (ctx) {
+                    final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                    return Text(isEn ? 'Today\'s Social Log' : '今日社交記錄', style: theme.textTheme.titleLarge);
+                  }),
                 ),
                 _CountBadge(count: widget.entries.length),
               ],
@@ -456,87 +493,107 @@ class _SocialLogCardState extends State<_SocialLogCard> {
                     size: 18, color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(
-                    '寫低　•　之後睇返',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                  child: Builder(builder: (ctx) {
+                    final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                    return Text(
+                      isEn ? 'Write it down  •  look back later' : '寫低　•　之後睇返',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    );
+                  }),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _personController,
-              style: theme.textTheme.bodyLarge,
-              decoration: const InputDecoration(
-                labelText: '同邊個？',
-                hintText: '阿May / 表姐…',
-                prefixIcon: Icon(Icons.person_outline, size: 24),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _summaryController,
-              maxLines: 3,
-              style: theme.textTheme.bodyLarge,
-              decoration: const InputDecoration(
-                labelText: '做咗啲乜？',
-                hintText: '傳語音、傾咗 5 分鐘…',
-                prefixIcon: Icon(Icons.edit_outlined, size: 24),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Icon(Icons.mood_outlined,
-                    size: 20, color: theme.colorScheme.onSurfaceVariant),
-                const SizedBox(width: 6),
-                Text(
-                  '感覺點？',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+            Builder(builder: (ctx) {
+              final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: _personController,
+                    style: theme.textTheme.bodyLarge,
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'With whom?' : '同邊個？',
+                      hintText: isEn ? 'May / Cousin…' : '阿May / 表姐…',
+                      prefixIcon: const Icon(Icons.person_outline, size: 24),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _Feeling.values.map((f) {
-                final selected = f == _feeling;
-                return ChoiceChip(
-                  label: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _summaryController,
+                    maxLines: 3,
+                    style: theme.textTheme.bodyLarge,
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'What happened?' : '做咗啲乜？',
+                      hintText: isEn ? 'Voice message, chatted 5 min…' : '傳語音、傾咗 5 分鐘…',
+                      prefixIcon: const Icon(Icons.edit_outlined, size: 24),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
                     children: [
-                      Text(f.emoji),
+                      Icon(Icons.mood_outlined,
+                          size: 20, color: theme.colorScheme.onSurfaceVariant),
                       const SizedBox(width: 6),
-                      Text(f.label),
+                      Text(
+                        isEn ? 'How did it feel?' : '感覺點？',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ],
                   ),
-                  selected: selected,
-                  onSelected: (_) => setState(() => _feeling = f),
-                );
-              }).toList(),
-            ),
+                ],
+              );
+            }),
+            const SizedBox(height: 8),
+            Builder(builder: (ctx) {
+              final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _Feeling.values.map((f) {
+                  final selected = f == _feeling;
+                  return ChoiceChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(f.emoji),
+                        const SizedBox(width: 6),
+                        Text(f.label(isEn)),
+                      ],
+                    ),
+                    selected: selected,
+                    onSelected: (_) => setState(() => _feeling = f),
+                  );
+                }).toList(),
+              );
+            }),
             const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _save,
-                icon: const Icon(Icons.save_outlined, size: 24),
-                label: const Text('儲存今日記錄'),
-              ),
-            ),
+            Builder(builder: (ctx) {
+              final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+              return SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _save,
+                  icon: const Icon(Icons.save_outlined, size: 24),
+                  label: Text(isEn ? 'Save today\'s log' : '儲存今日記錄'),
+                ),
+              );
+            }),
             if (widget.entries.isNotEmpty) ...[
               const SizedBox(height: 20),
               Divider(color: theme.colorScheme.outlineVariant, height: 1),
               const SizedBox(height: 16),
-              Text(
-                '今日已記錄',
-                style: theme.textTheme.titleMedium,
-              ),
+              Builder(builder: (ctx) {
+                final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                return Text(
+                  isEn ? 'Logged today' : '今日已記錄',
+                  style: theme.textTheme.titleMedium,
+                );
+              }),
               const SizedBox(height: 10),
               ...widget.entries.map(
                 (e) => Padding(
@@ -774,7 +831,10 @@ class _DailySuggestionCard extends StatelessWidget {
                   color: theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 10),
-                Text('今日小建議', style: theme.textTheme.titleLarge),
+                Builder(builder: (ctx) {
+                  final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                  return Text(isEn ? 'Today\'s Suggestion' : '今日小建議', style: theme.textTheme.titleLarge);
+                }),
               ],
             ),
             const SizedBox(height: 12),
@@ -790,12 +850,15 @@ class _DailySuggestionCard extends StatelessWidget {
                       size: 26, color: theme.colorScheme.onPrimaryContainer),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      '「早晨，諗起你。」',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: Builder(builder: (ctx) {
+                      final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                      return Text(
+                        isEn ? '"Good morning — thinking of you."' : '「早晨，諗起你。」',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      );
+                    }),
                   ),
                 ],
               ),
@@ -807,12 +870,15 @@ class _DailySuggestionCard extends StatelessWidget {
                     size: 18, color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(
-                    '一句已經夠。',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                  child: Builder(builder: (ctx) {
+                    final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                    return Text(
+                      isEn ? 'One line is enough.' : '一句已經夠。',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    );
+                  }),
                 ),
               ],
             ),
@@ -822,7 +888,10 @@ class _DailySuggestionCard extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: onReachOut,
                 icon: const Icon(Icons.people_outline, size: 24),
-                label: const Text('睇下可以聯絡邊個'),
+                label: Builder(builder: (ctx) {
+                  final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                  return Text(isEn ? 'See who you can reach out to' : '睇下可以聯絡邊個');
+                }),
               ),
             ),
           ],
@@ -854,7 +923,10 @@ class _BoundaryReminderCard extends StatelessWidget {
                   color: theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 10),
-                Text('溫馨提示', style: theme.textTheme.titleLarge),
+                Builder(builder: (ctx) {
+                  final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                  return Text(isEn ? 'Reminder' : '溫馨提示', style: theme.textTheme.titleLarge);
+                }),
               ],
             ),
             const SizedBox(height: 10),
@@ -870,13 +942,16 @@ class _BoundaryReminderCard extends StatelessWidget {
                       size: 24, color: theme.colorScheme.onErrorContainer),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      '緊急情況　→　撥 999',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.onErrorContainer,
-                      ),
-                    ),
+                    child: Builder(builder: (ctx) {
+                      final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                      return Text(
+                        isEn ? 'Emergency → Call 999' : '緊急情況　→　撥 999',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onErrorContainer,
+                        ),
+                      );
+                    }),
                   ),
                 ],
               ),
@@ -887,7 +962,10 @@ class _BoundaryReminderCard extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: onEmergency,
                 icon: const Icon(Icons.health_and_safety_outlined, size: 24),
-                label: const Text('打開即時支援'),
+                label: Builder(builder: (ctx) {
+                  final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                  return Text(isEn ? 'Open Crisis Support' : '打開即時支援');
+                }),
               ),
             ),
           ],
@@ -912,16 +990,19 @@ class _QuickAction {
 }
 
 enum _Feeling {
-  warm('溫暖', '🤗'),
-  ok('一般', '🙂'),
-  awkward('有少少尷尬', '😅'),
-  drained('攰', '😮‍💨'),
-  lonely('仲係孤獨', '😔');
+  warm('溫暖', 'Warm', '🤗'),
+  ok('一般', 'OK', '🙂'),
+  awkward('有少少尷尬', 'A bit awkward', '😅'),
+  drained('攰', 'Drained', '😮‍💨'),
+  lonely('仲係孤獨', 'Still lonely', '😔');
 
-  final String label;
+  final String labelZh;
+  final String labelEn;
   final String emoji;
 
-  const _Feeling(this.label, this.emoji);
+  const _Feeling(this.labelZh, this.labelEn, this.emoji);
+
+  String label(bool isEn) => isEn ? labelEn : labelZh;
 }
 
 class _SocialEntry {

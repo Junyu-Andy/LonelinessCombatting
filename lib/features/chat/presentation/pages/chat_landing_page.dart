@@ -37,15 +37,9 @@ class ChatLandingPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          _PersonaCard(
-            persona: ChatPersona.casual,
-            description: '日常嘅吹水、抒發、分享。\n短短幾句，輕鬆無壓力。',
-          ),
+          _PersonaCard(persona: ChatPersona.casual),
           const SizedBox(height: 16),
-          _PersonaCard(
-            persona: ChatPersona.consult,
-            description: '想認真傾下感受、整理諗法。\n語調穩重，一步一步嚟。',
-          ),
+          _PersonaCard(persona: ChatPersona.consult),
           const SizedBox(height: 18),
           _DisclaimerCard(),
         ],
@@ -56,14 +50,23 @@ class ChatLandingPage extends StatelessWidget {
 
 class _PersonaCard extends StatelessWidget {
   final ChatPersona persona;
-  final String description;
 
-  const _PersonaCard({required this.persona, required this.description});
+  const _PersonaCard({required this.persona});
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     final spec = personaVisual(persona);
+    final description = switch (persona) {
+      ChatPersona.casual => isEn
+          ? 'Daily chit-chat, venting, sharing.\nLight and pressure-free.'
+          : '日常嘅吹水、抒發、分享。\n短短幾句，輕鬆無壓力。',
+      ChatPersona.consult => isEn
+          ? 'Reflect on feelings and organise your thoughts.\nCalm, steady, step by step.'
+          : '想認真傾下感受、整理諗法。\n語調穩重，一步一步嚟。',
+      _ => '',
+    };
     return Material(
       color: spec.bubbleColor,
       borderRadius: BorderRadius.circular(22),
@@ -125,6 +128,7 @@ class _PersonaCard extends StatelessWidget {
 class _DisclaimerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
@@ -136,12 +140,13 @@ class _DisclaimerCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline,
-              size: 22, color: Colors.amber.shade800),
+          Icon(Icons.info_outline, size: 22, color: Colors.amber.shade800),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '兩個對話對象都係 AI 助手。\n如果情緒持續低落或有危機，請聯絡屋企人或撥 999。',
+              isEn
+                  ? 'Both companions are AI assistants.\nIf you feel persistently low or in crisis, please contact family or call 999.'
+                  : '兩個對話對象都係 AI 助手。\n如果情緒持續低落或有危機，請聯絡屋企人或撥 999。',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.brown.shade900,
                 height: 1.45,

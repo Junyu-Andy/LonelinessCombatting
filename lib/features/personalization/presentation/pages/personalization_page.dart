@@ -79,16 +79,24 @@ class _SignedOutProfileCard extends StatelessWidget {
                 Icon(Icons.account_circle_outlined,
                     size: 28, color: theme.colorScheme.primary),
                 const SizedBox(width: 10),
-                Text('未登入', style: theme.textTheme.titleLarge),
+                Builder(builder: (ctx) {
+                  final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                  return Text(isEn ? 'Not signed in' : '未登入', style: theme.textTheme.titleLarge);
+                }),
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              '登入之後，呢度會記住你嘅資料同跟進節奏，跨裝置都搵得返。',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Builder(builder: (ctx) {
+              final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+              return Text(
+                isEn
+                    ? 'Sign in to save your profile and follow-up pace across devices.'
+                    : '登入之後，呢度會記住你嘅資料同跟進節奏，跨裝置都搵得返。',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              );
+            }),
           ],
         ),
       ),
@@ -104,8 +112,9 @@ class _ProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final emergencyText = profile.emergencyContactName == null
-        ? '未設定'
+        ? (isEn ? 'Not set' : '未設定')
         : profile.emergencyContactPhone != null
             ? '${profile.emergencyContactName} (${profile.emergencyContactPhone})'
             : profile.emergencyContactName!;
@@ -154,19 +163,19 @@ class _ProfileCard extends StatelessWidget {
             const SizedBox(height: 14),
             _InfoRow(
               icon: Icons.cake_outlined,
-              label: '年齡組別',
-              value: profile.ageGroup ?? '未填',
+              label: isEn ? 'Age group' : '年齡組別',
+              value: profile.ageGroup ?? (isEn ? 'Not filled' : '未填'),
             ),
             const SizedBox(height: 8),
             _InfoRow(
               icon: Icons.favorite_outline,
-              label: '緊急聯絡',
+              label: isEn ? 'Emergency contact' : '緊急聯絡',
               value: emergencyText,
             ),
             const SizedBox(height: 8),
             _InfoRow(
               icon: Icons.translate_rounded,
-              label: '預設語言',
+              label: isEn ? 'Language' : '預設語言',
               value: profile.preferredLanguage == 'en' ? 'English' : '中文',
             ),
             const SizedBox(height: 14),
@@ -175,7 +184,7 @@ class _ProfileCard extends StatelessWidget {
               child: FilledButton.tonalIcon(
                 onPressed: () => _openEditor(context, profile),
                 icon: const Icon(Icons.edit_outlined, size: 22),
-                label: const Text('更新我嘅資料'),
+                label: Text(isEn ? 'Update my profile' : '更新我嘅資料'),
               ),
             ),
           ],
@@ -250,7 +259,9 @@ class _ProfileEditorState extends State<_ProfileEditor> {
   bool _busy = false;
   String? _error;
 
-  static const _ageGroups = ['60-69', '70-79', '80+', '未滿 60'];
+  // Internal keys (stored values) are always the zh strings.
+  static const _ageGroupKeys = ['60-69', '70-79', '80+', '未滿 60'];
+  static const _ageGroupLabelsEn = ['60-69', '70-79', '80+', 'Under 60'];
 
   @override
   void initState() {
@@ -300,6 +311,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -307,51 +319,51 @@ class _ProfileEditorState extends State<_ProfileEditor> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('更新資料', style: theme.textTheme.headlineSmall),
+          Text(isEn ? 'Update Profile' : '更新資料', style: theme.textTheme.headlineSmall),
           const SizedBox(height: 12),
           TextField(
             controller: _name,
-            decoration: const InputDecoration(
-              labelText: '稱呼',
-              prefixIcon: Icon(Icons.person_outline),
+            decoration: InputDecoration(
+              labelText: isEn ? 'Name' : '稱呼',
+              prefixIcon: const Icon(Icons.person_outline),
             ),
           ),
           const SizedBox(height: 12),
-          Text('年齡組別', style: theme.textTheme.titleSmall),
+          Text(isEn ? 'Age Group' : '年齡組別', style: theme.textTheme.titleSmall),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _ageGroups.map((g) {
-              final selected = g == _ageGroup;
+            children: List.generate(_ageGroupKeys.length, (i) {
+              final key = _ageGroupKeys[i];
+              final label = isEn ? _ageGroupLabelsEn[i] : _ageGroupKeys[i];
               return ChoiceChip(
-                label: Text(g),
-                selected: selected,
-                onSelected: (_) => setState(() => _ageGroup = g),
+                label: Text(label),
+                selected: _ageGroup == key,
+                onSelected: (_) => setState(() => _ageGroup = key),
               );
-            }).toList(),
+            }),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _emergencyName,
-            decoration: const InputDecoration(
-              labelText: '緊急聯絡人',
-              prefixIcon: Icon(Icons.favorite_outline),
+            decoration: InputDecoration(
+              labelText: isEn ? 'Emergency contact name' : '緊急聯絡人',
+              prefixIcon: const Icon(Icons.favorite_outline),
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _emergencyPhone,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              labelText: '聯絡電話',
-              prefixIcon: Icon(Icons.phone_outlined),
+            decoration: InputDecoration(
+              labelText: isEn ? 'Contact phone' : '聯絡電話',
+              prefixIcon: const Icon(Icons.phone_outlined),
             ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 10),
-            Text(_error!,
-                style: TextStyle(color: theme.colorScheme.error)),
+            Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
           ],
           const SizedBox(height: 18),
           FilledButton.icon(
@@ -365,7 +377,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                     ),
                   )
                 : const Icon(Icons.save_outlined),
-            label: const Text('儲存'),
+            label: Text(isEn ? 'Save' : '儲存'),
           ),
         ],
       ),
@@ -398,15 +410,25 @@ class _RecentCheckInCard extends StatelessWidget {
                 Icon(Icons.timeline_rounded,
                     size: 24, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
-                Text('最近狀態', style: theme.textTheme.titleLarge),
+                Builder(builder: (ctx) {
+                  final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+                  return Text(isEn ? 'Recent Status' : '最近狀態', style: theme.textTheme.titleLarge);
+                }),
               ],
             ),
             const SizedBox(height: 12),
-            _StatBar(label: '心情', value: mood),
-            const SizedBox(height: 8),
-            _StatBar(label: '孤獨感', value: loneliness),
-            const SizedBox(height: 8),
-            _StatBar(label: '社交能量', value: socialEnergy),
+            Builder(builder: (ctx) {
+              final isEn = Localizations.localeOf(ctx).languageCode == 'en';
+              return Column(
+                children: [
+                  _StatBar(label: isEn ? 'Mood' : '心情', value: mood),
+                  const SizedBox(height: 8),
+                  _StatBar(label: isEn ? 'Loneliness' : '孤獨感', value: loneliness),
+                  const SizedBox(height: 8),
+                  _StatBar(label: isEn ? 'Social energy' : '社交能量', value: socialEnergy),
+                ],
+              );
+            }),
           ],
         ),
       ),
