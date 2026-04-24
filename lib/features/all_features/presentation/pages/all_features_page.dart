@@ -7,6 +7,7 @@ import '../../../../features/context/presentation/pages/reflection_page.dart';
 import '../../../../features/context/presentation/pages/social_map_page.dart';
 import '../../../../features/crisis/presentation/pages/emergency_support_page.dart';
 import '../../../../features/follow_up/presentation/pages/follow_up_page.dart';
+import '../../../../features/personalization/presentation/pages/personalization_page.dart';
 import '../../../../features/resources/presentation/pages/community_resources_page.dart';
 import '../../../../features/wellbeing/presentation/pages/calm_page.dart';
 
@@ -149,58 +150,54 @@ class _ProfileCard extends StatelessWidget {
         : (email ?? '');
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: theme.colorScheme.primaryContainer,
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : '?',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onPrimaryContainer,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 2),
-                  Text(
-                    sub,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            if (isGuest)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(20),
-                ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const PersonalizationPage(),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: theme.colorScheme.primaryContainer,
                 child: Text(
-                  isEn ? 'Guest' : '訪客',
+                  name.isNotEmpty ? name[0].toUpperCase() : '?',
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
                     color: theme.colorScheme.onPrimaryContainer,
                   ),
                 ),
               ),
-          ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, style: theme.textTheme.titleLarge),
+                    const SizedBox(height: 2),
+                    Text(
+                      sub,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 26,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
         ),
       ),
     );

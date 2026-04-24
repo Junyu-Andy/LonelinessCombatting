@@ -21,42 +21,102 @@ class PersonalizationPage extends StatelessWidget {
     final settings = AppSettingsScope.of(context);
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final profile = settings.profile;
+    final name = profile?.displayName ?? (isEn ? 'Guest' : '訪客');
 
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        children: [
-          Row(
-            children: [
-              Icon(Icons.person_pin_circle_outlined,
-                  size: 30, color: theme.colorScheme.primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(l10n.contextTab,
-                    style: theme.textTheme.headlineMedium),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.contextTab),
+        toolbarHeight: 64,
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF7C3AED), Color(0xFF4338CA)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius:
+                    BorderRadius.vertical(bottom: Radius.circular(32)),
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(l10n.contextSubtitle,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              )),
-          const SizedBox(height: 20),
-          if (profile == null)
-            const _SignedOutProfileCard()
-          else
-            _ProfileCard(profile: profile),
-          const SizedBox(height: 18),
-          const _RecentCheckInCard(
-            mood: 3,
-            loneliness: 4,
-            socialEnergy: 2,
-          ),
-          const SizedBox(height: 18),
-          const FollowUpSection(),
-        ],
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    child: profile != null
+                        ? Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : '?',
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.person,
+                            size: 32, color: Colors.white),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (profile?.email != null)
+                          Text(
+                            profile!.email,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.8),
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        const SizedBox(height: 6),
+                        Text(
+                          l10n.contextSubtitle,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+              child: Column(
+                children: [
+                  if (profile == null)
+                    const _SignedOutProfileCard()
+                  else
+                    _ProfileCard(profile: profile),
+                  const SizedBox(height: 18),
+                  const _RecentCheckInCard(mood: 3, loneliness: 4),
+                  const SizedBox(height: 18),
+                  const FollowUpSection(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -388,12 +448,10 @@ class _ProfileEditorState extends State<_ProfileEditor> {
 class _RecentCheckInCard extends StatelessWidget {
   final int mood;
   final int loneliness;
-  final int socialEnergy;
 
   const _RecentCheckInCard({
     required this.mood,
     required this.loneliness,
-    required this.socialEnergy,
   });
 
   @override
@@ -424,8 +482,6 @@ class _RecentCheckInCard extends StatelessWidget {
                   _StatBar(label: isEn ? 'Mood' : '心情', value: mood),
                   const SizedBox(height: 8),
                   _StatBar(label: isEn ? 'Loneliness' : '孤獨感', value: loneliness),
-                  const SizedBox(height: 8),
-                  _StatBar(label: isEn ? 'Social energy' : '社交能量', value: socialEnergy),
                 ],
               );
             }),
