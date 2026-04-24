@@ -26,22 +26,16 @@ class _HomePageState extends State<HomePage> {
     setState(() => _todayEntries.insert(0, entry));
   }
 
+  void _editEntry(int index, _SocialEntry updated) {
+    setState(() => _todayEntries[index] = updated);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_entriesInitialised) {
       _entriesInitialised = true;
-      final isEn = Localizations.localeOf(context).languageCode == 'en';
-      _todayEntries = [
-        _SocialEntry(
-          person: isEn ? 'Cousin' : '表姐',
-          summary: isEn
-              ? 'Chatted a bit in the family group — nice and casual.'
-              : '喺家庭群組講咗幾句日常嘢，氣氛輕鬆。',
-          feeling: _Feeling.warm,
-          time: const TimeOfDay(hour: 10, minute: 24),
-        ),
-      ];
+      _todayEntries = [];
     }
   }
 
@@ -60,13 +54,13 @@ class _HomePageState extends State<HomePage> {
           _TodayVibeCard(
             mood: 3,
             loneliness: 4,
-            socialEnergy: 2,
             onCheckIn: () => _open(const CheckInPage()),
           ),
           const SizedBox(height: 20),
           _SocialLogCard(
             entries: _todayEntries,
             onAdd: _addEntry,
+            onEdit: _editEntry,
           ),
           const SizedBox(height: 24),
           _SectionHeader(
@@ -306,13 +300,11 @@ class _GreetingHero extends StatelessWidget {
 class _TodayVibeCard extends StatelessWidget {
   final int mood;
   final int loneliness;
-  final int socialEnergy;
   final VoidCallback onCheckIn;
 
   const _TodayVibeCard({
     required this.mood,
     required this.loneliness,
-    required this.socialEnergy,
     required this.onCheckIn,
   });
 
@@ -354,8 +346,6 @@ class _TodayVibeCard extends StatelessWidget {
                   _VibeBar(label: isEn ? 'Mood' : '心情', value: mood),
                   const SizedBox(height: 12),
                   _VibeBar(label: isEn ? 'Loneliness' : '孤獨感', value: loneliness),
-                  const SizedBox(height: 12),
-                  _VibeBar(label: isEn ? 'Social energy' : '社交能量', value: socialEnergy),
                 ],
               );
             }),
@@ -412,8 +402,13 @@ class _VibeBar extends StatelessWidget {
 class _SocialLogCard extends StatefulWidget {
   final List<_SocialEntry> entries;
   final ValueChanged<_SocialEntry> onAdd;
+  final void Function(int index, _SocialEntry updated) onEdit;
 
-  const _SocialLogCard({required this.entries, required this.onAdd});
+  const _SocialLogCard({
+    required this.entries,
+    required this.onAdd,
+    required this.onEdit,
+  });
 
   @override
   State<_SocialLogCard> createState() => _SocialLogCardState();
@@ -423,6 +418,8 @@ class _SocialLogCardState extends State<_SocialLogCard> {
   final TextEditingController _personController = TextEditingController();
   final TextEditingController _summaryController = TextEditingController();
   _Feeling _feeling = _Feeling.warm;
+  bool _isExpanded = false;
+  int? _editingIndex;
 
   @override
   void dispose() {
@@ -431,37 +428,69 @@ class _SocialLogCardState extends State<_SocialLogCard> {
     super.dispose();
   }
 
+  void _openForm({int? editIndex}) {
+    setState(() {
+      _isExpanded = true;
+      _editingIndex = editIndex;
+      if (editIndex != null) {
+        final e = widget.entries[editIndex];
+        _personController.text = e.person;
+        _summaryController.text = e.summary;
+        _feeling = e.feeling;
+      } else {
+        _personController.clear();
+        _summaryController.clear();
+        _feeling = _Feeling.warm;
+      }
+    });
+  }
+
+  void _closeForm() {
+    setState(() {
+      _isExpanded = false;
+      _editingIndex = null;
+    });
+    FocusScope.of(context).unfocus();
+  }
+
   void _save() {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final summary = _summaryController.text.trim();
     if (summary.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isEn
-            ? 'Please write a little about today\'s interaction before saving.'
-            : '請寫低少少今日嘅互動再儲存。')),
+        SnackBar(
+          content: Text(isEn
+              ? 'Please write a little about today\'s interaction.'
+              : '請寫低少少今日嘅互動再儲存。'),
+        ),
       );
       return;
     }
     final hasPerson = _personController.text.trim().isNotEmpty;
-    widget.onAdd(_SocialEntry(
-      person: hasPerson ? _personController.text.trim() : (isEn ? 'No specific person' : '冇指定對象'),
+    final entry = _SocialEntry(
+      person: hasPerson
+          ? _personController.text.trim()
+          : (isEn ? 'No specific person' : '冇指定對象'),
       summary: summary,
       feeling: _feeling,
       time: TimeOfDay.fromDateTime(DateTime.now()),
-    ));
-    AnalyticsScope.of(context).logSocialLogEntry(
-      hasPerson: hasPerson,
-      summaryLength: summary.length,
-      feeling: _feeling.name,
     );
-    _personController.clear();
-    _summaryController.clear();
-    setState(() => _feeling = _Feeling.warm);
-    FocusScope.of(context).unfocus();
+    if (_editingIndex != null) {
+      widget.onEdit(_editingIndex!, entry);
+    } else {
+      widget.onAdd(entry);
+      AnalyticsScope.of(context).logSocialLogEntry(
+        hasPerson: hasPerson,
+        summaryLength: summary.length,
+        feeling: _feeling.name,
+      );
+    }
+    _closeForm();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     return Card(
       child: Padding(
@@ -469,89 +498,127 @@ class _SocialLogCardState extends State<_SocialLogCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header row
             Row(
               children: [
-                Icon(
-                  Icons.edit_note_rounded,
-                  size: 28,
-                  color: theme.colorScheme.primary,
-                ),
+                Icon(Icons.edit_note_rounded,
+                    size: 28, color: theme.colorScheme.primary),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Builder(builder: (ctx) {
-                    final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-                    return Text(isEn ? 'Today\'s Social Log' : '今日社交記錄', style: theme.textTheme.titleLarge);
-                  }),
+                  child: Text(
+                    isEn ? 'Today\'s Social Log' : '今日社交記錄',
+                    style: theme.textTheme.titleLarge,
+                  ),
                 ),
-                _CountBadge(count: widget.entries.length),
+                if (widget.entries.isNotEmpty)
+                  _CountBadge(count: widget.entries.length),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    _isExpanded && _editingIndex == null
+                        ? Icons.close
+                        : Icons.add_circle_outline,
+                    color: theme.colorScheme.primary,
+                  ),
+                  tooltip: isEn ? 'Add entry' : '新增記錄',
+                  onPressed: () {
+                    if (_isExpanded && _editingIndex == null) {
+                      _closeForm();
+                    } else {
+                      _openForm();
+                    }
+                  },
+                ),
               ],
             ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(Icons.note_alt_outlined,
-                    size: 18, color: theme.colorScheme.onSurfaceVariant),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Builder(builder: (ctx) {
-                    final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-                    return Text(
-                      isEn ? 'Write it down  •  look back later' : '寫低　•　之後睇返',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    );
-                  }),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Builder(builder: (ctx) {
-              final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: _personController,
-                    style: theme.textTheme.bodyLarge,
-                    decoration: InputDecoration(
-                      labelText: isEn ? 'With whom?' : '同邊個？',
-                      hintText: isEn ? 'May / Cousin…' : '阿May / 表姐…',
-                      prefixIcon: const Icon(Icons.person_outline, size: 24),
+
+            // Empty state (not expanded, no entries)
+            if (!_isExpanded && widget.entries.isEmpty) ...[
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: _openForm,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 20, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color:
+                          theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+                      style: BorderStyle.solid,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _summaryController,
-                    maxLines: 3,
-                    style: theme.textTheme.bodyLarge,
-                    decoration: InputDecoration(
-                      labelText: isEn ? 'What happened?' : '做咗啲乜？',
-                      hintText: isEn ? 'Voice message, chatted 5 min…' : '傳語音、傾咗 5 分鐘…',
-                      prefixIcon: const Icon(Icons.edit_outlined, size: 24),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
+                  child: Column(
                     children: [
-                      Icon(Icons.mood_outlined,
-                          size: 20, color: theme.colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 6),
+                      Icon(Icons.edit_outlined,
+                          size: 32,
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.5)),
+                      const SizedBox(height: 8),
                       Text(
-                        isEn ? 'How did it feel?' : '感覺點？',
+                        isEn
+                            ? 'No entries yet\nWrite down today\'s interaction'
+                            : '今日尚未記錄\n寫低今日嘅社交互動吧',
+                        textAlign: TextAlign.center,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.7),
+                          height: 1.5,
                         ),
                       ),
                     ],
                   ),
+                ),
+              ),
+            ],
+
+            // Input form (expanded)
+            if (_isExpanded) ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _personController,
+                style: theme.textTheme.bodyLarge,
+                decoration: InputDecoration(
+                  labelText: isEn ? 'With whom?' : '同邊個？',
+                  hintText: isEn ? 'May / Cousin…' : '阿May / 表姐…',
+                  prefixIcon:
+                      const Icon(Icons.person_outline, size: 24),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _summaryController,
+                maxLines: 3,
+                style: theme.textTheme.bodyLarge,
+                decoration: InputDecoration(
+                  labelText: isEn ? 'What happened?' : '做咗啲乜？',
+                  hintText: isEn
+                      ? 'Voice message, chatted 5 min…'
+                      : '傳語音、傾咗 5 分鐘…',
+                  prefixIcon:
+                      const Icon(Icons.edit_outlined, size: 24),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Icon(Icons.mood_outlined,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 6),
+                  Text(
+                    isEn ? 'How did it feel?' : '感覺點？',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ],
-              );
-            }),
-            const SizedBox(height: 8),
-            Builder(builder: (ctx) {
-              final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-              return Wrap(
+              ),
+              const SizedBox(height: 8),
+              Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: _Feeling.values.map((f) {
@@ -569,36 +636,48 @@ class _SocialLogCardState extends State<_SocialLogCard> {
                     onSelected: (_) => setState(() => _feeling = f),
                   );
                 }).toList(),
-              );
-            }),
-            const SizedBox(height: 18),
-            Builder(builder: (ctx) {
-              final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-              return SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _save,
-                  icon: const Icon(Icons.save_outlined, size: 24),
-                  label: Text(isEn ? 'Save today\'s log' : '儲存今日記錄'),
-                ),
-              );
-            }),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _save,
+                      icon: const Icon(Icons.save_outlined, size: 24),
+                      label: Text(_editingIndex != null
+                          ? (isEn ? 'Update' : '更新記錄')
+                          : (isEn ? 'Save' : '儲存')),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _closeForm,
+                      child: Text(isEn ? 'Cancel' : '取消'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            // Recorded entries
             if (widget.entries.isNotEmpty) ...[
               const SizedBox(height: 20),
-              Divider(color: theme.colorScheme.outlineVariant, height: 1),
+              Divider(
+                  color: theme.colorScheme.outlineVariant, height: 1),
               const SizedBox(height: 16),
-              Builder(builder: (ctx) {
-                final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-                return Text(
-                  isEn ? 'Logged today' : '今日已記錄',
-                  style: theme.textTheme.titleMedium,
-                );
-              }),
+              Text(
+                isEn ? 'Logged today' : '今日已記錄',
+                style: theme.textTheme.titleMedium,
+              ),
               const SizedBox(height: 10),
-              ...widget.entries.map(
+              ...widget.entries.asMap().entries.map(
                 (e) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: _SocialEntryTile(entry: e),
+                  child: _SocialEntryTile(
+                    entry: e.value,
+                    onEdit: () => _openForm(editIndex: e.key),
+                  ),
                 ),
               ),
             ],
@@ -611,8 +690,9 @@ class _SocialLogCardState extends State<_SocialLogCard> {
 
 class _SocialEntryTile extends StatelessWidget {
   final _SocialEntry entry;
+  final VoidCallback onEdit;
 
-  const _SocialEntryTile({required this.entry});
+  const _SocialEntryTile({required this.entry, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -620,7 +700,7 @@ class _SocialEntryTile extends StatelessWidget {
     final timeLabel =
         '${entry.time.hour.toString().padLeft(2, '0')}:${entry.time.minute.toString().padLeft(2, '0')}';
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 14, 6, 14),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(14),
@@ -666,6 +746,15 @@ class _SocialEntryTile extends StatelessWidget {
                 Text(entry.summary, style: theme.textTheme.bodyLarge),
               ],
             ),
+          ),
+          IconButton(
+            icon: Icon(Icons.edit_outlined,
+                size: 20, color: theme.colorScheme.onSurfaceVariant),
+            tooltip:
+                Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Edit'
+                    : '修改',
+            onPressed: onEdit,
           ),
         ],
       ),
