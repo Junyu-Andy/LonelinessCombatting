@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-import '../../../../app/main_shell.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../widgets/onboarding_slide.dart';
 
 class OnboardingPage extends StatefulWidget {
-  const OnboardingPage({super.key});
+  /// Called when the user finishes the last slide. When null, the page does
+  /// nothing on completion — the outer navigator (or [AuthGate]) is expected
+  /// to react to some other signal.
+  final VoidCallback? onFinished;
+
+  const OnboardingPage({super.key, this.onFinished});
 
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
@@ -23,11 +27,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   void _enterDemo() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => const MainShell(),
-      ),
-    );
+    widget.onFinished?.call();
   }
 
   @override

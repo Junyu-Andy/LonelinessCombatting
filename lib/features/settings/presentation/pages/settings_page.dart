@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../../app/app_settings_scope.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../auth/data/user_profile.dart';
+import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import 'faq_page.dart';
 import 'privacy_policy_page.dart';
@@ -17,8 +20,6 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   _FontScale _fontScale = _FontScale.standard;
-  _AppLanguage _language = _AppLanguage.cantonese;
-  bool _highContrast = false;
   bool _quietHours = true;
   bool _voiceReadback = false;
 
@@ -26,6 +27,11 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final settings = AppSettingsScope.of(context);
+    final highContrast = settings.highContrast;
+    final language = settings.locale.languageCode == 'en'
+        ? _AppLanguage.english
+        : _AppLanguage.cantonese;
 
     return SafeArea(
       child: ListView(
@@ -52,6 +58,10 @@ class _SettingsPageState extends State<SettingsPage> {
             l10n.settingsSubtitle,
             style: theme.textTheme.bodyLarge,
           ),
+          if (settings.profile != null) ...[
+            const SizedBox(height: 20),
+            _ProfileCard(profile: settings.profile!),
+          ],
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.text_fields_rounded,
@@ -67,8 +77,8 @@ class _SettingsPageState extends State<SettingsPage> {
             icon: Icons.contrast_rounded,
             title: '高對比模式',
             subtitle: '字體同背景顏色對比更加清楚。',
-            value: _highContrast,
-            onChanged: (value) => setState(() => _highContrast = value),
+            value: highContrast,
+            onChanged: (value) => settings.highContrast = value,
           ),
           const SizedBox(height: 28),
           _SectionHeader(
@@ -77,8 +87,12 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 14),
           _LanguageCard(
-            value: _language,
-            onChanged: (value) => setState(() => _language = value),
+            value: language,
+            onChanged: (value) {
+              settings.locale = value == _AppLanguage.english
+                  ? const Locale('en')
+                  : const Locale('zh');
+            },
           ),
           const SizedBox(height: 28),
           _SectionHeader(
@@ -557,6 +571,96 @@ class _AboutCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ProfileCard extends StatelessWidget {
+  final UserProfile profile;
+
+  const _ProfileCard({required this.profile});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final emergencyPhone = profile.emergencyContactPhone;
+    final lines = <(IconData, String)>[
+      (Icons.person_outline, profile.displayName),
+      (Icons.mail_outline, profile.email),
+      if (profile.ageGroup != null)
+        (Icons.cake_outlined, '年齡組別：${profile.ageGroup}'),
+      if (profile.emergencyContactName != null)
+        (
+          Icons.favorite_outline,
+          emergencyPhone != null
+              ? '緊急聯絡：${profile.emergencyContactName} ($emergencyPhone)'
+              : '緊急聯絡：${profile.emergencyContactName}'
+        ),
+    ];
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.account_circle_outlined,
+                      size: 28, color: theme.colorScheme.onPrimaryContainer),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('你嘅資料', style: theme.textTheme.titleLarge),
+                ),
+                _SignOutButton(),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...lines.map(
+              (line) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Icon(line.$1,
+                        size: 20, color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        line.$2,
+                        style: theme.textTheme.bodyLarge,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SignOutButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final auth = AuthServiceScope.of(context);
+    final settings = AppSettingsScope.read(context);
+    return TextButton.icon(
+      onPressed: () async {
+        await auth.signOut();
+        settings.profile = null;
+      },
+      icon: const Icon(Icons.logout_rounded, size: 20),
+      label: const Text('登出'),
     );
   }
 }
