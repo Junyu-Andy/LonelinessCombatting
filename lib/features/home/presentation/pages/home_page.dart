@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 
@@ -47,21 +48,27 @@ class _HomePageState extends State<HomePage> {
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        padding: EdgeInsets.zero,
         children: [
           _GreetingHero(now: now, appTitle: l10n.appTitle),
-          const SizedBox(height: 16),
-          _AppUsageCard(days: daysUsed),
-          const SizedBox(height: 20),
-          const _TodayVibeCard(mood: 3, loneliness: 4),
-          const SizedBox(height: 20),
-          _SocialLogCard(
-            entries: _todayEntries,
-            onAdd: _addEntry,
-            onEdit: _editEntry,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            child: Column(
+              children: [
+                _AppUsageCard(days: daysUsed),
+                const SizedBox(height: 20),
+                const _TodayVibeCard(mood: 3, loneliness: 4),
+                const SizedBox(height: 20),
+                _SocialLogCard(
+                  entries: _todayEntries,
+                  onAdd: _addEntry,
+                  onEdit: _editEntry,
+                ),
+                const SizedBox(height: 20),
+                _ReviewCard(entries: _todayEntries),
+              ],
+            ),
           ),
-          const SizedBox(height: 20),
-          _ReviewCard(entries: _todayEntries),
         ],
       ),
     );
@@ -108,9 +115,10 @@ class _GreetingHero extends StatelessWidget {
         : '${now.month} 月 ${now.day} 日　${weekdayNames[now.weekday - 1]}';
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 22, 22, 22),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 36, 24, 28),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(36)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -361,8 +369,55 @@ class _SocialLogCardState extends State<_SocialLogCard> {
   bool _isExpanded = false;
   int? _editingIndex;
 
+  final SpeechToText _speech = SpeechToText();
+  bool _isListening = false;
+  bool _speechAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initSpeech();
+  }
+
+  Future<void> _initSpeech() async {
+    _speechAvailable = await _speech.initialize(
+      onStatus: (status) {
+        if (mounted && status == SpeechToText.doneStatus) {
+          setState(() => _isListening = false);
+        }
+      },
+      onError: (_) {
+        if (mounted) setState(() => _isListening = false);
+      },
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _toggleListening({required bool isEn}) async {
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+      return;
+    }
+    if (!_speechAvailable) return;
+    setState(() => _isListening = true);
+    await _speech.listen(
+      onResult: (result) {
+        if (!mounted) return;
+        setState(() {
+          _summaryController.text = result.recognizedWords;
+          _summaryController.selection = TextSelection.collapsed(
+            offset: _summaryController.text.length,
+          );
+        });
+      },
+      localeId: isEn ? 'en-US' : 'zh-HK',
+    );
+  }
+
   @override
   void dispose() {
+    _speech.cancel();
     _personController.dispose();
     _summaryController.dispose();
     super.dispose();
@@ -544,6 +599,53 @@ class _SocialLogCardState extends State<_SocialLogCard> {
                   prefixIcon: const Icon(Icons.edit_outlined, size: 24),
                 ),
               ),
+              if (_speechAvailable) ...[
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () => _toggleListening(isEn: isEn),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _isListening
+                          ? Colors.red.shade50
+                          : theme.colorScheme.primaryContainer
+                              .withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _isListening
+                            ? Colors.red.shade300
+                            : theme.colorScheme.primaryContainer,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isListening ? Icons.mic : Icons.mic_none,
+                          size: 20,
+                          color: _isListening
+                              ? Colors.red
+                              : theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _isListening
+                              ? (isEn ? 'Listening…' : '聆聽中…')
+                              : (isEn ? 'Tap to speak' : '點一下語音輸入'),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: _isListening
+                                ? Colors.red
+                                : theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 14),
               Row(
                 children: [

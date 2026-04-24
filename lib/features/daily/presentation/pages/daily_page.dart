@@ -127,18 +127,18 @@ class DailyPage extends StatelessWidget {
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        padding: EdgeInsets.zero,
         children: [
-          // Header banner ────────────────────────────────────────
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: const LinearGradient(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0EA5E9), Color(0xFF10B981)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFFE0F2FE), Color(0xFFF0FDF4)],
               ),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
             ),
             child: Row(
               children: [
@@ -147,11 +147,11 @@ class DailyPage extends StatelessWidget {
                   height: 68,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Icon(Icons.wb_sunny_rounded,
-                      size: 36, color: Color(0xFFEAB308)),
+                      size: 36, color: Colors.white),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -161,8 +161,8 @@ class DailyPage extends StatelessWidget {
                       Text(
                         isEn ? 'Daily For You' : '每日推薦',
                         style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF0F172A),
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -171,7 +171,7 @@ class DailyPage extends StatelessWidget {
                             ? 'Picked just for you based on your recent mood'
                             : '根據你最近嘅情況，特別揀咗呢啲',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF475569),
+                          color: Colors.white.withValues(alpha: 0.88),
                           height: 1.4,
                         ),
                       ),
@@ -181,36 +181,37 @@ class DailyPage extends StatelessWidget {
               ],
             ),
           ),
-
-          // Daily feed ───────────────────────────────────────────
-          const SizedBox(height: 24),
-          _SectionHeader(
-            icon: Icons.auto_stories_outlined,
-            title: isEn ? 'Learn Something Today' : '今日知多啲',
-          ),
-          const SizedBox(height: 14),
-          ...feedItems.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _FeedCard(data: item),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SectionHeader(
+                  icon: Icons.auto_stories_outlined,
+                  title: isEn ? 'Learn Something Today' : '今日知多啲',
+                ),
+                const SizedBox(height: 14),
+                ...feedItems.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _FeedCard(data: item),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _SectionHeader(
+                  icon: Icons.local_florist_outlined,
+                  title: isEn ? 'Recommended for Today' : '今日行動建議',
+                ),
+                const SizedBox(height: 14),
+                ...tinySteps.map((s) => Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: _TinyStepCard(step: s, isEn: isEn),
+                    )),
+                const SizedBox(height: 12),
+                _SafetyFooter(isEn: isEn),
+              ],
             ),
           ),
-
-          // Recommended for today ────────────────────────────────
-          const SizedBox(height: 16),
-          _SectionHeader(
-            icon: Icons.local_florist_outlined,
-            title: isEn ? 'Recommended for Today' : '今日行動建議',
-          ),
-          const SizedBox(height: 14),
-          ...tinySteps.map((s) => Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: _TinyStepCard(step: s, isEn: isEn),
-              )),
-
-          // Safety footer ────────────────────────────────────────
-          const SizedBox(height: 12),
-          _SafetyFooter(isEn: isEn),
         ],
       ),
     );
