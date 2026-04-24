@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../../l10n/app_localizations.dart';
-import '../../../../shared/widgets/figure_placeholder.dart';
-import '../../../action_support/presentation/pages/action_support_page.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
-import '../../../context/presentation/pages/check_in_page.dart';
-import '../../../context/presentation/pages/reflection_page.dart';
-import '../../../context/presentation/pages/social_map_page.dart';
-import '../../../crisis/presentation/pages/emergency_support_page.dart';
-import '../../../follow_up/presentation/pages/follow_up_page.dart';
-import '../../../resources/presentation/pages/community_resources_page.dart';
-import '../../../wellbeing/presentation/pages/calm_page.dart';
 
+/// Dashboard — the "review" surface. Shows how long the user has
+/// been with the app, today's mood, today's social log (empty by
+/// default, editable), and a small retro-stats card.
+///
+/// Quick actions / daily suggestions have moved to the Daily tab
+/// and All Features tab respectively.
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -21,6 +18,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final List<_SocialEntry> _todayEntries;
   bool _entriesInitialised = false;
+  // Hardcoded for demo. Later: fetch from Firestore user.createdAt.
+  final DateTime _appStartDate =
+      DateTime.now().subtract(const Duration(days: 0));
 
   void _addEntry(_SocialEntry entry) {
     setState(() => _todayEntries.insert(0, entry));
@@ -41,121 +41,34 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final l10n = AppLocalizations.of(context)!;
     final now = DateTime.now();
+    final daysUsed = now.difference(_appStartDate).inDays + 1;
 
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
           _GreetingHero(now: now, appTitle: l10n.appTitle),
+          const SizedBox(height: 16),
+          _AppUsageCard(days: daysUsed),
           const SizedBox(height: 20),
-          _TodayVibeCard(
-            mood: 3,
-            loneliness: 4,
-            onCheckIn: () => _open(const CheckInPage()),
-          ),
+          const _TodayVibeCard(mood: 3, loneliness: 4),
           const SizedBox(height: 20),
           _SocialLogCard(
             entries: _todayEntries,
             onAdd: _addEntry,
             onEdit: _editEntry,
           ),
-          const SizedBox(height: 24),
-          _SectionHeader(
-            icon: Icons.apps_rounded,
-            title: isEn ? 'Where to start?' : '想由邊度開始？',
-            subtitle: isEn ? 'Pick a feature.' : '揀一個功能。',
-          ),
-          const SizedBox(height: 14),
-          _QuickActionsGrid(
-            actions: [
-              _QuickAction(
-                icon: Icons.favorite_outline,
-                label: isEn ? 'Check-in' : '快速 Check-in',
-                color: const Color(0xFFFEE2E2),
-                onTap: () => _open(const CheckInPage()),
-              ),
-              _QuickAction(
-                icon: Icons.people_outline,
-                label: isEn ? 'Social Map' : '社交關係圖',
-                color: const Color(0xFFDBEAFE),
-                onTap: () => _open(const SocialMapPage()),
-              ),
-              _QuickAction(
-                icon: Icons.forum_outlined,
-                label: isEn ? 'Reflect' : '互動反思',
-                color: const Color(0xFFE0E7FF),
-                onTap: () => _open(const ReflectionPage()),
-              ),
-              _QuickAction(
-                icon: Icons.self_improvement,
-                label: isEn ? 'Calm Down' : '靜一靜',
-                color: const Color(0xFFD1FAE5),
-                onTap: () => _open(const CalmPage()),
-              ),
-              _QuickAction(
-                icon: Icons.lightbulb_outline,
-                label: isEn ? 'Activities' : '行動支援',
-                color: const Color(0xFFFEF3C7),
-                onTap: () => _open(const ActionSupportPage()),
-              ),
-              _QuickAction(
-                icon: Icons.event_note_outlined,
-                label: isEn ? 'Follow-up' : '跟進提醒',
-                color: const Color(0xFFFCE7F3),
-                onTap: () => _open(const FollowUpPage()),
-              ),
-              _QuickAction(
-                icon: Icons.handshake_outlined,
-                label: isEn ? 'Community' : '社區資源',
-                color: const Color(0xFFCCFBF1),
-                onTap: () => _open(const CommunityResourcesPage()),
-              ),
-              _QuickAction(
-                icon: Icons.health_and_safety_outlined,
-                label: isEn ? 'Crisis Support' : '即時支援',
-                color: const Color(0xFFFFE4E6),
-                onTap: () {
-                  AnalyticsScope.of(context)
-                      .logEmergencyOpened(from: 'home_quick_actions');
-                  _open(const EmergencySupportPage());
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          FigurePlaceholder(
-            description: isEn
-                ? 'Illustration: two silhouettes smiling across phones — a short greeting already feels warm.'
-                : '插畫：兩個輪廓喺手機兩端微笑，象徵簡短嘅問候已經有溫度。',
-            height: 110,
-            icon: Icons.chat_bubble_outline,
-          ),
-          const SizedBox(height: 16),
-          _DailySuggestionCard(
-            onReachOut: () => _open(const SocialMapPage()),
-          ),
           const SizedBox(height: 20),
-          _BoundaryReminderCard(
-            onEmergency: () {
-              AnalyticsScope.of(context)
-                  .logEmergencyOpened(from: 'home_boundary_card');
-              _open(const EmergencySupportPage());
-            },
-          ),
+          _ReviewCard(entries: _todayEntries),
         ],
       ),
     );
   }
-
-  void _open(Widget page) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => page),
-    );
-  }
 }
+
+// ─── Greeting hero ───────────────────────────────────────────────
 
 class _GreetingHero extends StatelessWidget {
   final DateTime now;
@@ -195,101 +108,85 @@ class _GreetingHero extends StatelessWidget {
         : '${now.month} 月 ${now.day} 日　${weekdayNames[now.weekday - 1]}';
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
+      padding: const EdgeInsets.fromLTRB(20, 22, 22, 22),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(28),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
             theme.colorScheme.primary,
-            theme.colorScheme.primary.withValues(alpha: 0.78),
+            Color.alphaBlend(
+              theme.colorScheme.tertiary.withValues(alpha: 0.6),
+              theme.colorScheme.primary.withValues(alpha: 0.78),
+            ),
           ],
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, size: 30, color: Colors.white),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      dateLine,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.85),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      greeting,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          // Left: 120×120 illustration slot (placeholder for now)
+          Container(
+            width: 108,
+            height: 108,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Icon(icon, size: 56, color: Colors.white),
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Icon(Icons.spa_outlined,
-                  size: 20, color: Colors.white.withValues(alpha: 0.9)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  isEn ? 'Pick something you can do right now — $appTitle is with you.' : '揀一件你而家做到嘅事 — $appTitle 陪你。',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.95),
-                    height: 1.4,
+          const SizedBox(width: 16),
+          // Right: greeting + subtitle + HKU tag
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dateLine,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.85),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'HKU',
-                  style: TextStyle(
+                const SizedBox(height: 4),
+                Text(
+                  greeting,
+                  style: theme.textTheme.headlineSmall?.copyWith(
                     color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                isEn ? 'Data and Systems Engineering, HKU' : '數據及系統工程學系',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.85),
+                const SizedBox(height: 8),
+                Text(
+                  isEn
+                      ? '$appTitle is with you.'
+                      : '$appTitle 陪你。',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    height: 1.35,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'HKU · DSE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -297,19 +194,71 @@ class _GreetingHero extends StatelessWidget {
   }
 }
 
+// ─── App usage days ──────────────────────────────────────────────
+
+class _AppUsageCard extends StatelessWidget {
+  final int days;
+  const _AppUsageCard({required this.days});
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Text('🎉', style: theme.textTheme.headlineSmall),
+          const SizedBox(width: 12),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
+                children: [
+                  TextSpan(text: isEn ? 'You\'ve been here ' : '你已經用咗呢個 App '),
+                  TextSpan(
+                    text: '$days',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: theme.colorScheme.primary,
+                      fontSize: 22,
+                    ),
+                  ),
+                  TextSpan(
+                    text: isEn
+                        ? (days == 1 ? ' day' : ' days')
+                        : ' 日',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Today's vibe (mood + loneliness only) ───────────────────────
+
 class _TodayVibeCard extends StatelessWidget {
   final int mood;
   final int loneliness;
-  final VoidCallback onCheckIn;
 
   const _TodayVibeCard({
     required this.mood,
     required this.loneliness,
-    required this.onCheckIn,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     return Card(
       child: Padding(
@@ -326,29 +275,18 @@ class _TodayVibeCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Builder(builder: (ctx) {
-                    final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-                    return Text(isEn ? 'Today\'s Status' : '今日狀態', style: Theme.of(ctx).textTheme.titleLarge);
-                  }),
-                ),
-                TextButton.icon(
-                  onPressed: onCheckIn,
-                  icon: const Icon(Icons.add_circle_outline, size: 22),
-                  label: const Text('Check-in'),
+                  child: Text(
+                    isEn ? 'Today\'s Status' : '今日狀態',
+                    style: theme.textTheme.titleLarge,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Builder(builder: (ctx) {
-              final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-              return Column(
-                children: [
-                  _VibeBar(label: isEn ? 'Mood' : '心情', value: mood),
-                  const SizedBox(height: 12),
-                  _VibeBar(label: isEn ? 'Loneliness' : '孤獨感', value: loneliness),
-                ],
-              );
-            }),
+            const SizedBox(height: 12),
+            _VibeBar(label: isEn ? 'Mood' : '心情', value: mood),
+            const SizedBox(height: 12),
+            _VibeBar(
+                label: isEn ? 'Loneliness' : '孤獨感', value: loneliness),
           ],
         ),
       ),
@@ -398,6 +336,8 @@ class _VibeBar extends StatelessWidget {
     );
   }
 }
+
+// ─── Social log card ─────────────────────────────────────────────
 
 class _SocialLogCard extends StatefulWidget {
   final List<_SocialEntry> entries;
@@ -460,8 +400,8 @@ class _SocialLogCardState extends State<_SocialLogCard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(isEn
-              ? 'Please write a little about today\'s interaction.'
-              : '請寫低少少今日嘅互動再儲存。'),
+              ? 'You haven\'t written anything yet!'
+              : '你仲未寫喎！'),
         ),
       );
       return;
@@ -498,7 +438,6 @@ class _SocialLogCardState extends State<_SocialLogCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header row
             Row(
               children: [
                 Icon(Icons.edit_note_rounded,
@@ -512,7 +451,7 @@ class _SocialLogCardState extends State<_SocialLogCard> {
                 ),
                 if (widget.entries.isNotEmpty)
                   _CountBadge(count: widget.entries.length),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 IconButton(
                   icon: Icon(
                     _isExpanded && _editingIndex == null
@@ -531,24 +470,31 @@ class _SocialLogCardState extends State<_SocialLogCard> {
                 ),
               ],
             ),
-
-            // Empty state (not expanded, no entries)
             if (!_isExpanded && widget.entries.isEmpty) ...[
               const SizedBox(height: 12),
               GestureDetector(
-                onTap: _openForm,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(isEn
+                          ? 'You haven\'t written anything yet!'
+                          : '你仲未寫喎！'),
+                      duration: const Duration(milliseconds: 1800),
+                    ),
+                  );
+                  _openForm();
+                },
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
-                      vertical: 20, horizontal: 16),
+                      vertical: 22, horizontal: 16),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest
                         .withValues(alpha: 0.45),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color:
-                          theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
-                      style: BorderStyle.solid,
+                      color: theme.colorScheme.outlineVariant
+                          .withValues(alpha: 0.6),
                     ),
                   ),
                   child: Column(
@@ -560,12 +506,12 @@ class _SocialLogCardState extends State<_SocialLogCard> {
                       const SizedBox(height: 8),
                       Text(
                         isEn
-                            ? 'No entries yet\nWrite down today\'s interaction'
-                            : '今日尚未記錄\n寫低今日嘅社交互動吧',
+                            ? 'No entries yet\nTap to write down today\'s interaction'
+                            : '今日尚未記錄\n點一下寫低今日嘅社交互動',
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.7),
+                              .withValues(alpha: 0.75),
                           height: 1.5,
                         ),
                       ),
@@ -574,8 +520,6 @@ class _SocialLogCardState extends State<_SocialLogCard> {
                 ),
               ),
             ],
-
-            // Input form (expanded)
             if (_isExpanded) ...[
               const SizedBox(height: 16),
               TextField(
@@ -584,8 +528,7 @@ class _SocialLogCardState extends State<_SocialLogCard> {
                 decoration: InputDecoration(
                   labelText: isEn ? 'With whom?' : '同邊個？',
                   hintText: isEn ? 'May / Cousin…' : '阿May / 表姐…',
-                  prefixIcon:
-                      const Icon(Icons.person_outline, size: 24),
+                  prefixIcon: const Icon(Icons.person_outline, size: 24),
                 ),
               ),
               const SizedBox(height: 12),
@@ -598,16 +541,14 @@ class _SocialLogCardState extends State<_SocialLogCard> {
                   hintText: isEn
                       ? 'Voice message, chatted 5 min…'
                       : '傳語音、傾咗 5 分鐘…',
-                  prefixIcon:
-                      const Icon(Icons.edit_outlined, size: 24),
+                  prefixIcon: const Icon(Icons.edit_outlined, size: 24),
                 ),
               ),
               const SizedBox(height: 14),
               Row(
                 children: [
                   Icon(Icons.mood_outlined,
-                      size: 20,
-                      color: theme.colorScheme.onSurfaceVariant),
+                      size: 20, color: theme.colorScheme.onSurfaceVariant),
                   const SizedBox(width: 6),
                   Text(
                     isEn ? 'How did it feel?' : '感覺點？',
@@ -659,12 +600,9 @@ class _SocialLogCardState extends State<_SocialLogCard> {
                 ],
               ),
             ],
-
-            // Recorded entries
             if (widget.entries.isNotEmpty) ...[
               const SizedBox(height: 20),
-              Divider(
-                  color: theme.colorScheme.outlineVariant, height: 1),
+              Divider(color: theme.colorScheme.outlineVariant, height: 1),
               const SizedBox(height: 16),
               Text(
                 isEn ? 'Logged today' : '今日已記錄',
@@ -696,6 +634,7 @@ class _SocialEntryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     final timeLabel =
         '${entry.time.hour.toString().padLeft(2, '0')}:${entry.time.minute.toString().padLeft(2, '0')}';
@@ -716,10 +655,8 @@ class _SocialEntryTile extends StatelessWidget {
               color: theme.colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Text(
-              entry.feeling.emoji,
-              style: const TextStyle(fontSize: 24),
-            ),
+            child: Text(entry.feeling.emoji,
+                style: const TextStyle(fontSize: 24)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -750,10 +687,7 @@ class _SocialEntryTile extends StatelessWidget {
           IconButton(
             icon: Icon(Icons.edit_outlined,
                 size: 20, color: theme.colorScheme.onSurfaceVariant),
-            tooltip:
-                Localizations.localeOf(context).languageCode == 'en'
-                    ? 'Edit'
-                    : '修改',
+            tooltip: isEn ? 'Edit' : '修改',
             onPressed: onEdit,
           ),
         ],
@@ -764,7 +698,6 @@ class _SocialEntryTile extends StatelessWidget {
 
 class _CountBadge extends StatelessWidget {
   final int count;
-
   const _CountBadge({required this.count});
 
   @override
@@ -787,40 +720,100 @@ class _CountBadge extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
+// ─── Review card (log stats) ─────────────────────────────────────
 
-  const _SectionHeader({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
+class _ReviewCard extends StatelessWidget {
+  final List<_SocialEntry> entries;
+  const _ReviewCard({required this.entries});
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final theme = Theme.of(context);
+
+    // Hardcoded weekly / total: same as today count until persistence is
+    // wired up — the card's shape is what we want to land.
+    final todayCount = entries.length;
+    final weekCount = entries.length;
+    final totalCount = entries.length;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.insights_rounded,
+                    size: 26, color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Text(
+                  isEn ? 'Recent Log' : '近期記錄',
+                  style: theme.textTheme.titleLarge,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatTile(
+                    label: isEn ? 'Today' : '今日',
+                    count: todayCount,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _StatTile(
+                    label: isEn ? 'This week' : '本週',
+                    count: weekCount,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _StatTile(
+                    label: isEn ? 'All time' : '累計',
+                    count: totalCount,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final String label;
+  final int count;
+  const _StatTile({required this.label, required this.count});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
         children: [
-          Icon(icon, size: 26, color: theme.colorScheme.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: theme.textTheme.titleLarge),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+          Text(
+            '$count',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -829,254 +822,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _QuickActionsGrid extends StatelessWidget {
-  final List<_QuickAction> actions;
-
-  const _QuickActionsGrid({required this.actions});
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.55,
-      children: actions.map((a) => _QuickActionTile(action: a)).toList(),
-    );
-  }
-}
-
-class _QuickActionTile extends StatelessWidget {
-  final _QuickAction action;
-
-  const _QuickActionTile({required this.action});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: action.onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: action.color,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  action.icon,
-                  size: 24,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              Text(
-                action.label,
-                style: theme.textTheme.titleMedium,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DailySuggestionCard extends StatelessWidget {
-  final VoidCallback onReachOut;
-
-  const _DailySuggestionCard({required this.onReachOut});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.wb_twilight_outlined,
-                  size: 28,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 10),
-                Builder(builder: (ctx) {
-                  final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-                  return Text(isEn ? 'Today\'s Suggestion' : '今日小建議', style: theme.textTheme.titleLarge);
-                }),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.format_quote_rounded,
-                      size: 26, color: theme.colorScheme.onPrimaryContainer),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Builder(builder: (ctx) {
-                      final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-                      return Text(
-                        isEn ? '"Good morning — thinking of you."' : '「早晨，諗起你。」',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      );
-                    }),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.bolt_outlined,
-                    size: 18, color: theme.colorScheme.onSurfaceVariant),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Builder(builder: (ctx) {
-                    final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-                    return Text(
-                      isEn ? 'One line is enough.' : '一句已經夠。',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    );
-                  }),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onReachOut,
-                icon: const Icon(Icons.people_outline, size: 24),
-                label: Builder(builder: (ctx) {
-                  final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-                  return Text(isEn ? 'See who you can reach out to' : '睇下可以聯絡邊個');
-                }),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BoundaryReminderCard extends StatelessWidget {
-  final VoidCallback onEmergency;
-
-  const _BoundaryReminderCard({required this.onEmergency});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.shield_outlined,
-                  size: 26,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 10),
-                Builder(builder: (ctx) {
-                  final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-                  return Text(isEn ? 'Reminder' : '溫馨提示', style: theme.textTheme.titleLarge);
-                }),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.emergency_outlined,
-                      size: 24, color: theme.colorScheme.onErrorContainer),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Builder(builder: (ctx) {
-                      final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-                      return Text(
-                        isEn ? 'Emergency → Call 999' : '緊急情況　→　撥 999',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onErrorContainer,
-                        ),
-                      );
-                    }),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: onEmergency,
-                icon: const Icon(Icons.health_and_safety_outlined, size: 24),
-                label: Builder(builder: (ctx) {
-                  final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-                  return Text(isEn ? 'Open Crisis Support' : '打開即時支援');
-                }),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickAction {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-}
+// ─── Models ──────────────────────────────────────────────────────
 
 enum _Feeling {
   warm('溫暖', 'Warm', '🤗'),
