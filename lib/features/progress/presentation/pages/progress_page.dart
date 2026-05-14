@@ -65,7 +65,14 @@ Output: only the paragraph itself.
       return;
     }
     final repo = ProgressRepository(available: auth.available);
-    final data = await repo.load(profile.uid);
+    WeeklyProgress data;
+    try {
+      data = await repo.load(profile.uid);
+    } catch (_) {
+      // Firestore quota / network blip — show empties instead of
+      // crashing the whole page.
+      data = WeeklyProgress.empty;
+    }
     if (!mounted) return;
     setState(() {
       _data = data;

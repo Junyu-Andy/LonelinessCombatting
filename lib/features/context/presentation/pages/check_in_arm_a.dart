@@ -4,6 +4,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/safety/distress_detector.dart';
+import '../../../../core/voice/voice_input_button.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import 'check_in_shared.dart';
@@ -324,6 +325,10 @@ class _Composer extends StatelessWidget {
         ),
         child: Row(
           children: [
+            VoiceInputButton(
+              prefix: () => controller.text,
+              onText: (t) => controller.text = t,
+            ),
             Expanded(
               child: TextField(
                 controller: controller,
@@ -331,7 +336,7 @@ class _Composer extends StatelessWidget {
                 maxLines: 4,
                 style: const TextStyle(fontSize: 17),
                 decoration: InputDecoration(
-                  hintText: isEn ? 'Type a few words…' : '寫低幾個字…',
+                  hintText: isEn ? 'Type or speak…' : '寫或者講都得…',
                 ),
               ),
             ),

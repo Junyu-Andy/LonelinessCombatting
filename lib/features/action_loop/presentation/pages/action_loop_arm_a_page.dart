@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/reminders/reminder_service.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../cognitive_restructure/data/thought_record.dart';
@@ -207,6 +208,24 @@ try again in the afternoon." No extra encouragement or suggestions.
     if (planId != null && linkId != null) {
       final trRepo = ThoughtRecordRepository(available: auth.available);
       await trRepo.linkActionPlan(profile.uid, linkId, planId);
+    }
+    if (planId != null) {
+      // Queue a follow-up reminder ~24h after the planned time. Concrete
+      // delivery is wired in by the device-side scheduler; here we just
+      // record the intent.
+      final reminders = FirestoreReminderQueue(available: auth.available);
+      await reminders.schedule(
+        uid: profile.uid,
+        request: ReminderRequest(
+          kind: 'm7_followup',
+          fireAt: DateTime.now().add(const Duration(hours: 24)),
+          titleZh: '件事點呀？',
+          titleEn: 'How did it go?',
+          bodyZh: '你之前計劃做：$_action。',
+          bodyEn: 'Your plan: $_action.',
+          linkedDocId: planId,
+        ),
+      );
     }
     if (!mounted) return;
     setState(() {

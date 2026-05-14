@@ -3,6 +3,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../adherence/presentation/widgets/missed_checkin_banner.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../widgets/quick_cta_row.dart';
 
 /// Dashboard — the "review" surface. Shows how long the user has
 /// been with the app, today's mood, today's social log (empty by
@@ -57,6 +58,10 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
             child: Column(
               children: [
+                const QuickCtaRow(),
+                const SizedBox(height: 20),
+                const ProgressMiniCard(),
+                const SizedBox(height: 20),
                 _AppUsageCard(days: daysUsed),
                 const SizedBox(height: 20),
                 const _TodayVibeCard(mood: 3, loneliness: 4),

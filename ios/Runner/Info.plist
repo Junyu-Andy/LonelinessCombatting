@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Voice input (speech_to_text). Buttons silently degrade if either
+	     permission is denied. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app uses the microphone so you can speak into check-ins and life-story sessions instead of typing.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>This app uses speech recognition to turn what you say into text in check-ins and life-story sessions.</string>
 </dict>
 </plist>

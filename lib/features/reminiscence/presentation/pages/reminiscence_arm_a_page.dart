@@ -5,6 +5,7 @@ import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/memory/memory_store.dart';
 import '../../../../core/safety/distress_detector.dart';
+import '../../../../core/voice/voice_input_button.dart';
 import '../../data/reminiscence_themes.dart';
 
 /// M3 — Reminiscence, Arm A.
@@ -485,6 +486,10 @@ class _Composer extends StatelessWidget {
         ),
         child: Row(
           children: [
+            VoiceInputButton(
+              prefix: () => controller.text,
+              onText: (t) => controller.text = t,
+            ),
             Expanded(
               child: TextField(
                 controller: controller,
@@ -493,8 +498,8 @@ class _Composer extends StatelessWidget {
                 style: const TextStyle(fontSize: 17),
                 decoration: InputDecoration(
                   hintText: isEn
-                      ? 'Share whatever comes to mind…'
-                      : '記得幾多寫幾多…',
+                      ? 'Share whatever comes to mind, or speak…'
+                      : '記得幾多寫幾多，或者用咪…',
                 ),
               ),
             ),

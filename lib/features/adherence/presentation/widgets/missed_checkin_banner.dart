@@ -36,7 +36,12 @@ class _MissedCheckInBannerState extends State<MissedCheckInBanner> {
     final auth = AuthServiceScope.of(context);
     if (profile == null) return;
     final check = AdherenceCheck(available: auth.available);
-    final days = await check.daysSinceLastCheckIn(profile.uid);
+    int? days;
+    try {
+      days = await check.daysSinceLastCheckIn(profile.uid);
+    } catch (_) {
+      days = null; // Don't surface read errors as a banner.
+    }
     if (!mounted) return;
     setState(() => _daysSince = days);
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/reminders/reminder_service.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../cognitive_restructure/data/thought_record.dart';
@@ -82,6 +83,21 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
       if (planId != null && linkId != null) {
         final trRepo = ThoughtRecordRepository(available: auth.available);
         await trRepo.linkActionPlan(profile.uid, linkId, planId);
+      }
+      if (planId != null) {
+        final reminders = FirestoreReminderQueue(available: auth.available);
+        await reminders.schedule(
+          uid: profile.uid,
+          request: ReminderRequest(
+            kind: 'm7_followup',
+            fireAt: DateTime.now().add(const Duration(hours: 24)),
+            titleZh: '件事點呀？',
+            titleEn: 'How did it go?',
+            bodyZh: '你之前計劃做：${_actionCtrl.text.trim()}。',
+            bodyEn: 'Your plan: ${_actionCtrl.text.trim()}.',
+            linkedDocId: planId,
+          ),
+        );
       }
     }
     if (!mounted) return;

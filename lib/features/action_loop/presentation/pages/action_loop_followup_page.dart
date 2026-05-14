@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
@@ -66,6 +68,20 @@ counts. Do not suggest other modules or new plans.
         outcome: _outcome!,
         note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
       );
+      // Cancel any pending m7_followup reminders linked to this plan so
+      // the user doesn't get nudged about something they just resolved.
+      if (auth.available) {
+        final pending = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(profile.uid)
+            .collection('reminders')
+            .where('linkedDocId', isEqualTo: widget.plan.id)
+            .where('delivered', isEqualTo: false)
+            .get();
+        for (final d in pending.docs) {
+          await d.reference.delete();
+        }
+      }
     }
 
     if (Arm.isA(context)) {
