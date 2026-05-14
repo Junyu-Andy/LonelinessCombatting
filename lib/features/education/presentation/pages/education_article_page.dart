@@ -1,0 +1,251 @@
+import 'package:flutter/material.dart';
+
+import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/core_services_scope.dart';
+import '../../../../core/llm/llm_gateway.dart';
+import '../../data/education_library.dart';
+
+/// M8 article view.
+///   - Arm B: read-only article body + FAQ link to crisis page.
+///   - Arm A: same body PLUS an "Ask me about this" button that opens
+///     an LLM dialogue grounded to this article's text.
+class EducationArticlePage extends StatefulWidget {
+  final EducationArticle article;
+  const EducationArticlePage({super.key, required this.article});
+
+  @override
+  State<EducationArticlePage> createState() => _EducationArticlePageState();
+}
+
+class _EducationArticlePageState extends State<EducationArticlePage> {
+  static const _systemPromptZhTemplate = '''
+你係阿暖，幫一位香港長者明白佢啱啱讀緊嘅一篇短文。
+規矩：
+- 用粵語/口語繁體中文，每次回應最多 2-3 句。
+- 你嘅答案要根據呢篇文章嘅內容回答，唔好憑空編造新資料。
+- 如果問題超出文章範圍，誠實話：「呢個我都唔係好肯定」。
+- 唔好提其他 app 功能、唔好叫佢去做行動計劃。
+- 用具體例子，唔好抽象。
+
+呢篇文章係：
+"""
+%ARTICLE%
+"""
+''';
+
+  static const _systemPromptEnTemplate = '''
+You help a Hong Kong older adult understand a short article they just
+read.
+Rules:
+- Reply in plain English, max 2–3 sentences per turn.
+- Answers must come from the article below. Do not invent new facts.
+- If the question is outside the article's scope, honestly say so.
+- Do not mention other app features, do not push action plans.
+- Prefer concrete examples over abstractions.
+
+Here is the article:
+"""
+%ARTICLE%
+"""
+''';
+
+  final _inputCtrl = TextEditingController();
+  final List<_Turn> _turns = [];
+  bool _busy = false;
+  bool _askMode = false;
+
+  @override
+  void dispose() {
+    _inputCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    final text = _inputCtrl.text.trim();
+    if (text.isEmpty || _busy) return;
+    setState(() {
+      _busy = true;
+      _turns.add(_Turn.user(text));
+      _inputCtrl.clear();
+    });
+    final core = CoreServicesScope.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final body = isEn ? widget.article.bodyEn : widget.article.bodyZh;
+    final template =
+        isEn ? _systemPromptEnTemplate : _systemPromptZhTemplate;
+    final history = _turns
+        .take(_turns.length - 1)
+        .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
+        .toList();
+    final response = await core.llm.send(
+      moduleId: 'm8_education_${widget.article.id}',
+      systemPrompt: template.replaceAll('%ARTICLE%', body),
+      history: history,
+      userInput: text,
+    );
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _turns.add(_Turn.bot(response.text.isNotEmpty
+          ? response.text
+          : (isEn
+              ? 'Good question. Let me re-read it…'
+              : '好問題，等我再睇下…')));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final theme = Theme.of(context);
+    final title = isEn ? widget.article.titleEn : widget.article.titleZh;
+    final body = isEn ? widget.article.bodyEn : widget.article.bodyZh;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                children: [
+                  Text(
+                    body,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      height: 1.55,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (Arm.isA(context) && !_askMode)
+                    OutlinedButton.icon(
+                      onPressed: () => setState(() => _askMode = true),
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Text(
+                          isEn ? 'Ask me about this' : '問下呢篇',
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ),
+                  if (_askMode) ...[
+                    const SizedBox(height: 12),
+                    Divider(color: theme.colorScheme.outlineVariant),
+                    const SizedBox(height: 8),
+                    for (final t in _turns) _Bubble(turn: t),
+                    if (_busy)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+            if (_askMode) _Composer(
+              controller: _inputCtrl,
+              busy: _busy,
+              onSend: _send,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Turn {
+  final bool fromUser;
+  final String text;
+  const _Turn._(this.fromUser, this.text);
+  factory _Turn.user(String t) => _Turn._(true, t);
+  factory _Turn.bot(String t) => _Turn._(false, t);
+}
+
+class _Bubble extends StatelessWidget {
+  final _Turn turn;
+  const _Bubble({required this.turn});
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = turn.fromUser
+        ? theme.colorScheme.primaryContainer
+        : theme.colorScheme.surfaceContainerHighest;
+    final fg = turn.fromUser
+        ? theme.colorScheme.onPrimaryContainer
+        : theme.colorScheme.onSurface;
+    return Align(
+      alignment:
+          turn.fromUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.78),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Text(turn.text,
+            style: TextStyle(fontSize: 17, height: 1.4, color: fg)),
+      ),
+    );
+  }
+}
+
+class _Composer extends StatelessWidget {
+  final TextEditingController controller;
+  final bool busy;
+  final VoidCallback onSend;
+  const _Composer({
+    required this.controller,
+    required this.busy,
+    required this.onSend,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        decoration: BoxDecoration(
+          border: Border(
+              top: BorderSide(
+                  color: Theme.of(context).dividerColor, width: 1)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                minLines: 1,
+                maxLines: 4,
+                style: const TextStyle(fontSize: 17),
+                decoration: InputDecoration(
+                  hintText: isEn
+                      ? 'Ask anything about this piece…'
+                      : '問呢篇任何問題…',
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              onPressed: busy ? null : onSend,
+              icon: const Icon(Icons.arrow_upward_rounded),
+              iconSize: 28,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

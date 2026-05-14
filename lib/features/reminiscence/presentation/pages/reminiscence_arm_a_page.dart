@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/memory/memory_store.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../data/reminiscence_themes.dart';
 
@@ -79,11 +80,64 @@ clay-pot rice stand..."
   bool _showingSummary = false;
   bool _saved = false;
 
+  /// Short summaries of every prior week the user has completed, oldest
+  /// first. Loaded once on first build via [didChangeDependencies] so we
+  /// have access to the scope.
+  List<MemoryEntry> _priorWeeks = const [];
+  bool _priorLoaded = false;
+
   @override
   void initState() {
     super.initState();
     // Seed the conversation with the themed opening from the system.
     _turns.add(_Turn.bot(_isEnNow() ? widget.theme.openingEn : widget.theme.openingZh));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_priorLoaded) {
+      _priorLoaded = true;
+      _loadPriorWeeks();
+    }
+  }
+
+  /// Read summaries from earlier weeks of this same reminiscence track
+  /// (m3_reminiscence_w1 .. w{current-1}) so the LLM can reference them
+  /// later in the session and so we can show a "上週你提過…" hint.
+  Future<void> _loadPriorWeeks() async {
+    final profile = AppSettingsScope.read(context).profile;
+    final core = CoreServicesScope.of(context);
+    if (profile == null || widget.theme.weekIndex == 1) return;
+    final priorIds = [
+      for (var w = 1; w < widget.theme.weekIndex; w++)
+        'm3_reminiscence_w$w',
+    ];
+    final entries = await core.memory.recentAcross(
+      uid: profile.uid,
+      moduleIds: priorIds,
+      perModule: 1,
+    );
+    if (!mounted) return;
+    // Oldest first so a callback ("two weeks ago…") feels chronological.
+    entries.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    setState(() => _priorWeeks = entries);
+  }
+
+  String _priorContextPrompt(bool isEn) {
+    if (_priorWeeks.isEmpty) return '';
+    final lines = _priorWeeks
+        .map((e) => '- ${e.summary}')
+        .take(3)
+        .join('\n');
+    return isEn
+        ? '\n\nPrior weeks this user shared with you (most recent last):\n'
+            '$lines\n\nIf — and only if — it is natural, you may briefly '
+            'reference one specific detail above. Do not list them. Do not '
+            'summarise the past.'
+        : '\n\n（呢位用戶過去幾週同你講過嘅 — 由舊到新）：\n$lines\n\n'
+            '只有自然嘅情況下，可以輕輕提到上面其中一個具體細節。'
+            '唔好列出嚟、唔好總結過往。';
   }
 
   bool _isEnNow() {
@@ -114,9 +168,10 @@ clay-pot rice stand..."
         .take(_turns.length - 1)
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
+    final basePrompt = isEn ? _systemPromptEn : _systemPromptZh;
     final response = await core.llm.send(
       moduleId: 'm3_reminiscence_w${widget.theme.weekIndex}',
-      systemPrompt: isEn ? _systemPromptEn : _systemPromptZh,
+      systemPrompt: basePrompt + _priorContextPrompt(isEn),
       history: history,
       userInput: text,
     );
@@ -276,6 +331,8 @@ clay-pot rice stand..."
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                 children: [
+                  if (_priorWeeks.isNotEmpty)
+                    _PriorWeeksHint(entries: _priorWeeks, isEn: isEn),
                   for (final t in _turns) _Bubble(turn: t),
                   if (_busy)
                     const Align(
@@ -344,6 +401,62 @@ class _Bubble extends StatelessWidget {
         ),
         child: Text(turn.text,
             style: TextStyle(fontSize: 17, height: 1.4, color: fg)),
+      ),
+    );
+  }
+}
+
+class _PriorWeeksHint extends StatelessWidget {
+  final List<MemoryEntry> entries;
+  final bool isEn;
+  const _PriorWeeksHint({required this.entries, required this.isEn});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final preview = entries.last.summary;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.bookmark_outline,
+                size: 22, color: theme.colorScheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isEn ? 'I remember you mentioned' : '上次你同我講過',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    preview.length > 120
+                        ? '${preview.substring(0, 120)}…'
+                        : preview,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      height: 1.4,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -7,10 +7,13 @@ import '../../../../features/context/presentation/pages/reflection_page.dart';
 import '../../../../features/context/presentation/pages/social_map_page.dart';
 import '../../../../features/crisis/presentation/pages/emergency_support_page.dart';
 import '../../../../features/follow_up/presentation/pages/follow_up_page.dart';
+import '../../../../features/action_loop/presentation/pages/action_loop_landing.dart';
+import '../../../../features/cognitive_restructure/presentation/pages/cog_restructure_landing.dart';
+import '../../../../features/education/presentation/pages/education_library_page.dart';
 import '../../../../features/personalization/presentation/pages/personalization_page.dart';
 import '../../../../features/reminiscence/presentation/pages/reminiscence_landing.dart';
 import '../../../../features/resources/presentation/pages/community_resources_page.dart';
-import '../../../../features/action_loop/presentation/pages/action_loop_landing.dart';
+import '../../../../features/social_suggestions/presentation/pages/social_suggestions_page.dart';
 import '../../../../features/wellbeing/presentation/pages/calm_page.dart';
 
 class AllFeaturesPage extends StatelessWidget {
@@ -271,6 +274,27 @@ class _FeaturesGrid extends StatelessWidget {
         labelEn: 'Plan a Small Step',
         accent: const Color(0xFFBBF7D0),
         pageBuilder: () => const ActionLoopLandingPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.lightbulb_outline,
+        labelZh: '檢視一個諗法',
+        labelEn: 'Examine a Worry',
+        accent: const Color(0xFFFEF08A),
+        pageBuilder: () => const CogRestructureLandingPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.celebration_outlined,
+        labelZh: '今日嘅小邀請',
+        labelEn: 'Small Invitation',
+        accent: const Color(0xFFFBCFE8),
+        pageBuilder: () => const SocialSuggestionsPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.menu_book_outlined,
+        labelZh: '讀少少',
+        labelEn: 'Read a Little',
+        accent: const Color(0xFFE0E7FF),
+        pageBuilder: () => const EducationLibraryPage(),
       ),
       _FeatureItem(
         icon: Icons.map_outlined,
