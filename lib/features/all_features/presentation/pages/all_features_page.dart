@@ -8,7 +8,9 @@ import '../../../../features/context/presentation/pages/social_map_page.dart';
 import '../../../../features/crisis/presentation/pages/emergency_support_page.dart';
 import '../../../../features/follow_up/presentation/pages/follow_up_page.dart';
 import '../../../../features/personalization/presentation/pages/personalization_page.dart';
+import '../../../../features/reminiscence/presentation/pages/reminiscence_landing.dart';
 import '../../../../features/resources/presentation/pages/community_resources_page.dart';
+import '../../../../features/action_loop/presentation/pages/action_loop_landing.dart';
 import '../../../../features/wellbeing/presentation/pages/calm_page.dart';
 
 class AllFeaturesPage extends StatelessWidget {
@@ -255,6 +257,20 @@ class _FeaturesGrid extends StatelessWidget {
         labelEn: 'Check-In',
         accent: const Color(0xFF93C5FD),
         pageBuilder: () => const CheckInPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.auto_stories_outlined,
+        labelZh: '人生點滴',
+        labelEn: 'Life Stories',
+        accent: const Color(0xFFFCD9B6),
+        pageBuilder: () => const ReminiscenceLandingPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.checklist_rtl_outlined,
+        labelZh: '計劃一個小行動',
+        labelEn: 'Plan a Small Step',
+        accent: const Color(0xFFBBF7D0),
+        pageBuilder: () => const ActionLoopLandingPage(),
       ),
       _FeatureItem(
         icon: Icons.map_outlined,

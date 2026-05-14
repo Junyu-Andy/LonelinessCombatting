@@ -24,14 +24,23 @@ class MemoryStore {
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 
+  /// Persist a session summary for [moduleId].
+  ///
+  /// [hasTranscriptConsent] MUST reflect the participant's current
+  /// `consent.transcriptRetention` flag. If false, the call is a no-op —
+  /// the session can still proceed in-memory but nothing is written.
+  /// This is the ethics gate: without explicit opt-in we never store
+  /// free-text that could be replayed by a future model call.
   Future<void> writeSummary({
     required String uid,
     required String moduleId,
     required String summary,
     required String armCode,
+    required bool hasTranscriptConsent,
     List<String> tags = const [],
   }) async {
     if (!available) return;
+    if (!hasTranscriptConsent) return;
     if (summary.trim().isEmpty) return;
     final clipped = _clip(summary);
     await _db

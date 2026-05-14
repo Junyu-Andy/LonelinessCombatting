@@ -161,6 +161,7 @@ Rules:
         moduleId: 'm2_check_in',
         summary: summary,
         armCode: 'A',
+        hasTranscriptConsent: profile.consent.transcriptRetention,
         tags: [if (_facePicked) 'mood:${_face.name}'],
       );
     }
