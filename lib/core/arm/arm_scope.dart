@@ -11,11 +11,21 @@ import '../../features/auth/data/user_profile.dart';
 /// Modules should call [Arm.of] in their build method. For Arm B–only
 /// surfaces that must never invoke an LLM, treat a missing arm (guest
 /// mode, demo) as Arm B — fail safe.
+///
+/// Local dev escape hatch: pass `--dart-define=FORCE_ARM=A` (or B) at
+/// build time to override the profile lookup. Useful when Firebase
+/// isn't configured yet and you still want to walk the Arm A LLM
+/// surfaces. **Never** ship a release build with this set.
 class Arm {
   const Arm._();
 
+  static const _forced = String.fromEnvironment('FORCE_ARM');
+
   /// The participant's assigned arm, or null in guest / demo mode.
   static ArmAssignment? of(BuildContext context) {
+    if (_forced.isNotEmpty) {
+      return ArmAssignment.tryParse(_forced);
+    }
     return AppSettingsScope.of(context).profile?.arm;
   }
 
