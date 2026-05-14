@@ -3,6 +3,11 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../core/core_services_scope.dart';
+import '../core/llm/llm_gateway.dart';
+import '../core/memory/memory_store.dart';
+import '../core/safety/distress_detector.dart';
+import '../core/safety/safety_overlay.dart';
 import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
 import '../features/auth/data/auth_service.dart';
@@ -17,12 +22,18 @@ class MyApp extends StatefulWidget {
   final AppSettings settings;
   final AuthService authService;
   final AnalyticsService analytics;
+  final LlmGateway llm;
+  final MemoryStore memory;
+  final DistressDetector distress;
 
   const MyApp({
     super.key,
     required this.settings,
     required this.authService,
     required this.analytics,
+    required this.llm,
+    required this.memory,
+    required this.distress,
   });
 
   @override
@@ -89,7 +100,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       analytics: widget.analytics,
       child: AuthServiceScope(
         authService: widget.authService,
-        child: AppSettingsScope(
+        child: CoreServicesScope(
+          llm: widget.llm,
+          memory: widget.memory,
+          distress: widget.distress,
+          child: AppSettingsScope(
           settings: widget.settings,
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
@@ -100,10 +115,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             locale: widget.settings.locale,
+            builder: (context, child) =>
+                SafetyOverlay(child: child ?? const SizedBox.shrink()),
             home: AuthGate(
               authService: widget.authService,
               analytics: widget.analytics,
             ),
+          ),
           ),
         ),
       ),

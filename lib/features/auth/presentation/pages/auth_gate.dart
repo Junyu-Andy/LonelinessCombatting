@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../app/main_shell.dart';
 import '../../../analytics/data/analytics_service.dart';
+import '../../../consent/presentation/consent_gate.dart';
 import '../../data/auth_service.dart';
 import '../../data/user_profile.dart';
 import 'login_page.dart';
@@ -65,7 +66,7 @@ class _AuthGateState extends State<AuthGate> {
         if (profile == null) {
           return LoginPage(authService: widget.authService);
         }
-        return const MainShell();
+        return const ConsentGate(child: MainShell());
       },
     );
   }
