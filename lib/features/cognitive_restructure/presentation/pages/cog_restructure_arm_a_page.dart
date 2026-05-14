@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
-import '../../../action_loop/data/action_plan.dart';
+import '../../../action_loop/presentation/pages/action_loop_arm_a_page.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/thought_record.dart';
@@ -182,37 +182,26 @@ see how she replies." No lectures, no summary.
   }
 
   Future<void> _handOffToM7() async {
-    final profile = AppSettingsScope.read(context).profile;
-    final auth = AuthServiceScope.of(context);
+    // Persist the record first so we have an id to link from M7.
     setState(() => _busy = true);
     final recordId = await _saveRecord();
-    if (profile != null && recordId != null) {
-      final actionRepo = ActionPlanRepository(available: auth.available);
-      final planId = await actionRepo.create(
-        profile.uid,
-        ActionPlan(
-          action: _experimentCtrl.text.trim(),
-          whenText: '',
-          whereText: '',
-          whoWith: '',
-          fallback: '',
-          armCode: 'A',
-          createdAt: DateTime.now(),
-        ),
-      );
-      if (planId != null) {
-        final recordRepo = ThoughtRecordRepository(available: auth.available);
-        await recordRepo.linkActionPlan(profile.uid, recordId, planId);
-      }
-    }
     if (!mounted) return;
     setState(() {
       _busy = false;
       _handedOff = true;
-      _step = _Step.saved;
     });
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-    if (mounted) Navigator.of(context).pop();
+    // Replace this page with M7's Arm A planner, pre-filled with the
+    // experiment as the "what". Letting the user complete When / Where /
+    // Who / Fallback in M7 keeps the if-then plan whole instead of
+    // silently writing a half-filled ActionPlan.
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => ActionLoopArmAPage(
+          seedAction: _experimentCtrl.text.trim(),
+          linkedThoughtRecordId: recordId,
+        ),
+      ),
+    );
   }
 
   Future<void> _saveAndExit() async {

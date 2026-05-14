@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
-import '../../../action_loop/data/action_plan.dart';
+import '../../../action_loop/presentation/pages/action_loop_arm_b_page.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/thought_record.dart';
@@ -101,33 +101,19 @@ class _CogRestructureArmBPageState extends State<CogRestructureArmBPage> {
     if (!_isComplete) return;
     setState(() => _busy = true);
     final recordId = await _saveRecord();
-    final profile = AppSettingsScope.read(context).profile;
-    final auth = AuthServiceScope.of(context);
-    if (profile != null && recordId != null) {
-      // Static plan template for Arm B (per spec).
-      final actionRepo = ActionPlanRepository(available: auth.available);
-      final planId = await actionRepo.create(
-        profile.uid,
-        ActionPlan(
-          action: _altCtrl.text.trim().isEmpty
-              ? _thoughtCtrl.text.trim()
-              : _altCtrl.text.trim(),
-          whenText: '',
-          whereText: '',
-          whoWith: '',
-          fallback: '',
-          armCode: 'B',
-          createdAt: DateTime.now(),
-        ),
-      );
-      if (planId != null) {
-        final repo = ThoughtRecordRepository(available: auth.available);
-        await repo.linkActionPlan(profile.uid, recordId, planId);
-      }
-    }
     if (!mounted) return;
     setState(() => _busy = false);
-    Navigator.of(context).pop();
+    final seed = _altCtrl.text.trim().isEmpty
+        ? _thoughtCtrl.text.trim()
+        : _altCtrl.text.trim();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => ActionLoopArmBPage(
+          seedAction: seed,
+          linkedThoughtRecordId: recordId,
+        ),
+      ),
+    );
   }
 
   @override

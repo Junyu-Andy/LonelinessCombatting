@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/safety/safety_overlay.dart';
+
 class EmergencySupportPage extends StatelessWidget {
   const EmergencySupportPage({super.key});
 
@@ -7,7 +9,7 @@ class EmergencySupportPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return SafetyOverlaySuppressor(child: Scaffold(
       appBar: AppBar(
         title: const Text('即時支援'),
       ),
@@ -166,7 +168,7 @@ class EmergencySupportPage extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 

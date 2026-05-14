@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/safety/safety_overlay.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/auth_service.dart';
 import '../../data/user_profile.dart';
@@ -91,7 +92,7 @@ class _LoginPageState extends State<LoginPage> {
     final theme = Theme.of(context);
     final settings = AppSettingsScope.of(context);
 
-    return Scaffold(
+    return SafetyOverlaySuppressor(child: Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
@@ -232,7 +233,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 

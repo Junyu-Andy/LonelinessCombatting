@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../adherence/presentation/widgets/missed_checkin_banner.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 
 /// Dashboard — the "review" surface. Shows how long the user has
@@ -51,6 +52,7 @@ class _HomePageState extends State<HomePage> {
         padding: EdgeInsets.zero,
         children: [
           _GreetingHero(now: now, appTitle: l10n.appTitle),
+          const MissedCheckInBanner(),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
             child: Column(

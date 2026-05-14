@@ -11,8 +11,10 @@ import '../../../../features/action_loop/presentation/pages/action_loop_landing.
 import '../../../../features/cognitive_restructure/presentation/pages/cog_restructure_landing.dart';
 import '../../../../features/education/presentation/pages/education_library_page.dart';
 import '../../../../features/personalization/presentation/pages/personalization_page.dart';
+import '../../../../features/progress/presentation/pages/progress_page.dart';
 import '../../../../features/reminiscence/presentation/pages/reminiscence_landing.dart';
 import '../../../../features/resources/presentation/pages/community_resources_page.dart';
+import '../../../../features/self_reflection/presentation/pages/self_reflection_page.dart';
 import '../../../../features/social_suggestions/presentation/pages/social_suggestions_page.dart';
 import '../../../../features/wellbeing/presentation/pages/calm_page.dart';
 
@@ -295,6 +297,20 @@ class _FeaturesGrid extends StatelessWidget {
         labelEn: 'Read a Little',
         accent: const Color(0xFFE0E7FF),
         pageBuilder: () => const EducationLibraryPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.psychology_alt_outlined,
+        labelZh: '一個反思',
+        labelEn: 'Reflection',
+        accent: const Color(0xFFD8B4FE),
+        pageBuilder: () => const SelfReflectionPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.bar_chart_rounded,
+        labelZh: '你嘅一個禮拜',
+        labelEn: 'Your Week',
+        accent: const Color(0xFFFEE2E2),
+        pageBuilder: () => const ProgressPage(),
       ),
       _FeatureItem(
         icon: Icons.map_outlined,

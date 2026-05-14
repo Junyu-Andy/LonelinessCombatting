@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
+import '../../../cognitive_restructure/data/thought_record.dart';
 import '../../data/action_plan.dart';
 
 /// M7 — Action Loop, Arm B (rule-based).
@@ -13,8 +14,18 @@ import '../../data/action_plan.dart';
 ///   2. Plan saved.
 ///
 /// No LLM. Same persistence target as Arm A (`action_plans/`).
+///
+/// [seedAction] lets caller modules (M4 hand-off, M6 acceptance) pre-fill
+/// the action field.
+/// [linkedThoughtRecordId] lets M4 record the cross-link.
 class ActionLoopArmBPage extends StatefulWidget {
-  const ActionLoopArmBPage({super.key});
+  final String? seedAction;
+  final String? linkedThoughtRecordId;
+  const ActionLoopArmBPage({
+    super.key,
+    this.seedAction,
+    this.linkedThoughtRecordId,
+  });
 
   @override
   State<ActionLoopArmBPage> createState() => _ActionLoopArmBPageState();
@@ -27,6 +38,14 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
   String? _contact;
   String? _fallback;
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.seedAction != null && widget.seedAction!.trim().isNotEmpty) {
+      _actionCtrl.text = widget.seedAction!.trim();
+    }
+  }
 
   @override
   void dispose() {
@@ -47,7 +66,7 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
     setState(() => _busy = true);
     if (profile != null) {
       final repo = ActionPlanRepository(available: auth.available);
-      await repo.create(
+      final planId = await repo.create(
         profile.uid,
         ActionPlan(
           action: _actionCtrl.text.trim(),
@@ -59,6 +78,11 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
           createdAt: DateTime.now(),
         ),
       );
+      final linkId = widget.linkedThoughtRecordId;
+      if (planId != null && linkId != null) {
+        final trRepo = ThoughtRecordRepository(available: auth.available);
+        await trRepo.linkActionPlan(profile.uid, linkId, planId);
+      }
     }
     if (!mounted) return;
     setState(() => _busy = false);

@@ -4,11 +4,8 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
-import '../../../action_loop/data/action_plan.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_a_page.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_b_page.dart';
-import '../../../auth/data/auth_service.dart';
-import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/suggestion_pool.dart';
 
 /// M6 — Social Activity Suggestions. Both arms share the same screen
@@ -115,47 +112,22 @@ other text.
   void _planFromSuggestion(String suggestion) {
     if (Arm.isA(context)) {
       Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => const ActionLoopArmAPage(),
+        builder: (_) => ActionLoopArmAPage(seedAction: suggestion),
       ));
     } else {
       Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => const ActionLoopArmBPage(),
+        builder: (_) => ActionLoopArmBPage(seedAction: suggestion),
       ));
     }
   }
 
-  Future<void> _quickAcceptArmB(SocialSuggestion s) async {
-    // Arm B fast path: persist a barebones plan with the suggestion text
-    // straight into action_plans so the follow-up loop closes. The user
-    // still gets the chance to flesh it out in the planner.
-    final profile = AppSettingsScope.read(context).profile;
-    final auth = AuthServiceScope.of(context);
-    if (profile == null) {
-      _planFromSuggestion(s.zh);
-      return;
-    }
+  void _acceptArmB(SocialSuggestion s) {
+    // Per spec, Arm B "accepts a suggestion → hand off to Module 7
+    // (rule-based version) for a static plan template." That means
+    // the planner — not a silent half-row. The action text is pre-
+    // filled; the user picks when/where/contact/fallback.
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final repo = ActionPlanRepository(available: auth.available);
-    await repo.create(
-      profile.uid,
-      ActionPlan(
-        action: isEn ? s.en : s.zh,
-        whenText: '',
-        whereText: '',
-        whoWith: '',
-        fallback: '',
-        armCode: 'B',
-        createdAt: DateTime.now(),
-      ),
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(isEn
-            ? 'Added to your small steps.'
-            : '加咗去「小行動」。'),
-      ),
-    );
+    _planFromSuggestion(isEn ? s.en : s.zh);
   }
 
   @override
@@ -224,8 +196,8 @@ other text.
       for (final s in rotated)
         _SuggestionCard(
           title: isEn ? s.en : s.zh,
-          onAccept: () => _quickAcceptArmB(s),
-          acceptLabel: isEn ? 'Add to my steps' : '加去我嘅行動',
+          onAccept: () => _acceptArmB(s),
+          acceptLabel: isEn ? 'Plan it' : '計劃做',
         ),
     ];
   }

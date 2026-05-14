@@ -5,6 +5,7 @@ import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
+import '../../../cognitive_restructure/data/thought_record.dart';
 import '../../data/action_plan.dart';
 
 /// M7 — Action Loop, Arm A.
@@ -19,8 +20,20 @@ import '../../data/action_plan.dart';
 /// For the basic build we keep the four questions explicit (chip-style
 /// progress) so the participant can see where they are, but let the LLM
 /// produce the summary "if-then" line at the end.
+///
+/// [seedAction] lets caller modules (M4 hand-off, M6 acceptance) pre-fill
+/// the "what" step so the user doesn't retype the experiment. When set,
+/// the planner skips the first question and starts at "when".
+/// [linkedThoughtRecordId] lets M4 record the cross-link after the plan
+/// is created.
 class ActionLoopArmAPage extends StatefulWidget {
-  const ActionLoopArmAPage({super.key});
+  final String? seedAction;
+  final String? linkedThoughtRecordId;
+  const ActionLoopArmAPage({
+    super.key,
+    this.seedAction,
+    this.linkedThoughtRecordId,
+  });
 
   @override
   State<ActionLoopArmAPage> createState() => _ActionLoopArmAPageState();
@@ -52,6 +65,16 @@ try again in the afternoon." No extra encouragement or suggestions.
   String _fallback = '';
   String _summary = '';
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final seed = widget.seedAction?.trim();
+    if (seed != null && seed.isNotEmpty) {
+      _action = seed;
+      _step = _Step.when_;
+    }
+  }
 
   @override
   void dispose() {
@@ -168,7 +191,7 @@ try again in the afternoon." No extra encouragement or suggestions.
     }
     final repo = ActionPlanRepository(available: auth.available);
     setState(() => _busy = true);
-    await repo.create(
+    final planId = await repo.create(
       profile.uid,
       ActionPlan(
         action: _action,
@@ -180,6 +203,11 @@ try again in the afternoon." No extra encouragement or suggestions.
         createdAt: DateTime.now(),
       ),
     );
+    final linkId = widget.linkedThoughtRecordId;
+    if (planId != null && linkId != null) {
+      final trRepo = ThoughtRecordRepository(available: auth.available);
+      await trRepo.linkActionPlan(profile.uid, linkId, planId);
+    }
     if (!mounted) return;
     setState(() {
       _busy = false;

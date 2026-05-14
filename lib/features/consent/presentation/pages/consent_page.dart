@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/safety/safety_overlay.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -34,7 +35,8 @@ class _ConsentPageState extends State<ConsentPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    return Scaffold(
+    return SafetyOverlaySuppressor(
+      child: Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text(isEn ? 'Before we begin' : '開始之前'),
@@ -103,7 +105,7 @@ class _ConsentPageState extends State<ConsentPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Future<void> _accept() async {
