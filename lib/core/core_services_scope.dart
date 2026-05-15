@@ -4,6 +4,7 @@ import 'llm/llm_gateway.dart';
 import 'memory/cross_module_memory.dart';
 import 'memory/memory_store.dart';
 import 'safety/distress_detector.dart';
+import 'safety/distress_router.dart';
 import 'safety/distress_state.dart';
 
 /// Bundles the cross-cutting services every Arm A module needs (LLM,
@@ -15,6 +16,7 @@ class CoreServicesScope extends InheritedWidget {
   final MemoryStore memory;
   final DistressDetector distress;
   final DistressState distressState;
+  final DistressRouter distressRouter;
   final CrossModuleMemoryService crossModuleMemory;
 
   const CoreServicesScope({
@@ -23,6 +25,7 @@ class CoreServicesScope extends InheritedWidget {
     required this.memory,
     required this.distress,
     required this.distressState,
+    required this.distressRouter,
     required this.crossModuleMemory,
     required super.child,
   });
@@ -39,5 +42,6 @@ class CoreServicesScope extends InheritedWidget {
       memory != oldWidget.memory ||
       distress != oldWidget.distress ||
       distressState != oldWidget.distressState ||
+      distressRouter != oldWidget.distressRouter ||
       crossModuleMemory != oldWidget.crossModuleMemory;
 }

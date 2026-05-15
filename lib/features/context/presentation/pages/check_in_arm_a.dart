@@ -132,7 +132,7 @@ Rules:
         _busy = false;
         _turns.add(_Turn.system(_acuteSafetyMessage()));
       });
-      _showSafetySheet();
+      await core.distressRouter.route(response.inputFlag, context: context);
       return;
     }
     setState(() {
@@ -145,10 +145,16 @@ Rules:
         _turns.add(_Turn.bot(_scriptedAck()));
       }
     });
-    if (response.inputFlag.level == DistressLevel.moderate ||
-        response.outputFlag.level == DistressLevel.moderate) {
-      _showSafetySheet();
+    // Route the higher of the two flags so moderate-on-output still
+    // triggers the soft sheet even if input was clean.
+    final escalation = _higher(response.inputFlag, response.outputFlag);
+    if (escalation.level != DistressLevel.none) {
+      await core.distressRouter.route(escalation, context: context);
     }
+  }
+
+  DistressMatch _higher(DistressMatch a, DistressMatch b) {
+    return a.level.index >= b.level.index ? a : b;
   }
 
   String _acuteSafetyMessage() {
@@ -165,40 +171,6 @@ Rules:
     return isEn
         ? 'Thanks for telling me. I\'m here.'
         : '多謝你話畀我知。我喺度。';
-  }
-
-  void _showSafetySheet() {
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isEn ? 'You\'re not alone' : '你唔係一個人',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              isEn
-                  ? 'Samaritans Hong Kong · 2896 0000 (24h)\n'
-                      'Suicide Prevention Services · 2382 0000'
-                  : '撒瑪利亞會 · 2896 0000（24小時）\n'
-                      '生命熱線 · 2382 0000',
-              style: const TextStyle(fontSize: 18, height: 1.5),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(isEn ? 'Close' : '知道'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _saveSession() async {

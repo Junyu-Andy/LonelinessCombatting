@@ -246,7 +246,18 @@ clay-pot rice stand..."
                 'Hong Kong at 2896 0000 right now.'
             : '多謝你信我，肯講出嚟。請即刻打撒瑪利亞會熱線 2896 0000。'));
       });
+      await core.distressRouter.route(response.inputFlag, context: context);
       return;
+    }
+    // Moderate distress (input or output) → soft sheet after the
+    // turn settles. Acute on output is rare but routed too.
+    final escalation = response.inputFlag.level.index >=
+            response.outputFlag.level.index
+        ? response.inputFlag
+        : response.outputFlag;
+    if (escalation.level == DistressLevel.moderate ||
+        escalation.level == DistressLevel.acute) {
+      await core.distressRouter.route(escalation, context: context);
     }
 
     final replyText = response.text.isNotEmpty
