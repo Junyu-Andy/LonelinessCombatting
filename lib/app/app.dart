@@ -127,8 +127,25 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             locale: widget.settings.locale,
-            builder: (context, child) =>
-                SafetyOverlay(child: child ?? const SizedBox.shrink()),
+            builder: (context, child) {
+              // P4.1: apply the user's elderly-friendly font scale by
+              // overriding MediaQuery before anything paints text. This
+              // affects every Text widget in the subtree without forcing
+              // each widget to read settings.fontScale directly.
+              final base = MediaQuery.of(context);
+              final scaled = base.copyWith(
+                textScaler: TextScaler.linear(
+                  base.textScaler.scale(1.0) *
+                      widget.settings.fontScale.multiplier,
+                ),
+              );
+              return MediaQuery(
+                data: scaled,
+                child: SafetyOverlay(
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              );
+            },
             home: AuthGate(
               authService: widget.authService,
               analytics: widget.analytics,

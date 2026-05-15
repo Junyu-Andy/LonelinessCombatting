@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/data/user_profile.dart';
@@ -6,8 +7,6 @@ import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import 'faq_page.dart';
 import 'privacy_policy_page.dart';
-
-enum _FontScale { standard, large, xlarge }
 
 enum _AppLanguage { cantonese, english }
 
@@ -19,7 +18,6 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  _FontScale _fontScale = _FontScale.standard;
   bool _quietHours = true;
   bool _voiceReadback = false;
 
@@ -29,6 +27,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final theme = Theme.of(context);
     final settings = AppSettingsScope.of(context);
     final highContrast = settings.highContrast;
+    final fontScale = settings.fontScale;
     final isEn = settings.locale.languageCode == 'en';
     final language = isEn ? _AppLanguage.english : _AppLanguage.cantonese;
 
@@ -52,8 +51,8 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 14),
           _FontScaleCard(
-            value: _fontScale,
-            onChanged: (value) => setState(() => _fontScale = value),
+            value: fontScale,
+            onChanged: (value) => settings.fontScale = value,
             isEn: isEn,
           ),
           const SizedBox(height: 14),
@@ -207,8 +206,8 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _FontScaleCard extends StatelessWidget {
-  final _FontScale value;
-  final ValueChanged<_FontScale> onChanged;
+  final AppFontScale value;
+  final ValueChanged<AppFontScale> onChanged;
   final bool isEn;
 
   const _FontScaleCard({required this.value, required this.onChanged, required this.isEn});
@@ -219,14 +218,14 @@ class _FontScaleCard extends StatelessWidget {
 
     final options = isEn
         ? const [
-            (_FontScale.standard, 'Std', 18.0),
-            (_FontScale.large, 'Large', 22.0),
-            (_FontScale.xlarge, 'X-Large', 26.0),
+            (AppFontScale.standard, 'Std', 18.0),
+            (AppFontScale.large, 'Large', 22.0),
+            (AppFontScale.xLarge, 'X-Large', 26.0),
           ]
         : const [
-            (_FontScale.standard, '標準', 18.0),
-            (_FontScale.large, '大', 22.0),
-            (_FontScale.xlarge, '特大', 26.0),
+            (AppFontScale.standard, '標準', 18.0),
+            (AppFontScale.large, '大', 22.0),
+            (AppFontScale.xLarge, '特大', 26.0),
           ];
 
     return Card(
