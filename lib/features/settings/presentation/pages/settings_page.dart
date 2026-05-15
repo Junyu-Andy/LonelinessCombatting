@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
@@ -790,6 +791,18 @@ class _SignOutButton extends StatelessWidget {
     final settings = AppSettingsScope.read(context);
     return TextButton.icon(
       onPressed: () async {
+        final isEn = Localizations.localeOf(context).languageCode == 'en';
+        final confirmed = await showAppConfirm(
+          context: context,
+          title: isEn ? 'Sign out?' : '登出？',
+          message: isEn
+              ? 'You will need to sign in again next time, and any '
+                  'unsynced session will stay in your account.'
+              : '下次要再登入。仲未同步嘅內容會留喺你個帳號入面。',
+          confirmLabel: isEn ? 'Sign out' : '登出',
+          destructive: true,
+        );
+        if (!confirmed) return;
         await auth.signOut();
         settings.profile = null;
       },

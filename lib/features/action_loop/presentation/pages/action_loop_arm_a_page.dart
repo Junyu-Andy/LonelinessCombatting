@@ -7,6 +7,8 @@ import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/reminders/reminder_service.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
+import '../../../../shared/widgets/app_loading_indicator.dart';
+import '../../../../shared/widgets/app_stepper.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../cognitive_restructure/data/thought_record.dart';
@@ -158,6 +160,25 @@ try again in the afternoon." No extra encouragement or suggestions.
     }
   }
 
+  String _stepLabel(bool isEn) {
+    switch (_step) {
+      case _Step.action:
+        return isEn ? 'What' : '做咩';
+      case _Step.when_:
+        return isEn ? 'When' : '幾時';
+      case _Step.where_:
+        return isEn ? 'Where' : '邊度';
+      case _Step.who:
+        return isEn ? 'Who' : '同邊個';
+      case _Step.fallback:
+        return isEn ? 'If not' : '唔得點';
+      case _Step.review:
+        return isEn ? 'Review' : '檢視';
+      case _Step.saved:
+        return isEn ? 'Saved' : '完成';
+    }
+  }
+
   Future<void> _generateSummary() async {
     await TranscriptConsentPrompter.maybePrompt(
       context: context,
@@ -266,6 +287,12 @@ try again in the afternoon." No extra encouragement or suggestions.
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              AppStepper(
+                currentStep: _step.index,
+                totalSteps: _Step.values.length - 1, // exclude 'saved'
+                stepLabel: _stepLabel(isEn),
+              ),
+              const SizedBox(height: 12),
               _ProgressChips(step: _step),
               const SizedBox(height: 16),
               if (_step == _Step.review) ...[
@@ -278,7 +305,11 @@ try again in the afternoon." No extra encouragement or suggestions.
                   child: Padding(
                     padding: const EdgeInsets.all(18),
                     child: _busy
-                        ? const Center(child: CircularProgressIndicator())
+                        ? AppLoadingIndicator.inline(
+                            message: isEn
+                                ? 'Let me put it together…'
+                                : '畀我整理緊…',
+                          )
                         : Text(
                             _summary,
                             style:

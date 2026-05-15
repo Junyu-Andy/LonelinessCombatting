@@ -5,6 +5,7 @@ import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
+import '../../../../shared/widgets/app_loading_indicator.dart';
 import '../../../../theme/app_mood_encoding.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -146,7 +147,11 @@ Output: only the paragraph itself.
       appBar: AppBar(title: Text(isEn ? 'Your week' : '你嘅一個禮拜')),
       body: SafeArea(
         child: _busy
-            ? const Center(child: CircularProgressIndicator())
+            ? AppLoadingIndicator(
+                message: isEn
+                    ? 'Pulling your week together…'
+                    : '我整理緊你嘅一個禮拜…',
+              )
             : ListView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                 children: [
@@ -159,10 +164,10 @@ Output: only the paragraph itself.
                       child: Padding(
                         padding: const EdgeInsets.all(18),
                         child: _summary == null
-                            ? const SizedBox(
-                                height: 36,
-                                child: Center(
-                                    child: CircularProgressIndicator()),
+                            ? AppLoadingIndicator.inline(
+                                message: isEn
+                                    ? 'Writing your summary…'
+                                    : '寫緊你嘅週小結…',
                               )
                             : Text(
                                 _summary!,
