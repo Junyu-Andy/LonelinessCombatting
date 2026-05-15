@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 
 import 'app/app.dart';
 import 'app/app_settings.dart';
+import 'core/llm/llm_gateway.dart';
+import 'core/memory/memory_store.dart';
+import 'core/safety/distress_detector.dart';
 import 'features/analytics/data/analytics_service.dart';
 import 'features/auth/data/auth_service.dart';
 import 'firebase_options.dart';
@@ -26,6 +29,7 @@ Future<void> main() async {
     }
   }
 
+  const detector = DistressDetector();
   runApp(
     MyApp(
       settings: AppSettings(
@@ -33,6 +37,9 @@ Future<void> main() async {
       ),
       authService: AuthService(available: firebaseReady),
       analytics: AnalyticsService(firebaseReady: firebaseReady),
+      llm: LlmGateway(detector: detector),
+      memory: MemoryStore(available: firebaseReady),
+      distress: detector,
     ),
   );
 }

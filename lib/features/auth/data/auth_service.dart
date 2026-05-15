@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
+import 'arm_assigner.dart';
 import 'user_profile.dart';
 
 /// Wraps [FirebaseAuth] + Firestore so the UI can treat auth as a simple
@@ -13,12 +14,15 @@ import 'user_profile.dart';
 /// plugin has already failed earlier in `main`), but every call throws
 /// [AuthUnavailableException] so callers can show a friendly message.
 class AuthService {
-  AuthService({required this.available});
+  AuthService({required this.available, ArmAssigner? armAssigner})
+      : _armAssigner = armAssigner ?? ArmAssigner();
 
   /// False when Firebase.initializeApp failed — typically because
   /// firebase_options.dart hasn't been generated yet. Lets the UI show a
   /// "guest mode" banner instead of crashing.
   final bool available;
+
+  final ArmAssigner _armAssigner;
 
   FirebaseAuth get _auth => FirebaseAuth.instance;
   FirebaseFirestore get _db => FirebaseFirestore.instance;
@@ -63,6 +67,7 @@ class AuthService {
     String? emergencyContactName,
     String? emergencyContactPhone,
     String? preferredLanguage,
+    ConsentFlags consent = const ConsentFlags(),
   }) async {
     _ensureAvailable();
     final credential = await _auth.createUserWithEmailAndPassword(
@@ -71,6 +76,7 @@ class AuthService {
     );
     final user = credential.user!;
     await user.updateDisplayName(displayName);
+    final arm = await _armAssigner.assign(_db);
     final profile = UserProfile(
       uid: user.uid,
       email: user.email ?? email.trim(),
@@ -79,6 +85,8 @@ class AuthService {
       emergencyContactName: emergencyContactName,
       emergencyContactPhone: emergencyContactPhone,
       preferredLanguage: preferredLanguage,
+      arm: arm,
+      consent: consent,
       createdAt: DateTime.now(),
       lastLoginAt: DateTime.now(),
     );
@@ -104,18 +112,29 @@ class AuthService {
   }
 
   Future<UserProfile> _loadOrCreateProfile(User user) async {
-    final doc = await _db.collection('users').doc(user.uid).get();
+    final ref = _db.collection('users').doc(user.uid);
+    final doc = await ref.get();
     if (doc.exists) {
-      return UserProfile.fromMap(user.uid, doc.data() ?? {});
+      final existing = UserProfile.fromMap(user.uid, doc.data() ?? {});
+      // Backfill arm for accounts created before randomisation went live.
+      if (existing.arm == null) {
+        final arm = await _armAssigner.assign(_db);
+        final patched = existing.copyWith(arm: arm);
+        await ref.set({'arm': arm.code}, SetOptions(merge: true));
+        return patched;
+      }
+      return existing;
     }
+    final arm = await _armAssigner.assign(_db);
     final profile = UserProfile(
       uid: user.uid,
       email: user.email ?? '',
       displayName: user.displayName ?? (user.email ?? '用戶').split('@').first,
+      arm: arm,
       createdAt: DateTime.now(),
       lastLoginAt: DateTime.now(),
     );
-    await _db.collection('users').doc(user.uid).set({
+    await ref.set({
       ...profile.toMap(),
       'createdAt': FieldValue.serverTimestamp(),
       'lastLoginAt': FieldValue.serverTimestamp(),

@@ -7,8 +7,15 @@ import '../../../../features/context/presentation/pages/reflection_page.dart';
 import '../../../../features/context/presentation/pages/social_map_page.dart';
 import '../../../../features/crisis/presentation/pages/emergency_support_page.dart';
 import '../../../../features/follow_up/presentation/pages/follow_up_page.dart';
+import '../../../../features/action_loop/presentation/pages/action_loop_landing.dart';
+import '../../../../features/cognitive_restructure/presentation/pages/cog_restructure_landing.dart';
+import '../../../../features/education/presentation/pages/education_library_page.dart';
 import '../../../../features/personalization/presentation/pages/personalization_page.dart';
+import '../../../../features/progress/presentation/pages/progress_page.dart';
+import '../../../../features/reminiscence/presentation/pages/reminiscence_landing.dart';
 import '../../../../features/resources/presentation/pages/community_resources_page.dart';
+import '../../../../features/self_reflection/presentation/pages/self_reflection_page.dart';
+import '../../../../features/social_suggestions/presentation/pages/social_suggestions_page.dart';
 import '../../../../features/wellbeing/presentation/pages/calm_page.dart';
 
 class AllFeaturesPage extends StatelessWidget {
@@ -255,6 +262,55 @@ class _FeaturesGrid extends StatelessWidget {
         labelEn: 'Check-In',
         accent: const Color(0xFF93C5FD),
         pageBuilder: () => const CheckInPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.auto_stories_outlined,
+        labelZh: '人生點滴',
+        labelEn: 'Life Stories',
+        accent: const Color(0xFFFCD9B6),
+        pageBuilder: () => const ReminiscenceLandingPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.checklist_rtl_outlined,
+        labelZh: '計劃一個小行動',
+        labelEn: 'Plan a Small Step',
+        accent: const Color(0xFFBBF7D0),
+        pageBuilder: () => const ActionLoopLandingPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.lightbulb_outline,
+        labelZh: '檢視一個諗法',
+        labelEn: 'Examine a Worry',
+        accent: const Color(0xFFFEF08A),
+        pageBuilder: () => const CogRestructureLandingPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.celebration_outlined,
+        labelZh: '今日嘅小邀請',
+        labelEn: 'Small Invitation',
+        accent: const Color(0xFFFBCFE8),
+        pageBuilder: () => const SocialSuggestionsPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.menu_book_outlined,
+        labelZh: '讀少少',
+        labelEn: 'Read a Little',
+        accent: const Color(0xFFE0E7FF),
+        pageBuilder: () => const EducationLibraryPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.psychology_alt_outlined,
+        labelZh: '一個反思',
+        labelEn: 'Reflection',
+        accent: const Color(0xFFD8B4FE),
+        pageBuilder: () => const SelfReflectionPage(),
+      ),
+      _FeatureItem(
+        icon: Icons.bar_chart_rounded,
+        labelZh: '你嘅一個禮拜',
+        labelEn: 'Your Week',
+        accent: const Color(0xFFFEE2E2),
+        pageBuilder: () => const ProgressPage(),
       ),
       _FeatureItem(
         icon: Icons.map_outlined,

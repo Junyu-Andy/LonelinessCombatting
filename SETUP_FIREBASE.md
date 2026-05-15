@@ -65,23 +65,35 @@ a document at `users/{uid}` with the fields defined in
 
 ## 6. Firestore security rules (before shipping)
 
-Replace the default test rules with something like:
+A ready-to-publish rules file lives at the repo root: **`firestore.rules`**.
+It covers:
 
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+- `users/{uid}/**` — owner read/write only (profile, events, memory,
+  action_plans, thought_records).
+- `meta/arm_counter` — any signed-in user may read; writes must be
+  exactly an `aCount` or `bCount` increment-by-one (the
+  `ArmAssigner.assign` transaction).
 
-      // Analytics events written by AnalyticsService.
-      match /events/{eventId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-    }
-  }
-}
+To publish:
+
+```bash
+# Once, from the project root:
+firebase deploy --only firestore:rules
 ```
+
+Or paste the file's contents into the Firebase Console →
+Firestore → Rules → Publish.
+
+### Collections produced by this app
+
+| Path | Written by | Purpose |
+| --- | --- | --- |
+| `users/{uid}` | `AuthService` | Profile, arm, consent flags |
+| `users/{uid}/events/{id}` | `AnalyticsService` | Session + module events |
+| `users/{uid}/memory/{moduleId}/entries/{id}` | `MemoryStore` | M2/M3/M5 summaries (gated by `consent.transcriptRetention`) |
+| `users/{uid}/action_plans/{id}` | M7 + M4/M6 hand-offs | If-then plans, follow-up outcomes |
+| `users/{uid}/thought_records/{id}` | M4 | Cognitive restructuring records, optional `linkedActionPlanId` |
+| `meta/arm_counter` | `ArmAssigner` (txn) | 1:1 balanced RCT randomisation |
 
 ## Troubleshooting
 
