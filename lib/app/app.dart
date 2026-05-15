@@ -7,6 +7,7 @@ import '../core/core_services_scope.dart';
 import '../core/llm/llm_gateway.dart';
 import '../core/memory/memory_store.dart';
 import '../core/safety/distress_detector.dart';
+import '../core/safety/distress_state.dart';
 import '../core/safety/safety_overlay.dart';
 import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
@@ -25,6 +26,7 @@ class MyApp extends StatefulWidget {
   final LlmGateway llm;
   final MemoryStore memory;
   final DistressDetector distress;
+  final DistressState distressState;
 
   const MyApp({
     super.key,
@@ -34,6 +36,7 @@ class MyApp extends StatefulWidget {
     required this.llm,
     required this.memory,
     required this.distress,
+    required this.distressState,
   });
 
   @override
@@ -104,6 +107,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           llm: widget.llm,
           memory: widget.memory,
           distress: widget.distress,
+          distressState: widget.distressState,
           child: AppSettingsScope(
           settings: widget.settings,
           child: MaterialApp(
