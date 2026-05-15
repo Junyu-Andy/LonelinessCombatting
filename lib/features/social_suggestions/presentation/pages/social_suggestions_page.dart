@@ -5,6 +5,7 @@ import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
+import '../../../../shared/widgets/app_loading_indicator.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_a_page.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_b_page.dart';
 import '../../data/suggestion_pool.dart';
@@ -172,10 +173,11 @@ other text.
 
   List<Widget> _buildArmA(bool isEn) {
     if (_busy) {
-      return const [
-        Padding(
-          padding: EdgeInsets.symmetric(vertical: 24),
-          child: Center(child: CircularProgressIndicator()),
+      return [
+        AppLoadingIndicator.inline(
+          message: isEn
+              ? 'Thinking of a small idea for you…'
+              : '諗緊一啲適合你嘅小行動…',
         ),
       ];
     }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../shared/widgets/app_button.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import 'check_in_shared.dart';
@@ -109,17 +110,14 @@ class _CheckInArmBState extends State<CheckInArmB> {
               ),
             ),
             const SizedBox(height: 24),
-            FilledButton(
+            AppButton.primary(
+              label: isEn ? 'Save check-in' : '儲存今日 Check-in',
+              icon: Icons.check_rounded,
               onPressed: _talkedAnswer != null &&
                       _socialDayAnswer != null &&
                       _significantEventAnswer != null
                   ? _save
                   : null,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(isEn ? 'Save' : '儲存',
-                    style: const TextStyle(fontSize: 20)),
-              ),
             ),
             if (_saved) ...[
               const SizedBox(height: 12),

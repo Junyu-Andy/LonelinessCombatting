@@ -64,12 +64,16 @@ class _MicroChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          // UX-polish: vertical padding bumped 18→24 so the tap
+          // target clears 80pt comfortably; icon size dropped 28→24
+          // so the chip sits visually below the CheckInHeroCard in
+          // the Today hierarchy.
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           child: Row(
             children: [
               Icon(icon,
-                  size: 28, color: theme.colorScheme.onPrimaryContainer),
-              const SizedBox(width: 10),
+                  size: 24, color: theme.colorScheme.onPrimaryContainer),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   label,

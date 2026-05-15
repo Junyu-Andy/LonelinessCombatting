@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../shared/widgets/app_loading_indicator.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
@@ -67,7 +68,11 @@ class _ReminiscenceMemoriesPageState extends State<ReminiscenceMemoriesPage> {
       appBar: AppBar(title: Text(isEn ? 'My memories' : '我嘅回憶')),
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? AppLoadingIndicator(
+                message: isEn
+                    ? 'Pulling your memories…'
+                    : '搵緊你嘅回憶…',
+              )
             : (_byWeek == null || _byWeek!.isEmpty)
                 ? Center(
                     child: Padding(

@@ -130,20 +130,7 @@ class _M3SessionDetailPageState extends State<M3SessionDetailPage> {
     final isEdited = doc.endSummaryUserEdited;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        actions: [
-          if (canReEdit)
-            TextButton.icon(
-              onPressed: () => setState(() {
-                _editing = true;
-                _editCtrl.text = doc.callbackSummary ?? '';
-              }),
-              icon: const Icon(Icons.edit_outlined),
-              label: Text(isEn ? 'Re-edit' : '編輯'),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: Text(title)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -201,6 +188,7 @@ class _M3SessionDetailPageState extends State<M3SessionDetailPage> {
                   label: isEn ? 'Your version' : '你嘅版本',
                   body: edited,
                   emphasis: true,
+                  badge: isEn ? 'EDITED' : '已編輯',
                 ),
                 const SizedBox(height: 16),
               ],
@@ -220,6 +208,29 @@ class _M3SessionDetailPageState extends State<M3SessionDetailPage> {
                       : '完成於 ${_formatDate(doc.completedAt!, isEn)}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              // UX-polish: move the Re-edit affordance from the AppBar
+              // into a card-level button so older participants can
+              // find it without scanning the toolbar.
+              if (canReEdit) ...[
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => setState(() {
+                      _editing = true;
+                      _editCtrl.text = doc.callbackSummary ?? '';
+                    }),
+                    icon: const Icon(Icons.edit_outlined, size: 22),
+                    label: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        isEn ? 'Edit my version' : '修改我嘅版本',
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -247,7 +258,10 @@ class _SummarySection extends StatelessWidget {
     required this.label,
     required this.body,
     required this.emphasis,
+    this.badge,
   });
+
+  final String? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -259,18 +273,48 @@ class _SummarySection extends StatelessWidget {
             ? theme.colorScheme.primaryContainer.withValues(alpha: 0.45)
             : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
+        border: emphasis
+            ? Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.4),
+                width: 1.5,
+              )
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              if (badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    badge!,
+                    style: TextStyle(
+                      color: theme.colorScheme.onPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             body,
             style: theme.textTheme.bodyLarge?.copyWith(

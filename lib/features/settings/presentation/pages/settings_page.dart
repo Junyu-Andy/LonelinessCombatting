@@ -598,8 +598,8 @@ class _AboutCard extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 44,
+                    height: 44,
                     alignment: Alignment.center,
                     decoration: const BoxDecoration(
                       color: Color(0xFF8A1538),
@@ -610,7 +610,7 @@ class _AboutCard extends StatelessWidget {
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
-                        fontSize: 11,
+                        fontSize: 14,
                       ),
                     ),
                   ),

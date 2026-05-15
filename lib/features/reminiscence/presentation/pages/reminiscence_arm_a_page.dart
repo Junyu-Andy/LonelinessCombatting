@@ -385,42 +385,35 @@ clay-pot rice stand..."
                     child: LinearProgressIndicator(),
                   ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _busy || _saved
-                            ? null
-                            : () => _saveSummary(useOriginal: true),
-                        child: Padding(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14),
-                          child: Text(
-                            isEn ? 'Use original' : '用原版',
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                        ),
-                      ),
+                // UX-polish: weight the "Save my edits" affirmative
+                // action as the prominent CTA; "Use original" stays
+                // available but as a quieter alternative.
+                FilledButton(
+                  onPressed: _busy || _saved
+                      ? null
+                      : () => _saveSummary(useOriginal: false),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      _saved
+                          ? (isEn ? 'Saved' : '已儲存')
+                          : (isEn ? 'Save my edits' : '儲存我嘅修改'),
+                      style: const TextStyle(fontSize: 20),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: _busy || _saved
-                            ? null
-                            : () => _saveSummary(useOriginal: false),
-                        child: Padding(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14),
-                          child: Text(
-                            _saved
-                                ? (isEn ? 'Saved' : '已儲存')
-                                : (isEn ? 'Save my edits' : '儲存我嘅修改'),
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                        ),
-                      ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _busy || _saved
+                      ? null
+                      : () => _saveSummary(useOriginal: true),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      isEn ? 'Use original (no edits)' : '用返原版（唔改）',
+                      style: const TextStyle(fontSize: 16),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -495,16 +488,19 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // UX-polish: bot bubble was previously surfaceContainerHighest,
+    // which read as background. Use secondaryContainer so the
+    // listener's turn stands apart from the page surround.
     final color = turn.fromUser
         ? theme.colorScheme.primaryContainer
         : turn.isSystem
             ? theme.colorScheme.errorContainer
-            : theme.colorScheme.surfaceContainerHighest;
+            : theme.colorScheme.secondaryContainer;
     final fg = turn.fromUser
         ? theme.colorScheme.onPrimaryContainer
         : turn.isSystem
             ? theme.colorScheme.onErrorContainer
-            : theme.colorScheme.onSurface;
+            : theme.colorScheme.onSecondaryContainer;
     return Align(
       alignment:
           turn.fromUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -544,7 +540,9 @@ class _PriorWeeksHint extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.4),
+          // UX-polish: bumped alpha 0.4→0.7 so the "I remember you
+          // mentioned…" continuity cue isn't lost on older readers.
+          color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: theme.colorScheme.outlineVariant,

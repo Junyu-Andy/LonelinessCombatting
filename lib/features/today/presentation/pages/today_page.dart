@@ -27,7 +27,10 @@ class TodayPage extends StatelessWidget {
           MissedCheckInBanner(),
           ActivePlanBanner(),
           Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 100),
+            // UX-polish: trailing padding 100→72 so older participants
+            // don't keep scrolling past empty space to confirm nothing
+            // else loaded below.
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 72),
             child: Column(
               children: [
                 CheckInHeroCard(),
