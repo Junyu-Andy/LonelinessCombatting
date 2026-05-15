@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/safety/distress_detector.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_a_page.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -111,9 +112,14 @@ see how she replies." No lectures, no summary.
       userInput: text,
     );
     if (!mounted) return;
-    if (response.shortCircuited || response.hasEscalation) {
-      // The detector caught grief / acute distress in the thought. Per
-      // spec, refuse the exercise and route the user gently elsewhere.
+    // Only refuse the exercise on ACUTE distress (explicit self-harm /
+    // suicide language). Moderate-tier cues like "burden", "no one cares",
+    // "hopeless" are precisely the cognitions M4 is designed to work
+    // with, so we let the exercise proceed; the persistent safety pill
+    // remains one tap away.
+    if (response.shortCircuited ||
+        response.inputFlag.level == DistressLevel.acute ||
+        response.outputFlag.level == DistressLevel.acute) {
       setState(() {
         _busy = false;
         _llmReflection = isEn

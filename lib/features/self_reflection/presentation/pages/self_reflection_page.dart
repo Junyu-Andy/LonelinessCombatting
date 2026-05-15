@@ -146,6 +146,24 @@ Output format: only the question itself, no extra text.
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.tertiaryContainer
+                      .withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  isEn
+                      ? 'A question for you to sit with — write a few '
+                          'words back, or just read it and close. There '
+                          'is no right answer.'
+                      : '一條畀你諗下嘅問題。可以寫返幾句，或者淨係讀完就熄。'
+                          '冇標準答案。',
+                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
+                ),
+              ),
+              const SizedBox(height: 12),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(18),

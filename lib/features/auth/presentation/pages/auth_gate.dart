@@ -34,9 +34,11 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     // Guest mode: Firebase unavailable — let the user into the main shell
-    // without auth so they can still explore the demo.
+    // without auth so they can still explore the demo. A persistent
+    // banner makes the state visible so the tester doesn't think it's
+    // a real RCT signed-in session.
     if (!widget.authService.available) {
-      return const MainShell();
+      return const _GuestModeShell();
     }
 
     return StreamBuilder<UserProfile?>(
@@ -79,6 +81,58 @@ class _Loading extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       body: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+/// MainShell wrapped with a top banner that shows the app is running
+/// without a Firebase project. Without this, a tester can't tell whether
+/// they're signed in, in guest mode, or in a misconfigured build.
+class _GuestModeShell extends StatelessWidget {
+  const _GuestModeShell();
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    const forcedArm = String.fromEnvironment('FORCE_ARM');
+    return Column(
+      children: [
+        Material(
+          color: const Color(0xFFFEF3C7),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline,
+                      size: 18, color: Color(0xFF92400E)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isEn
+                          ? 'Demo mode — Firebase not configured. '
+                              'Sign-in, RCT arm assignment, and saving are '
+                              'all disabled.'
+                              '${forcedArm.isNotEmpty ? ' [FORCE_ARM=$forcedArm]' : ''}'
+                          : 'Demo 模式 — Firebase 未配置。'
+                              '登入、隨機分組、儲存功能都唔可用。'
+                              '${forcedArm.isNotEmpty ? '【強制 ARM=$forcedArm】' : ''}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF92400E),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const Expanded(child: MainShell()),
+      ],
     );
   }
 }

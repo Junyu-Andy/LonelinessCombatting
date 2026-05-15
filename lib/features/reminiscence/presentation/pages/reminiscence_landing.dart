@@ -2,11 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/arm/arm_scope.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/reminiscence_themes.dart';
 import 'reminiscence_arm_a_page.dart';
 import 'reminiscence_arm_b_page.dart';
+import 'reminiscence_memories_page.dart';
 
 /// M3 entry point. Lists the 6 weekly themes with a "completed" check
 /// per week (any saved entry for that theme counts). Same UI in both
@@ -37,6 +39,18 @@ class ReminiscenceLandingPage extends StatelessWidget {
                   : '每星期一節，15-25 分鐘。6 個主題、6 個禮拜。冇標準答案，記得幾多都得。',
               style: theme.textTheme.bodyLarge,
             ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _openMemories(context),
+              icon: const Icon(Icons.collections_bookmark_outlined),
+              label: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  isEn ? 'My memories' : '我嘅回憶',
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+            ),
             const SizedBox(height: 20),
             for (final t in ReminiscenceTheme.all)
               _ThemeCard(
@@ -52,13 +66,22 @@ class ReminiscenceLandingPage extends StatelessWidget {
   }
 
   void _open(BuildContext context, ReminiscenceTheme theme) {
-    final isArmA =
-        AppSettingsScope.read(context).profile?.arm?.code == 'A';
+    // Use the canonical Arm.isA lookup so FORCE_ARM dart-define applies
+    // (the previous direct `profile?.arm` read bypassed it).
+    final isArmA = Arm.isA(context);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => isArmA
             ? ReminiscenceArmAPage(theme: theme)
             : ReminiscenceArmBPage(theme: theme),
+      ),
+    );
+  }
+
+  void _openMemories(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ReminiscenceMemoriesPage(),
       ),
     );
   }
