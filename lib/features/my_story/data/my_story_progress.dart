@@ -1,11 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
+import '../../reminiscence/data/m3_session_store.dart';
 import '../../reminiscence/data/reminiscence_themes.dart';
 
 /// Per-week M3 session state surfaced to the My Story tab.
 class M3WeekState {
   final ReminiscenceTheme theme;
-  final M3SessionStatus status;
+  final MyStorySessionStatus status;
   final String? summarySnippet;
   final DateTime? completedAt;
 
@@ -16,10 +15,13 @@ class M3WeekState {
     this.completedAt,
   });
 
-  bool get isCompleted => status == M3SessionStatus.completed;
+  bool get isCompleted => status == MyStorySessionStatus.completed;
 }
 
-enum M3SessionStatus { notStarted, inProgress, completed }
+/// Local UI status alias — kept distinct from [M3SessionStatus] so the
+/// My Story rendering layer can evolve without churning the store
+/// schema.
+enum MyStorySessionStatus { notStarted, inProgress, completed }
 
 class MyStoryProgress {
   final List<M3WeekState> weeks;
@@ -43,17 +45,15 @@ class MyStoryProgress {
     return MyStoryProgress(
       weeks: [
         for (final t in ReminiscenceTheme.all)
-          M3WeekState(theme: t, status: M3SessionStatus.notStarted),
+          M3WeekState(theme: t, status: MyStorySessionStatus.notStarted),
       ],
       currentWeekIndex: 1,
     );
   }
 }
 
-/// Reads M3 progress from Firestore. The existing M3 schema stores each
-/// week as `users/{uid}/memory/m3_reminiscence_w{n}/entries/{entryId}`;
-/// presence of *any* entry counts as completed (mirrors what the
-/// reminiscence landing page already uses for its tick marks).
+/// Reads M3 progress from the new single-doc schema at
+/// `users/{uid}/memory/m3_reminiscence/sessions/week_{n}`.
 class MyStoryProgressReader {
   MyStoryProgressReader({required this.available});
   final bool available;
@@ -66,20 +66,24 @@ class MyStoryProgressReader {
     if (!available) return MyStoryProgress.empty();
 
     final allThemes = ReminiscenceTheme.all;
-    final futures = allThemes.map((t) => _readWeek(uid, t.weekIndex));
-    final perWeek = await Future.wait(futures);
+    final store = M3SessionStore(available: available);
+    final docs = await store.readAll(
+      uid: uid,
+      weekIndexes: [for (final t in allThemes) t.weekIndex],
+    );
 
     final weeks = <M3WeekState>[];
-    for (var i = 0; i < allThemes.length; i++) {
-      final theme = allThemes[i];
-      final hit = perWeek[i];
+    for (final theme in allThemes) {
+      final doc = docs[theme.weekIndex];
+      final status = _mapStatus(doc?.status);
+      final summary = doc?.callbackSummary;
       weeks.add(M3WeekState(
         theme: theme,
-        status: hit == null
-            ? M3SessionStatus.notStarted
-            : M3SessionStatus.completed,
-        summarySnippet: hit?.summarySnippet,
-        completedAt: hit?.completedAt,
+        status: status,
+        summarySnippet: summary == null
+            ? null
+            : (summary.length > 60 ? '${summary.substring(0, 60)}…' : summary),
+        completedAt: doc?.completedAt,
       ));
     }
 
@@ -92,43 +96,15 @@ class MyStoryProgressReader {
     return MyStoryProgress(weeks: weeks, currentWeekIndex: clamped);
   }
 
-  Future<_WeekHit?> _readWeek(String uid, int weekIndex) async {
-    try {
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('memory')
-          .doc('m3_reminiscence_w$weekIndex')
-          .collection('entries')
-          .orderBy('createdAt', descending: true)
-          .limit(1)
-          .get();
-      if (snap.docs.isEmpty) return null;
-      final data = snap.docs.first.data();
-      final raw = data['createdAt'];
-      DateTime? when;
-      if (raw is Timestamp) {
-        when = raw.toDate();
-      } else if (raw is String) {
-        when = DateTime.tryParse(raw);
-      }
-      final snippet = (data['summary'] as String?) ??
-          (data['endSummary'] as String?) ??
-          (data['text'] as String?);
-      return _WeekHit(
-        completedAt: when,
-        summarySnippet: snippet == null
-            ? null
-            : (snippet.length > 60 ? '${snippet.substring(0, 60)}…' : snippet),
-      );
-    } catch (_) {
-      return null;
+  MyStorySessionStatus _mapStatus(M3SessionStatus? raw) {
+    switch (raw) {
+      case M3SessionStatus.completed:
+        return MyStorySessionStatus.completed;
+      case M3SessionStatus.inProgress:
+        return MyStorySessionStatus.inProgress;
+      case M3SessionStatus.notStarted:
+      case null:
+        return MyStorySessionStatus.notStarted;
     }
   }
-}
-
-class _WeekHit {
-  final DateTime? completedAt;
-  final String? summarySnippet;
-  const _WeekHit({this.completedAt, this.summarySnippet});
 }

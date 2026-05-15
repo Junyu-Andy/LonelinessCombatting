@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
-import '../../../../core/core_services_scope.dart';
-import '../../../../core/memory/memory_store.dart';
+import '../../../auth/presentation/auth_service_scope.dart';
+import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
+import 'm3_session_detail_page.dart';
 
 /// Spec §M3 Arm B step 4: "Past entries are accessible as a list ('My
 /// memories'), but the system does not refer back to them."
 ///
-/// Reuses the same Firestore subcollections that the saved sessions
-/// write to, so both arms see whatever they've stored. Each entry shows
-/// week number → preview → tap to expand.
+/// Reads the new single-doc-per-week schema. Each week with status
+/// 'completed' (and a non-empty summary) renders as a card; tap to open
+/// the detail page where the user can re-read or re-edit.
 class ReminiscenceMemoriesPage extends StatefulWidget {
   const ReminiscenceMemoriesPage({super.key});
 
@@ -20,7 +21,7 @@ class ReminiscenceMemoriesPage extends StatefulWidget {
 }
 
 class _ReminiscenceMemoriesPageState extends State<ReminiscenceMemoriesPage> {
-  Map<int, List<MemoryEntry>>? _byWeek;
+  Map<int, M3SessionDoc>? _byWeek;
   bool _loading = true;
 
   @override
@@ -31,7 +32,7 @@ class _ReminiscenceMemoriesPageState extends State<ReminiscenceMemoriesPage> {
 
   Future<void> _load() async {
     final profile = AppSettingsScope.read(context).profile;
-    final core = CoreServicesScope.of(context);
+    final auth = AuthServiceScope.of(context);
     if (profile == null) {
       setState(() {
         _byWeek = {};
@@ -39,18 +40,21 @@ class _ReminiscenceMemoriesPageState extends State<ReminiscenceMemoriesPage> {
       });
       return;
     }
-    final map = <int, List<MemoryEntry>>{};
-    for (final t in ReminiscenceTheme.all) {
-      final entries = await core.memory.recent(
-        uid: profile.uid,
-        moduleId: 'm3_reminiscence_w${t.weekIndex}',
-        limit: 10,
-      );
-      if (entries.isNotEmpty) map[t.weekIndex] = entries;
+    final store = M3SessionStore(available: auth.available);
+    final docs = await store.readAll(
+      uid: profile.uid,
+      weekIndexes: [for (final t in ReminiscenceTheme.all) t.weekIndex],
+    );
+    final completed = <int, M3SessionDoc>{};
+    for (final entry in docs.entries) {
+      final doc = entry.value;
+      if (doc.isCompleted && (doc.callbackSummary?.trim().isNotEmpty ?? false)) {
+        completed[entry.key] = doc;
+      }
     }
     if (!mounted) return;
     setState(() {
-      _byWeek = map;
+      _byWeek = completed;
       _loading = false;
     });
   }
@@ -83,10 +87,11 @@ class _ReminiscenceMemoriesPageState extends State<ReminiscenceMemoriesPage> {
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                     children: [
                       for (final week in (_byWeek!.keys.toList()..sort()))
-                        _WeekSection(
+                        _WeekCard(
                           theme: ReminiscenceTheme.byIndex(week),
-                          entries: _byWeek![week]!,
+                          doc: _byWeek![week]!,
                           isEn: isEn,
+                          onReload: _load,
                         ),
                     ],
                   ),
@@ -95,85 +100,116 @@ class _ReminiscenceMemoriesPageState extends State<ReminiscenceMemoriesPage> {
   }
 }
 
-class _WeekSection extends StatelessWidget {
+class _WeekCard extends StatelessWidget {
   final ReminiscenceTheme theme;
-  final List<MemoryEntry> entries;
+  final M3SessionDoc doc;
   final bool isEn;
-  const _WeekSection({
+  final VoidCallback onReload;
+  const _WeekCard({
     required this.theme,
-    required this.entries,
+    required this.doc,
     required this.isEn,
+    required this.onReload,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final summary = doc.callbackSummary ?? '';
+    final preview = summary.length > 160 ? '${summary.substring(0, 160)}…' : summary;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: t.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${theme.weekIndex}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: t.colorScheme.onPrimaryContainer,
-                  ),
-                ),
+      child: Card(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => M3SessionDetailPage(theme: theme),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  isEn ? theme.titleEn : theme.titleZh,
-                  style: t.textTheme.titleMedium,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          for (final e in entries)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            );
+            onReload();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      _formatDate(e.createdAt, isEn),
-                      style: t.textTheme.bodySmall?.copyWith(
-                        color: t.colorScheme.onSurfaceVariant,
+                    Container(
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: t.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${theme.weekIndex}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: t.colorScheme.onPrimaryContainer,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      e.summary,
-                      style: t.textTheme.bodyLarge?.copyWith(height: 1.5),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isEn ? theme.titleEn : theme.titleZh,
+                            style: t.textTheme.titleMedium,
+                          ),
+                          if (doc.completedAt != null)
+                            Text(
+                              _formatDate(doc.completedAt!, isEn),
+                              style: t.textTheme.bodySmall?.copyWith(
+                                color: t.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
+                    if (doc.endSummaryUserEdited)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: t.colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            isEn ? 'edited' : '已編輯',
+                            style: t.textTheme.bodySmall?.copyWith(
+                              color: t.colorScheme.onSecondaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 10),
+                Text(
+                  preview,
+                  style: t.textTheme.bodyLarge?.copyWith(height: 1.5),
+                ),
+              ],
             ),
-        ],
+          ),
+        ),
       ),
     );
   }
 
   String _formatDate(DateTime d, bool isEn) {
     final local = d.toLocal();
-    if (isEn) {
-      return '${local.year}-${_two(local.month)}-${_two(local.day)}';
-    }
+    if (isEn) return '${local.year}-${_two(local.month)}-${_two(local.day)}';
     return '${local.year} 年 ${local.month} 月 ${local.day} 日';
   }
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../l10n/app_localizations.dart';
-import '../../../reminiscence/presentation/pages/reminiscence_memories_page.dart';
+import '../../../reminiscence/presentation/pages/m3_session_detail_page.dart';
 import '../../data/my_story_progress.dart';
 
 class SessionHistoryList extends StatelessWidget {
@@ -47,7 +47,7 @@ class SessionHistoryList extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => const ReminiscenceMemoriesPage(),
+                      builder: (_) => M3SessionDetailPage(theme: w.theme),
                     ),
                   ),
                   child: Padding(

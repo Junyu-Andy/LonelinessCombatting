@@ -17,17 +17,17 @@ class CurrentSessionEntry extends StatelessWidget {
     final theme = Theme.of(context);
 
     final (statusLabel, ctaLabel, icon) = switch (week.status) {
-      M3SessionStatus.notStarted => (
+      MyStorySessionStatus.notStarted => (
           l10n.myStorySessionNotStarted,
           l10n.myStoryStartCta,
           Icons.play_arrow_rounded,
         ),
-      M3SessionStatus.inProgress => (
+      MyStorySessionStatus.inProgress => (
           l10n.myStorySessionInProgress,
           l10n.myStoryContinueCta,
           Icons.arrow_forward_rounded,
         ),
-      M3SessionStatus.completed => (
+      MyStorySessionStatus.completed => (
           l10n.myStorySessionCompleted,
           l10n.myStoryRereadCta,
           Icons.replay_rounded,
