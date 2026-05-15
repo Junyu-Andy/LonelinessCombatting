@@ -48,8 +48,18 @@ class _ConsentPageState extends State<ConsentPage> {
           children: [
             _BoundaryCard(isEn: isEn),
             const SizedBox(height: 20),
+            // P5.3 — three explicit informational sections so the
+            // participant understands (a) what memory does, (b) what
+            // happens if they later turn it off, (c) what is always
+            // kept regardless.
+            _MemoryPurposeCard(isEn: isEn),
+            const SizedBox(height: 12),
+            _MemoryDisabledCard(isEn: isEn),
+            const SizedBox(height: 12),
+            _AlwaysKeptCard(isEn: isEn),
+            const SizedBox(height: 24),
             Text(
-              isEn ? 'One simple choice' : '一個簡單嘅選擇',
+              isEn ? 'One required agreement' : '一個必須嘅同意',
               style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
@@ -66,19 +76,6 @@ class _ConsentPageState extends State<ConsentPage> {
                   : '每日心情分數、做咗嘅小行動、提醒時間 —— app 需要呢啲先運作得到。'
                       '只會放喺你個帳號入面。',
             ),
-            const SizedBox(height: 12),
-            _InfoTile(
-              icon: Icons.history_edu_outlined,
-              title: isEn
-                  ? 'We\'ll also remember what you share'
-                  : '我哋亦會記得你傾過嘅內容',
-              detail: isEn
-                  ? 'So next time I can say "last week you mentioned…". The '
-                      'summaries are short, reviewed by you, and you can turn '
-                      'memory off any time in Settings → Privacy.'
-                  : '咁下次我先記得返「上個禮拜你提過…」。記憶都係短小結，'
-                      '你自己睇過/改過，隨時可以喺「設定」→「私隱」入面熄返。',
-            ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: _functional && !_busy ? _accept : null,
@@ -93,7 +90,7 @@ class _ConsentPageState extends State<ConsentPage> {
             const SizedBox(height: 8),
             Text(
               isEn
-                  ? 'You can change these any time in Settings → Privacy.'
+                  ? 'You can change settings any time in Settings → Privacy.'
                   : '隨時可以喺「設定」→「私隱」入面更改。',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -168,6 +165,75 @@ class _BoundaryCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// P5.3 — "What memory does" — explains the purpose of conversation
+/// retention so the participant understands why we save anything.
+class _MemoryPurposeCard extends StatelessWidget {
+  final bool isEn;
+  const _MemoryPurposeCard({required this.isEn});
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoTile(
+      icon: Icons.history_edu_outlined,
+      title: isEn ? 'What memory does' : '我哋會做啲乜',
+      detail: isEn
+          ? 'We keep a short summary of each session so I can refer back to it:\n'
+              '• Next time we talk, I remember what you shared.\n'
+              '• Across the four life-review weeks, I keep your stories connected.'
+          : '我哋會保留每節對話嘅小結，用嚟：\n'
+              '• 下次傾偈嗰陣，我記得返你之前講過嘅嘢\n'
+              '• 喺人生點滴 (reminiscence) 嘅每週 session 之間，把你嘅故事連返埋',
+    );
+  }
+}
+
+/// P5.3 — "If you turn memory off later" — sets expectations so a
+/// future kill-switch in Settings isn't a surprise.
+class _MemoryDisabledCard extends StatelessWidget {
+  final bool isEn;
+  const _MemoryDisabledCard({required this.isEn});
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoTile(
+      icon: Icons.power_settings_new_rounded,
+      title:
+          isEn ? 'If you later turn memory off' : '如果之後關掉對話記錄',
+      detail: isEn
+          ? 'You can switch this off any time in Settings → Privacy.\n'
+              '• Each conversation starts from zero — I won\'t remember earlier sessions.\n'
+              '• Summaries you already reviewed and edited stay, because those are your version.'
+          : '你隨時可以喺「設定 → 私隱」入面熄返。\n'
+              '• 每次傾偈都係由零開始，系統唔記得你之前講過嘅嘢\n'
+              '• 你之前睇過 + 編輯過嘅 session summary 仲會保留，因為嗰啲係你自己睇過嘅版本',
+    );
+  }
+}
+
+/// P5.3 — "Always kept" — names the functional / quantitative data
+/// the app needs regardless of the memory toggle.
+class _AlwaysKeptCard extends StatelessWidget {
+  final bool isEn;
+  const _AlwaysKeptCard({required this.isEn});
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoTile(
+      icon: Icons.lock_outline,
+      title: isEn ? 'Always kept' : '一定保留嘅嘢',
+      detail: isEn
+          ? 'Even if memory is off, these stay so the app keeps working:\n'
+              '• Mood and social tags from your daily check-in.\n'
+              '• Counts of actions and sessions you completed.\n'
+              '• Summaries you reviewed and edited yourself.'
+          : '即使關咗對話記錄，以下嘢一定會保留（app 先運作得到）：\n'
+              '• 每日 check-in 嘅情緒同社交 tag\n'
+              '• 你完成嘅 actions、sessions 等次數\n'
+              '• 你睇過 + 編輯過嘅 session summary',
     );
   }
 }
