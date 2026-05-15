@@ -5,6 +5,7 @@ import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
+import '../../../../theme/app_mood_encoding.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/progress_data.dart';
@@ -228,7 +229,7 @@ class _BarChart extends StatelessWidget {
       );
     }
     return Container(
-      height: 140,
+      height: 180,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
@@ -237,17 +238,27 @@ class _BarChart extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: values.map((v) {
-          final h = (v.clamp(1, 5)) / 5 * 100;
+          final token = AppMoodEncoding.forScore(v, theme.colorScheme);
+          final h = (v.clamp(1, 5)) / 5 * 110;
           return Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  // P4.3 dual color+shape encoding: the silhouette
+                  // sits above each bar so color-blind users can
+                  // still read trend.
+                  Icon(
+                    token.shape,
+                    size: 22,
+                    color: token.color,
+                  ),
+                  const SizedBox(height: 4),
                   Container(
                     height: h,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
+                      color: token.color,
                       borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(6)),
                     ),
