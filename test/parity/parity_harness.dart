@@ -51,6 +51,7 @@ Widget wrapWithArm({
 UserProfile _profileWithArm(ArmAssignment arm) {
   return UserProfile(
     uid: 'parity-fixture',
+    email: 'parity@example.test',
     displayName: 'Parity Fixture',
     arm: arm,
     consent: const ConsentFlags(
