@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../features/settings/presentation/pages/settings_page.dart';
-import '../../l10n/app_localizations.dart';
-
-/// Unified AppBar used by every top-level tab. Exposes the global
-/// Settings gear in the trailing slot so Settings is always one tap
-/// away from any tab (per spec: Settings is *not* a bottom-nav slot).
+/// Unified AppBar used by every top-level tab. Title fades + slides
+/// between tab switches so the AppBar feels alive without the user
+/// losing context. Settings has its own bottom-nav tab — no gear icon
+/// in the trailing slot.
 class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   const AppAppBar({super.key, required this.title});
@@ -15,7 +13,6 @@ class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     return AppBar(
       title: AnimatedSwitcher(
         duration: const Duration(milliseconds: 220),
@@ -32,16 +29,6 @@ class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
         child: Text(title, key: ValueKey(title)),
       ),
       toolbarHeight: 76,
-      actions: [
-        IconButton(
-          tooltip: l10n.settingsTab,
-          icon: const Icon(Icons.settings_outlined, size: 28),
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
-          ),
-        ),
-        const SizedBox(width: 4),
-      ],
     );
   }
 }

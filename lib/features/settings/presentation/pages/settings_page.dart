@@ -33,11 +33,6 @@ class _SettingsPageState extends State<SettingsPage> {
     final language = isEn ? _AppLanguage.english : _AppLanguage.cantonese;
 
     return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: Text(l10n.settingsTab),
-        toolbarHeight: 64,
-      ),
       body: SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),

@@ -4,15 +4,16 @@ import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
 import '../features/me/presentation/pages/me_page.dart';
 import '../features/my_story/presentation/pages/my_story_page.dart';
+import '../features/settings/presentation/pages/settings_page.dart';
 import '../features/today/presentation/pages/today_page.dart';
 import '../l10n/app_localizations.dart';
 import '../shared/widgets/app_app_bar.dart';
 
-enum AppTab { today, myStory, me }
+enum AppTab { today, myStory, me, settings }
 
-/// Top-level shell. Three bottom-nav tabs (Today / My Story / Me) hosted
-/// inside an [IndexedStack] so per-tab scroll position survives switches.
-/// Settings is reached via the AppBar gear, not as a tab.
+/// Top-level shell. Four bottom-nav tabs (Today / My Story / Me /
+/// Settings) hosted inside an [IndexedStack] so per-tab scroll position
+/// survives switches.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -29,6 +30,7 @@ class _MainShellState extends State<MainShell> {
     AppTab.today: 'today',
     AppTab.myStory: 'my_story',
     AppTab.me: 'me',
+    AppTab.settings: 'settings',
   };
 
   @override
@@ -67,6 +69,7 @@ class _MainShellState extends State<MainShell> {
       AppTab.today: l10n.tabToday,
       AppTab.myStory: l10n.tabMyStory,
       AppTab.me: l10n.tabMe,
+      AppTab.settings: l10n.settingsTab,
     };
 
     return Scaffold(
@@ -77,6 +80,7 @@ class _MainShellState extends State<MainShell> {
           TodayPage(),
           MyStoryPage(),
           MePage(),
+          SettingsPage(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -100,6 +104,12 @@ class _MainShellState extends State<MainShell> {
             selectedIcon: const Icon(Icons.person),
             label: l10n.tabMe,
             tooltip: l10n.tabMe,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: const Icon(Icons.settings),
+            label: l10n.settingsTab,
+            tooltip: l10n.settingsTab,
           ),
         ],
       ),
