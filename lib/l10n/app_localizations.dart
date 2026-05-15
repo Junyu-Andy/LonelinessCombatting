@@ -270,6 +270,55 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter Demo'**
   String get enterDemo;
+
+  /// No description provided for @tabToday.
+  String get tabToday;
+
+  /// No description provided for @tabMyStory.
+  String get tabMyStory;
+
+  /// No description provided for @tabMe.
+  String get tabMe;
+
+  String get greetingMorning;
+  String get greetingNoon;
+  String get greetingAfternoon;
+  String get greetingEvening;
+  String get greetingNight;
+
+  String get todayCheckInTitle;
+  String get todayCheckInSubtitle;
+  String get todayMicroReflection;
+  String get todayMicroInvitation;
+  String get todayActivePlanLabel;
+  String get todayActivePlanEmpty;
+
+  String myStoryWeekProgress(int current, int total);
+  String myStoryWeekTitle(int n);
+  String get myStorySessionNotStarted;
+  String get myStorySessionInProgress;
+  String get myStorySessionCompleted;
+  String get myStoryStartCta;
+  String get myStoryContinueCta;
+  String get myStoryRereadCta;
+  String get myStoryTimelineHeader;
+  String get myStoryHistoryHeader;
+  String get myStoryHistoryEmpty;
+
+  String get meItemProgress;
+  String get meItemActionLoop;
+  String get meItemArticles;
+  String get meItemCrisis;
+  String get meItemProfile;
+  String get meItemProgressSubtitle;
+  String get meItemActionLoopSubtitle;
+  String get meItemArticlesSubtitle;
+  String get meItemCrisisSubtitle;
+  String get meItemProfileSubtitle;
+
+  String get safetyPillLow;
+  String get safetyPillModerate;
+  String get safetyPillAcute;
 }
 
 class _AppLocalizationsDelegate

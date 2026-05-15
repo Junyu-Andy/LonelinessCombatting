@@ -91,6 +91,91 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get enterDemo => '進入 Demo';
+
+  @override
+  String get tabToday => '今日';
+
+  @override
+  String get tabMyStory => '人生點滴';
+
+  @override
+  String get tabMe => '我的記錄';
+
+  @override
+  String get greetingMorning => '早晨';
+  @override
+  String get greetingNoon => '午安';
+  @override
+  String get greetingAfternoon => '下午好';
+  @override
+  String get greetingEvening => '夜晚好';
+  @override
+  String get greetingNight => '夜深喇，慢慢嚟';
+
+  @override
+  String get todayCheckInTitle => '今日 Check-in';
+  @override
+  String get todayCheckInSubtitle => '用一分鐘紀錄一下今日嘅狀態。';
+  @override
+  String get todayMicroReflection => '一個反思';
+  @override
+  String get todayMicroInvitation => '今日嘅小邀請';
+  @override
+  String get todayActivePlanLabel => '今日嘅小行動';
+  @override
+  String get todayActivePlanEmpty => '今日未有計劃。';
+
+  @override
+  String myStoryWeekProgress(int current, int total) =>
+      '第 $current 週 / 共 $total 週';
+  @override
+  String myStoryWeekTitle(int n) => '第 $n 週';
+  @override
+  String get myStorySessionNotStarted => '本週 session 未開始';
+  @override
+  String get myStorySessionInProgress => '上次傾到中途';
+  @override
+  String get myStorySessionCompleted => '本週已完成';
+  @override
+  String get myStoryStartCta => '開始';
+  @override
+  String get myStoryContinueCta => '繼續';
+  @override
+  String get myStoryRereadCta => '重讀';
+  @override
+  String get myStoryTimelineHeader => '你嘅故事線';
+  @override
+  String get myStoryHistoryHeader => '過往 sessions';
+  @override
+  String get myStoryHistoryEmpty => '暫時未有完成嘅 session。';
+
+  @override
+  String get meItemProgress => '你嘅一個禮拜';
+  @override
+  String get meItemActionLoop => '跟進計劃';
+  @override
+  String get meItemArticles => '讀少少';
+  @override
+  String get meItemCrisis => '危機支援';
+  @override
+  String get meItemProfile => '個人資料';
+  @override
+  String get meItemProgressSubtitle => '回顧每週嘅心情同社交';
+  @override
+  String get meItemActionLoopSubtitle => '睇下之前嘅小行動點樣';
+  @override
+  String get meItemArticlesSubtitle => '關於孤獨同身心嘅短文';
+  @override
+  String get meItemCrisisSubtitle => '緊急時搵到嘅人';
+  @override
+  String get meItemProfileSubtitle => '更新你嘅資料';
+
+  @override
+  String get safetyPillLow => '搵人傾';
+  @override
+  String get safetyPillModerate => '需要支援？';
+  @override
+  String get safetyPillAcute => '緊急熱線';
 }
 
 /// The translations for Chinese, as used in Hong Kong, using the Han script (`zh_Hant_HK`).
