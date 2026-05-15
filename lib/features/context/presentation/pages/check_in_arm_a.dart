@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/memory/cross_module_memory.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../analytics/data/analytics_service.dart';
@@ -43,6 +44,12 @@ Rules:
   bool _saved = false;
   AnalyticsService? _analytics;
 
+  /// Set on the *first* user turn if the cross-module callback budget
+  /// resolved a candidate. We surface this in the system prompt and
+  /// record it on save so we can audit how often M2 actually wove M3
+  /// content into a reply.
+  CrossModuleCallback? _crossModuleCallbackUsedThisSession;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -58,19 +65,56 @@ Rules:
   Future<void> _send() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
+    final isFirstTurn = _turns.isEmpty;
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));
       _inputCtrl.clear();
     });
     final core = CoreServicesScope.of(context);
+    final profile = AppSettingsScope.read(context).profile;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+
+    // Cross-module callback (Layer 3): on the user's *first* turn,
+    // ask the budget service whether M2 may lightly reference recent
+    // M3 reminiscence content. Subsequent turns reuse whatever the
+    // first turn resolved so the LLM keeps consistent context.
+    if (isFirstTurn && profile != null) {
+      final inputFlag = core.distress.analyze(text);
+      _crossModuleCallbackUsedThisSession =
+          await core.crossModuleMemory.getEligibleCallback(
+        uid: profile.uid,
+        forModuleFamily: 'm2',
+        candidateSourceModuleIds: const [
+          'm3_reminiscence_w4',
+          'm3_reminiscence_w3',
+          'm3_reminiscence_w2',
+          'm3_reminiscence_w1',
+        ],
+        currentTurnDistress: inputFlag.level,
+      );
+      if (_crossModuleCallbackUsedThisSession != null) {
+        // Conservative: mark used even if the LLM ignores the hint.
+        await core.crossModuleMemory.markUsed(
+          uid: profile.uid,
+          forModuleFamily: 'm2',
+          callback: _crossModuleCallbackUsedThisSession!,
+        );
+      }
+    }
+
+    final systemPrompt = _systemPrompt +
+        (_crossModuleCallbackUsedThisSession
+                ?.toSystemPromptInjection(isEn: isEn) ??
+            '');
+
     final history = _turns
         .take(_turns.length - 1)
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
     final response = await core.llm.send(
       moduleId: 'm2_check_in',
-      systemPrompt: _systemPrompt,
+      systemPrompt: systemPrompt,
       history: history,
       userInput: text,
     );
@@ -157,13 +201,17 @@ Rules:
           .where((t) => t.fromUser)
           .map((t) => t.text)
           .join('\n');
+      final callback = _crossModuleCallbackUsedThisSession;
       await core.memory.writeSummary(
         uid: profile.uid,
         moduleId: 'm2_check_in',
         summary: summary,
         armCode: 'A',
         hasTranscriptConsent: profile.consent.transcriptRetention,
-        tags: [if (_facePicked) 'mood:${_face.name}'],
+        tags: [
+          if (_facePicked) 'mood:${_face.name}',
+          if (callback != null) 'cross_callback:${callback.sourceFamily}',
+        ],
       );
     }
     _analytics?.logCheckIn(
