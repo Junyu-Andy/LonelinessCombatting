@@ -1,10 +1,11 @@
-/// Spec §M3: provisional 6-week reminiscence sequence. HK cultural
-/// adaptation will land in a separate document (Module 3 thematic
-/// curriculum). For the basic build, we keep the seven prompts the spec
-/// lists, with light Cantonese examples baked into the opening line so
-/// the participant immediately knows what kind of memory we mean.
+/// Spec §M3: 4-week reminiscence curriculum (P2 plan, scaled down from
+/// the prior 6-week prototype for the pilot cohort). Themes track the
+/// dissertation's four protected windows: place of origin, working life,
+/// friendships, and legacy. The HK cultural co-design will land
+/// thematic refinements in a separate document; the four prompts here
+/// keep the structure for the basic build.
 class ReminiscenceTheme {
-  final int weekIndex; // 1..6
+  final int weekIndex; // 1..4
   final String titleZh;
   final String titleEn;
   final String openingZh;
@@ -17,6 +18,10 @@ class ReminiscenceTheme {
     required this.openingZh,
     required this.openingEn,
   });
+
+  /// Total weeks in the curriculum. Referenced by the My Story tab and
+  /// any reader that wants to display "Week N of {totalWeeks}".
+  static const totalWeeks = 4;
 
   static const all = <ReminiscenceTheme>[
     ReminiscenceTheme(
@@ -51,24 +56,6 @@ class ReminiscenceTheme {
     ),
     ReminiscenceTheme(
       weekIndex: 4,
-      titleZh: '人生嘅轉捩點',
-      titleEn: 'Turning points',
-      openingZh: '今個禮拜，講下一個對你嚟講最重要嘅決定。係幾時做嘅？事後諗返你會點睇？',
-      openingEn:
-          'This week, share a decision that mattered most to you. When did '
-              'you make it? Looking back now, how do you see it?',
-    ),
-    ReminiscenceTheme(
-      weekIndex: 5,
-      titleZh: '驕傲同成就',
-      titleEn: 'Pride & accomplishment',
-      openingZh: '今個禮拜，分享一件令你覺得驕傲嘅事。可以好細件，唔使大事。',
-      openingEn:
-          'This week, share something you feel proud of. It can be small '
-              '— it doesn\'t have to be a big achievement.',
-    ),
-    ReminiscenceTheme(
-      weekIndex: 6,
       titleZh: '想留畀下一代嘅說話',
       titleEn: 'What I would tell the next generation',
       openingZh:
