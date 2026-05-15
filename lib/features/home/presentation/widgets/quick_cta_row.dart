@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../action_loop/presentation/pages/action_loop_landing.dart';
 import '../../../context/presentation/pages/check_in_page.dart';
-import '../../../progress/presentation/pages/progress_page.dart';
 import '../../../reminiscence/presentation/pages/reminiscence_landing.dart';
 
-/// Three-button row of the most-used surfaces, placed near the top of
-/// Home so the demo flow doesn't require diving into "All". Same order
-/// in both arms.
+/// Quick-CTA row on Home. Phase 0 keeps the three-tile layout; Phase 1
+/// will reshape this into the two-chip variant called for in the spec.
 class QuickCtaRow extends StatelessWidget {
   const QuickCtaRow({super.key});
 
@@ -75,57 +73,6 @@ class QuickCtaRow extends StatelessWidget {
             page: const ActionLoopLandingPage(),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Compact M9 progress card for Home: tap to go to the full view.
-class ProgressMiniCard extends StatelessWidget {
-  const ProgressMiniCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final theme = Theme.of(context);
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const ProgressPage()),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              Icon(Icons.bar_chart_rounded,
-                  size: 32, color: theme.colorScheme.primary),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isEn ? 'See your week' : '睇你嘅一個禮拜',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isEn
-                          ? 'Mood, plans, and reminiscence at a glance.'
-                          : '心情、計劃、人生點滴，一眼睇晒。',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded,
-                  size: 28, color: theme.colorScheme.primary),
-            ],
-          ),
-        ),
       ),
     );
   }

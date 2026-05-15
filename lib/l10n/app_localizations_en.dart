@@ -27,12 +27,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTab => 'Settings';
 
   @override
-  String get chatTab => 'Chat';
-
-  @override
-  String get chatSubtitle => 'Pick someone to chat with.';
-
-  @override
   String get developerCredit =>
       'Built by HKU Department of Data and Systems Engineering';
 

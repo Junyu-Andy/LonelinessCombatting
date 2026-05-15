@@ -27,12 +27,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTab => '設定';
 
   @override
-  String get chatTab => '傾偈';
-
-  @override
-  String get chatSubtitle => '搵個傾偈，由你揀。';
-
-  @override
   String get developerCredit => '由香港大學數據及系統工程學系開發';
 
   @override
@@ -121,12 +115,6 @@ class AppLocalizationsZhHantHk extends AppLocalizationsZh {
 
   @override
   String get settingsTab => '設定';
-
-  @override
-  String get chatTab => '傾偈';
-
-  @override
-  String get chatSubtitle => '搵個傾偈，由你揀。';
 
   @override
   String get developerCredit => '由香港大學數據及系統工程學系開發';
