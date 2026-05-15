@@ -7,6 +7,7 @@ import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
+import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -106,6 +107,14 @@ counts. Do not suggest other modules or new plans.
         _llmReply = response.text.isNotEmpty
             ? response.text
             : (isEn ? 'Thanks for telling me.' : '多謝你話畀我聽。');
+        final escalation = response.inputFlag.level.index >=
+                response.outputFlag.level.index
+            ? response.inputFlag
+            : response.outputFlag;
+        if (escalation.level == DistressLevel.moderate ||
+            escalation.level == DistressLevel.acute) {
+          await core.distressRouter.route(escalation, context: context);
+        }
       }
     }
     if (!mounted) return;

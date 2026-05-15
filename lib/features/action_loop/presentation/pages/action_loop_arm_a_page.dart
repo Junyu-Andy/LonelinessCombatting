@@ -5,6 +5,7 @@ import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/reminders/reminder_service.dart';
+import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -187,6 +188,14 @@ try again in the afternoon." No extra encouragement or suggestions.
       _busy = false;
       _summary = response.text.isNotEmpty ? response.text : fallbackSummary;
     });
+    final escalation = response.inputFlag.level.index >=
+            response.outputFlag.level.index
+        ? response.inputFlag
+        : response.outputFlag;
+    if (escalation.level == DistressLevel.moderate ||
+        escalation.level == DistressLevel.acute) {
+      await core.distressRouter.route(escalation, context: context);
+    }
   }
 
   Future<void> _savePlan() async {
