@@ -4,6 +4,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/reminders/reminder_service.dart';
+import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../cognitive_restructure/data/thought_record.dart';
@@ -296,14 +297,26 @@ try again in the afternoon." No extra encouragement or suggestions.
                   style: theme.textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: _ctrl,
-                  autofocus: true,
-                  style: theme.textTheme.bodyLarge,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => _advance(),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _ctrl,
+                        autofocus: true,
+                        style: theme.textTheme.bodyLarge,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                        ),
+                        onSubmitted: (_) => _advance(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    VoiceInputButton(
+                      prefix: () => _ctrl.text,
+                      onText: (t) => _ctrl.text = t,
+                    ),
+                  ],
                 ),
                 const Spacer(),
                 FilledButton(

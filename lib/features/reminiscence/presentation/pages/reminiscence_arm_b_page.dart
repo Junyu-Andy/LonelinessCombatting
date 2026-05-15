@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
@@ -106,7 +107,15 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
                   child: Text(opening, style: theme.textTheme.bodyLarge),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: VoiceInputButton(
+                  prefix: () => _textCtrl.text,
+                  onText: (t) => _textCtrl.text = t,
+                ),
+              ),
+              const SizedBox(height: 4),
               Expanded(
                 child: TextField(
                   controller: _textCtrl,
@@ -116,8 +125,8 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
                   decoration: InputDecoration(
                     border: const OutlineInputBorder(),
                     hintText: isEn
-                        ? 'Write whatever you remember.'
-                        : '記得幾多寫幾多，慢慢寫。',
+                        ? 'Write whatever you remember, or tap the mic to speak.'
+                        : '記得幾多寫幾多，或者撳咪用講嘅。',
                     alignLabelWithHint: true,
                   ),
                   textAlignVertical: TextAlignVertical.top,

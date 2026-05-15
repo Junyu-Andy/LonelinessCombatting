@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/voice/voice_input_button.dart';
 import '../../data/education_library.dart';
 
 /// M8 article view.
@@ -224,6 +225,10 @@ class _Composer extends StatelessWidget {
         ),
         child: Row(
           children: [
+            VoiceInputButton(
+              prefix: () => controller.text,
+              onText: (t) => controller.text = t,
+            ),
             Expanded(
               child: TextField(
                 controller: controller,

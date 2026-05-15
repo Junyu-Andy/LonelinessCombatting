@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/reminders/reminder_service.dart';
+import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../cognitive_restructure/data/thought_record.dart';
@@ -147,14 +148,30 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
             const SizedBox(height: 18),
             _Label(text: isEn ? 'What' : '做咩'),
             const SizedBox(height: 6),
-            TextField(
-              controller: _actionCtrl,
-              style: theme.textTheme.bodyLarge,
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                hintText: isEn ? 'e.g. Call my sister' : '例：打電話畀家姐',
-              ),
-              onChanged: (_) => setState(() {}),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _actionCtrl,
+                    style: theme.textTheme.bodyLarge,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      hintText:
+                          isEn ? 'e.g. Call my sister' : '例：打電話畀家姐',
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                VoiceInputButton(
+                  prefix: () => _actionCtrl.text,
+                  onText: (t) {
+                    _actionCtrl.text = t;
+                    setState(() {});
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             _Label(text: isEn ? 'When' : '幾時'),

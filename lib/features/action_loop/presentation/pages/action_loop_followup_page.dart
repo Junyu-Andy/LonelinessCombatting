@@ -6,6 +6,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/action_plan.dart';
@@ -172,11 +173,24 @@ counts. Do not suggest other modules or new plans.
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 6),
-            TextField(
-              controller: _noteCtrl,
-              maxLines: 3,
-              style: theme.textTheme.bodyLarge,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _noteCtrl,
+                    maxLines: 3,
+                    style: theme.textTheme.bodyLarge,
+                    decoration:
+                        const InputDecoration(border: OutlineInputBorder()),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                VoiceInputButton(
+                  prefix: () => _noteCtrl.text,
+                  onText: (t) => _noteCtrl.text = t,
+                ),
+              ],
             ),
             const SizedBox(height: 20),
             FilledButton(
