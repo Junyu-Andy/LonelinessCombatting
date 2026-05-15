@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
-import '../../../../core/core_services_scope.dart';
+import '../../../auth/presentation/auth_service_scope.dart';
+import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
 
 /// M3 — Reminiscence, Arm B (rule-based).
@@ -13,6 +14,14 @@ import '../../data/reminiscence_themes.dart';
 ///      asked to save it.
 ///   4. Past entries are accessible as a list — the system never refers
 ///      back to them mid-session.
+///
+/// Arm B writes to the same single-doc schema as Arm A so My Story
+/// timeline, memories page, and cross-module callbacks (in the arms
+/// that have them) can read uniformly. Arm B has no LLM, so:
+///   - turns array contains one user-only entry (consent-gated)
+///   - end_summary_original = user's raw text
+///   - end_summary_edited = null (user did not interact with an editor)
+///   - end_summary_user_edited = false
 class ReminiscenceArmBPage extends StatefulWidget {
   final ReminiscenceTheme theme;
   const ReminiscenceArmBPage({super.key, required this.theme});
@@ -36,16 +45,34 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
     final body = _textCtrl.text.trim();
     if (body.isEmpty) return;
     final profile = AppSettingsScope.read(context).profile;
-    final core = CoreServicesScope.of(context);
+    final auth = AuthServiceScope.of(context);
     setState(() => _busy = true);
     if (profile != null) {
-      await core.memory.writeSummary(
+      final store = M3SessionStore(available: auth.available);
+      await store.startSession(
         uid: profile.uid,
-        moduleId: 'm3_reminiscence_w${widget.theme.weekIndex}',
-        summary: body,
+        weekIndex: widget.theme.weekIndex,
         armCode: 'B',
+      );
+      await store.appendTurns(
+        uid: profile.uid,
+        weekIndex: widget.theme.weekIndex,
+        turns: [
+          M3Turn(
+            fromAssistant: false,
+            text: body,
+            timestamp: DateTime.now(),
+          ),
+        ],
         hasTranscriptConsent: profile.consent.transcriptRetention,
-        tags: ['week:${widget.theme.weekIndex}'],
+      );
+      await store.finalizeSession(
+        uid: profile.uid,
+        weekIndex: widget.theme.weekIndex,
+        armCode: 'B',
+        endSummaryOriginal: body,
+        endSummaryEdited: null,
+        userEdited: false,
       );
     }
     if (!mounted) return;
