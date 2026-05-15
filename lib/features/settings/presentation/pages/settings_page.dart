@@ -107,6 +107,32 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 28),
           _SectionHeader(
+            icon: Icons.history_edu_outlined,
+            title: isEn ? 'Privacy' : '私隱',
+          ),
+          const SizedBox(height: 14),
+          _TranscriptRetentionTile(
+            isEn: isEn,
+            value: settings.profile?.consent.transcriptRetention ?? true,
+            onChanged: settings.profile == null
+                ? null
+                : (next) async {
+                    final profile = settings.profile!;
+                    final updated = profile.copyWith(
+                      consent: profile.consent.copyWith(
+                        transcriptRetention: next,
+                      ),
+                    );
+                    settings.profile = updated;
+                    try {
+                      await AuthServiceScope.of(context).updateProfile(updated);
+                    } catch (_) {
+                      // Guest mode / offline — local state already updated.
+                    }
+                  },
+          ),
+          const SizedBox(height: 28),
+          _SectionHeader(
             icon: Icons.shield_outlined,
             title: isEn ? 'System Boundaries' : '系統界線',
           ),
@@ -695,6 +721,60 @@ class _ProfileCard extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TranscriptRetentionTile extends StatelessWidget {
+  final bool isEn;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  const _TranscriptRetentionTile({
+    required this.isEn,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.memory, size: 28, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    isEn
+                        ? 'Remember our conversations'
+                        : '保留對話紀錄',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
+                Switch(
+                  value: value,
+                  onChanged: onChanged,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isEn
+                  ? 'When this is off, I won\'t remember what you shared in earlier sessions — each visit starts from zero.'
+                  : '熄咗之後，我下次就唔記得返你之前傾過嘅內容，每次都係由零開始。',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.4,
               ),
             ),
           ],

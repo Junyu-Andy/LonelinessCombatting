@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/reminders/reminder_service.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/data/auth_service.dart';
@@ -157,6 +158,11 @@ try again in the afternoon." No extra encouragement or suggestions.
   }
 
   Future<void> _generateSummary() async {
+    await TranscriptConsentPrompter.maybePrompt(
+      context: context,
+      moduleKey: 'm7_action_loop',
+    );
+    if (!mounted) return;
     final core = CoreServicesScope.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     setState(() => _busy = true);

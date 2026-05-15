@@ -4,6 +4,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_a_page.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_b_page.dart';
 import '../../data/suggestion_pool.dart';
@@ -61,6 +62,11 @@ other text.
 
   Future<void> _maybeLoadArmA() async {
     if (!Arm.isA(context)) return;
+    await TranscriptConsentPrompter.maybePrompt(
+      context: context,
+      moduleKey: 'm6_suggestions',
+    );
+    if (!mounted) return;
     setState(() => _busy = true);
     final core = CoreServicesScope.of(context);
     final profile = AppSettingsScope.read(context).profile;

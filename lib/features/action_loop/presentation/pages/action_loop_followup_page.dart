@@ -6,6 +6,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -86,6 +87,11 @@ counts. Do not suggest other modules or new plans.
     }
 
     if (Arm.isA(context)) {
+      await TranscriptConsentPrompter.maybePrompt(
+        context: context,
+        moduleKey: 'm7_followup',
+      );
+      if (!mounted) return;
       final response = await core.llm.send(
         moduleId: 'm7_action_loop_followup',
         systemPrompt: isEn ? _systemPromptEn : _systemPromptZh,

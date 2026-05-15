@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -181,6 +182,16 @@ clay-pot rice stand..."
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
     final userTurnIndex = _turns.length;
+    if (userTurnIndex == 1) {
+      // userTurnIndex 1 == first user reply (turn 0 was the seeded
+      // opening from the assistant). Prompt once per session for this
+      // week's module key.
+      await TranscriptConsentPrompter.maybePrompt(
+        context: context,
+        moduleKey: 'm3_w${widget.theme.weekIndex}',
+      );
+      if (!mounted) return;
+    }
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));

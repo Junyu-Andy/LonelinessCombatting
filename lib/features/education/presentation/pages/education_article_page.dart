@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../data/education_library.dart';
 
@@ -64,6 +65,13 @@ Here is the article:
   Future<void> _send() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
+    if (_turns.isEmpty) {
+      await TranscriptConsentPrompter.maybePrompt(
+        context: context,
+        moduleKey: 'm8_${widget.article.id}',
+      );
+      if (!mounted) return;
+    }
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/memory/cross_module_memory.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
@@ -66,6 +67,13 @@ Rules:
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
     final isFirstTurn = _turns.isEmpty;
+    if (isFirstTurn) {
+      await TranscriptConsentPrompter.maybePrompt(
+        context: context,
+        moduleKey: 'm2_check_in',
+      );
+      if (!mounted) return;
+    }
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));

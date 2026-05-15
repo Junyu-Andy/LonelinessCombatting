@@ -4,6 +4,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../data/reflection_prompts.dart';
 
@@ -66,6 +67,11 @@ Output format: only the question itself, no extra text.
   Future<void> _loadPrompt() async {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     if (Arm.isA(context)) {
+      await TranscriptConsentPrompter.maybePrompt(
+        context: context,
+        moduleKey: 'm5_reflection',
+      );
+      if (!mounted) return;
       setState(() => _loading = true);
       final core = CoreServicesScope.of(context);
       final profile = AppSettingsScope.read(context).profile;

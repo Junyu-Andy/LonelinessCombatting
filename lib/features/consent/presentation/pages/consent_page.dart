@@ -8,14 +8,16 @@ import '../../../auth/presentation/auth_service_scope.dart';
 
 /// Single-screen tiered consent + system-boundary statement.
 ///
-/// Spec §M1: the original onboarding deck is intentionally out of the in-app
-/// flow. What we keep is the *minimum* required to make the consent + boundary
-/// promise legible:
-///   - One sentence explaining what the app is and is not.
-///   - Two independent toggles:
-///       * Functional data (required to use the app at all).
-///       * Conversation-log retention (optional; Arm A LLM logs only).
-///   - Time-stamp on accept.
+/// P3.3 refactor:
+///   - Onboarding only collects the one *required* decision (functional
+///     data). Transcript retention defaults to ON and is reframed as an
+///     informational tile here; the user can disable it any time from
+///     Settings → Privacy.
+///   - The previous two-toggle flow asked older participants to make a
+///     decision they had little context for. Defaulting transcript ON
+///     with a clear disclosure + reachable kill-switch matches §M3's
+///     long-term memory design and ConsentGate's ethics rationale
+///     (summaries are user-reviewed, not raw transcript).
 ///
 /// The page is shown automatically (by [ConsentGate]) the first time a
 /// signed-in profile does not yet have `consent.functionalData == true`.
@@ -28,7 +30,6 @@ class ConsentPage extends StatefulWidget {
 
 class _ConsentPageState extends State<ConsentPage> {
   bool _functional = false;
-  bool _transcript = false;
   bool _busy = false;
 
   @override
@@ -48,7 +49,7 @@ class _ConsentPageState extends State<ConsentPage> {
             _BoundaryCard(isEn: isEn),
             const SizedBox(height: 20),
             Text(
-              isEn ? 'Two simple choices' : '兩個簡單嘅選擇',
+              isEn ? 'One simple choice' : '一個簡單嘅選擇',
               style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
@@ -66,20 +67,17 @@ class _ConsentPageState extends State<ConsentPage> {
                       '只會放喺你個帳號入面。',
             ),
             const SizedBox(height: 12),
-            _ConsentTile(
-              required: false,
-              value: _transcript,
-              onChanged: (v) => setState(() => _transcript = v),
+            _InfoTile(
+              icon: Icons.history_edu_outlined,
               title: isEn
-                  ? 'Save conversation logs (optional)'
-                  : '保留對話紀錄（選擇性）',
+                  ? 'We\'ll also remember what you share'
+                  : '我哋亦會記得你傾過嘅內容',
               detail: isEn
-                  ? 'Lets the app refer back to what you shared in earlier '
-                      'sessions ("last week you mentioned..."). You can turn '
-                      'this off any time in Settings and your logs will be '
-                      'deleted.'
-                  : '畀 app 可以記得你之前傾過嘅內容（「上星期你提過…」）。'
-                      '隨時可以喺「設定」入面熄返，紀錄會一齊刪除。',
+                  ? 'So next time I can say "last week you mentioned…". The '
+                      'summaries are short, reviewed by you, and you can turn '
+                      'memory off any time in Settings → Privacy.'
+                  : '咁下次我先記得返「上個禮拜你提過…」。記憶都係短小結，'
+                      '你自己睇過/改過，隨時可以喺「設定」→「私隱」入面熄返。',
             ),
             const SizedBox(height: 24),
             FilledButton(
@@ -117,7 +115,9 @@ class _ConsentPageState extends State<ConsentPage> {
     final updated = profile.copyWith(
       consent: ConsentFlags(
         functionalData: _functional,
-        transcriptRetention: _transcript,
+        // P3.3: transcript retention defaults ON; the user reaches the
+        // kill-switch in Settings → Privacy.
+        transcriptRetention: true,
         acceptedAt: DateTime.now(),
       ),
     );
@@ -164,6 +164,51 @@ class _BoundaryCard extends StatelessWidget {
                   : '我係一個數碼工具，唔係真人，亦都唔係醫生。我冇辦法代替人與人之間嘅連結。'
                       '我喺度，係幫你慢慢諗、慢慢計劃、同保持聯繫。',
               style: theme.textTheme.bodyLarge,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String detail;
+  const _InfoTile({
+    required this.icon,
+    required this.title,
+    required this.detail,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 28, color: theme.colorScheme.primary),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 6),
+                  Text(
+                    detail,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

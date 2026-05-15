@@ -4,6 +4,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/progress_data.dart';
@@ -88,6 +89,11 @@ Output: only the paragraph itself.
   }
 
   Future<void> _generateLlmSummary(WeeklyProgress d, bool isEn) async {
+    await TranscriptConsentPrompter.maybePrompt(
+      context: context,
+      moduleKey: 'm9_progress',
+    );
+    if (!mounted) return;
     final core = CoreServicesScope.of(context);
     final response = await core.llm.send(
       moduleId: 'm9_progress_summary',
