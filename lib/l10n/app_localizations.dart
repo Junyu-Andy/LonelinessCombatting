@@ -118,13 +118,13 @@ abstract class AppLocalizations {
   /// No description provided for @contextTab.
   ///
   /// In en, this message translates to:
-  /// **'Context'**
+  /// **'About You'**
   String get contextTab;
 
   /// No description provided for @actionTab.
   ///
   /// In en, this message translates to:
-  /// **'Support'**
+  /// **'Activities'**
   String get actionTab;
 
   /// No description provided for @followUpTab.
@@ -139,12 +139,6 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settingsTab;
 
-  /// No description provided for @developerCredit.
-  String get developerCredit;
-
-  /// No description provided for @developerCreditShort.
-  String get developerCreditShort;
-
   /// No description provided for @homeSubtitle.
   ///
   /// In en, this message translates to:
@@ -154,55 +148,67 @@ abstract class AppLocalizations {
   /// No description provided for @homeStructureHint.
   ///
   /// In en, this message translates to:
-  /// **'This demo presents the product through four core modules: trust building, context understanding, action support, and steady follow-up.'**
+  /// **'Four modules: Trust → Context → Action → Follow-up.'**
   String get homeStructureHint;
 
   /// No description provided for @contextSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Quick check-ins, social map, and recent interaction reflection will live here.'**
+  /// **'Your details, recent state, follow-up cadence.'**
   String get contextSubtitle;
 
   /// No description provided for @actionSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Tailored prompts, conversation starters, and activity suggestions will live here.'**
+  /// **'Pick something pleasant and just start.'**
   String get actionSubtitle;
 
   /// No description provided for @followUpSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Reminders, progress review, and adaptive pacing will live here.'**
+  /// **'Reminders, progress, pacing.'**
   String get followUpSubtitle;
 
   /// No description provided for @settingsSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Language, system boundaries, and about this demo will live here.'**
+  /// **'Language, boundaries, about.'**
   String get settingsSubtitle;
+
+  /// No description provided for @developerCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Built by HKU Department of Data and Systems Engineering'**
+  String get developerCredit;
+
+  /// No description provided for @developerCreditShort.
+  ///
+  /// In en, this message translates to:
+  /// **'HKU DSE'**
+  String get developerCreditShort;
 
   /// No description provided for @onboardingWelcomeTitle.
   ///
   /// In en, this message translates to:
-  /// **'A calmer way to begin'**
+  /// **'A calmer start'**
   String get onboardingWelcomeTitle;
 
   /// No description provided for @onboardingWelcomeBody.
   ///
   /// In en, this message translates to:
-  /// **'This demo shows the overall structure of the app and how each core module connects together.'**
+  /// **'A quick look at the app\'s structure.'**
   String get onboardingWelcomeBody;
 
   /// No description provided for @onboardingHelpTitle.
   ///
   /// In en, this message translates to:
-  /// **'What this app can help with'**
+  /// **'How it can help'**
   String get onboardingHelpTitle;
 
   /// No description provided for @onboardingHelpBody.
   ///
   /// In en, this message translates to:
-  /// **'It can guide check-ins, surface social context, suggest small next steps, and support steady follow-up.'**
+  /// **'Check-ins  •  social map  •  small steps  •  follow-up.'**
   String get onboardingHelpBody;
 
   /// No description provided for @onboardingBoundaryTitle.
@@ -214,37 +220,37 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingBoundaryBody.
   ///
   /// In en, this message translates to:
-  /// **'This demo gives structure and suggestions. It does not replace emergency help, diagnosis, or professional care.'**
+  /// **'Structure and suggestions only.'**
   String get onboardingBoundaryBody;
 
   /// No description provided for @onboardingBoundaryItemOne.
   ///
   /// In en, this message translates to:
-  /// **'It can help you reflect and prepare.'**
+  /// **'Reflect & prepare'**
   String get onboardingBoundaryItemOne;
 
   /// No description provided for @onboardingBoundaryItemTwo.
   ///
   /// In en, this message translates to:
-  /// **'It can suggest small, concrete actions.'**
+  /// **'Small concrete actions'**
   String get onboardingBoundaryItemTwo;
 
   /// No description provided for @onboardingBoundaryItemThree.
   ///
   /// In en, this message translates to:
-  /// **'It should not be treated as crisis support.'**
+  /// **'❌ Not for crisis support'**
   String get onboardingBoundaryItemThree;
 
   /// No description provided for @onboardingStartTitle.
   ///
   /// In en, this message translates to:
-  /// **'Ready to enter the demo'**
+  /// **'Enter the demo'**
   String get onboardingStartTitle;
 
   /// No description provided for @onboardingStartBody.
   ///
   /// In en, this message translates to:
-  /// **'You can start with the main structure first. Detailed content for each module will be added step by step.'**
+  /// **'Explore at your own pace.'**
   String get onboardingStartBody;
 
   /// No description provided for @back.

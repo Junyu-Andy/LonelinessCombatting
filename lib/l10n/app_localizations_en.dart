@@ -27,13 +27,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTab => 'Settings';
 
   @override
-  String get developerCredit =>
-      'Built by HKU Department of Data and Systems Engineering';
-
-  @override
-  String get developerCreditShort => 'HKU DSE';
-
-  @override
   String get homeSubtitle => 'This is the home overview for the demo.';
 
   @override
@@ -41,7 +34,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Four modules: Trust → Context → Action → Follow-up.';
 
   @override
-  String get contextSubtitle => 'Your details, recent state, follow-up cadence.';
+  String get contextSubtitle =>
+      'Your details, recent state, follow-up cadence.';
 
   @override
   String get actionSubtitle => 'Pick something pleasant and just start.';
@@ -53,10 +47,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSubtitle => 'Language, boundaries, about.';
 
   @override
+  String get developerCredit =>
+      'Built by HKU Department of Data and Systems Engineering';
+
+  @override
+  String get developerCreditShort => 'HKU DSE';
+
+  @override
   String get onboardingWelcomeTitle => 'A calmer start';
 
   @override
-  String get onboardingWelcomeBody => "A quick look at the app's structure.";
+  String get onboardingWelcomeBody => 'A quick look at the app\'s structure.';
 
   @override
   String get onboardingHelpTitle => 'How it can help';
