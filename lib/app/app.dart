@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../core/core_services_scope.dart';
 import '../core/llm/llm_gateway.dart';
+import '../core/memory/cross_module_memory.dart';
 import '../core/memory/memory_store.dart';
 import '../core/safety/distress_detector.dart';
 import '../core/safety/distress_state.dart';
@@ -27,6 +28,7 @@ class MyApp extends StatefulWidget {
   final MemoryStore memory;
   final DistressDetector distress;
   final DistressState distressState;
+  final CrossModuleMemoryService crossModuleMemory;
 
   const MyApp({
     super.key,
@@ -37,6 +39,7 @@ class MyApp extends StatefulWidget {
     required this.memory,
     required this.distress,
     required this.distressState,
+    required this.crossModuleMemory,
   });
 
   @override
@@ -108,6 +111,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           memory: widget.memory,
           distress: widget.distress,
           distressState: widget.distressState,
+          crossModuleMemory: widget.crossModuleMemory,
           child: AppSettingsScope(
           settings: widget.settings,
           child: MaterialApp(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'app/app.dart';
 import 'app/app_settings.dart';
 import 'core/llm/llm_gateway.dart';
+import 'core/memory/cross_module_memory.dart';
 import 'core/memory/memory_store.dart';
 import 'core/safety/distress_detector.dart';
 import 'core/safety/distress_state.dart';
@@ -32,6 +33,11 @@ Future<void> main() async {
 
   const detector = DistressDetector();
   final distressState = DistressState();
+  final memory = MemoryStore(available: firebaseReady);
+  final crossModuleMemory = CrossModuleMemoryService(
+    memory: memory,
+    firestoreAvailable: firebaseReady,
+  );
   runApp(
     MyApp(
       settings: AppSettings(
@@ -40,9 +46,10 @@ Future<void> main() async {
       authService: AuthService(available: firebaseReady),
       analytics: AnalyticsService(firebaseReady: firebaseReady),
       llm: LlmGateway(detector: detector),
-      memory: MemoryStore(available: firebaseReady),
+      memory: memory,
       distress: detector,
       distressState: distressState,
+      crossModuleMemory: crossModuleMemory,
     ),
   );
 }
