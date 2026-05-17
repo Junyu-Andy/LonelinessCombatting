@@ -18,6 +18,8 @@ import '../../../../core/agent_context/agent_context_service.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../core/cross_referral/referral_routing_service.dart';
+import '../../../../core/cross_referral/referral_suggestion_card.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
@@ -49,6 +51,10 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
   /// only show one naming card per conversation per match so the user
   /// isn't repeatedly nudged on the same thought.
   String? _pendingNamingThought;
+
+  /// Active cross-referral surfaced by the routing service. Cleared on
+  /// dismiss or after handoff.
+  SurfacedReferral? _pendingReferral;
 
   @override
   void dispose() {
@@ -149,12 +155,34 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     // the naming card if (a) we matched, (b) no other card is currently
     // pending, and (c) distress hasn't escalated this turn.
     if (_pendingNamingThought == null &&
+        _pendingReferral == null &&
         !response.hasEscalation) {
       final match = _detector.scan(text);
       if (match != null) {
         setState(() {
           _pendingNamingThought = match.fullTurn;
         });
+      }
+    }
+
+    // Cross-referral routing (Layers 1–3). Only consider when no
+    // naming card is showing this turn and the conversation hasn't
+    // escalated to a safety path.
+    if (_pendingNamingThought == null &&
+        _pendingReferral == null &&
+        !response.hasEscalation) {
+      core.referralRouting.onUserTurn(AgentRegistry.ahJanAhBakId);
+      final surfaced = await core.referralRouting.maybeSurface(
+        sourceAgentId: AgentRegistry.ahJanAhBakId,
+        profile: profile,
+        userTurn: text,
+        recentTurns: _turns
+            .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
+            .toList(),
+        localeCode: isEn ? 'en' : 'zh',
+      );
+      if (mounted && surfaced != null) {
+        setState(() => _pendingReferral = surfaced);
       }
     }
 
@@ -233,6 +261,14 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
                         thought: _pendingNamingThought!,
                         onAccept: _acceptNaming,
                         onDecline: _declineNaming,
+                      ),
+                    if (_pendingReferral != null)
+                      ReferralSuggestionCard(
+                        surfaced: _pendingReferral!,
+                        handoffExecutor:
+                            CoreServicesScope.of(context).handoffExecutor,
+                        onDismiss: () =>
+                            setState(() => _pendingReferral = null),
                       ),
                   ],
                 ),

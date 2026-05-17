@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 import 'agent_context/agent_context_service.dart';
 import 'agent_context/shared_context_service.dart';
 import 'agents/persona_resolver.dart';
+import 'cross_referral/handoff_executor.dart';
+import 'cross_referral/referral_routing_service.dart';
 import 'llm/llm_gateway.dart';
 import 'memory/cross_module_memory.dart';
 import 'memory/memory_store.dart';
@@ -25,6 +27,8 @@ class CoreServicesScope extends InheritedWidget {
   final AgentContextService agentContext;
   final SharedContextService sharedContext;
   final PersonaResolver personaResolver;
+  final ReferralRoutingService referralRouting;
+  final HandoffExecutor handoffExecutor;
 
   const CoreServicesScope({
     super.key,
@@ -37,6 +41,8 @@ class CoreServicesScope extends InheritedWidget {
     required this.agentContext,
     required this.sharedContext,
     required this.personaResolver,
+    required this.referralRouting,
+    required this.handoffExecutor,
     required super.child,
   });
 
@@ -56,5 +62,7 @@ class CoreServicesScope extends InheritedWidget {
       crossModuleMemory != oldWidget.crossModuleMemory ||
       agentContext != oldWidget.agentContext ||
       sharedContext != oldWidget.sharedContext ||
-      personaResolver != oldWidget.personaResolver;
+      personaResolver != oldWidget.personaResolver ||
+      referralRouting != oldWidget.referralRouting ||
+      handoffExecutor != oldWidget.handoffExecutor;
 }
