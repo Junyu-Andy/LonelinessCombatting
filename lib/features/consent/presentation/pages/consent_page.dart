@@ -34,7 +34,6 @@ class _ConsentPageState extends State<ConsentPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     return SafetyOverlaySuppressor(
       child: Scaffold(
@@ -47,22 +46,9 @@ class _ConsentPageState extends State<ConsentPage> {
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
           children: [
             _BoundaryCard(isEn: isEn),
+            const SizedBox(height: 16),
+            _DataSummaryCard(isEn: isEn),
             const SizedBox(height: 20),
-            // P5.3 — three explicit informational sections so the
-            // participant understands (a) what memory does, (b) what
-            // happens if they later turn it off, (c) what is always
-            // kept regardless.
-            _MemoryPurposeCard(isEn: isEn),
-            const SizedBox(height: 12),
-            _MemoryDisabledCard(isEn: isEn),
-            const SizedBox(height: 12),
-            _AlwaysKeptCard(isEn: isEn),
-            const SizedBox(height: 24),
-            Text(
-              isEn ? 'One required agreement' : '一個必須嘅同意',
-              style: theme.textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
             _ConsentTile(
               required: true,
               value: _functional,
@@ -71,12 +57,13 @@ class _ConsentPageState extends State<ConsentPage> {
                   ? 'Functional data (required)'
                   : '基本功能數據（必須）',
               detail: isEn
-                  ? 'Daily mood scores, completed actions, reminder times — '
-                      'the app needs these to work. Stored under your account.'
-                  : '每日心情分數、做咗嘅小行動、提醒時間 —— app 需要呢啲先運作得到。'
-                      '只會放喺你個帳號入面。',
+                  ? 'Daily mood scores, completed actions, and reminder '
+                      'times are stored under your account so the app can '
+                      'function.'
+                  : '每日心情分數、已完成的小行動、以及提醒時間，'
+                      '會儲存於您的帳戶之內，以維持應用程式正常運作。',
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             FilledButton(
               onPressed: _functional && !_busy ? _accept : null,
               child: Padding(
@@ -87,16 +74,8 @@ class _ConsentPageState extends State<ConsentPage> {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              isEn
-                  ? 'You can change settings any time in Settings → Privacy.'
-                  : '隨時可以喺「設定」→「私隱」入面更改。',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
+            const SizedBox(height: 14),
+            _ContactFooter(isEn: isEn),
           ],
         ),
       ),
@@ -144,23 +123,23 @@ class _BoundaryCard extends StatelessWidget {
             Row(
               children: [
                 Icon(Icons.info_outline,
-                    size: 28, color: theme.colorScheme.primary),
+                    size: 26, color: theme.colorScheme.primary),
                 const SizedBox(width: 10),
                 Text(
-                  isEn ? 'What I am' : '我係咩',
+                  isEn ? 'About this tool' : '關於本應用程式',
                   style: theme.textTheme.titleLarge,
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               isEn
-                  ? 'I am a digital tool, not a person. I am not a doctor. '
-                      'I cannot replace human connection. I am here to help '
-                      'you reflect, plan, and stay connected.'
-                  : '我係一個數碼工具，唔係真人，亦都唔係醫生。我冇辦法代替人與人之間嘅連結。'
-                      '我喺度，係幫你慢慢諗、慢慢計劃、同保持聯繫。',
-              style: theme.textTheme.bodyLarge,
+                  ? 'This is a research tool, not a medical service, and '
+                      'cannot replace professional advice or personal '
+                      'relationships.'
+                  : '本應用程式為研究用途之數碼工具，並非醫療服務，'
+                      '亦不能取代專業意見或人際關係。',
+              style: theme.textTheme.bodyLarge?.copyWith(height: 1.45),
             ),
           ],
         ),
@@ -169,71 +148,51 @@ class _BoundaryCard extends StatelessWidget {
   }
 }
 
-/// P5.3 — "What memory does" — explains the purpose of conversation
-/// retention so the participant understands why we save anything.
-class _MemoryPurposeCard extends StatelessWidget {
+/// Concise data-handling summary. Full details live in the printed
+/// 研究知情同意書 / research consent form — this card only names what
+/// the app stores and where to change it.
+class _DataSummaryCard extends StatelessWidget {
   final bool isEn;
-  const _MemoryPurposeCard({required this.isEn});
-
-  @override
-  Widget build(BuildContext context) {
-    return _InfoTile(
-      icon: Icons.history_edu_outlined,
-      title: isEn ? 'What memory does' : '我哋會做啲乜',
-      detail: isEn
-          ? 'We keep a short summary of each session so I can refer back to it:\n'
-              '• Next time we talk, I remember what you shared.\n'
-              '• Across the four life-review weeks, I keep your stories connected.'
-          : '我哋會保留每節對話嘅小結，用嚟：\n'
-              '• 下次傾偈嗰陣，我記得返你之前講過嘅嘢\n'
-              '• 喺人生點滴 (reminiscence) 嘅每週 session 之間，把你嘅故事連返埋',
-    );
-  }
-}
-
-/// P5.3 — "If you turn memory off later" — sets expectations so a
-/// future kill-switch in Settings isn't a surprise.
-class _MemoryDisabledCard extends StatelessWidget {
-  final bool isEn;
-  const _MemoryDisabledCard({required this.isEn});
-
-  @override
-  Widget build(BuildContext context) {
-    return _InfoTile(
-      icon: Icons.power_settings_new_rounded,
-      title:
-          isEn ? 'If you later turn memory off' : '如果之後關掉對話記錄',
-      detail: isEn
-          ? 'You can switch this off any time in Settings → Privacy.\n'
-              '• Each conversation starts from zero — I won\'t remember earlier sessions.\n'
-              '• Summaries you already reviewed and edited stay, because those are your version.'
-          : '你隨時可以喺「設定 → 私隱」入面熄返。\n'
-              '• 每次傾偈都係由零開始，系統唔記得你之前講過嘅嘢\n'
-              '• 你之前睇過 + 編輯過嘅 session summary 仲會保留，因為嗰啲係你自己睇過嘅版本',
-    );
-  }
-}
-
-/// P5.3 — "Always kept" — names the functional / quantitative data
-/// the app needs regardless of the memory toggle.
-class _AlwaysKeptCard extends StatelessWidget {
-  final bool isEn;
-  const _AlwaysKeptCard({required this.isEn});
+  const _DataSummaryCard({required this.isEn});
 
   @override
   Widget build(BuildContext context) {
     return _InfoTile(
       icon: Icons.lock_outline,
-      title: isEn ? 'Always kept' : '一定保留嘅嘢',
+      title: isEn ? 'Data handling' : '資料處理',
       detail: isEn
-          ? 'Even if memory is off, these stay so the app keeps working:\n'
-              '• Mood and social tags from your daily check-in.\n'
-              '• Counts of actions and sessions you completed.\n'
-              '• Summaries you reviewed and edited yourself.'
-          : '即使關咗對話記錄，以下嘢一定會保留（app 先運作得到）：\n'
-              '• 每日 check-in 嘅情緒同社交 tag\n'
-              '• 你完成嘅 actions、sessions 等次數\n'
-              '• 你睇過 + 編輯過嘅 session summary',
+          ? 'Conversation summaries and functional data (mood scores, '
+              'completed actions, reminders) are stored under your account. '
+              'Conversation retention may be switched off any time at '
+              'Settings → Privacy.'
+          : '對話摘要與基本功能數據（心情分數、已完成的小行動、提醒時間）'
+              '將儲存於您的帳戶之內。對話記錄保留功能可隨時於'
+              '「設定 → 私隱」內關閉。',
+    );
+  }
+}
+
+/// Footer pointing the participant to the formal consent form and the
+/// study contact email.
+class _ContactFooter extends StatelessWidget {
+  final bool isEn;
+  const _ContactFooter({required this.isEn});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      height: 1.5,
+    );
+    return Text(
+      isEn
+          ? 'Further details are set out in the Research Informed Consent '
+              'Form. For enquiries, please contact zhaojyxs@connect.hku.hk.'
+          : '詳細內容請參閱《研究知情同意書》。'
+              '如有疑問，請電郵 zhaojyxs@connect.hku.hk。',
+      style: style,
+      textAlign: TextAlign.center,
     );
   }
 }

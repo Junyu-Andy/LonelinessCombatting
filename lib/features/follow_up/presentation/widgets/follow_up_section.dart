@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/app_settings_scope.dart';
+import '../../../action_loop/data/action_plan.dart';
+import '../../../action_loop/presentation/pages/action_loop_landing.dart';
+import '../../../auth/presentation/auth_service_scope.dart';
+
 enum FollowUpPace { daily, everyOther, weekly }
 
-/// The body of the follow-up surface (reminders, weekly progress, pace,
-/// celebrations) split out so it can be embedded inside the personalisation
-/// page as well as the standalone follow-up page.
+/// Personalisation hub section: upcoming reminders, weekly progress,
+/// reminder pace, and celebrations.
+///
+/// Real-data only. When the participant has not yet generated data
+/// (e.g. immediately after sign-up, or in guest mode), each subsection
+/// shows an empty-state card instead of fabricated demo content.
 class FollowUpSection extends StatefulWidget {
   /// Whether to show a leading section heading. The personalisation page
   /// already labels this section, so it sets [withHeader] = false.
@@ -19,29 +27,12 @@ class FollowUpSection extends StatefulWidget {
 class _FollowUpSectionState extends State<FollowUpSection> {
   FollowUpPace _pace = FollowUpPace.everyOther;
 
-  final List<_Reminder> _reminders = [
-    _Reminder(
-      icon: Icons.phone_in_talk_outlined,
-      title: '打電話畀阿May',
-      when: '星期三　下午 3:00',
-      active: true,
-    ),
-    _Reminder(
-      icon: Icons.message_outlined,
-      title: '問候表姐',
-      when: '星期五　早上 10:00',
-      active: true,
-    ),
-    _Reminder(
-      icon: Icons.directions_walk,
-      title: '落公園行 15 分鐘',
-      when: '星期六　下午 4:00',
-      active: false,
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final profile = AppSettingsScope.of(context).profile;
+    final auth = AuthServiceScope.of(context);
+    final hasBackend = profile != null && auth.available;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -49,25 +40,22 @@ class _FollowUpSectionState extends State<FollowUpSection> {
           const _SectionHeader(
               icon: Icons.alarm_outlined, title: '即將到嘅提醒'),
         if (widget.withHeader) const SizedBox(height: 14),
-        ..._reminders.asMap().entries.map(
-          (entry) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _ReminderCard(
-              reminder: entry.value,
-              onToggle: (value) {
-                setState(() {
-                  _reminders[entry.key] =
-                      entry.value.copyWith(active: value);
-                });
-              },
-            ),
-          ),
-        ),
+        if (!hasBackend)
+          const _EmptyCard(
+            icon: Icons.alarm_outlined,
+            message: '登入並建立小行動之後，呢度會列出未到嘅提醒。',
+          )
+        else
+          _UpcomingRemindersList(uid: profile.uid, available: auth.available),
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ActionLoopLandingPage(),
+              ),
+            ),
             icon: const Icon(Icons.add_rounded, size: 24),
             label: const Text('加多一個提醒'),
           ),
@@ -76,11 +64,9 @@ class _FollowUpSectionState extends State<FollowUpSection> {
         const _SectionHeader(
             icon: Icons.insights_outlined, title: '今個星期嘅進度'),
         const SizedBox(height: 12),
-        const _WeeklyProgressCard(
-          checkInCount: 4,
-          checkInGoal: 5,
-          stepsTried: 2,
-          contactsReached: 1,
+        const _EmptyCard(
+          icon: Icons.insights_outlined,
+          message: '完成第一次 check-in 之後，呢度會總結今個星期嘅進度。',
         ),
         const SizedBox(height: 24),
         const _SectionHeader(icon: Icons.tune_outlined, title: '節奏調整'),
@@ -93,8 +79,145 @@ class _FollowUpSectionState extends State<FollowUpSection> {
         const _SectionHeader(
             icon: Icons.celebration_outlined, title: '小成就'),
         const SizedBox(height: 12),
-        const _CelebrationCard(),
+        const _EmptyCard(
+          icon: Icons.celebration_outlined,
+          message: '完成 check-in 或者小行動之後，呢度會顯示你嘅小成就。',
+        ),
       ],
+    );
+  }
+}
+
+class _UpcomingRemindersList extends StatelessWidget {
+  final String uid;
+  final bool available;
+
+  const _UpcomingRemindersList({required this.uid, required this.available});
+
+  @override
+  Widget build(BuildContext context) {
+    final repo = ActionPlanRepository(available: available);
+    return StreamBuilder<List<ActionPlan>>(
+      stream: repo.pending(uid),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting &&
+            !snap.hasData) {
+          return const _EmptyCard(
+            icon: Icons.alarm_outlined,
+            message: '載入緊…',
+          );
+        }
+        final now = DateTime.now();
+        final upcoming = (snap.data ?? const <ActionPlan>[])
+            .where((p) =>
+                p.scheduledFor != null && p.scheduledFor!.isAfter(now))
+            .toList()
+          ..sort((a, b) => a.scheduledFor!.compareTo(b.scheduledFor!));
+        if (upcoming.isEmpty) {
+          return const _EmptyCard(
+            icon: Icons.alarm_outlined,
+            message: '暫時未有即將到嘅提醒。',
+          );
+        }
+        return Column(
+          children: upcoming
+              .map((p) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _PlanReminderCard(plan: p),
+                  ))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _PlanReminderCard extends StatelessWidget {
+  final ActionPlan plan;
+
+  const _PlanReminderCard({required this.plan});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheduled = plan.scheduledFor!;
+    final whenLabel = _formatWhen(scheduled);
+    final title = plan.action.isNotEmpty ? plan.action : '小行動';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(Icons.alarm_outlined,
+                  size: 28, color: theme.colorScheme.onPrimaryContainer),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 2),
+                  Text(
+                    whenLabel,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _formatWhen(DateTime when) {
+    const weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+    final hh = when.hour.toString().padLeft(2, '0');
+    final mm = when.minute.toString().padLeft(2, '0');
+    return '${weekdays[when.weekday - 1]}　$hh:$mm';
+  }
+}
+
+class _EmptyCard extends StatelessWidget {
+  final IconData icon;
+  final String message;
+
+  const _EmptyCard({required this.icon, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(icon, size: 26, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -115,219 +238,6 @@ class _SectionHeader extends StatelessWidget {
         Expanded(
           child: Text(title, style: theme.textTheme.titleLarge),
         ),
-      ],
-    );
-  }
-}
-
-class _Reminder {
-  final IconData icon;
-  final String title;
-  final String when;
-  final bool active;
-
-  _Reminder({
-    required this.icon,
-    required this.title,
-    required this.when,
-    required this.active,
-  });
-
-  _Reminder copyWith({bool? active}) => _Reminder(
-        icon: icon,
-        title: title,
-        when: when,
-        active: active ?? this.active,
-      );
-}
-
-class _ReminderCard extends StatelessWidget {
-  final _Reminder reminder;
-  final ValueChanged<bool> onToggle;
-
-  const _ReminderCard({required this.reminder, required this.onToggle});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final active = reminder.active;
-    final iconColor = active
-        ? theme.colorScheme.onPrimaryContainer
-        : theme.colorScheme.onSurfaceVariant;
-    final tileColor = active
-        ? theme.colorScheme.primaryContainer
-        : theme.colorScheme.surfaceContainerHighest;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: tileColor,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(reminder.icon, size: 28, color: iconColor),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    reminder.title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: active
-                          ? theme.colorScheme.onSurface
-                          : theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Text(
-                    reminder.when,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Transform.scale(
-              scale: 1.1,
-              child: Switch(value: active, onChanged: onToggle),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WeeklyProgressCard extends StatelessWidget {
-  final int checkInCount;
-  final int checkInGoal;
-  final int stepsTried;
-  final int contactsReached;
-
-  const _WeeklyProgressCard({
-    required this.checkInCount,
-    required this.checkInGoal,
-    required this.stepsTried,
-    required this.contactsReached,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final ratio = (checkInCount / checkInGoal).clamp(0.0, 1.0);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.favorite,
-                    size: 20, color: theme.colorScheme.primary),
-                const SizedBox(width: 6),
-                Text('Check-in', style: theme.textTheme.titleMedium),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: ratio.toDouble()),
-                      duration: const Duration(milliseconds: 600),
-                      curve: Curves.easeOutCubic,
-                      builder: (context, value, _) =>
-                          LinearProgressIndicator(
-                        value: value,
-                        minHeight: 16,
-                        backgroundColor:
-                            theme.colorScheme.surfaceContainerHighest,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                            theme.colorScheme.primary),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text('$checkInCount / $checkInGoal',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                    )),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _StatRow(
-                icon: Icons.directions_run,
-                label: '行動',
-                value: '$stepsTried 次'),
-            const SizedBox(height: 8),
-            _StatRow(
-                icon: Icons.forum_outlined,
-                label: '傾偈朋友',
-                value: '$contactsReached 位'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.emoji_emotions_outlined,
-                      size: 22,
-                      color: theme.colorScheme.onPrimaryContainer),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text('差少少就達標 🎉',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.w700,
-                        )),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _StatRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        Icon(icon, size: 24, color: theme.colorScheme.primary),
-        const SizedBox(width: 10),
-        Expanded(child: Text(label, style: theme.textTheme.bodyLarge)),
-        Text(value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.primary,
-            )),
       ],
     );
   }
@@ -446,54 +356,6 @@ class _PaceDots extends StatelessWidget {
           ),
         );
       }),
-    );
-  }
-}
-
-class _CelebrationCard extends StatelessWidget {
-  const _CelebrationCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final moments = const [
-      (Icons.check_circle, '連續 4 日 check-in'),
-      (Icons.send_rounded, '傳短訊畀表姐'),
-      (Icons.directions_walk, '行出屋企一轉'),
-    ];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Text('🎉', style: TextStyle(fontSize: 22)),
-                const SizedBox(width: 8),
-                Text('值得肯定', style: theme.textTheme.titleMedium),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ...moments.map(
-              (moment) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    Icon(moment.$1,
-                        size: 22, color: theme.colorScheme.primary),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(moment.$2,
-                          style: theme.textTheme.bodyLarge),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
