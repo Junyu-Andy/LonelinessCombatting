@@ -315,25 +315,17 @@ class _ProfileEditorState extends State<_ProfileEditor> {
       text: widget.profile.emergencyContactName ?? '');
   late final TextEditingController _emergencyPhone = TextEditingController(
       text: widget.profile.emergencyContactPhone ?? '');
-  String? _ageGroup;
+  late final TextEditingController _ageCtrl = TextEditingController(
+      text: widget.profile.ageGroup ?? '');
   bool _busy = false;
   String? _error;
-
-  // Internal keys (stored values) are always the zh strings.
-  static const _ageGroupKeys = ['60-69', '70-79', '80+', '未滿 60'];
-  static const _ageGroupLabelsEn = ['60-69', '70-79', '80+', 'Under 60'];
-
-  @override
-  void initState() {
-    super.initState();
-    _ageGroup = widget.profile.ageGroup;
-  }
 
   @override
   void dispose() {
     _name.dispose();
     _emergencyName.dispose();
     _emergencyPhone.dispose();
+    _ageCtrl.dispose();
     super.dispose();
   }
 
@@ -348,7 +340,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
       displayName: _name.text.trim().isEmpty
           ? widget.profile.displayName
           : _name.text.trim(),
-      ageGroup: _ageGroup,
+      ageGroup: _ageCtrl.text.trim().isEmpty ? null : _ageCtrl.text.trim(),
       emergencyContactName: _emergencyName.text.trim().isEmpty
           ? null
           : _emergencyName.text.trim(),
@@ -389,20 +381,14 @@ class _ProfileEditorState extends State<_ProfileEditor> {
             ),
           ),
           const SizedBox(height: 12),
-          Text(isEn ? 'Age Group' : '年齡組別', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: List.generate(_ageGroupKeys.length, (i) {
-              final key = _ageGroupKeys[i];
-              final label = isEn ? _ageGroupLabelsEn[i] : _ageGroupKeys[i];
-              return ChoiceChip(
-                label: Text(label),
-                selected: _ageGroup == key,
-                onSelected: (_) => setState(() => _ageGroup = key),
-              );
-            }),
+          TextField(
+            controller: _ageCtrl,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: isEn ? 'Age' : '年齡',
+              hintText: isEn ? 'e.g. 72' : '例：72',
+              prefixIcon: const Icon(Icons.cake_outlined),
+            ),
           ),
           const SizedBox(height: 12),
           TextField(
