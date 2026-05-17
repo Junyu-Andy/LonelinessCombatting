@@ -35,8 +35,10 @@ class ReminiscenceArmAPage extends StatefulWidget {
 }
 
 class _ReminiscenceArmAPageState extends State<ReminiscenceArmAPage> {
-  static const _systemPromptZh = '''
+  String _systemPromptZh(String themeTitle) => '''
 你叫阿暖，係一個傾聽者，唔係醫生、唔係朋友替代品。今次同一位香港長者做人生回顧分享。
+
+今週嘅主題：「$themeTitle」。今次傾偈全程只可以圍繞呢個主題。
 
 規矩：
 - 用粵語/口語繁體中文，每次最多 2 句。
@@ -45,11 +47,17 @@ class _ReminiscenceArmAPageState extends State<ReminiscenceArmAPage> {
 - 唔好分析、唔好總結、唔好詮釋。**唔好用「你一定覺得…」或者「你應該…」**。
 - 唔好提其他功能、唔好叫佢去做行動計劃、唔好試圖 reframe。
 - 如果用戶想停，溫柔回應，唔好挽留。
+- **離題處理**：如果用戶轉去同「$themeTitle」無關嘅話題（例如近期新聞、健康問題、其他人嘅事），
+  先溫柔承認佢講嘅嘢一句，然後輕輕引返今週主題。例：「呢樣聽落都唔容易，不過今次我想聽多啲關於你$themeTitle 嘅事，你提到嗰個地方／嗰個人，再講多少少好嗎？」
+- 唔好應承幫佢處理離題嘅問題，亦唔好無啦啦轉去其他主題。
 ''';
 
-  static const _systemPromptEn = '''
+  String _systemPromptEn(String themeTitle) => '''
 You are a warm listener — not a doctor, not a substitute friend. You are
 in a life-review session with a Hong Kong older adult.
+
+This week's theme: "$themeTitle". This session must stay on this theme
+throughout.
 
 Rules:
 - Reply in plain English, max 2 sentences.
@@ -60,6 +68,40 @@ Rules:
   "you must have felt..." or "you should...".
 - Do NOT suggest other modules or push action plans. Do NOT reframe.
 - If the user wants to stop, accept warmly without pushing back.
+- Off-topic handling: if the user shifts to something unrelated to
+  "$themeTitle" (e.g. current news, health issues, other people's
+  business), briefly acknowledge with one sentence, then gently steer
+  back to this week's theme. Example: "That sounds difficult — but
+  today I'd love to hear more about $themeTitle. You mentioned a
+  place / a person earlier — can you tell me a bit more?"
+- Do NOT promise to help with off-topic issues, and do NOT drift to
+  another theme on your own.
+''';
+
+  String _openerSystemPromptZh(String themeTitle) => '''
+你叫阿暖，係一個傾聽者。今次同一位香港長者開始今週嘅人生回顧 session。
+今週主題：「$themeTitle」。
+
+請寫一句溫和、開放嘅開場白，邀請佢就「$themeTitle」呢個主題開始分享。
+- 用粵語／口語繁體中文。
+- 1 至 2 句，總共唔好超過 60 字。
+- 如果有過往幾週嘅 context，可以自然咁 reference 一個具體細節（例如：「上次你提到$themeTitle…」），但唔強求。
+- 唔好假設、唔好分析、唔好過分親密。
+- 直接寫開場白本身，唔好寫任何前言或者解釋。
+''';
+
+  String _openerSystemPromptEn(String themeTitle) => '''
+You are a warm listener opening this week's life-review session with a
+Hong Kong older adult. This week's theme: "$themeTitle".
+
+Write one gentle, open invitation for them to start sharing about
+"$themeTitle".
+- Plain English.
+- 1–2 sentences, no more than 40 words.
+- If prior-week context is available, you may naturally reference one
+  specific detail, but this is optional.
+- Do not assume, analyse, or be overly familiar.
+- Output only the opening line itself — no preamble, no explanation.
 ''';
 
   static const _summarySystemPromptZh = '''
@@ -93,12 +135,15 @@ clay-pot rice stand..."
   /// summary (either Arm A's LLM-edited or Arm B's free text) appear.
   List<_PriorWeekSummary> _priorWeeks = const [];
   bool _priorLoaded = false;
+  bool _openerRequested = false;
+  bool _generatingOpener = false;
 
   @override
   void initState() {
     super.initState();
-    // Seed the conversation with the themed opening from the system.
-    _turns.add(_Turn.bot(_isEnNow() ? widget.theme.openingEn : widget.theme.openingZh));
+    // Opener is generated in didChangeDependencies so the locale comes
+    // from the app (Localizations.localeOf) rather than the device, and
+    // so we can ask the LLM for a context-aware greeting.
   }
 
   @override
@@ -106,8 +151,68 @@ clay-pot rice stand..."
     super.didChangeDependencies();
     if (!_priorLoaded) {
       _priorLoaded = true;
-      _loadPriorWeeks();
+      // Load prior-week context first, then generate the opener so it
+      // can reference what the user shared in earlier weeks.
+      _loadPriorWeeks().then((_) {
+        if (!mounted || _openerRequested) return;
+        _openerRequested = true;
+        _generateOpener();
+      });
     }
+  }
+
+  Future<void> _generateOpener() async {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final core = CoreServicesScope.of(context);
+    final profile = AppSettingsScope.read(context).profile;
+    final themeTitle = isEn ? widget.theme.titleEn : widget.theme.titleZh;
+    final fallback = isEn ? widget.theme.openingEn : widget.theme.openingZh;
+
+    setState(() => _generatingOpener = true);
+
+    final ctxLines = <String>[];
+    final displayName = profile?.displayName.trim();
+    if (displayName != null && displayName.isNotEmpty) {
+      ctxLines.add(isEn ? 'Participant name: $displayName' : '用戶稱呼：$displayName');
+    }
+    if (_priorWeeks.isNotEmpty) {
+      ctxLines.add(isEn
+          ? 'What this user shared with you in earlier weeks (oldest first):'
+          : '呢位用戶過往幾週同你講過嘅（由舊到新）：');
+      for (final e in _priorWeeks.take(3)) {
+        ctxLines.add('- ${e.snippet}');
+      }
+    }
+
+    final systemPrompt = (isEn
+            ? _openerSystemPromptEn(themeTitle)
+            : _openerSystemPromptZh(themeTitle)) +
+        (ctxLines.isEmpty ? '' : '\n\n${ctxLines.join('\n')}');
+
+    String openerText = fallback;
+    try {
+      final response = await core.llm
+          .send(
+            moduleId: 'm3_reminiscence_w${widget.theme.weekIndex}_opener',
+            systemPrompt: systemPrompt,
+            history: const [],
+            userInput: isEn
+                ? 'Please open this week\'s session.'
+                : '請開始今週嘅對話。',
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.text.trim().isNotEmpty) {
+        openerText = response.text.trim();
+      }
+    } catch (_) {
+      // Network / timeout / LLM unavailable → keep the static fallback.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _generatingOpener = false;
+      _turns.add(_Turn.bot(openerText));
+    });
   }
 
   /// Read summaries from earlier completed weeks (new schema:
@@ -164,13 +269,6 @@ clay-pot rice stand..."
     _sessionStarted = true;
   }
 
-  bool _isEnNow() {
-    // Read once during initState by walking widgets.binding's window —
-    // safer to default to zh and let didChangeDependencies update.
-    return WidgetsBinding.instance.platformDispatcher.locale.languageCode ==
-        'en';
-  }
-
   @override
   void dispose() {
     _inputCtrl.dispose();
@@ -207,7 +305,9 @@ clay-pot rice stand..."
         .take(_turns.length - 1)
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
-    final basePrompt = isEn ? _systemPromptEn : _systemPromptZh;
+    final themeTitle = isEn ? widget.theme.titleEn : widget.theme.titleZh;
+    final basePrompt =
+        isEn ? _systemPromptEn(themeTitle) : _systemPromptZh(themeTitle);
     final response = await core.llm.send(
       moduleId: 'm3_reminiscence_w${widget.theme.weekIndex}',
       systemPrompt: basePrompt + _priorContextPrompt(isEn),
@@ -445,7 +545,9 @@ clay-pot rice stand..."
                   if (_priorWeeks.isNotEmpty)
                     _PriorWeeksHint(entries: _priorWeeks, isEn: isEn),
                   for (final t in _turns) _Bubble(turn: t),
-                  if (_busy)
+                  if (_generatingOpener && _turns.isEmpty)
+                    _OpenerLoadingBubble(isEn: isEn),
+                  if (_busy && !_generatingOpener)
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Padding(
@@ -462,7 +564,7 @@ clay-pot rice stand..."
             ),
             _Composer(
               controller: _inputCtrl,
-              busy: _busy,
+              busy: _busy || _generatingOpener,
               onSend: _send,
             ),
           ],
@@ -515,6 +617,50 @@ class _Bubble extends StatelessWidget {
         ),
         child: Text(turn.text,
             style: TextStyle(fontSize: 17, height: 1.4, color: fg)),
+      ),
+    );
+  }
+}
+
+class _OpenerLoadingBubble extends StatelessWidget {
+  final bool isEn;
+  const _OpenerLoadingBubble({required this.isEn});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              isEn ? 'thinking of an opening…' : '諗緊點樣開始…',
+              style: TextStyle(
+                fontSize: 16,
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
