@@ -3,17 +3,24 @@ import 'package:flutter/material.dart';
 import '../../../adherence/presentation/widgets/missed_checkin_banner.dart';
 import '../../../crisis/presentation/widgets/safety_footer_card.dart';
 import '../widgets/active_plan_banner.dart';
-import '../widgets/check_in_hero_card.dart';
+import '../widgets/agent_tile_row.dart';
 import '../widgets/greeting_hero.dart';
-import '../widgets/micro_action_row.dart';
+import '../widgets/tool_quick_links.dart';
 
-/// Today tab — task-oriented surface. Top to bottom:
-///   1. Greeting hero
-///   2. Conditional absence banner (>= 2 days w/o check-in)
-///   3. Conditional active-plan banner (P1: mock; P2.5 wires to provider)
-///   4. Check-in hero card (the one obvious next step)
-///   5. Micro-action row (M5 reflection + M6 invitation)
-///   6. 999 / crisis footer
+/// Home tab (屋企) — agent-tile entry point.
+///
+/// Dev Req §2.2 layout, top to bottom:
+///   1. Greeting hero (existing)
+///   2. Safety pill — rendered globally above all tabs, not here
+///   3. Today's plan banner (existing)
+///   4. Absence nudge (existing P3.2)
+///   5. Three agent tiles (Sprint 1)
+///   6. Tool quick links (Sprint 1)
+///   7. 999 / crisis footer (existing)
+///
+/// The previous M2 hero card + M5/M6 micro-action row have been removed:
+/// M2 lives under Siu Yan's tile, and M5/M6 are reachable through the
+/// agents and the Me tab respectively.
 class TodayPage extends StatelessWidget {
   const TodayPage({super.key});
 
@@ -26,20 +33,11 @@ class TodayPage extends StatelessWidget {
           GreetingHero(),
           MissedCheckInBanner(),
           ActivePlanBanner(),
+          AgentTileRow(),
+          ToolQuickLinks(),
           Padding(
-            // UX-polish: trailing padding 100→72 so older participants
-            // don't keep scrolling past empty space to confirm nothing
-            // else loaded below.
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 72),
-            child: Column(
-              children: [
-                CheckInHeroCard(),
-                SizedBox(height: 16),
-                MicroActionRow(),
-                SizedBox(height: 20),
-                SafetyFooterCard(analyticsTag: 'today_safety_footer'),
-              ],
-            ),
+            padding: EdgeInsets.fromLTRB(20, 4, 20, 72),
+            child: SafetyFooterCard(analyticsTag: 'today_safety_footer'),
           ),
         ],
       ),

@@ -7,44 +7,51 @@ rules_version = '2';
 // the per-user scope. Server-side admin reads happen via service accounts
 // which bypass these rules.
 //
-// Collections this app uses:
-//   users/{uid}                        -> profile (incl. arm, consent)
-//   users/{uid}/events/{eventId}       -> analytics events
-//   users/{uid}/memory/{moduleId}/entries/{id}  -> module summaries
-//   users/{uid}/action_plans/{id}      -> M7 plans
-//   users/{uid}/thought_records/{id}   -> M4 records
-//   meta/arm_counter                   -> global A/B balance counter
+// Collections this app uses (existing + Sprint 1 additions):
+//   users/{uid}                                  -> profile (incl. arm, consent,
+//                                                   close_contacts, interests,
+//                                                   firstIntroSeen, per-agent
+//                                                   transcript flags)
+//   users/{uid}/events/{eventId}                 -> analytics events
+//   users/{uid}/memory/{moduleId}/entries/{id}   -> legacy module summaries
+//   users/{uid}/action_plans/{id}                -> M7 plans
+//   users/{uid}/thought_records/{id}             -> legacy M4 records
+//   users/{uid}/m3_reminiscence/...              -> M3 sessions
+//   users/{uid}/agent_contexts/{agent_id}        -> per-agent context (Dev Req §4.2)
+//   users/{uid}/shared_context/current           -> cross-agent shared state
+//   meta/arm_counter                             -> A/B balance counter
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: signed-in.
     function isAuthed() {
       return request.auth != null;
     }
 
-    // Helper: this request is from the owner of {uid}.
     function isOwner(uid) {
       return isAuthed() && request.auth.uid == uid;
     }
 
-    // The user's own document and every subcollection underneath it.
-    // {document=**} matches all descendants so we don't have to repeat
-    // the per-subcollection rule for events / memory / action_plans /
-    // thought_records.
+    // ============================================================
+    // The owner reads/writes anything under their own user doc.
+    // ============================================================
+    // The {document=**} wildcard matches the profile doc and every
+    // subcollection / sub-subcollection underneath it (events, memory,
+    // action_plans, thought_records, m3_reminiscence, agent_contexts,
+    // shared_context). The per-agent isolation specified in Dev Req §4.3
+    // is enforced at the service layer (each Service addresses only its
+    // own namespace) and audited via parity tests; per-field write
+    // restrictions are out of scope for these client-facing rules
+    // because the threat model is "the owner is the only writer of
+    // their own data", not "different parts of the owner's client are
+    // mutually distrustful".
     match /users/{uid}/{document=**} {
       allow read, write: if isOwner(uid);
     }
 
-    // RCT arm balance counter. Any signed-in user can read it (the
-    // assigner needs to read counts to pick the under-represented arm)
-    // and may write it ONLY as part of the increment-by-one transaction
-    // the assigner performs. We enforce that by:
-    //   1. requiring auth
-    //   2. requiring the new total to be exactly old total + 1 (or
-    //      starting at 1 if the doc didn't exist yet)
-    //   3. requiring only the aCount / bCount / updatedAt fields to
-    //      change.
+    // ============================================================
+    // RCT arm balance counter.
+    // ============================================================
     match /meta/arm_counter {
       allow read: if isAuthed();
 
@@ -63,7 +70,6 @@ service cloud.firestore {
 
       allow create, update: if isAuthed()
         && (
-             // exactly one of A or B incremented by exactly 1, the other unchanged
              (nextA() == priorA() + 1 && nextB() == priorB())
           || (nextB() == priorB() + 1 && nextA() == priorA())
         );
