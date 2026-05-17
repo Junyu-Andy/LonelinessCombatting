@@ -180,7 +180,8 @@ class AgentRegistry {
     AgentDefinition(
       id: siuYanId,
       role: 'companion',
-      accentColor: Color(0xFFF0997B), // coral
+      // Coral — Spec §3 / agent profile page.
+      accentColor: Color(0xFFF0997B),
       pprSubcomponent: PprSubcomponent.caring,
       primaryModules: ['m2_daily_checkin', 'm9_motivational'],
       systemPromptKey: 'siu_yan_v1',
@@ -191,14 +192,15 @@ class AgentRegistry {
         AgentDisplayVariant(
           displayNameZh: '小欣',
           displayNameEn: 'Siu Yan',
-          avatarAsset: 'assets/agents/siu_yan_robot.png',
+          avatarAsset: 'assets/agents/siu_yan_avatar.png',
         ),
       ],
     ),
     AgentDefinition(
       id: ahJanAhBakId,
       role: 'reflective_peer_listener',
-      accentColor: Color(0xFF8AA68A), // sage
+      // Lavender — Spec §3 / agent profile page.
+      accentColor: Color(0xFFAFA9EC),
       pprSubcomponent: PprSubcomponent.understanding,
       primaryModules: ['m3_reminiscence', 'm5_reflective_dialogue'],
       systemPromptKey: 'ah_jan_ah_bak_v1',
@@ -210,20 +212,21 @@ class AgentRegistry {
           variant: AgentGenderVariant.feminine,
           displayNameZh: '阿珍',
           displayNameEn: 'Ah Jan',
-          avatarAsset: 'assets/agents/ah_jan_robot.png',
+          avatarAsset: 'assets/agents/ah_jan_avatar.png',
         ),
         AgentDisplayVariant(
           variant: AgentGenderVariant.masculine,
           displayNameZh: '阿伯',
           displayNameEn: 'Ah Bak',
-          avatarAsset: 'assets/agents/ah_bak_robot.png',
+          avatarAsset: 'assets/agents/ah_bak_avatar.png',
         ),
       ],
     ),
     AgentDefinition(
       id: tungTungId,
       role: 'curious_companion',
-      accentColor: Color(0xFF6CA9D6), // sky
+      // Mint — Spec §3 / agent profile page.
+      accentColor: Color(0xFF5DCAA5),
       pprSubcomponent: PprSubcomponent.socialIntegration,
       primaryModules: ['interest_chat', 'm8_education_qa'],
       systemPromptKey: 'tung_tung_v1',
@@ -234,7 +237,7 @@ class AgentRegistry {
         AgentDisplayVariant(
           displayNameZh: '通通',
           displayNameEn: 'Tung Tung',
-          avatarAsset: 'assets/agents/tung_tung_robot.png',
+          avatarAsset: 'assets/agents/tung_tung_avatar.png',
         ),
       ],
     ),

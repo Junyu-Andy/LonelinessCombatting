@@ -34,3 +34,4 @@ flutter:
   assets:
     - assets/mock/
     - assets/images/
+    - assets/agents/

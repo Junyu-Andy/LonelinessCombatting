@@ -105,6 +105,7 @@ class _AgentTile extends StatelessWidget {
                 agent: agent,
                 selectedVariant: selectedVariant,
                 size: 72,
+                openProfileOnTap: true,
               ),
               const SizedBox(width: 16),
               Expanded(

@@ -264,7 +264,11 @@ class _TungTungPageState extends State<TungTungPage> {
         appBar: AppBar(
           title: Row(
             children: [
-              AgentAvatar(agent: agent, size: 32),
+              AgentAvatar(
+                agent: agent,
+                size: 32,
+                openProfileOnTap: true,
+              ),
               const SizedBox(width: 10),
               Text(isEn ? variant.displayNameEn : variant.displayNameZh),
             ],
