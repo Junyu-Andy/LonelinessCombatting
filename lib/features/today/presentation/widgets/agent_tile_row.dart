@@ -13,6 +13,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../context/presentation/pages/check_in_page.dart';
+import '../../../curious_companion/presentation/pages/tung_tung_page.dart';
 import '../../../reminiscence/presentation/pages/reminiscence_landing.dart';
 
 class AgentTileRow extends StatelessWidget {
@@ -52,10 +53,10 @@ class AgentTileRow extends StatelessWidget {
         destination = const ReminiscenceLandingPage();
         break;
       case AgentRegistry.tungTungId:
-        destination = const _TungTungComingSoon();
+        destination = const TungTungPage();
         break;
       default:
-        destination = const _TungTungComingSoon();
+        destination = const TungTungPage();
     }
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => destination),
