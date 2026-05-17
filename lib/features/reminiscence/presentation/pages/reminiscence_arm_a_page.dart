@@ -10,6 +10,7 @@ import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
+import '../../../ppr/presentation/pages/ppr_brief_page.dart';
 import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
 
@@ -498,8 +499,20 @@ clay-pot rice stand..."
     }
     if (!mounted) return;
     setState(() => _saved = true);
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-    if (mounted) Navigator.of(context).pop();
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
+    // Pop the reminiscence page first so the PPR brief becomes the
+    // new top route. The brief itself pops back to the My Story tab
+    // when the participant submits.
+    Navigator.of(context).pop();
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PprBriefPage(
+          agentId: AgentRegistry.ahJanAhBakId,
+          sessionTag: 'm3_w${widget.theme.weekIndex}',
+        ),
+      ),
+    );
   }
 
   @override

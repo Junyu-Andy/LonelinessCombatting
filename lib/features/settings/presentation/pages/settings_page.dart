@@ -5,7 +5,10 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
+import '../../../../core/agents/agent_registry.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
+import '../../../ppr/presentation/pages/ppr_weekly_page.dart';
+import '../../../researcher_dashboard/presentation/pages/researcher_dashboard_page.dart';
 import 'faq_page.dart';
 import 'privacy_policy_page.dart';
 
@@ -173,6 +176,40 @@ class _SettingsPageState extends State<SettingsPage> {
               },
               icon: const Icon(Icons.policy_outlined, size: 26),
               label: Text(isEn ? 'Privacy Policy' : '私隱政策'),
+            ),
+          ),
+          const SizedBox(height: 28),
+          _SectionHeader(
+            icon: Icons.science_outlined,
+            title: isEn ? 'Research' : '研究',
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const PprWeeklyPage(
+                    agentId: AgentRegistry.ahJanAhBakId,
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.checklist_rounded, size: 26),
+              label: Text(isEn ? 'Weekly feedback (PPR)' : '每週回饋（PPR）'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ResearcherDashboardPage(),
+                ),
+              ),
+              icon: const Icon(Icons.dashboard_customize_outlined, size: 26),
+              label:
+                  Text(isEn ? 'Researcher dashboard' : '研究員儀錶板'),
             ),
           ),
         ],
