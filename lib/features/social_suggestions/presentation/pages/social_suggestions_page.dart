@@ -4,6 +4,8 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
+import '../../../../shared/widgets/app_loading_indicator.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_a_page.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_b_page.dart';
 import '../../data/suggestion_pool.dart';
@@ -61,6 +63,11 @@ other text.
 
   Future<void> _maybeLoadArmA() async {
     if (!Arm.isA(context)) return;
+    await TranscriptConsentPrompter.maybePrompt(
+      context: context,
+      moduleKey: 'm6_suggestions',
+    );
+    if (!mounted) return;
     setState(() => _busy = true);
     final core = CoreServicesScope.of(context);
     final profile = AppSettingsScope.read(context).profile;
@@ -166,10 +173,11 @@ other text.
 
   List<Widget> _buildArmA(bool isEn) {
     if (_busy) {
-      return const [
-        Padding(
-          padding: EdgeInsets.symmetric(vertical: 24),
-          child: Center(child: CircularProgressIndicator()),
+      return [
+        AppLoadingIndicator.inline(
+          message: isEn
+              ? 'Thinking of a small idea for you…'
+              : '諗緊一啲適合你嘅小行動…',
         ),
       ];
     }

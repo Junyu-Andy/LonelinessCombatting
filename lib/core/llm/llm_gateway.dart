@@ -1,7 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../safety/distress_detector.dart';
 
@@ -51,6 +50,7 @@ class LlmGateway {
     }
 
     final raw = await _client.complete(
+      moduleId: moduleId,
       systemPrompt: systemPrompt,
       history: history,
       userInput: userInput,
@@ -106,6 +106,7 @@ class LlmResponse {
 /// touching network code.
 abstract class LlmClient {
   Future<String> complete({
+    required String moduleId,
     required String systemPrompt,
     required List<LlmTurn> history,
     required String userInput,
@@ -113,60 +114,45 @@ abstract class LlmClient {
 }
 
 class DeepseekLlmClient implements LlmClient {
-  static const _apiKey = String.fromEnvironment('DEEPSEEK_API_KEY');
-  static const _endpoint = 'https://api.deepseek.com/chat/completions';
-  static const _model = 'deepseek-chat';
-
-  final http.Client? _httpClient;
-
-  const DeepseekLlmClient({http.Client? httpClient}) : _httpClient = httpClient;
-
-  bool get isConfigured => _apiKey.isNotEmpty;
+  const DeepseekLlmClient();
 
   @override
   Future<String> complete({
+    required String moduleId,
     required String systemPrompt,
     required List<LlmTurn> history,
     required String userInput,
   }) async {
-    if (!isConfigured) {
-      // No key — caller will see empty text and the module decides what to
-      // fall back to (Arm A modules typically have a scripted alternative
-      // path while the key is being provisioned).
-      return '';
-    }
-    final client = _httpClient ?? http.Client();
-    final messages = <Map<String, String>>[
-      {'role': 'system', 'content': systemPrompt},
-      for (final t in history)
-        {'role': t.fromUser ? 'user' : 'assistant', 'content': t.text},
-      {'role': 'user', 'content': userInput},
-    ];
     try {
-      final response = await client
-          .post(
-            Uri.parse(_endpoint),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $_apiKey',
+      final result = await FirebaseFunctions
+          .instanceFor(region: 'asia-east2')
+          .httpsCallable('proxyDeepSeek')
+          .call(<String, dynamic>{
+        'systemPrompt': systemPrompt,
+        'messages': [
+          for (final t in history)
+            {
+              'role': t.fromUser ? 'user' : 'assistant',
+              'content': t.text,
             },
-            body: jsonEncode({
-              'model': _model,
-              'messages': messages,
-              'max_tokens': 320,
-              'temperature': 0.7,
-            }),
-          )
-          .timeout(const Duration(seconds: 20));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final content =
-            data['choices'][0]['message']['content'] as String? ?? '';
-        return content;
+          {
+            'role': 'user',
+            'content': userInput,
+          },
+        ],
+        'moduleId': moduleId,
+      }).timeout(const Duration(seconds: 25));
+
+      final data = result.data;
+      if (data is Map) {
+        return data['text'] as String? ?? '';
       }
+    } on FirebaseFunctionsException {
+      // Caller treats empty text as fallback signal.
     } catch (_) {
-      // swallow; caller treats empty as fallback signal
+      // Caller treats empty text as fallback signal.
     }
+
     return '';
   }
 }

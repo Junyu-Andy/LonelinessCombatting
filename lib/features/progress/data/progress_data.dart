@@ -78,19 +78,22 @@ class ProgressRepository {
         .where((d) => (d.data()['outcome'] as String?) != null)
         .length;
 
-    // Reminiscence: scan each weekly subcollection for recent entries.
+    // Reminiscence: scan each weekly session doc (new schema, P2.2)
+    // and count weeks completed in the past 7 days.
     var reminiscence = 0;
-    for (var w = 1; w <= 6; w++) {
+    for (var w = 1; w <= 4; w++) {
       final snap = await _db
           .collection('users')
           .doc(uid)
           .collection('memory')
-          .doc('m3_reminiscence_w$w')
-          .collection('entries')
+          .doc('m3_reminiscence')
+          .collection('sessions')
+          .doc('week_$w')
           .get();
-      reminiscence += snap.docs
-          .where((d) => _ts(d.data()['createdAt']).isAfter(since))
-          .length;
+      if (!snap.exists) continue;
+      final data = snap.data() ?? const {};
+      if (data['status'] != 'completed') continue;
+      if (_ts(data['completed_at']).isAfter(since)) reminiscence += 1;
     }
 
     return WeeklyProgress(

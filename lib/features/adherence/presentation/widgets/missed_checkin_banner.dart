@@ -49,7 +49,9 @@ class _MissedCheckInBannerState extends State<MissedCheckInBanner> {
   @override
   Widget build(BuildContext context) {
     final days = _daysSince;
-    if (days == null || days < 2) return const SizedBox.shrink();
+    if (days == null || days < AdherenceCheck.bannerThresholdDays) {
+      return const SizedBox.shrink();
+    }
 
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);

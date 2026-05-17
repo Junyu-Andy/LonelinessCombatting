@@ -42,17 +42,19 @@ class AppTheme {
           headlineLarge: baseTextTheme.headlineLarge?.copyWith(
             fontSize: 32,
             fontWeight: FontWeight.w700,
-            height: 1.25,
+            // P4-polish: bumped to 1.4 — multi-line Chinese headlines
+            // were touching at 1.25 for elderly readers.
+            height: 1.4,
           ),
           headlineMedium: baseTextTheme.headlineMedium?.copyWith(
             fontSize: 28,
             fontWeight: FontWeight.w700,
-            height: 1.3,
+            height: 1.4,
           ),
           headlineSmall: baseTextTheme.headlineSmall?.copyWith(
             fontSize: 24,
             fontWeight: FontWeight.w600,
-            height: 1.3,
+            height: 1.4,
           ),
           titleLarge: baseTextTheme.titleLarge?.copyWith(
             fontSize: 22,

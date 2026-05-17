@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../app/main_shell.dart';
+import '../../../../shared/widgets/app_loading_indicator.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../consent/presentation/consent_gate.dart';
 import '../../data/auth_service.dart';
@@ -79,8 +80,11 @@ class _Loading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    return Scaffold(
+      body: AppLoadingIndicator(
+        message: isEn ? 'Just a moment…' : '等一陣…',
+      ),
     );
   }
 }

@@ -4,6 +4,8 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
+import '../../../../core/voice/voice_input_button.dart';
 import '../../data/reflection_prompts.dart';
 
 /// M5 — Self-Reflection Prompts.
@@ -65,6 +67,11 @@ Output format: only the question itself, no extra text.
   Future<void> _loadPrompt() async {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     if (Arm.isA(context)) {
+      await TranscriptConsentPrompter.maybePrompt(
+        context: context,
+        moduleKey: 'm5_reflection',
+      );
+      if (!mounted) return;
       setState(() => _loading = true);
       final core = CoreServicesScope.of(context);
       final profile = AppSettingsScope.read(context).profile;
@@ -180,7 +187,15 @@ Output format: only the question itself, no extra text.
                         ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: VoiceInputButton(
+                  prefix: () => _responseCtrl.text,
+                  onText: (t) => _responseCtrl.text = t,
+                ),
+              ),
+              const SizedBox(height: 4),
               Expanded(
                 child: TextField(
                   controller: _responseCtrl,
@@ -190,8 +205,8 @@ Output format: only the question itself, no extra text.
                   decoration: InputDecoration(
                     border: const OutlineInputBorder(),
                     hintText: isEn
-                        ? 'Write whatever comes to mind.'
-                        : '諗到咩寫咩。',
+                        ? 'Write whatever comes to mind, or tap the mic.'
+                        : '諗到咩寫咩，或者撳咪講。',
                     alignLabelWithHint: true,
                   ),
                   textAlignVertical: TextAlignVertical.top,

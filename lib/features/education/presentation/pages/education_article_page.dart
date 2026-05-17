@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
+import '../../../../core/safety/distress_detector.dart';
+import '../../../../core/voice/voice_input_button.dart';
 import '../../data/education_library.dart';
 
 /// M8 article view.
@@ -63,6 +66,13 @@ Here is the article:
   Future<void> _send() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
+    if (_turns.isEmpty) {
+      await TranscriptConsentPrompter.maybePrompt(
+        context: context,
+        moduleKey: 'm8_${widget.article.id}',
+      );
+      if (!mounted) return;
+    }
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));
@@ -92,6 +102,14 @@ Here is the article:
               ? 'Good question. Let me re-read it…'
               : '好問題，等我再睇下…')));
     });
+    final escalation = response.inputFlag.level.index >=
+            response.outputFlag.level.index
+        ? response.inputFlag
+        : response.outputFlag;
+    if (escalation.level == DistressLevel.moderate ||
+        escalation.level == DistressLevel.acute) {
+      await core.distressRouter.route(escalation, context: context);
+    }
   }
 
   @override
@@ -224,6 +242,10 @@ class _Composer extends StatelessWidget {
         ),
         child: Row(
           children: [
+            VoiceInputButton(
+              prefix: () => controller.text,
+              onText: (t) => controller.text = t,
+            ),
             Expanded(
               child: TextField(
                 controller: controller,

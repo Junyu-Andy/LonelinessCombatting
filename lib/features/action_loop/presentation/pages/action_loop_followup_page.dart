@@ -6,6 +6,9 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
+import '../../../../core/safety/distress_detector.dart';
+import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/action_plan.dart';
@@ -85,6 +88,11 @@ counts. Do not suggest other modules or new plans.
     }
 
     if (Arm.isA(context)) {
+      await TranscriptConsentPrompter.maybePrompt(
+        context: context,
+        moduleKey: 'm7_followup',
+      );
+      if (!mounted) return;
       final response = await core.llm.send(
         moduleId: 'm7_action_loop_followup',
         systemPrompt: isEn ? _systemPromptEn : _systemPromptZh,
@@ -99,6 +107,14 @@ counts. Do not suggest other modules or new plans.
         _llmReply = response.text.isNotEmpty
             ? response.text
             : (isEn ? 'Thanks for telling me.' : '多謝你話畀我聽。');
+        final escalation = response.inputFlag.level.index >=
+                response.outputFlag.level.index
+            ? response.inputFlag
+            : response.outputFlag;
+        if (escalation.level == DistressLevel.moderate ||
+            escalation.level == DistressLevel.acute) {
+          await core.distressRouter.route(escalation, context: context);
+        }
       }
     }
     if (!mounted) return;
@@ -172,11 +188,24 @@ counts. Do not suggest other modules or new plans.
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 6),
-            TextField(
-              controller: _noteCtrl,
-              maxLines: 3,
-              style: theme.textTheme.bodyLarge,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _noteCtrl,
+                    maxLines: 3,
+                    style: theme.textTheme.bodyLarge,
+                    decoration:
+                        const InputDecoration(border: OutlineInputBorder()),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                VoiceInputButton(
+                  prefix: () => _noteCtrl.text,
+                  onText: (t) => _noteCtrl.text = t,
+                ),
+              ],
             ),
             const SizedBox(height: 20),
             FilledButton(

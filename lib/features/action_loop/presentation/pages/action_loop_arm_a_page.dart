@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/reminders/reminder_service.dart';
+import '../../../../core/safety/distress_detector.dart';
+import '../../../../core/voice/voice_input_button.dart';
+import '../../../../shared/widgets/app_loading_indicator.dart';
+import '../../../../shared/widgets/app_stepper.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../cognitive_restructure/data/thought_record.dart';
@@ -155,7 +160,31 @@ try again in the afternoon." No extra encouragement or suggestions.
     }
   }
 
+  String _stepLabel(bool isEn) {
+    switch (_step) {
+      case _Step.action:
+        return isEn ? 'What' : '做咩';
+      case _Step.when_:
+        return isEn ? 'When' : '幾時';
+      case _Step.where_:
+        return isEn ? 'Where' : '邊度';
+      case _Step.who:
+        return isEn ? 'Who' : '同邊個';
+      case _Step.fallback:
+        return isEn ? 'If not' : '唔得點';
+      case _Step.review:
+        return isEn ? 'Review' : '檢視';
+      case _Step.saved:
+        return isEn ? 'Saved' : '完成';
+    }
+  }
+
   Future<void> _generateSummary() async {
+    await TranscriptConsentPrompter.maybePrompt(
+      context: context,
+      moduleKey: 'm7_action_loop',
+    );
+    if (!mounted) return;
     final core = CoreServicesScope.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     setState(() => _busy = true);
@@ -180,6 +209,14 @@ try again in the afternoon." No extra encouragement or suggestions.
       _busy = false;
       _summary = response.text.isNotEmpty ? response.text : fallbackSummary;
     });
+    final escalation = response.inputFlag.level.index >=
+            response.outputFlag.level.index
+        ? response.inputFlag
+        : response.outputFlag;
+    if (escalation.level == DistressLevel.moderate ||
+        escalation.level == DistressLevel.acute) {
+      await core.distressRouter.route(escalation, context: context);
+    }
   }
 
   Future<void> _savePlan() async {
@@ -250,6 +287,12 @@ try again in the afternoon." No extra encouragement or suggestions.
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              AppStepper(
+                currentStep: _step.index,
+                totalSteps: _Step.values.length - 1, // exclude 'saved'
+                stepLabel: _stepLabel(isEn),
+              ),
+              const SizedBox(height: 12),
               _ProgressChips(step: _step),
               const SizedBox(height: 16),
               if (_step == _Step.review) ...[
@@ -262,7 +305,11 @@ try again in the afternoon." No extra encouragement or suggestions.
                   child: Padding(
                     padding: const EdgeInsets.all(18),
                     child: _busy
-                        ? const Center(child: CircularProgressIndicator())
+                        ? AppLoadingIndicator.inline(
+                            message: isEn
+                                ? 'Let me put it together…'
+                                : '畀我整理緊…',
+                          )
                         : Text(
                             _summary,
                             style:
@@ -296,14 +343,26 @@ try again in the afternoon." No extra encouragement or suggestions.
                   style: theme.textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: _ctrl,
-                  autofocus: true,
-                  style: theme.textTheme.bodyLarge,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => _advance(),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _ctrl,
+                        autofocus: true,
+                        style: theme.textTheme.bodyLarge,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                        ),
+                        onSubmitted: (_) => _advance(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    VoiceInputButton(
+                      prefix: () => _ctrl.text,
+                      onText: (t) => _ctrl.text = t,
+                    ),
+                  ],
                 ),
                 const Spacer(),
                 FilledButton(

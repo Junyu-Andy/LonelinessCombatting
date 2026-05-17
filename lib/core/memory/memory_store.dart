@@ -60,12 +60,24 @@ class MemoryStore {
 
   /// Most-recent-first. Default cap is 5 entries — enough for the LLM to
   /// reference "last week you mentioned..." without ballooning the prompt.
+  ///
+  /// M3 carve-out: `m3_reminiscence_w{N}` is no longer a writable entries
+  /// subcollection (P2.2 schema migration). When asked for an M3 module
+  /// ID, this method transparently reads from the new single-doc-per-
+  /// week schema at `m3_reminiscence/sessions/week_{N}` and returns a
+  /// [MemoryEntry]-shaped wrapper so callers (M2, M5, M6) keep working
+  /// without knowing about the schema split.
   Future<List<MemoryEntry>> recent({
     required String uid,
     required String moduleId,
     int limit = 5,
   }) async {
     if (!available) return const [];
+    final m3WeekMatch = _m3WeekPattern.firstMatch(moduleId);
+    if (m3WeekMatch != null) {
+      final week = int.parse(m3WeekMatch.group(1)!);
+      return _readM3WeekSummary(uid: uid, weekIndex: week);
+    }
     final snap = await _db
         .collection('users')
         .doc(uid)
@@ -76,6 +88,51 @@ class MemoryStore {
         .limit(limit)
         .get();
     return snap.docs.map((d) => MemoryEntry.fromMap(d.id, d.data())).toList();
+  }
+
+  static final _m3WeekPattern = RegExp(r'^m3_reminiscence_w(\d+)$');
+
+  Future<List<MemoryEntry>> _readM3WeekSummary({
+    required String uid,
+    required int weekIndex,
+  }) async {
+    try {
+      final snap = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('memory')
+          .doc('m3_reminiscence')
+          .collection('sessions')
+          .doc('week_$weekIndex')
+          .get();
+      if (!snap.exists) return const [];
+      final data = snap.data() ?? const {};
+      final edited = data['end_summary_edited'] as String?;
+      final original = data['end_summary_original'] as String?;
+      final summary = (edited != null && edited.trim().isNotEmpty)
+          ? edited
+          : original;
+      if (summary == null || summary.trim().isEmpty) return const [];
+      DateTime parsed = DateTime.now();
+      final raw = data['completed_at'] ?? data['started_at'];
+      if (raw is Timestamp) {
+        parsed = raw.toDate();
+      } else if (raw is String) {
+        parsed = DateTime.tryParse(raw) ?? parsed;
+      }
+      return [
+        MemoryEntry(
+          id: 'm3_w$weekIndex',
+          summary: summary,
+          tags: ['week:$weekIndex'],
+          moduleId: 'm3_reminiscence_w$weekIndex',
+          armCode: (data['arm'] as String?) ?? '',
+          createdAt: parsed,
+        ),
+      ];
+    } catch (_) {
+      return const [];
+    }
   }
 
   /// Cross-module read for cases where one module (e.g. M4 cognitive

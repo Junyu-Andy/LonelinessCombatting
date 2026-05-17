@@ -91,15 +91,21 @@ class ReminiscenceLandingPage extends StatelessWidget {
     if (!auth.available || uid == null) {
       return Stream<bool>.value(false);
     }
+    // P2.2 schema: single doc per (uid, weekIndex). The week counts as
+    // completed once status flips to 'completed'.
     return FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .collection('memory')
-        .doc('m3_reminiscence_w$weekIndex')
-        .collection('entries')
-        .limit(1)
+        .doc('m3_reminiscence')
+        .collection('sessions')
+        .doc('week_$weekIndex')
         .snapshots()
-        .map((snap) => snap.docs.isNotEmpty);
+        .map((snap) {
+      if (!snap.exists) return false;
+      final status = snap.data()?['status'] as String?;
+      return status == 'completed';
+    });
   }
 }
 

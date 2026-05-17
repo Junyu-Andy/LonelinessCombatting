@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 
 import '../core/core_services_scope.dart';
 import '../core/llm/llm_gateway.dart';
+import '../core/memory/cross_module_memory.dart';
 import '../core/memory/memory_store.dart';
 import '../core/safety/distress_detector.dart';
+import '../core/safety/distress_router.dart';
+import '../core/safety/distress_state.dart';
 import '../core/safety/safety_overlay.dart';
 import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
@@ -25,6 +28,9 @@ class MyApp extends StatefulWidget {
   final LlmGateway llm;
   final MemoryStore memory;
   final DistressDetector distress;
+  final DistressState distressState;
+  final DistressRouter distressRouter;
+  final CrossModuleMemoryService crossModuleMemory;
 
   const MyApp({
     super.key,
@@ -34,6 +40,9 @@ class MyApp extends StatefulWidget {
     required this.llm,
     required this.memory,
     required this.distress,
+    required this.distressState,
+    required this.distressRouter,
+    required this.crossModuleMemory,
   });
 
   @override
@@ -104,6 +113,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           llm: widget.llm,
           memory: widget.memory,
           distress: widget.distress,
+          distressState: widget.distressState,
+          distressRouter: widget.distressRouter,
+          crossModuleMemory: widget.crossModuleMemory,
           child: AppSettingsScope(
           settings: widget.settings,
           child: MaterialApp(
@@ -115,8 +127,25 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             locale: widget.settings.locale,
-            builder: (context, child) =>
-                SafetyOverlay(child: child ?? const SizedBox.shrink()),
+            builder: (context, child) {
+              // P4.1: apply the user's elderly-friendly font scale by
+              // overriding MediaQuery before anything paints text. This
+              // affects every Text widget in the subtree without forcing
+              // each widget to read settings.fontScale directly.
+              final base = MediaQuery.of(context);
+              final scaled = base.copyWith(
+                textScaler: TextScaler.linear(
+                  base.textScaler.scale(1.0) *
+                      widget.settings.fontScale.multiplier,
+                ),
+              );
+              return MediaQuery(
+                data: scaled,
+                child: SafetyOverlay(
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              );
+            },
             home: AuthGate(
               authService: widget.authService,
               analytics: widget.analytics,

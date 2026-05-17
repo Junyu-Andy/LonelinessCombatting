@@ -25,12 +25,10 @@ class _LoginPageState extends State<LoginPage> {
   final _nameCtrl = TextEditingController();
   final _contactNameCtrl = TextEditingController();
   final _contactPhoneCtrl = TextEditingController();
-  String? _ageGroup;
+  final _ageCtrl = TextEditingController();
   bool _isSignUp = false;
   bool _busy = false;
   String? _error;
-
-  static const _ageGroups = ['60-69', '70-79', '80+', '未滿 60'];
 
   @override
   void dispose() {
@@ -39,6 +37,7 @@ class _LoginPageState extends State<LoginPage> {
     _nameCtrl.dispose();
     _contactNameCtrl.dispose();
     _contactPhoneCtrl.dispose();
+    _ageCtrl.dispose();
     super.dispose();
   }
 
@@ -59,7 +58,7 @@ class _LoginPageState extends State<LoginPage> {
           email: _emailCtrl.text,
           password: _passwordCtrl.text,
           displayName: _nameCtrl.text.trim(),
-          ageGroup: _ageGroup,
+          ageGroup: _ageCtrl.text.trim().isEmpty ? null : _ageCtrl.text.trim(),
           emergencyContactName: _contactNameCtrl.text.trim().isEmpty
               ? null
               : _contactNameCtrl.text.trim(),
@@ -157,10 +156,23 @@ class _LoginPageState extends State<LoginPage> {
                         (v ?? '').trim().isEmpty ? '請輸入稱呼。' : null,
                   ),
                   const SizedBox(height: 12),
-                  _AgeGroupPicker(
-                    value: _ageGroup,
-                    options: _ageGroups,
-                    onChanged: (v) => setState(() => _ageGroup = v),
+                  TextFormField(
+                    controller: _ageCtrl,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: '年齡',
+                      hintText: '例：72',
+                      prefixIcon: Icon(Icons.cake_outlined),
+                    ),
+                    validator: (v) {
+                      final text = (v ?? '').trim();
+                      if (text.isEmpty) return null; // optional
+                      final n = int.tryParse(text);
+                      if (n == null) return '請輸入數字。';
+                      if (n < 1 || n > 120) return '請輸入合理嘅年齡。';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 20),
                   _SectionLabel(
@@ -337,34 +349,6 @@ class _SectionLabel extends StatelessWidget {
         const SizedBox(width: 8),
         Text(text, style: theme.textTheme.titleMedium),
       ],
-    );
-  }
-}
-
-class _AgeGroupPicker extends StatelessWidget {
-  final String? value;
-  final List<String> options;
-  final ValueChanged<String> onChanged;
-
-  const _AgeGroupPicker({
-    required this.value,
-    required this.options,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: options.map((o) {
-        final selected = o == value;
-        return ChoiceChip(
-          label: Text(o),
-          selected: selected,
-          onSelected: (_) => onChanged(o),
-        );
-      }).toList(),
     );
   }
 }

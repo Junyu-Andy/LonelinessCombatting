@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
-import '../../../../core/memory/memory_store.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
+import '../../../auth/presentation/auth_service_scope.dart';
+import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
 
 /// M3 — Reminiscence, Arm A.
@@ -81,10 +83,15 @@ clay-pot rice stand..."
   bool _showingSummary = false;
   bool _saved = false;
 
-  /// Short summaries of every prior week the user has completed, oldest
-  /// first. Loaded once on first build via [didChangeDependencies] so we
-  /// have access to the scope.
-  List<MemoryEntry> _priorWeeks = const [];
+  /// LLM-generated end-of-session summary. Captured separately so the
+  /// "edited" save path can compare against it and the doc records both.
+  String? _endSummaryOriginal;
+  bool _sessionStarted = false;
+
+  /// Summaries from prior completed weeks, oldest first. Loaded once.
+  /// Each entry is `{weekIndex, snippet}`; only weeks with a stored
+  /// summary (either Arm A's LLM-edited or Arm B's free text) appear.
+  List<_PriorWeekSummary> _priorWeeks = const [];
   bool _priorLoaded = false;
 
   @override
@@ -103,32 +110,34 @@ clay-pot rice stand..."
     }
   }
 
-  /// Read summaries from earlier weeks of this same reminiscence track
-  /// (m3_reminiscence_w1 .. w{current-1}) so the LLM can reference them
-  /// later in the session and so we can show a "上週你提過…" hint.
+  /// Read summaries from earlier completed weeks (new schema:
+  /// m3_reminiscence/sessions/week_{1..currentWeek-1}) so the LLM can
+  /// callback in dialogue and we can show a "上週你提過…" hint.
   Future<void> _loadPriorWeeks() async {
     final profile = AppSettingsScope.read(context).profile;
-    final core = CoreServicesScope.of(context);
+    final auth = AuthServiceScope.of(context);
     if (profile == null || widget.theme.weekIndex == 1) return;
-    final priorIds = [
-      for (var w = 1; w < widget.theme.weekIndex; w++)
-        'm3_reminiscence_w$w',
+    final store = M3SessionStore(available: auth.available);
+    final priorIndexes = [
+      for (var w = 1; w < widget.theme.weekIndex; w++) w,
     ];
-    final entries = await core.memory.recentAcross(
-      uid: profile.uid,
-      moduleIds: priorIds,
-      perModule: 1,
-    );
+    final docs = await store.readAll(uid: profile.uid, weekIndexes: priorIndexes);
     if (!mounted) return;
-    // Oldest first so a callback ("two weeks ago…") feels chronological.
-    entries.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    setState(() => _priorWeeks = entries);
+    final summaries = <_PriorWeekSummary>[];
+    for (final w in priorIndexes) {
+      final doc = docs[w];
+      final s = doc?.callbackSummary;
+      if (s != null && s.trim().isNotEmpty) {
+        summaries.add(_PriorWeekSummary(weekIndex: w, snippet: s.trim()));
+      }
+    }
+    setState(() => _priorWeeks = summaries);
   }
 
   String _priorContextPrompt(bool isEn) {
     if (_priorWeeks.isEmpty) return '';
     final lines = _priorWeeks
-        .map((e) => '- ${e.summary}')
+        .map((e) => '- ${e.snippet}')
         .take(3)
         .join('\n');
     return isEn
@@ -139,6 +148,20 @@ clay-pot rice stand..."
         : '\n\n（呢位用戶過去幾週同你講過嘅 — 由舊到新）：\n$lines\n\n'
             '只有自然嘅情況下，可以輕輕提到上面其中一個具體細節。'
             '唔好列出嚟、唔好總結過往。';
+  }
+
+  Future<void> _ensureSessionStarted() async {
+    if (_sessionStarted) return;
+    final profile = AppSettingsScope.read(context).profile;
+    final auth = AuthServiceScope.of(context);
+    if (profile == null) return;
+    final store = M3SessionStore(available: auth.available);
+    await store.startSession(
+      uid: profile.uid,
+      weekIndex: widget.theme.weekIndex,
+      armCode: 'A',
+    );
+    _sessionStarted = true;
   }
 
   bool _isEnNow() {
@@ -158,12 +181,27 @@ clay-pot rice stand..."
   Future<void> _send() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
+    final userTurnIndex = _turns.length;
+    if (userTurnIndex == 1) {
+      // userTurnIndex 1 == first user reply (turn 0 was the seeded
+      // opening from the assistant). Prompt once per session for this
+      // week's module key.
+      await TranscriptConsentPrompter.maybePrompt(
+        context: context,
+        moduleKey: 'm3_w${widget.theme.weekIndex}',
+      );
+      if (!mounted) return;
+    }
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));
       _inputCtrl.clear();
     });
     final core = CoreServicesScope.of(context);
+    final profile = AppSettingsScope.read(context).profile;
+    final auth = AuthServiceScope.of(context);
+    final store = M3SessionStore(available: auth.available);
+    await _ensureSessionStarted();
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final history = _turns
         .take(_turns.length - 1)
@@ -176,6 +214,29 @@ clay-pot rice stand..."
       history: history,
       userInput: text,
     );
+
+    // Persist the user turn + record any distress flag against its index,
+    // regardless of how the LLM responded.
+    if (profile != null) {
+      final now = DateTime.now();
+      await store.appendTurns(
+        uid: profile.uid,
+        weekIndex: widget.theme.weekIndex,
+        turns: [
+          M3Turn(fromAssistant: false, text: text, timestamp: now),
+        ],
+        hasTranscriptConsent: profile.consent.transcriptRetention,
+      );
+      if (response.inputFlag.level != DistressLevel.none) {
+        await store.recordDistressFlag(
+          uid: profile.uid,
+          weekIndex: widget.theme.weekIndex,
+          turnIndex: userTurnIndex,
+          level: response.inputFlag.level,
+        );
+      }
+    }
+
     if (!mounted) return;
     if (response.shortCircuited) {
       setState(() {
@@ -185,16 +246,44 @@ clay-pot rice stand..."
                 'Hong Kong at 2896 0000 right now.'
             : '多謝你信我，肯講出嚟。請即刻打撒瑪利亞會熱線 2896 0000。'));
       });
+      await core.distressRouter.route(response.inputFlag, context: context);
       return;
     }
+    // Moderate distress (input or output) → soft sheet after the
+    // turn settles. Acute on output is rare but routed too.
+    final escalation = response.inputFlag.level.index >=
+            response.outputFlag.level.index
+        ? response.inputFlag
+        : response.outputFlag;
+    if (escalation.level == DistressLevel.moderate ||
+        escalation.level == DistressLevel.acute) {
+      await core.distressRouter.route(escalation, context: context);
+    }
+
+    final replyText = response.text.isNotEmpty
+        ? response.text
+        : (isEn
+            ? 'Thank you for sharing. Tell me more if you\'d like.'
+            : '多謝你話畀我聽。想再講多啲都得。');
     setState(() {
       _busy = false;
-      _turns.add(_Turn.bot(response.text.isNotEmpty
-          ? response.text
-          : (isEn
-              ? 'Thank you for sharing. Tell me more if you\'d like.'
-              : '多謝你話畀我聽。想再講多啲都得。')));
+      _turns.add(_Turn.bot(replyText));
     });
+
+    if (profile != null && response.text.isNotEmpty) {
+      await store.appendTurns(
+        uid: profile.uid,
+        weekIndex: widget.theme.weekIndex,
+        turns: [
+          M3Turn(
+            fromAssistant: true,
+            text: replyText,
+            timestamp: DateTime.now(),
+          ),
+        ],
+        hasTranscriptConsent: profile.consent.transcriptRetention,
+      );
+    }
   }
 
   Future<void> _generateSummary() async {
@@ -219,33 +308,33 @@ clay-pot rice stand..."
       userInput: isEn ? 'Please summarise this session.' : '請總結今次嘅內容。',
     );
     if (!mounted) return;
-    final fallback = isEn
-        ? _turns
-            .where((t) => t.fromUser)
-            .map((t) => t.text)
-            .join('\n')
-        : _turns
-            .where((t) => t.fromUser)
-            .map((t) => t.text)
-            .join('\n');
+    final fallback = _turns
+        .where((t) => t.fromUser)
+        .map((t) => t.text)
+        .join('\n');
     final body = response.text.isNotEmpty ? response.text : fallback;
     setState(() {
       _busy = false;
+      _endSummaryOriginal = body;
       _summaryCtrl.text = body;
     });
   }
 
-  Future<void> _acceptSummary() async {
+  Future<void> _saveSummary({required bool useOriginal}) async {
     final profile = AppSettingsScope.read(context).profile;
-    final core = CoreServicesScope.of(context);
+    final auth = AuthServiceScope.of(context);
+    final original = _endSummaryOriginal ?? _summaryCtrl.text;
+    final edited = _summaryCtrl.text.trim();
+    final userEdited = !useOriginal && edited != original.trim();
     if (profile != null) {
-      await core.memory.writeSummary(
+      final store = M3SessionStore(available: auth.available);
+      await store.finalizeSession(
         uid: profile.uid,
-        moduleId: 'm3_reminiscence_w${widget.theme.weekIndex}',
-        summary: _summaryCtrl.text.trim(),
+        weekIndex: widget.theme.weekIndex,
         armCode: 'A',
-        hasTranscriptConsent: profile.consent.transcriptRetention,
-        tags: ['week:${widget.theme.weekIndex}'],
+        endSummaryOriginal: original,
+        endSummaryEdited: useOriginal ? original : edited,
+        userEdited: userEdited,
       );
     }
     if (!mounted) return;
@@ -271,8 +360,8 @@ clay-pot rice stand..."
               children: [
                 Text(
                   isEn
-                      ? 'Here\'s what I heard. Edit anything that\'s not quite right.'
-                      : '呢個係我聽到嘅。有邊度想改可以改。',
+                      ? 'Here\'s what I heard. Edit anything that\'s not quite right — or keep the original.'
+                      : '呢個係我聽到嘅。有邊度想改可以改，或者用返原版。',
                   style: theme.textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
@@ -281,7 +370,10 @@ clay-pot rice stand..."
                     controller: _summaryCtrl,
                     maxLines: null,
                     expands: true,
-                    style: theme.textTheme.bodyLarge,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontSize: 20,
+                      height: 1.8,
+                    ),
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                     ),
@@ -293,15 +385,33 @@ clay-pot rice stand..."
                     child: LinearProgressIndicator(),
                   ),
                 const SizedBox(height: 12),
+                // UX-polish: weight the "Save my edits" affirmative
+                // action as the prominent CTA; "Use original" stays
+                // available but as a quieter alternative.
                 FilledButton(
-                  onPressed: _busy || _saved ? null : _acceptSummary,
+                  onPressed: _busy || _saved
+                      ? null
+                      : () => _saveSummary(useOriginal: false),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Text(
                       _saved
                           ? (isEn ? 'Saved' : '已儲存')
-                          : (isEn ? 'Save this memory' : '儲存呢段回憶'),
+                          : (isEn ? 'Save my edits' : '儲存我嘅修改'),
                       style: const TextStyle(fontSize: 20),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _busy || _saved
+                      ? null
+                      : () => _saveSummary(useOriginal: true),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      isEn ? 'Use original (no edits)' : '用返原版（唔改）',
+                      style: const TextStyle(fontSize: 16),
                     ),
                   ),
                 ),
@@ -378,16 +488,19 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // UX-polish: bot bubble was previously surfaceContainerHighest,
+    // which read as background. Use secondaryContainer so the
+    // listener's turn stands apart from the page surround.
     final color = turn.fromUser
         ? theme.colorScheme.primaryContainer
         : turn.isSystem
             ? theme.colorScheme.errorContainer
-            : theme.colorScheme.surfaceContainerHighest;
+            : theme.colorScheme.secondaryContainer;
     final fg = turn.fromUser
         ? theme.colorScheme.onPrimaryContainer
         : turn.isSystem
             ? theme.colorScheme.onErrorContainer
-            : theme.colorScheme.onSurface;
+            : theme.colorScheme.onSecondaryContainer;
     return Align(
       alignment:
           turn.fromUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -407,21 +520,29 @@ class _Bubble extends StatelessWidget {
   }
 }
 
+class _PriorWeekSummary {
+  final int weekIndex;
+  final String snippet;
+  const _PriorWeekSummary({required this.weekIndex, required this.snippet});
+}
+
 class _PriorWeeksHint extends StatelessWidget {
-  final List<MemoryEntry> entries;
+  final List<_PriorWeekSummary> entries;
   final bool isEn;
   const _PriorWeeksHint({required this.entries, required this.isEn});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final preview = entries.last.summary;
+    final preview = entries.last.snippet;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.4),
+          // UX-polish: bumped alpha 0.4→0.7 so the "I remember you
+          // mentioned…" continuity cue isn't lost on older readers.
+          color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: theme.colorScheme.outlineVariant,

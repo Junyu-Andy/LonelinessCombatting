@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
+import '../../../../core/llm/transcript_consent_prompter.dart';
+import '../../../../core/memory/cross_module_memory.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../analytics/data/analytics_service.dart';
@@ -43,6 +45,12 @@ Rules:
   bool _saved = false;
   AnalyticsService? _analytics;
 
+  /// Set on the *first* user turn if the cross-module callback budget
+  /// resolved a candidate. We surface this in the system prompt and
+  /// record it on save so we can audit how often M2 actually wove M3
+  /// content into a reply.
+  CrossModuleCallback? _crossModuleCallbackUsedThisSession;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -58,19 +66,63 @@ Rules:
   Future<void> _send() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
+    final isFirstTurn = _turns.isEmpty;
+    if (isFirstTurn) {
+      await TranscriptConsentPrompter.maybePrompt(
+        context: context,
+        moduleKey: 'm2_check_in',
+      );
+      if (!mounted) return;
+    }
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));
       _inputCtrl.clear();
     });
     final core = CoreServicesScope.of(context);
+    final profile = AppSettingsScope.read(context).profile;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+
+    // Cross-module callback (Layer 3): on the user's *first* turn,
+    // ask the budget service whether M2 may lightly reference recent
+    // M3 reminiscence content. Subsequent turns reuse whatever the
+    // first turn resolved so the LLM keeps consistent context.
+    if (isFirstTurn && profile != null) {
+      final inputFlag = core.distress.analyze(text);
+      _crossModuleCallbackUsedThisSession =
+          await core.crossModuleMemory.getEligibleCallback(
+        uid: profile.uid,
+        forModuleFamily: 'm2',
+        candidateSourceModuleIds: const [
+          'm3_reminiscence_w4',
+          'm3_reminiscence_w3',
+          'm3_reminiscence_w2',
+          'm3_reminiscence_w1',
+        ],
+        currentTurnDistress: inputFlag.level,
+      );
+      if (_crossModuleCallbackUsedThisSession != null) {
+        // Conservative: mark used even if the LLM ignores the hint.
+        await core.crossModuleMemory.markUsed(
+          uid: profile.uid,
+          forModuleFamily: 'm2',
+          callback: _crossModuleCallbackUsedThisSession!,
+        );
+      }
+    }
+
+    final systemPrompt = _systemPrompt +
+        (_crossModuleCallbackUsedThisSession
+                ?.toSystemPromptInjection(isEn: isEn) ??
+            '');
+
     final history = _turns
         .take(_turns.length - 1)
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
     final response = await core.llm.send(
       moduleId: 'm2_check_in',
-      systemPrompt: _systemPrompt,
+      systemPrompt: systemPrompt,
       history: history,
       userInput: text,
     );
@@ -80,7 +132,7 @@ Rules:
         _busy = false;
         _turns.add(_Turn.system(_acuteSafetyMessage()));
       });
-      _showSafetySheet();
+      await core.distressRouter.route(response.inputFlag, context: context);
       return;
     }
     setState(() {
@@ -93,10 +145,16 @@ Rules:
         _turns.add(_Turn.bot(_scriptedAck()));
       }
     });
-    if (response.inputFlag.level == DistressLevel.moderate ||
-        response.outputFlag.level == DistressLevel.moderate) {
-      _showSafetySheet();
+    // Route the higher of the two flags so moderate-on-output still
+    // triggers the soft sheet even if input was clean.
+    final escalation = _higher(response.inputFlag, response.outputFlag);
+    if (escalation.level != DistressLevel.none) {
+      await core.distressRouter.route(escalation, context: context);
     }
+  }
+
+  DistressMatch _higher(DistressMatch a, DistressMatch b) {
+    return a.level.index >= b.level.index ? a : b;
   }
 
   String _acuteSafetyMessage() {
@@ -115,40 +173,6 @@ Rules:
         : '多謝你話畀我知。我喺度。';
   }
 
-  void _showSafetySheet() {
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isEn ? 'You\'re not alone' : '你唔係一個人',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              isEn
-                  ? 'Samaritans Hong Kong · 2896 0000 (24h)\n'
-                      'Suicide Prevention Services · 2382 0000'
-                  : '撒瑪利亞會 · 2896 0000（24小時）\n'
-                      '生命熱線 · 2382 0000',
-              style: const TextStyle(fontSize: 18, height: 1.5),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(isEn ? 'Close' : '知道'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _saveSession() async {
     final core = CoreServicesScope.of(context);
     final profile = AppSettingsScope.read(context).profile;
@@ -157,13 +181,17 @@ Rules:
           .where((t) => t.fromUser)
           .map((t) => t.text)
           .join('\n');
+      final callback = _crossModuleCallbackUsedThisSession;
       await core.memory.writeSummary(
         uid: profile.uid,
         moduleId: 'm2_check_in',
         summary: summary,
         armCode: 'A',
         hasTranscriptConsent: profile.consent.transcriptRetention,
-        tags: [if (_facePicked) 'mood:${_face.name}'],
+        tags: [
+          if (_facePicked) 'mood:${_face.name}',
+          if (callback != null) 'cross_callback:${callback.sourceFamily}',
+        ],
       );
     }
     _analytics?.logCheckIn(

@@ -1,45 +1,86 @@
 import 'package:flutter/material.dart';
 
-import '../features/all_features/presentation/pages/all_features_page.dart';
 import '../features/analytics/data/analytics_service.dart';
+import '../features/analytics/data/navigation_telemetry.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
-import '../features/chat/presentation/pages/chat_landing_page.dart';
-import '../features/daily/presentation/pages/daily_page.dart';
-import '../features/home/presentation/pages/home_page.dart';
+import '../features/me/presentation/pages/me_page.dart';
+import '../features/my_story/presentation/pages/my_story_page.dart';
 import '../features/settings/presentation/pages/settings_page.dart';
+import '../features/today/presentation/pages/today_page.dart';
 import '../l10n/app_localizations.dart';
+import '../shared/widgets/app_app_bar.dart';
 
-/// Bottom-nav shell. Order: Home / Activities / Chat / About-You.
-/// Settings sits in the AppBar gear so it's reachable from every tab
-/// without burning a destination slot.
+enum AppTab { today, myStory, me, settings }
+
+/// Top-level shell. Four bottom-nav tabs (Today / My Story / Me /
+/// Settings) hosted inside an [IndexedStack] so per-tab scroll position
+/// survives switches.
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  /// The trigger that brought the user to the shell on this app
+  /// session — propagated by main.dart so [NavigationTelemetry] can
+  /// open a measurement window for the assessment protocol (P5.1).
+  /// Defaults to 'cold_start' which records no nav_to_tab events.
+  final String launchTrigger;
+  final Map<String, dynamic>? notificationPayload;
+
+  const MainShell({
+    super.key,
+    this.launchTrigger = 'cold_start',
+    this.notificationPayload,
+  });
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  int _currentIndex = 0;
+  AppTab _current = AppTab.today;
   DateTime _tabEnteredAt = DateTime.now();
   AnalyticsService? _analytics;
+  NavigationTelemetry? _navTelemetry;
 
-  static const _tabKeys = ['dashboard', 'daily', 'chat', 'all_features'];
+  static const _analyticsKeys = {
+    AppTab.today: 'today',
+    AppTab.myStory: 'my_story',
+    AppTab.me: 'me',
+    AppTab.settings: 'settings',
+  };
+
+  static const _navIntents = {
+    AppTab.today: NavIntent.today,
+    AppTab.myStory: NavIntent.myStory,
+    AppTab.me: NavIntent.me,
+    AppTab.settings: NavIntent.settings,
+  };
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _analytics = AnalyticsScope.of(context);
+    final analytics = AnalyticsScope.of(context);
+    if (_analytics == analytics) return;
+    _analytics = analytics;
+    final telemetry = NavigationTelemetry(analytics: analytics);
+    _navTelemetry = telemetry;
+    telemetry.startNavigationSession(
+      intent: NavigationTelemetry.inferIntent(
+        trigger: widget.launchTrigger,
+        notificationPayload: widget.notificationPayload,
+      ),
+      source: widget.launchTrigger,
+    );
   }
 
   void _switchTab(int index) {
+    final next = AppTab.values[index];
+    if (next == _current) return;
     final now = DateTime.now();
     _analytics?.logTabView(
-      tab: _tabKeys[_currentIndex],
+      tab: _analyticsKeys[_current]!,
       durationSeconds: now.difference(_tabEnteredAt).inSeconds,
     );
+    _navTelemetry?.onTabChanged(_navIntents[next]!);
     setState(() {
-      _currentIndex = index;
+      _current = next;
       _tabEnteredAt = now;
     });
   }
@@ -47,106 +88,61 @@ class _MainShellState extends State<MainShell> {
   @override
   void dispose() {
     _analytics?.logTabView(
-      tab: _tabKeys[_currentIndex],
+      tab: _analyticsKeys[_current]!,
       durationSeconds: DateTime.now().difference(_tabEnteredAt).inSeconds,
     );
+    _navTelemetry?.onSessionEnd();
     super.dispose();
-  }
-
-  void _openSettings() {
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => const SettingsPage(),
-    ));
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-
-    final pages = const [
-      HomePage(),
-      DailyPage(),
-      ChatLandingPage(),
-      AllFeaturesPage(),
-    ];
-
-    final titles = [
-      'Dashboard',
-      isEn ? 'Daily For You' : '每日 / Daily',
-      l10n.chatTab,
-      isEn ? 'All' : '全部 / All',
-    ];
+    final titles = {
+      AppTab.today: l10n.tabToday,
+      AppTab.myStory: l10n.tabMyStory,
+      AppTab.me: l10n.tabMe,
+      AppTab.settings: l10n.settingsTab,
+    };
 
     return Scaffold(
-      appBar: AppBar(
-        title: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
-          transitionBuilder: (child, animation) => FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.15),
-                end: Offset.zero,
-              ).animate(animation),
-              child: child,
-            ),
-          ),
-          child: Text(
-            titles[_currentIndex],
-            key: ValueKey(_currentIndex),
-          ),
-        ),
-        toolbarHeight: 76,
-        actions: [
-          IconButton(
-            tooltip: l10n.settingsTab,
-            icon: const Icon(Icons.settings_outlined, size: 28),
-            onPressed: _openSettings,
-          ),
-          const SizedBox(width: 4),
+      appBar: AppAppBar(title: titles[_current]!),
+      body: IndexedStack(
+        index: _current.index,
+        children: const [
+          TodayPage(),
+          MyStoryPage(),
+          MePage(),
+          SettingsPage(),
         ],
       ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 240),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
-        child: KeyedSubtree(
-          key: ValueKey(_currentIndex),
-          child: pages[_currentIndex],
-        ),
-      ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
+        selectedIndex: _current.index,
         onDestinationSelected: _switchTab,
         destinations: [
           NavigationDestination(
-            icon: const Icon(Icons.dashboard_outlined),
-            selectedIcon: const Icon(Icons.dashboard),
-            label: 'Dashboard',
-            tooltip: 'Dashboard',
+            icon: const Icon(Icons.today_outlined),
+            selectedIcon: const Icon(Icons.today),
+            label: l10n.tabToday,
+            tooltip: l10n.tabToday,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.wb_sunny_outlined),
-            selectedIcon: const Icon(Icons.wb_sunny),
-            label: isEn ? 'Daily' : '每日',
-            tooltip: isEn ? 'Daily For You' : '每日推薦',
+            icon: const Icon(Icons.menu_book_outlined),
+            selectedIcon: const Icon(Icons.menu_book),
+            label: l10n.tabMyStory,
+            tooltip: l10n.tabMyStory,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.forum_outlined),
-            selectedIcon: const Icon(Icons.forum),
-            label: l10n.chatTab,
-            tooltip: l10n.chatTab,
+            icon: const Icon(Icons.person_outline),
+            selectedIcon: const Icon(Icons.person),
+            label: l10n.tabMe,
+            tooltip: l10n.tabMe,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.apps_rounded),
-            selectedIcon: const Icon(Icons.apps_rounded),
-            label: isEn ? 'All' : '全部',
-            tooltip: isEn ? 'All Features' : '全部功能',
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: const Icon(Icons.settings),
+            label: l10n.settingsTab,
+            tooltip: l10n.settingsTab,
           ),
         ],
       ),

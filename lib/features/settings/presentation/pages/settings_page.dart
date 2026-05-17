@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import 'faq_page.dart';
 import 'privacy_policy_page.dart';
-
-enum _FontScale { standard, large, xlarge }
 
 enum _AppLanguage { cantonese, english }
 
@@ -19,7 +19,6 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  _FontScale _fontScale = _FontScale.standard;
   bool _quietHours = true;
   bool _voiceReadback = false;
 
@@ -29,15 +28,11 @@ class _SettingsPageState extends State<SettingsPage> {
     final theme = Theme.of(context);
     final settings = AppSettingsScope.of(context);
     final highContrast = settings.highContrast;
+    final fontScale = settings.fontScale;
     final isEn = settings.locale.languageCode == 'en';
     final language = isEn ? _AppLanguage.english : _AppLanguage.cantonese;
 
     return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
-        title: Text(l10n.settingsTab),
-        toolbarHeight: 64,
-      ),
       body: SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
@@ -57,8 +52,8 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 14),
           _FontScaleCard(
-            value: _fontScale,
-            onChanged: (value) => setState(() => _fontScale = value),
+            value: fontScale,
+            onChanged: (value) => settings.fontScale = value,
             isEn: isEn,
           ),
           const SizedBox(height: 14),
@@ -109,6 +104,32 @@ class _SettingsPageState extends State<SettingsPage> {
                 : '打開後，主要文字會有語音朗讀。',
             value: _voiceReadback,
             onChanged: (value) => setState(() => _voiceReadback = value),
+          ),
+          const SizedBox(height: 28),
+          _SectionHeader(
+            icon: Icons.history_edu_outlined,
+            title: isEn ? 'Privacy' : '私隱',
+          ),
+          const SizedBox(height: 14),
+          _TranscriptRetentionTile(
+            isEn: isEn,
+            value: settings.profile?.consent.transcriptRetention ?? true,
+            onChanged: settings.profile == null
+                ? null
+                : (next) async {
+                    final profile = settings.profile!;
+                    final updated = profile.copyWith(
+                      consent: profile.consent.copyWith(
+                        transcriptRetention: next,
+                      ),
+                    );
+                    settings.profile = updated;
+                    try {
+                      await AuthServiceScope.of(context).updateProfile(updated);
+                    } catch (_) {
+                      // Guest mode / offline — local state already updated.
+                    }
+                  },
           ),
           const SizedBox(height: 28),
           _SectionHeader(
@@ -186,8 +207,8 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _FontScaleCard extends StatelessWidget {
-  final _FontScale value;
-  final ValueChanged<_FontScale> onChanged;
+  final AppFontScale value;
+  final ValueChanged<AppFontScale> onChanged;
   final bool isEn;
 
   const _FontScaleCard({required this.value, required this.onChanged, required this.isEn});
@@ -198,14 +219,14 @@ class _FontScaleCard extends StatelessWidget {
 
     final options = isEn
         ? const [
-            (_FontScale.standard, 'Std', 18.0),
-            (_FontScale.large, 'Large', 22.0),
-            (_FontScale.xlarge, 'X-Large', 26.0),
+            (AppFontScale.standard, 'Std', 18.0),
+            (AppFontScale.large, 'Large', 22.0),
+            (AppFontScale.xLarge, 'X-Large', 26.0),
           ]
         : const [
-            (_FontScale.standard, '標準', 18.0),
-            (_FontScale.large, '大', 22.0),
-            (_FontScale.xlarge, '特大', 26.0),
+            (AppFontScale.standard, '標準', 18.0),
+            (AppFontScale.large, '大', 22.0),
+            (AppFontScale.xLarge, '特大', 26.0),
           ];
 
     return Card(
@@ -577,8 +598,8 @@ class _AboutCard extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 44,
+                    height: 44,
                     alignment: Alignment.center,
                     decoration: const BoxDecoration(
                       color: Color(0xFF8A1538),
@@ -589,7 +610,7 @@ class _AboutCard extends StatelessWidget {
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
-                        fontSize: 11,
+                        fontSize: 14,
                       ),
                     ),
                   ),
@@ -709,6 +730,60 @@ class _ProfileCard extends StatelessWidget {
   }
 }
 
+class _TranscriptRetentionTile extends StatelessWidget {
+  final bool isEn;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  const _TranscriptRetentionTile({
+    required this.isEn,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.memory, size: 28, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    isEn
+                        ? 'Remember our conversations'
+                        : '保留對話紀錄',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
+                Switch(
+                  value: value,
+                  onChanged: onChanged,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isEn
+                  ? 'When this is off, I won\'t remember what you shared in earlier sessions — each visit starts from zero.'
+                  : '熄咗之後，我下次就唔記得返你之前傾過嘅內容，每次都係由零開始。',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SignOutButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -716,6 +791,18 @@ class _SignOutButton extends StatelessWidget {
     final settings = AppSettingsScope.read(context);
     return TextButton.icon(
       onPressed: () async {
+        final isEn = Localizations.localeOf(context).languageCode == 'en';
+        final confirmed = await showAppConfirm(
+          context: context,
+          title: isEn ? 'Sign out?' : '登出？',
+          message: isEn
+              ? 'You will need to sign in again next time, and any '
+                  'unsynced session will stay in your account.'
+              : '下次要再登入。仲未同步嘅內容會留喺你個帳號入面。',
+          confirmLabel: isEn ? 'Sign out' : '登出',
+          destructive: true,
+        );
+        if (!confirmed) return;
         await auth.signOut();
         settings.profile = null;
       },
