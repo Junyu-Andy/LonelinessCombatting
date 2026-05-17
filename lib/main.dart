@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 
 import 'app/app.dart';
 import 'app/app_settings.dart';
+import 'core/agent_context/agent_context_service.dart';
+import 'core/agent_context/shared_context_service.dart';
+import 'core/agents/persona_resolver.dart';
 import 'core/llm/llm_gateway.dart';
 import 'core/memory/cross_module_memory.dart';
 import 'core/memory/memory_store.dart';
@@ -40,6 +43,12 @@ Future<void> main() async {
     memory: memory,
     firestoreAvailable: firebaseReady,
   );
+  final agentContext = AgentContextService(available: firebaseReady);
+  final sharedContext = SharedContextService(available: firebaseReady);
+  final personaResolver = PersonaResolver(
+    agentContext: agentContext,
+    sharedContext: sharedContext,
+  );
   runApp(
     MyApp(
       settings: AppSettings(
@@ -53,6 +62,9 @@ Future<void> main() async {
       distressState: distressState,
       distressRouter: distressRouter,
       crossModuleMemory: crossModuleMemory,
+      agentContext: agentContext,
+      sharedContext: sharedContext,
+      personaResolver: personaResolver,
     ),
   );
 }

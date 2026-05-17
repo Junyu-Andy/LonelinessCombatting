@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/agent_context/agent_context_service.dart';
+import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
@@ -22,19 +25,13 @@ class CheckInArmA extends StatefulWidget {
 }
 
 class _CheckInArmAState extends State<CheckInArmA> {
-  static const _systemPrompt = '''
-You are 阿暖, a warm, attentive companion in a research-grade mHealth app for
-older adults in Hong Kong. The user has just told you how they are today.
-
-Rules:
-- Reply in plain Cantonese-friendly Traditional Chinese unless the user wrote
-  in English (then reply in English).
-- 1–2 sentences max. Reflect what they said, naming a specific detail.
-- Then ask ONE gentle follow-up question — only if their note was brief or
-  surfaced something worth exploring. Otherwise just acknowledge.
-- Never advise. Never diagnose. Never reframe their feeling. Do not say
-  "you must have felt..." or "try to think positively".
-- Never claim to be a doctor or a person. You are a digital companion.
+  /// Client-side fallback used only when the Cloud Function bundle does
+  /// not ship the Siu Yan prompt yet (e.g. functions deployed from an
+  /// older revision). Production responses come from the server-side
+  /// `siu_yan_v1.txt` resolved by promptKey.
+  static const _fallbackPersonaPrompt = '''
+你叫小欣，係一個 AI 機械人，唔係真人。每次回覆 1-2 句、reference 用戶啱啱講嘅
+具體細節、不分析、不診斷、不重 frame、不建立依賴。
 ''';
 
   final _inputCtrl = TextEditingController();
@@ -111,10 +108,21 @@ Rules:
       }
     }
 
-    final systemPrompt = _systemPrompt +
-        (_crossModuleCallbackUsedThisSession
-                ?.toSystemPromptInjection(isEn: isEn) ??
-            '');
+    // Resolve Siu Yan persona + agent_context suffix. Falls back to a
+    // tiny client-side persona prompt if the resolver returns null
+    // (e.g. Firebase unavailable during guest mode demo).
+    final persona = await core.personaResolver.resolve(
+      agentId: AgentRegistry.siuYanId,
+      profile: profile,
+      includeSharedMood: true,
+    );
+    final crossModuleInjection = _crossModuleCallbackUsedThisSession
+            ?.toSystemPromptInjection(isEn: isEn) ??
+        '';
+    final contextSuffix = [
+      if (persona?.contextSuffix != null) persona!.contextSuffix!,
+      if (crossModuleInjection.trim().isNotEmpty) crossModuleInjection.trim(),
+    ].join('\n\n').trim();
 
     final history = _turns
         .take(_turns.length - 1)
@@ -122,10 +130,29 @@ Rules:
         .toList();
     final response = await core.llm.send(
       moduleId: 'm2_check_in',
-      systemPrompt: systemPrompt,
+      promptKey: persona?.promptKey,
+      agentId: persona?.agent.id ?? AgentRegistry.siuYanId,
+      systemPrompt: persona == null ? _fallbackPersonaPrompt : null,
+      contextSuffix: contextSuffix.isEmpty ? null : contextSuffix,
       history: history,
       userInput: text,
     );
+
+    // Append the user's turn to Siu Yan's short-term buffer so
+    // subsequent sessions and cross-agent reads (PersonaResolver) can
+    // see it. Honours the per-agent transcript retention flag.
+    if (profile != null &&
+        profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId)) {
+      await core.agentContext.appendTurn(
+        uid: profile.uid,
+        agentId: AgentRegistry.siuYanId,
+        turn: AgentContextTurn(
+          fromUser: true,
+          text: text,
+          timestamp: DateTime.now(),
+        ),
+      );
+    }
     if (!mounted) return;
     if (response.shortCircuited) {
       setState(() {
@@ -145,6 +172,22 @@ Rules:
         _turns.add(_Turn.bot(_scriptedAck()));
       }
     });
+
+    // Persist the assistant turn so the buffer round-trips properly.
+    if (profile != null &&
+        response.text.isNotEmpty &&
+        profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId)) {
+      await core.agentContext.appendTurn(
+        uid: profile.uid,
+        agentId: AgentRegistry.siuYanId,
+        turn: AgentContextTurn(
+          fromUser: false,
+          text: response.text,
+          timestamp: DateTime.now(),
+        ),
+      );
+    }
+
     // Route the higher of the two flags so moderate-on-output still
     // triggers the soft sheet even if input was clean.
     final escalation = _higher(response.inputFlag, response.outputFlag);
@@ -208,7 +251,9 @@ Rules:
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return FirstIntroOverlay(
+      agentId: AgentRegistry.siuYanId,
+      child: Scaffold(
       appBar: AppBar(title: Text(isEn ? 'Today\'s Check-in' : '今日 Check-in')),
       body: SafeArea(
         child: Column(
@@ -279,6 +324,7 @@ Rules:
           ],
         ),
       ),
+    ),
     );
   }
 }

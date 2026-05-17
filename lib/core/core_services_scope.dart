@@ -1,5 +1,8 @@
 import 'package:flutter/widgets.dart';
 
+import 'agent_context/agent_context_service.dart';
+import 'agent_context/shared_context_service.dart';
+import 'agents/persona_resolver.dart';
 import 'llm/llm_gateway.dart';
 import 'memory/cross_module_memory.dart';
 import 'memory/memory_store.dart';
@@ -8,9 +11,10 @@ import 'safety/distress_router.dart';
 import 'safety/distress_state.dart';
 
 /// Bundles the cross-cutting services every Arm A module needs (LLM,
-/// memory, distress detection, cross-module memory) plus the app-wide
-/// [DistressState] notifier so the safety overlay can repaint when any
-/// module reports a flag.
+/// memory, distress detection, cross-module memory, per-agent context
+/// store, and the persona resolver) plus the app-wide [DistressState]
+/// notifier so the safety overlay can repaint when any module reports
+/// a flag.
 class CoreServicesScope extends InheritedWidget {
   final LlmGateway llm;
   final MemoryStore memory;
@@ -18,6 +22,9 @@ class CoreServicesScope extends InheritedWidget {
   final DistressState distressState;
   final DistressRouter distressRouter;
   final CrossModuleMemoryService crossModuleMemory;
+  final AgentContextService agentContext;
+  final SharedContextService sharedContext;
+  final PersonaResolver personaResolver;
 
   const CoreServicesScope({
     super.key,
@@ -27,6 +34,9 @@ class CoreServicesScope extends InheritedWidget {
     required this.distressState,
     required this.distressRouter,
     required this.crossModuleMemory,
+    required this.agentContext,
+    required this.sharedContext,
+    required this.personaResolver,
     required super.child,
   });
 
@@ -43,5 +53,8 @@ class CoreServicesScope extends InheritedWidget {
       distress != oldWidget.distress ||
       distressState != oldWidget.distressState ||
       distressRouter != oldWidget.distressRouter ||
-      crossModuleMemory != oldWidget.crossModuleMemory;
+      crossModuleMemory != oldWidget.crossModuleMemory ||
+      agentContext != oldWidget.agentContext ||
+      sharedContext != oldWidget.sharedContext ||
+      personaResolver != oldWidget.personaResolver;
 }

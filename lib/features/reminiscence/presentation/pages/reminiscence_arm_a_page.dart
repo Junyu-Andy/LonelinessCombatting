@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/agent_context/agent_context_service.dart';
+import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
@@ -306,14 +309,58 @@ clay-pot rice stand..."
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
     final themeTitle = isEn ? widget.theme.titleEn : widget.theme.titleZh;
-    final basePrompt =
-        isEn ? _systemPromptEn(themeTitle) : _systemPromptZh(themeTitle);
+    final persona = await core.personaResolver.resolve(
+      agentId: AgentRegistry.ahJanAhBakId,
+      profile: profile,
+    );
+    final themeLock = isEn
+        ? 'This week\'s theme: "$themeTitle". Stay on this theme. If '
+            'the user drifts to news / health / other people\'s '
+            'business, acknowledge briefly in one sentence and steer '
+            'back to this theme.'
+        : '今週主題：「$themeTitle」。今次傾偈全程只可以圍繞呢個主題。'
+            '如果用戶話題轉去新聞、健康、其他人嘅事，先溫柔承認一句，'
+            '然後輕輕引返今週主題。';
+    final priorWeeksSnippet = _priorContextPrompt(isEn);
+    final contextSuffix = [
+      themeLock,
+      if (persona?.contextSuffix != null) persona!.contextSuffix!,
+      if (priorWeeksSnippet.trim().isNotEmpty) priorWeeksSnippet.trim(),
+    ].join('\n\n').trim();
+
     final response = await core.llm.send(
       moduleId: 'm3_reminiscence_w${widget.theme.weekIndex}',
-      systemPrompt: basePrompt + _priorContextPrompt(isEn),
+      promptKey: persona?.promptKey,
+      agentId: AgentRegistry.ahJanAhBakId,
+      variantName: persona?.variantName,
+      systemPrompt: persona == null
+          ? (isEn
+              ? _systemPromptEn(themeTitle)
+              : _systemPromptZh(themeTitle))
+          : null,
+      contextSuffix: contextSuffix.isEmpty ? null : contextSuffix,
       history: history,
       userInput: text,
     );
+
+    // Mirror the user turn into Ah Jan / Ah Bak's agent-context buffer
+    // when retention is on. M3SessionStore continues to own the
+    // verbatim transcript for life-review review; the buffer here is
+    // the short, agent-scoped working memory used by future PersonaResolver
+    // reads (M2 callbacks, opener generation).
+    if (profile != null &&
+        profile.consent
+            .transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
+      await core.agentContext.appendTurn(
+        uid: profile.uid,
+        agentId: AgentRegistry.ahJanAhBakId,
+        turn: AgentContextTurn(
+          fromUser: true,
+          text: text,
+          timestamp: DateTime.now(),
+        ),
+      );
+    }
 
     // Persist the user turn + record any distress flag against its index,
     // regardless of how the LLM responded.
@@ -383,6 +430,18 @@ clay-pot rice stand..."
         ],
         hasTranscriptConsent: profile.consent.transcriptRetention,
       );
+      if (profile.consent
+          .transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
+        await core.agentContext.appendTurn(
+          uid: profile.uid,
+          agentId: AgentRegistry.ahJanAhBakId,
+          turn: AgentContextTurn(
+            fromUser: false,
+            text: replyText,
+            timestamp: DateTime.now(),
+          ),
+        );
+      }
     }
   }
 
@@ -522,7 +581,9 @@ clay-pot rice stand..."
       );
     }
 
-    return Scaffold(
+    return FirstIntroOverlay(
+      agentId: AgentRegistry.ahJanAhBakId,
+      child: Scaffold(
       appBar: AppBar(
         title: Text(title),
         actions: [
@@ -570,6 +631,7 @@ clay-pot rice stand..."
           ],
         ),
       ),
+    ),
     );
   }
 }
