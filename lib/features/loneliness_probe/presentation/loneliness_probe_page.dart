@@ -67,10 +67,11 @@ class _LonelinessProbePageState extends State<LonelinessProbePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Phase B Proposal §7.2 — exact wording locked.
               Text(
                 isEn
-                    ? 'Over the past week, how lonely have you felt?'
-                    : '過去一個禮拜，你感覺幾孤單？',
+                    ? "Over the past week, how often did you feel lonely?"
+                    : '過去一個星期，你幾經常覺得孤獨？',
                 style: theme.textTheme.titleLarge,
               ),
               const SizedBox(height: 28),

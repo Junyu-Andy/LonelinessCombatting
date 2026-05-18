@@ -17,22 +17,23 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   // ----------------------- B.1 LlmTurnFeatures ---------------------------
   group('LlmTurnFeatures.fromCloudFunctionPayload', () {
-    test('separates _version from flag map', () {
+    test('separates _version from flag map (spec May 2026, v2)', () {
       final f = LlmTurnFeatures.fromCloudFunctionPayload(
         agentId: 'siu_yan',
         moduleId: 'm3',
         raw: const {
-          'personalization_specific': true,
-          'memory_callback': false,
-          'empathic_reflection': true,
-          'open_question': false,
-          'adaptive_register': true,
-          '_version': 1,
+          'specific_content_engagement': true,
+          'cross_session_memory': false,
+          'honest_unfamiliarity': true,
+          'mixed_content_routing': false,
+          'generative_summary': true,
+          '_version': 2,
         },
       );
-      expect(f.detectorVersion, 1);
-      expect(f.flags['personalization_specific'], true);
-      expect(f.flags['empathic_reflection'], true);
+      expect(f.detectorVersion, 2);
+      expect(f.flags['specific_content_engagement'], true);
+      expect(f.flags['honest_unfamiliarity'], true);
+      expect(f.flags['generative_summary'], true);
       expect(f.flags.containsKey('_version'), false);
     });
 
@@ -41,15 +42,15 @@ void main() {
         agentId: 'siu_yan',
         moduleId: 'm3',
         systemPromptHash: 'abc',
-        flags: const {'personalization_specific': true},
-        detectorVersion: 1,
+        flags: const {'specific_content_engagement': true},
+        detectorVersion: 2,
         createdAt: DateTime.utc(2026, 5, 14),
       );
       final m = f.toMap();
       expect(m['agentId'], 'siu_yan');
       expect(m['systemPromptHash'], 'abc');
-      expect(m['detectorVersion'], 1);
-      expect((m['flags'] as Map)['personalization_specific'], true);
+      expect(m['detectorVersion'], 2);
+      expect((m['flags'] as Map)['specific_content_engagement'], true);
     });
   });
 
@@ -62,7 +63,7 @@ void main() {
         features: LlmTurnFeatures(
           agentId: 'siu_yan',
           moduleId: 'm3',
-          flags: const {'empathic_reflection': true},
+          flags: const {'honest_unfamiliarity': true},
           detectorVersion: 1,
           createdAt: DateTime.now(),
         ),

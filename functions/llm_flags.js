@@ -1,158 +1,71 @@
 /**
- * B.1 — LLM mechanism-of-change flag detector (Sprint 2.1).
+ * B.1 — LLM unique-contribution flag detector (Sprint 2.1, corrected May 2026).
  *
- * Computes 5 binary flags from the (userInput, assistantOutput, agentContext)
- * tuple to instrument what the LLM uniquely contributed over the rule-based
- * Arm B baseline.  Pure regex pipeline — no spaCy, no extra model calls.
- * Determinism is essential: same input → same flags, regardless of cold-start.
+ * Computes the FIVE LLM-unique-contribution flags exactly as specified in
+ * Phase A Proposal §1.4 and Product Overview §6 — these are the five
+ * affordances that are "absent by construction in the rule-based arm" and
+ * that Phase A calibrates for Phase B's cumulative-exposure index.
  *
- * The 5 flags (per H5 mechanism analysis, Dev Req §B.1 default reading):
- *   1. personalization_specific
- *        Response references a named entity that appeared in the user's input
- *        OR in the prior shortTermBuffer / namedEntities map.  Distinguishes
- *        "I hear you, that sounds hard" (Arm B style) from "I hear that
- *        seeing 阿明 last Sunday meant a lot" (Arm A LLM contribution).
+ * The 5 flags (per spec):
  *
- *   2. memory_callback
- *        Response references content from the rolling summary or from turns
- *        more than 1 turn back in the buffer.  Heuristic: response contains
- *        a noun-phrase (≥2 chars, Chinese/English) that appears in the
- *        rolling summary OR in buffer turns at index ≤ N-2 but NOT in the
- *        most recent user turn.
+ *   1. specific_content_engagement
+ *        Anchoring the response on a named entity, specific word, or
+ *        expressed feeling from the user's prior turn.  Rule-based
+ *        templates cannot do this — they don't read the user's text.
  *
- *   3. empathic_reflection
- *        Response uses an empathic acknowledgement structure.  Regex matches
- *        common HK Cantonese + English empathic openers: 「我聽到」, 「明白」,
- *        「我感受到」, 「呢樣野好難」, "I hear", "that sounds", "it makes
- *        sense that", etc.
+ *   2. cross_session_memory
+ *        Explicit reference, in a later session, to a named entity or
+ *        topic introduced in an earlier session.  Requires the
+ *        per-agent context store (rolling summary / named-entities map);
+ *        Arm B has no equivalent.
  *
- *   4. open_question
- *        Response ends with an open-ended question (not yes/no).  Heuristic:
- *        last sentence ends with "?" / "？" AND contains an interrogative
- *        marker that yields open answers (點解, 點樣, 邊度, 乜嘢, what, how,
- *        why, when, where) rather than yes/no (係咪, 有冇, is, do, are).
+ *   3. honest_unfamiliarity
+ *        When the user references a place, person, or cultural detail
+ *        the agent does not "know", the agent admits the gap rather
+ *        than fabricating.  Detectable via explicit unfamiliarity
+ *        phrases: 「我未聽過」, 「我唔識」, 「請你話我知」, "I don't know
+ *        that", "tell me more about", etc.
  *
- *   5. adaptive_register
- *        Response register matches the user's emotional register.  Heuristic:
- *        if user input contains distress-low keywords (孤獨, sad, alone, etc.)
- *        the response must use a softening particle (啦, 啊, 喎) OR an
- *        explicit acknowledgement; if user input is neutral the response
- *        must NOT use crisis-register phrases ("please reach out", "I'm
- *        worried about you").  Avoids over-pathologizing benign turns.
+ *   4. mixed_content_routing
+ *        Detection of conjoined informational + emotional content
+ *        within a single user turn, and routing of each component to
+ *        the appropriate agent (cross-referral suggestion).  Implemented
+ *        as: the response contains a cross-referral phrase AND the user
+ *        input contains both an info-marker and an affect-marker.
  *
- * Output shape:
- * {
- *   personalization_specific: boolean,
- *   memory_callback: boolean,
- *   empathic_reflection: boolean,
- *   open_question: boolean,
- *   adaptive_register: boolean,
- *   _version: 1,                 // bump when heuristics change
- * }
+ *   5. generative_summary
+ *        Per-session second-person summaries (M3 end-of-session) and
+ *        weekly narrative progress summaries (M9 weekly card).  Marker:
+ *        the moduleId is on the summary surface AND the response has
+ *        the structural shape of a summary (mentions multiple distinct
+ *        timeframes / actions / contacts in 1–2 sentences).
  *
- * Tested against a golden fixture of 5 hand-crafted M3 turns
- * (see test fixture in functions/test/llm_flags_golden.json — TODO).
+ * Output shape (all booleans + _version):
+ *   {
+ *     specific_content_engagement: bool,
+ *     cross_session_memory: bool,
+ *     honest_unfamiliarity: bool,
+ *     mixed_content_routing: bool,
+ *     generative_summary: bool,
+ *     _version: 2,           // bumped when heuristics change
+ *   }
+ *
+ * Phase A Gate #4 requires Cohen's κ ≥ 0.6 per flag against the
+ * adjudicated 20% sample; flags failing this are dropped from the
+ * cumulative LLM-unique-exposure index in the Phase B mechanism analysis.
  */
 
 "use strict";
 
 // ---------------------------------------------------------------------------
-// Flag 3 — empathic reflection
+// Flag 1 — specific content engagement
 // ---------------------------------------------------------------------------
-const EMPATHIC_PATTERNS = [
-  // Chinese (Trad/Cantonese)
-  /我聽到/, /我聽倒/, /明白你/, /我明白/, /我感受到/, /我可以感受/,
-  /呢樣[嘢野]好難/, /真係好難/, /唔容易/, /好辛苦/, /好心痛/,
-  /多謝你[同分]/, /多謝你願意/, /好欣賞你/, /我陪住你/,
-  // Simplified
-  /我听到/, /明白你/, /我感受到/, /这样很难/, /真的很难/,
-  // English
-  /\bi hear (you|that)\b/i,
-  /\bthat sounds\b/i,
-  /\bit makes sense (that|you)\b/i,
-  /\bi can imagine\b/i,
-  /\bthank you for sharing\b/i,
-  /\bthat must (be|have been)\b/i,
-];
-
-function flagEmpathicReflection(response) {
-  return EMPATHIC_PATTERNS.some((p) => p.test(response));
-}
-
-// ---------------------------------------------------------------------------
-// Flag 4 — open question
-// ---------------------------------------------------------------------------
-const OPEN_MARKERS = [
-  // Chinese — open
-  /點解/, /點樣/, /邊度/, /邊個/, /乜嘢/, /咩/, /幾時/, /如何/, /怎樣/,
-  /什麼/, /什么/, /为何/, /为什么/,
-  // English — open
-  /\bwhat\b/i, /\bhow\b/i, /\bwhy\b/i, /\bwhen\b/i, /\bwhere\b/i,
-  /\btell me/i, /\bdescribe\b/i,
-];
-const YES_NO_MARKERS = [
-  /係咪/, /有冇/, /可唔可以/, /想唔想/, /得唔得/, /是不是/, /有没有/,
-  /\bis\b/i, /\bare\b/i, /\bdo\b/i, /\bdoes\b/i, /\bdid\b/i, /\bwould\b/i,
-  /\bcan\b/i, /\bcould\b/i, /\bwill\b/i,
-];
-
-function flagOpenQuestion(response) {
-  const trimmed = response.trim();
-  if (!/[?？]\s*$/.test(trimmed)) return false;
-  // Look at the final sentence (after the last 。.!?！？).
-  const parts = trimmed.split(/[。.!?！？]/).filter((s) => s.trim().length > 0);
-  if (parts.length === 0) return false;
-  const last = parts[parts.length - 1];
-  const hasOpen = OPEN_MARKERS.some((p) => p.test(last));
-  if (!hasOpen) return false;
-  // A yes-no marker leading the sentence demotes it.
-  const head = last.trim().slice(0, 15);
-  const startsYesNo = YES_NO_MARKERS.some((p) => p.test(head));
-  return !startsYesNo;
-}
-
-// ---------------------------------------------------------------------------
-// Flag 5 — adaptive register
-// ---------------------------------------------------------------------------
-const LOW_DISTRESS_MARKERS = [
-  /孤獨/, /孤單/, /一個人/, /冇人陪/, /空虛/, /唔開心/, /失落/,
-  /孤独/, /孤单/, /一个人/, /没人陪/, /空虚/, /不开心/,
-  /\b(lonely|alone|sad|empty|isolated|down)\b/i,
-];
-const CRISIS_REGISTER_PHRASES = [
-  /請即刻搵/, /即刻撥/, /請致電/, /建議你即刻/,
-  /請即刻打/, /即刻打\s*999/, /我好擔心你/, /我好擔心你/,
-  /请即刻找/, /马上拨打/, /我很担心你/,
-  /\bplease (reach out|call|seek help)\b/i,
-  /\bi'?m worried about you\b/i,
-  /\bcall (911|999|the (crisis|hotline|helpline))\b/i,
-];
-const SOFTENING_PARTICLES = [
-  /[呀啊啦喎喔嘞嘅]/, // Cantonese final particles
-  /\b(perhaps|maybe|gently|softly)\b/i,
-];
-const ACKNOWLEDGEMENT_MARKERS = EMPATHIC_PATTERNS; // re-use
-
-function flagAdaptiveRegister(userInput, response) {
-  const userIsLow = LOW_DISTRESS_MARKERS.some((p) => p.test(userInput));
-  if (userIsLow) {
-    const hasSoftener =
-      SOFTENING_PARTICLES.some((p) => p.test(response)) ||
-      ACKNOWLEDGEMENT_MARKERS.some((p) => p.test(response));
-    return hasSoftener;
-  }
-  // Neutral user input: response must not slip into crisis register.
-  const hasCrisis = CRISIS_REGISTER_PHRASES.some((p) => p.test(response));
-  return !hasCrisis;
-}
-
-// ---------------------------------------------------------------------------
-// Flag 1 — personalization specific
-// ---------------------------------------------------------------------------
-// A "named entity" candidate in the input: a 2–6 char CJK noun phrase that
-// follows a relationship marker (阿/老/細) OR a quoted segment.  Crude but
-// determinism + recall is what we need; precision is bounded by 2-char min.
-const ENTITY_PATTERN = /([阿老細]\p{Script=Han}{1,3})|「(\p{Script=Han}{2,8})」|"([A-Za-z][A-Za-z0-9 .'-]{1,30})"/gu;
+// A "specific content" anchor in the response is: either a named entity
+// from the user's input/context OR a quoted/echoed segment of the user's
+// last turn.  We detect both by checking whether any 2-char-or-longer CJK
+// noun-like substring of the user input appears verbatim in the response.
+const ENTITY_PATTERN =
+  /([阿老細]\p{Script=Han}{1,3})|「(\p{Script=Han}{2,8})」|"([A-Za-z][A-Za-z0-9 .'-]{1,30})"/gu;
 
 function extractCandidateEntities(text) {
   const out = new Set();
@@ -166,7 +79,21 @@ function extractCandidateEntities(text) {
   return out;
 }
 
-function flagPersonalizationSpecific(userInput, response, agentContext) {
+// HK place-name common suffixes — used to detect 3-char place names like
+// 深水埗, 旺角區, 將軍澳, 油麻地, 鰂魚涌 even when no [阿老細] prefix is
+// present.  Adding these here keeps the heuristic deterministic.
+const HK_PLACE_SUFFIXES =
+  /\p{Script=Han}{2}[埗角區灣道里村圍村場街路涌坑墟]/gu;
+
+function extractPlaceNames(text) {
+  const out = new Set();
+  if (!text) return out;
+  const matches = text.match(HK_PLACE_SUFFIXES) || [];
+  for (const m of matches) out.add(m);
+  return out;
+}
+
+function flagSpecificContentEngagement(userInput, response, agentContext) {
   const fromInput = extractCandidateEntities(userInput);
   const fromContext = new Set();
   if (agentContext && agentContext.namedEntities) {
@@ -174,31 +101,45 @@ function flagPersonalizationSpecific(userInput, response, agentContext) {
       if (name && name.length >= 2) fromContext.add(name);
     }
   }
+  // Anchor 1: named entity echoed in the response.
   const all = new Set([...fromInput, ...fromContext]);
-  if (all.size === 0) return false;
   for (const ent of all) {
     if (response.includes(ent)) return true;
+  }
+  // Anchor 2: 3-char HK place name from input appears in response.
+  // Specific HK locations are exactly the "specific content" anchor
+  // the spec calls out.
+  for (const place of extractPlaceNames(userInput)) {
+    if (response.includes(place)) return true;
+  }
+  // Anchor 3: a 4+ char CJK substring of the user input appears verbatim
+  // in the response (echoing a longer specific phrase the user said).
+  const han = userInput.match(/\p{Script=Han}{4,}/gu) || [];
+  for (const segment of han) {
+    for (let i = 0; i <= segment.length - 4; i++) {
+      const sub = segment.slice(i, i + 4);
+      if (response.includes(sub)) return true;
+    }
   }
   return false;
 }
 
 // ---------------------------------------------------------------------------
-// Flag 2 — memory callback
+// Flag 2 — cross-session memory threading
 // ---------------------------------------------------------------------------
-// Tokenise rolling summary + older buffer turns into 2-char (CJK) and
-// whole-word (Latin) tokens, then check whether response contains a token
-// that appears in the OLDER context but NOT in the most recent user turn.
+// Token-matched against rolling summary + buffer turns at index ≤ N-2
+// (i.e. NOT the most-recent user turn).  A response token that appears in
+// the older context but not in the most recent user input is a cross-session
+// (or at least cross-turn-pair) memory callback.
 function tokenize(text) {
   if (!text) return new Set();
   const tokens = new Set();
-  // 2-char CJK bigrams.
   const han = text.match(/\p{Script=Han}{2,}/gu) || [];
   for (const segment of han) {
     for (let i = 0; i <= segment.length - 2; i++) {
       tokens.add(segment.slice(i, i + 2));
     }
   }
-  // Latin words (length ≥ 4 to avoid stop-words).
   const words = text.toLowerCase().match(/[a-z]{4,}/g) || [];
   for (const w of words) tokens.add(w);
   return tokens;
@@ -210,12 +151,14 @@ const ENGLISH_STOP = new Set([
   "these", "those", "been", "being",
 ]);
 
-function flagMemoryCallback(userInput, response, agentContext) {
+function flagCrossSessionMemory(userInput, response, agentContext) {
   if (!agentContext) return false;
+  // "Older" context = rolling summary + buffer turns EXCLUDING the most
+  // recent (which is the user input we're already responding to).
   const olderText = [
     agentContext.rollingSummary || "",
     ...((agentContext.shortTermBuffer || [])
-      .slice(0, -1) // exclude most recent turn
+      .slice(0, -1)
       .map((t) => t.text || "")),
   ].join(" ");
   if (!olderText.trim()) return false;
@@ -232,31 +175,125 @@ function flagMemoryCallback(userInput, response, agentContext) {
 }
 
 // ---------------------------------------------------------------------------
+// Flag 3 — honest unfamiliarity
+// ---------------------------------------------------------------------------
+// The agent admits ignorance instead of fabricating.  Phrases:
+//   Chinese:  我未聽過, 我唔識, 我冇聽過, 我未必清楚, 你話我知, 唔好意思我唔知,
+//             我並不熟悉, 我並未/未必認識
+//   English:  I don't know that, I'm not familiar with, tell me more about,
+//             could you tell me about, I haven't heard of
+const HONEST_UNFAMILIARITY_PATTERNS = [
+  // Chinese (traditional / Cantonese)
+  /我未聽過/, /我冇聽過/, /我未必/, /我唔識/, /我並不(熟悉|認識)/,
+  /唔好意思.{0,5}(我唔|我未)/, /你話我知/, /你可唔可以(同我講|話我聽)/,
+  /我未必清楚/, /我並未認識/, /我未認識/,
+  // Simplified
+  /我没听过/, /我不熟悉/, /请告诉我/, /我并不认识/,
+  // English
+  /\bi (don'?t|do not) know\b/i,
+  /\bi'?m not familiar with\b/i,
+  /\bi haven'?t heard of\b/i,
+  /\b(can|could) you tell me (about|more)/i,
+  /\btell me more about\b/i,
+];
+
+function flagHonestUnfamiliarity(response) {
+  return HONEST_UNFAMILIARITY_PATTERNS.some((p) => p.test(response));
+}
+
+// ---------------------------------------------------------------------------
+// Flag 4 — mixed-content routing
+// ---------------------------------------------------------------------------
+// User turn contains BOTH an informational/topical marker AND an affect
+// marker; response contains a cross-referral phrasing (suggests handoff to
+// another agent).  This is the "detect conjoined info + emotion, route
+// each to the right agent" affordance.
+const INFO_MARKERS = [
+  // Things you'd ask Tung Tung about — facts, topics, places
+  /點(整|做|買|搵|去)/, /邊度有/, /有冇/, /幾錢/, /喺邊度/,
+  /如何/, /怎樣/, /\bhow (do|can) i\b/i, /\bwhere (can|do) i\b/i,
+];
+const AFFECT_MARKERS = [
+  // Emotional content the source agent should hand off to Siu Yan / Ah Jan
+  /好[傷孤難失]/, /好(辛苦|攰|擔心|嬲|難過)/, /唔開心/, /好驚/, /好亂/,
+  /\b(sad|lonely|worried|scared|anxious|hurt|angry)\b/i,
+];
+const REFERRAL_MARKERS = [
+  // Hybrid cross-referral phrasings — "wanna talk to X?"
+  /搵(阿珍|阿伯|小欣|通通)/, /同(阿珍|阿伯|小欣|通通)(傾|講)/,
+  /過去(搵|同).{1,6}傾/, /要唔要去(搵|同|傾)/, /搵.{1,3}傾下/,
+  /talk to (siu yan|ah jan|ah bak|tung tung)/i,
+  /(siu yan|ah jan|ah bak|tung tung) might/i,
+];
+
+function flagMixedContentRouting(userInput, response) {
+  const hasInfo = INFO_MARKERS.some((p) => p.test(userInput));
+  const hasAffect = AFFECT_MARKERS.some((p) => p.test(userInput));
+  if (!(hasInfo && hasAffect)) return false;
+  return REFERRAL_MARKERS.some((p) => p.test(response));
+}
+
+// ---------------------------------------------------------------------------
+// Flag 5 — generative summary
+// ---------------------------------------------------------------------------
+// Per-session end summary (M3) or weekly narrative (M9).  Markers:
+//   moduleId in {m3_summary, m9_weekly_narrative} (preferred when client
+//     tags it) OR the response has the structural shape of a summary:
+//     mentions ≥2 distinct timeframe / activity markers in 1–3 sentences
+//     and uses second-person address.
+const TIMEFRAME_MARKERS = [
+  /今個禮拜/, /上個禮拜/, /呢個星期/, /過去[幾今]?(日|個禮拜|個星期|個月)/,
+  /禮拜[一二三四五六日]/, /(本|這|上)週/, /上次/, /嗰日/, /今日/,
+  /\bthis week\b/i, /\blast week\b/i, /\bover the past\b/i,
+];
+const SECOND_PERSON_MARKERS = [
+  /\b你\b/, /你嘅/, /你哋/, /\byou\b/i, /\byour\b/i,
+];
+
+function flagGenerativeSummary(moduleId, response) {
+  const isSummaryModule =
+    moduleId === "m3_summary" ||
+    moduleId === "m9_weekly_narrative" ||
+    moduleId === "weekly_summary";
+  if (isSummaryModule) return true;
+
+  // Structural fallback: ≥2 distinct timeframe-or-activity references,
+  // AND ≥1 second-person address, AND the response is at least 60 chars.
+  if ((response || "").length < 60) return false;
+  let timeframeHits = 0;
+  for (const p of TIMEFRAME_MARKERS) {
+    if (p.test(response)) timeframeHits++;
+    if (timeframeHits >= 2) break;
+  }
+  if (timeframeHits < 2) return false;
+  return SECOND_PERSON_MARKERS.some((p) => p.test(response));
+}
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
-function computeLlmFlags({userInput, assistantOutput, agentContext}) {
+function computeLlmFlags({userInput, assistantOutput, agentContext, moduleId}) {
   const u = userInput || "";
   const a = assistantOutput || "";
   return {
-    personalization_specific: flagPersonalizationSpecific(u, a, agentContext),
-    memory_callback: flagMemoryCallback(u, a, agentContext),
-    empathic_reflection: flagEmpathicReflection(a),
-    open_question: flagOpenQuestion(a),
-    adaptive_register: flagAdaptiveRegister(u, a),
-    _version: 1,
+    specific_content_engagement: flagSpecificContentEngagement(u, a, agentContext),
+    cross_session_memory: flagCrossSessionMemory(u, a, agentContext),
+    honest_unfamiliarity: flagHonestUnfamiliarity(a),
+    mixed_content_routing: flagMixedContentRouting(u, a),
+    generative_summary: flagGenerativeSummary(moduleId, a),
+    _version: 2,
   };
 }
 
 module.exports = {
   computeLlmFlags,
-  // exported for unit tests
   _internal: {
-    flagPersonalizationSpecific,
-    flagMemoryCallback,
-    flagEmpathicReflection,
-    flagOpenQuestion,
-    flagAdaptiveRegister,
+    flagSpecificContentEngagement,
+    flagCrossSessionMemory,
+    flagHonestUnfamiliarity,
+    flagMixedContentRouting,
+    flagGenerativeSummary,
     extractCandidateEntities,
     tokenize,
   },

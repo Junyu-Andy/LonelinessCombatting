@@ -45,58 +45,98 @@ void main() {
   });
 
   // -----------------------------------------------------------------------
-  // B.4 ThoughtExerciseEntry
+  // B.4 ThoughtExerciseEntry — 5 content fields + intensity_before/after
+  //                            (Phase A spec May 2026)
   // -----------------------------------------------------------------------
   group('ThoughtExerciseEntry', () {
-    test('round-trips all 7 fields', () {
+    test('round-trips all 5 content fields + intensity_before/after', () {
       final entry = ThoughtExerciseEntry(
-        thought: '打畀阿女只會煩到佢',
-        oneReasonTrue: '佢上次無覆我',
-        anotherWayToLook: '佢可能只係忙',
+        situation: '尋日喺街市見到舊朋友冇打招呼',
+        emotionEmoji: '😔',
+        intensityBefore: 7,
+        thought: '佢覺得我老咗唔想理我',
+        oneReasonTrue: '我哋好耐冇見',
+        anotherWayToLook: '可能佢趕住做嘢冇留意到',
+        intensityAfter: 4,
         agentId: 'siu_yan',
-        agentInvitationText: '你有冇試過記低你嘅想法？',
+        agentInvitationText: '你頭先講咗一句令我有少少 stuck — ...',
         originTurnRef: 'users/u1/agent_contexts/siu_yan',
         createdAt: DateTime.utc(2026, 5, 14),
+        entryPathway: 'siu_yan_offer',
       );
       final round = ThoughtExerciseEntry.fromMap('e1', entry.toMap());
       expect(round.id, 'e1');
-      expect(round.thought, '打畀阿女只會煩到佢');
-      expect(round.oneReasonTrue, '佢上次無覆我');
-      expect(round.anotherWayToLook, '佢可能只係忙');
+      expect(round.situation, '尋日喺街市見到舊朋友冇打招呼');
+      expect(round.emotionEmoji, '😔');
+      expect(round.intensityBefore, 7);
+      expect(round.thought, '佢覺得我老咗唔想理我');
+      expect(round.oneReasonTrue, '我哋好耐冇見');
+      expect(round.anotherWayToLook, '可能佢趕住做嘢冇留意到');
+      expect(round.intensityAfter, 4);
       expect(round.agentId, 'siu_yan');
-      expect(round.agentInvitationText, '你有冇試過記低你嘅想法？');
+      expect(round.agentInvitationText, '你頭先講咗一句令我有少少 stuck — ...');
       expect(round.originTurnRef, 'users/u1/agent_contexts/siu_yan');
+      expect(round.entryPathway, 'siu_yan_offer');
     });
 
-    test('handles optional provenance fields being null', () {
+    test('Field 5 (alternative) may legitimately be blank per spec', () {
       final entry = ThoughtExerciseEntry(
+        situation: 's',
+        emotionEmoji: '😐',
+        intensityBefore: 5,
+        thought: 't',
+        oneReasonTrue: 'r',
+        anotherWayToLook: '', // blank — spec-compliant
+        createdAt: DateTime.now(),
+      );
+      final round = ThoughtExerciseEntry.fromMap('e2', entry.toMap());
+      expect(round.anotherWayToLook, '');
+      expect(round.intensityAfter, isNull); // not yet re-rated
+      expect(round.entryPathway, 'me_tile'); // default
+    });
+
+    test('copyWith updates intensityAfter for the exit re-rating step', () {
+      final entry = ThoughtExerciseEntry(
+        situation: 's',
+        emotionEmoji: '😐',
+        intensityBefore: 6,
         thought: 't',
         oneReasonTrue: 'r',
         anotherWayToLook: 'a',
         createdAt: DateTime.now(),
       );
-      final round = ThoughtExerciseEntry.fromMap('e2', entry.toMap());
-      expect(round.agentId, isNull);
-      expect(round.agentInvitationText, isNull);
-      expect(round.originTurnRef, isNull);
+      final updated = entry.copyWith(intensityAfter: 4);
+      expect(updated.intensityBefore, 6);
+      expect(updated.intensityAfter, 4);
     });
   });
 
   // -----------------------------------------------------------------------
-  // C.2 ArmAssigner strata-cell mapping
+  // C.2 ArmAssigner strata-cell mapping (Phase B spec: UCLA × age band)
   // -----------------------------------------------------------------------
   group('ArmAssigner.strataCell', () {
-    test('maps known age groups to cells 0-3', () {
-      expect(ArmAssigner.strataCell('60-64'), 0);
-      expect(ArmAssigner.strataCell('65-69'), 1);
-      expect(ArmAssigner.strataCell('70-74'), 2);
-      expect(ArmAssigner.strataCell('75+'), 3);
+    test('low loneliness × 60-69 → cell 0', () {
+      expect(ArmAssigner.strataCell(uclaScore: 35, ageYears: 65), 0);
     });
-
-    test('unknown / null age group defaults to cell 0', () {
-      expect(ArmAssigner.strataCell(null), 0);
-      expect(ArmAssigner.strataCell('unknown'), 0);
-      expect(ArmAssigner.strataCell(''), 0);
+    test('low loneliness × ≥70 → cell 1', () {
+      expect(ArmAssigner.strataCell(uclaScore: 35, ageYears: 72), 1);
+    });
+    test('high loneliness × 60-69 → cell 2', () {
+      expect(ArmAssigner.strataCell(uclaScore: 50, ageYears: 65), 2);
+    });
+    test('high loneliness × ≥70 → cell 3', () {
+      expect(ArmAssigner.strataCell(uclaScore: 50, ageYears: 75), 3);
+    });
+    test('exactly at median (44) treated as low (not >median)', () {
+      expect(ArmAssigner.strataCell(uclaScore: 44, ageYears: 65), 0);
+    });
+    test('age group string → years midpoint', () {
+      expect(ArmAssigner.ageYearsFromGroup('60-64'), 62);
+      expect(ArmAssigner.ageYearsFromGroup('70-74'), 72);
+      expect(ArmAssigner.ageYearsFromGroup(null), isNull);
+    });
+    test('missing data defaults to cell 0', () {
+      expect(ArmAssigner.strataCell(uclaScore: null, ageYears: null), 0);
     });
   });
 

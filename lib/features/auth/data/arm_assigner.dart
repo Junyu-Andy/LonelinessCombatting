@@ -4,15 +4,32 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'user_profile.dart';
 
-/// C.2 — stratified block-balanced arm assignment.
+/// C.2 — stratified block-balanced arm assignment (Phase B Proposal §4.4).
 ///
-/// Participants are stratified into 4 cells (0–3) by age group before
-/// randomisation, so arm balance holds within each stratum.  Within a cell
-/// the same block-balanced algorithm as the original binary counter applies:
+/// Phase B stratifies on TWO factors, producing 4 cells:
+///   - Baseline UCLA-LS-V3 total score (median split: 30–44 "low" vs
+///     45–60 "high")
+///   - Age band (60–69 vs ≥70)
 ///
-///   - If cellACount < cellBCount → assign A.
-///   - If cellBCount < cellACount → assign B.
-///   - If equal → 50/50 random.
+/// Cell layout:
+///   cell_0  → low loneliness × 60–69
+///   cell_1  → low loneliness × 70+
+///   cell_2  → high loneliness × 60–69
+///   cell_3  → high loneliness × 70+
+///
+/// Phase A is single-arm (no randomisation) but the schema is wired
+/// in Phase A so the cron-side counter is ready for Phase B.
+///
+/// Within a cell, block-balanced assignment uses random block sizes
+/// of 4 or 6 (per Phase B §4.4 — varying block size prevents allocation
+/// prediction).  Implementation: the simple "if A<B then A else if B<A
+/// then B else 50/50" policy approximates this within a single
+/// transaction.  A future Phase B-specific block-randomisation table
+/// can replace this if precise block-size variation matters.
+///
+/// **Phase A gate:** [forceArmA] = true (default) assigns every
+/// participant to Arm A regardless of cell.  Counter still increments
+/// in the right cell so Phase B balance data is preserved.
 ///
 /// Counter doc shape:
 /// ```
@@ -24,13 +41,6 @@ import 'user_profile.dart';
 ///   updatedAt: Timestamp,
 /// }
 /// ```
-///
-/// **Phase A gate:** [forceArmA] = true assigns every participant to Arm A
-/// regardless of strata.  The counter is still incremented (in the correct
-/// cell) so balance data is preserved for Phase B transition auditing.
-///
-/// Strata cell assignment: determined by [strataCell] which maps age group
-/// to one of 0–3. Missing / unknown age group → cell 0.
 class ArmAssigner {
   ArmAssigner({
     Random? rng,
@@ -46,34 +56,59 @@ class ArmAssigner {
 
   static const _counterPath = 'meta/arm_counter';
 
-  /// Map an age-group string (captured at onboarding) to a strata cell 0–3.
+  /// UCLA-LS-V3 median split per Phase B §4.4.  Total possible range is
+  /// 20–80; eligibility is 30–60, with 44 as the median that splits
+  /// the eligible distribution roughly in half.
+  static const _uclaMedianSplit = 44;
+
+  /// Map (UCLA-LS-V3 total, age in years) → strata cell 0–3.
   ///
-  ///   cell 0 → 60–64
-  ///   cell 1 → 65–69
-  ///   cell 2 → 70–74
-  ///   cell 3 → 75+
+  /// cell_0: low loneliness × 60–69
+  /// cell_1: low loneliness × ≥70
+  /// cell_2: high loneliness × 60–69
+  /// cell_3: high loneliness × ≥70
   ///
-  /// Unknown / null → cell 0 (youngest stratum acts as default).
-  static int strataCell(String? ageGroup) {
+  /// Missing baseline → cell 0 (most common stratum acts as default;
+  /// for Phase A this doesn't matter since everyone is Arm A).
+  static int strataCell({
+    required int? uclaScore,
+    required int? ageYears,
+  }) {
+    final lonelinessHigh =
+        (uclaScore ?? _uclaMedianSplit) > _uclaMedianSplit;
+    final older = (ageYears ?? 60) >= 70;
+    if (!lonelinessHigh && !older) return 0;
+    if (!lonelinessHigh && older) return 1;
+    if (lonelinessHigh && !older) return 2;
+    return 3;
+  }
+
+  /// Convert the [ageGroup] enum string used in onboarding to a numeric
+  /// year estimate (midpoint of the band).
+  static int? ageYearsFromGroup(String? ageGroup) {
     switch (ageGroup) {
       case '60-64':
-        return 0;
+        return 62;
       case '65-69':
-        return 1;
+        return 67;
       case '70-74':
-        return 2;
+        return 72;
       case '75+':
-        return 3;
+        return 77;
       default:
-        return 0;
+        return null;
     }
   }
 
   Future<({ArmAssignment arm, int cell})> assign(
     FirebaseFirestore db, {
     String? ageGroup,
+    int? uclaScore,
   }) async {
-    final cell = strataCell(ageGroup);
+    final cell = strataCell(
+      uclaScore: uclaScore,
+      ageYears: ageYearsFromGroup(ageGroup),
+    );
     final cellKey = 'cell_$cell';
     final ref = db.doc(_counterPath);
 

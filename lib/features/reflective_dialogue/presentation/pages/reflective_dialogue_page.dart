@@ -27,8 +27,8 @@ import '../../../../core/repair/turn_repair_controller.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../thought_exercise/presentation/thought_exercise_page.dart';
 import '../../data/negative_cognition_detector.dart';
-import 'thought_record_exercise_page.dart';
 
 class ReflectiveDialoguePage extends StatefulWidget {
   const ReflectiveDialoguePage({super.key});
@@ -251,12 +251,20 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       _pendingNamingThought = null;
       _pendingNamingInvitation = null;
     });
+    // TODO(spec-violation): Per Phase A Proposal §2.2 + Product Overview
+    // §4.2, Ah Jan/Ah Bak MUST NOT surface the Thought Exercise tool
+    // mid-session — only Siu Yan is authorised (during M2 daily check-in).
+    // Reflective dialogue should briefly acknowledge ("呢個諗法聽落好沉重")
+    // and return to listening.  The current code is a leftover from the
+    // pre-spec design and should be removed; the negative-cognition card +
+    // navigation should live in check_in_arm_a.dart instead.
+    //
+    // Until that migration lands, we at least route to the new
+    // 5-field ThoughtExercisePage so the data schema is correct.
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ThoughtRecordExercisePage(
+        builder: (_) => ThoughtExercisePage(
           initialThought: thought,
-          originSurface: 'reflective_dialogue',
-          // B.5 — populate the cached provenance fields for the audit trigger.
           agentId: AgentRegistry.ahJanAhBakId,
           agentInvitationText: invitation,
           originTurnRef: profile != null

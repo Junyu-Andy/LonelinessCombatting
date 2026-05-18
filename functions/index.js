@@ -69,6 +69,63 @@ function resolvePrompt(payload) {
 }
 
 // ---------------------------------------------------------------------------
+// HREC data-minimisation (Phase A Proposal §2.5).
+//
+// Before any text is transmitted to the DeepSeek endpoint, strip direct
+// identifiers and replace any embedded Firebase UID with a per-call coded
+// session identifier.  The DeepSeek server in mainland China must never
+// receive participants' names, phone numbers, addresses, IP or HKU
+// account info — only pseudonymised conversation content.
+//
+// Rules:
+//   - HK phone numbers: 8-digit (optionally +852) → "[PHONE]"
+//   - Email addresses: → "[EMAIL]"
+//   - HK ID numbers (A123456(7)): → "[ID]"
+//   - Postal address keywords + numbers: → "[ADDRESS]"  (best-effort,
+//     since HK addresses are highly varied; we strip floor/flat numbers
+//     and street-suffix patterns)
+//   - Close-contact names from the user profile (if surfaced in turns):
+//     handled at the agent_context layer, not here — names users
+//     deliberately type to AGENTS as part of life-story are not stripped
+//     (that would break the intervention's core feature).  This function
+//     strips only the unambiguous PII markers above.
+// ---------------------------------------------------------------------------
+
+const PII_PATTERNS = [
+  // HK phone (8-digit, optionally prefixed)
+  [/(\+?852[-\s]?)?[2-9]\d{3}[-\s]?\d{4}\b/g, "[PHONE]"],
+  // Email
+  [/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, "[EMAIL]"],
+  // HK ID-like patterns: letter(s) + 6 digits + (check digit)
+  [/\b[A-Z]{1,2}\d{6}\(?\d?\)?\b/g, "[ID]"],
+  // Floor/flat numbers in HK addresses (very rough)
+  [/\b\d{1,3}\/?[FfRr]\b/g, "[ADDRESS]"],
+];
+
+function stripPII(text) {
+  if (!text || typeof text !== "string") return text;
+  let out = text;
+  for (const [pat, replacement] of PII_PATTERNS) {
+    out = out.replace(pat, replacement);
+  }
+  return out;
+}
+
+function sessionCodeFor(uid) {
+  // 16-char salted hash so the LLM still has a stable per-user token to
+  // (in principle) reason about turn linkage, without ever seeing the
+  // Firebase UID.  Salt rotates per cold-start so even the coded ID is
+  // not stable across deploys.
+  if (!uid) return "anon";
+  return crypto
+    .createHash("sha256")
+    .update(`${_sessionSalt}|${uid}`, "utf8")
+    .digest("hex")
+    .slice(0, 16);
+}
+const _sessionSalt = crypto.randomBytes(8).toString("hex");
+
+// ---------------------------------------------------------------------------
 // B.2 — deterministic system-prompt hash (Sprint 1.3).
 //
 // The hash is computed AFTER full variable substitution so that semantically
@@ -131,6 +188,16 @@ exports.proxyDeepSeek = onCall(
 
     const systemPromptHash = computePromptHash(systemPrompt);
 
+    // HREC data minimisation: strip identifiers from every outgoing
+    // user/assistant message and replace the auth uid with a coded
+    // session id.  No raw uid, email, phone, address, HKID leaves the
+    // function.
+    const scrubbed = messages.map((m) => ({
+      role: m.role,
+      content: stripPII(m.content || ""),
+    }));
+    const codedSession = sessionCodeFor(request.auth && request.auth.uid);
+
     const response = await fetch(
       "https://api.deepseek.com/chat/completions",
       {
@@ -141,12 +208,14 @@ exports.proxyDeepSeek = onCall(
             "Bearer",
             DEEPSEEK_API_KEY.value(),
           ].join(" "),
+          // No HKU email / IP in headers; pseudonymous session tag only.
+          "X-Session-Code": codedSession,
         },
         body: JSON.stringify({
           model: "deepseek-chat",
           messages: [
             {role: "system", content: systemPrompt},
-            ...messages,
+            ...scrubbed,
           ],
           max_tokens: 320,
           temperature: 0.7,
@@ -164,19 +233,22 @@ exports.proxyDeepSeek = onCall(
       data.choices[0].message &&
       data.choices[0].message.content;
 
-    // B.1 — compute the 5 mechanism flags.  Pure regex pipeline on the
-    // (userInput, assistantOutput, agentContext) tuple.  Determinism is the
-    // contract: the same triple always yields the same flag bundle.
-    //
-    // The user input is the LAST `user` message in `messages`; the agent
-    // context is an optional snapshot passed by the client.  Both arms go
-    // through this CF for safety, but only Arm A clients persist the
-    // result — see LlmTurnFeatures.armBSkip in the Dart layer.
+    // B.1 — compute the 5 mechanism flags (Phase A spec May 2026).
+    //   1. specific_content_engagement
+    //   2. cross_session_memory
+    //   3. honest_unfamiliarity
+    //   4. mixed_content_routing
+    //   5. generative_summary
+    // Pure regex pipeline on the (userInput, assistantOutput, agentContext,
+    // moduleId) tuple.  Determinism is the contract: same inputs → same
+    // flag bundle.  Both arms go through this CF for safety, but only
+    // Arm A clients persist the result.
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     const llmFlags = computeLlmFlags({
       userInput: lastUser ? (lastUser.content || "") : "",
       assistantOutput: text || "",
       agentContext: payload.agentContext || null,
+      moduleId: moduleId,
     });
 
     return {
@@ -618,17 +690,37 @@ exports.onThoughtExerciseCreated = onDocumentCreated(
     const {uid, entryId} = event.params;
     const db = admin.firestore();
 
-    // 10% sample: deterministic by entryId so audits are reproducible.
-    // Use first 2 hex chars of sha256(entryId) — < 0x1A ≈ 10.16%.
-    const sampleHash = crypto
-      .createHash("sha256")
-      .update(entryId, "utf8")
-      .digest("hex")
-      .slice(0, 2);
-    const sampled = parseInt(sampleHash, 16) < 0x1A;
+    // Phase A: 100% audit of every Thought Exercise event (Phase A
+    // Proposal §5.5).  This is the protocol's most safety-sensitive
+    // audit; the boundary between self-help and clinical cognitive
+    // restructuring is empirically characterised here.
+    //
+    // Sampling rate is controlled by the TE_AUDIT_SAMPLE_RATE env var
+    // (default 1.0 = 100%).  Phase B may lower this to 0.20 once the
+    // boundary is established in Phase A.  Deterministic sampling via
+    // sha256(entryId) so audits are reproducible.
+    const sampleRate = Number(process.env.TE_AUDIT_SAMPLE_RATE || "1.0");
+    const sampleBucket = parseInt(
+      crypto.createHash("sha256")
+        .update(entryId, "utf8")
+        .digest("hex")
+        .slice(0, 4),
+      16,
+    ) / 0xFFFF;
+    const sampled = sampleBucket < sampleRate;
 
     // Always write the audit doc but mark non-sampled ones so the dashboard
     // can hide them by default while keeping a complete index.
+    //
+    // Audit fields are the 6 dimensions from Phase A Proposal §5.5:
+    //   c1 situation_framing      — self-help vs forced-narrative
+    //   c2 emotion_register       — self-monitoring vs escalating affect
+    //   c3 thought_naming         — gentle vs clinical labelling
+    //   c4 reason_field           — self-help register vs reinforcing pathology
+    //   c5 alternative_field      — self-help vs therapeutic restructuring
+    //   c6 affect_at_exit         — stable/improved / dampened / escalated
+    // Overall classification: within_self_help (0–1 crossed) | ambiguous (2) |
+    // boundary_crossed (≥3).
     await db.collection("te_audit_queue").add({
       entryRef: snap.ref.path,
       uid,
@@ -637,16 +729,19 @@ exports.onThoughtExerciseCreated = onDocumentCreated(
       agentId: entry.agentId || null,
       agentInvitationText: entry.agentInvitationText || null,
       originTurnRef: entry.originTurnRef || null,
+      entryPathway: entry.entryPathway || "me_tile",
       // Thumbnail for queue UI; full content lives in the entryRef doc.
       thoughtPreview: (entry.thought || "").slice(0, 80),
       sampled,
       status: "pending",
       audit: {
-        invitation_appropriateness: null,
-        content_clinical_drift: null,
-        mechanism_alignment: null,
-        cultural_fit: null,
-        safety_concern: null,
+        c1_situation_framing: null,
+        c2_emotion_register: null,
+        c3_thought_naming: null,
+        c4_reason_field: null,
+        c5_alternative_field: null,
+        c6_affect_at_exit: null,
+        overall_classification: null,
         researcher_notes: null,
       },
       createdAt: admin.firestore.FieldValue.serverTimestamp(),

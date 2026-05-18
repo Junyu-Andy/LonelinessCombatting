@@ -68,6 +68,11 @@ class AuthService {
     String? emergencyContactPhone,
     String? preferredLanguage,
     ConsentFlags consent = const ConsentFlags(),
+    /// C.2 — baseline UCLA-LS-V3 total used for stratification (Phase B
+    /// §4.4).  Pass when known at signup (HKU baseline assessment
+    /// completed before in-person onboarding).  Null in Phase A is
+    /// acceptable since forceArmA shortcuts the assignment anyway.
+    int? baselineUclaScore,
   }) async {
     _ensureAvailable();
     final credential = await _auth.createUserWithEmailAndPassword(
@@ -76,7 +81,11 @@ class AuthService {
     );
     final user = credential.user!;
     await user.updateDisplayName(displayName);
-    final assignment = await _armAssigner.assign(_db, ageGroup: ageGroup);
+    final assignment = await _armAssigner.assign(
+      _db,
+      ageGroup: ageGroup,
+      uclaScore: baselineUclaScore,
+    );
     final profile = UserProfile(
       uid: user.uid,
       email: user.email ?? email.trim(),

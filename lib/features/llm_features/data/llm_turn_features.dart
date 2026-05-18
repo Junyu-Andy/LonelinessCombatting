@@ -10,12 +10,12 @@
 ///
 /// Firestore path: `users/{uid}/llm_turn_features/{turnId}`
 ///
-/// The 5 flags (see functions/llm_flags.js for detector logic):
-///   - personalization_specific
-///   - memory_callback
-///   - empathic_reflection
-///   - open_question
-///   - adaptive_register
+/// The 5 flags (Phase A spec May 2026; see functions/llm_flags.js):
+///   - specific_content_engagement
+///   - cross_session_memory
+///   - honest_unfamiliarity
+///   - mixed_content_routing
+///   - generative_summary
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
