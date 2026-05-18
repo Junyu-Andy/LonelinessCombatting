@@ -1,9 +1,18 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {onDocumentCreated} = require("firebase-functions/v2/firestore");
 const {defineSecret} = require("firebase-functions/params");
+const admin = require("firebase-admin");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
+admin.initializeApp();
+
 const DEEPSEEK_API_KEY = defineSecret("DEEPSEEK_API_KEY");
+const SMTP_HOST = defineSecret("SMTP_HOST");
+const SMTP_USER = defineSecret("SMTP_USER");
+const SMTP_PASS = defineSecret("SMTP_PASS");
+const PI_EMAIL = defineSecret("PI_EMAIL");
 
 // ---------------------------------------------------------------------------
 // Prompt resolution (Dev Req §3.2, §8 — prompts live server-side so the
@@ -58,6 +67,26 @@ function resolvePrompt(payload) {
 }
 
 // ---------------------------------------------------------------------------
+// B.2 — deterministic system-prompt hash (Sprint 1.3).
+//
+// The hash is computed AFTER full variable substitution so that semantically
+// identical prompts (same persona, same variant) always produce the same
+// digest, regardless of cold-start order.  Normalisation steps:
+//   1. Resolve all {{...}} placeholders.
+//   2. Collapse any run of whitespace to a single space.
+//   3. Trim leading/trailing whitespace.
+//   4. SHA-256 of the UTF-8 byte string — hex-encoded (64 chars).
+//
+// Arm B callers that skip proxyDeepSeek write `systemPromptHash: null` on
+// their turn docs to keep the schema symmetric.
+// ---------------------------------------------------------------------------
+function computePromptHash(resolvedPrompt) {
+  if (!resolvedPrompt) return null;
+  const normalized = resolvedPrompt.trim().replace(/\s+/g, " ");
+  return crypto.createHash("sha256").update(normalized, "utf8").digest("hex");
+}
+
+// ---------------------------------------------------------------------------
 // proxyDeepSeek — main LLM entry point. Now supports promptKey resolution
 // in addition to the legacy systemPrompt path.
 //   payload.promptKey       — resolves prompt file in functions/prompts/
@@ -72,7 +101,7 @@ exports.proxyDeepSeek = onCall(
   {
     secrets: [DEEPSEEK_API_KEY],
     region: "asia-east2",
-    enforceAppCheck: false,
+    enforceAppCheck: true,
     maxInstances: 10,
     timeoutSeconds: 30,
   },
@@ -97,6 +126,8 @@ exports.proxyDeepSeek = onCall(
         "bad payload: no systemPrompt or promptKey",
       );
     }
+
+    const systemPromptHash = computePromptHash(systemPrompt);
 
     const response = await fetch(
       "https://api.deepseek.com/chat/completions",
@@ -131,7 +162,12 @@ exports.proxyDeepSeek = onCall(
       data.choices[0].message &&
       data.choices[0].message.content;
 
-    return {text: text || "", moduleId: moduleId, agentId: agentId};
+    return {
+      text: text || "",
+      moduleId: moduleId,
+      agentId: agentId,
+      systemPromptHash: systemPromptHash,
+    };
   },
 );
 
@@ -142,7 +178,7 @@ exports.proxyDeepSeek = onCall(
 // ---------------------------------------------------------------------------
 
 exports.safetyAcknowledgement = onCall(
-  {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+  {region: "asia-east2", enforceAppCheck: true, maxInstances: 5},
   async (request) => {
     const payload = request.data || {};
     const agentId = payload.agentId;
@@ -169,7 +205,7 @@ exports.referralJudgement = onCall(
   {
     secrets: [DEEPSEEK_API_KEY],
     region: "asia-east2",
-    enforceAppCheck: false,
+    enforceAppCheck: true,
     maxInstances: 10,
     timeoutSeconds: 20,
   },
@@ -327,7 +363,7 @@ exports.webSearch = onCall(
   {
     secrets: [SEARCH_API_KEY, SEARCH_CX],
     region: "asia-east2",
-    enforceAppCheck: false,
+    enforceAppCheck: true,
     maxInstances: 5,
     timeoutSeconds: 20,
   },
@@ -385,5 +421,142 @@ exports.webSearch = onCall(
       }))
       .filter((r) => passesSafetyFilter(`${r.title} ${r.snippet}`));
     return {results: results, unavailable: false};
+  },
+);
+
+// ---------------------------------------------------------------------------
+// B.7 — safety_events onCreate trigger (Sprint 1.2).
+//
+// Fires when the client writes a new doc to `safety_events/{eventId}`.
+// Responsibilities:
+//   1. Compute dedup_key = sha256(uid + source + textHash + minuteBucket).
+//   2. Attempt to create `safety_event_dedup/{dedup_key}` — if it already
+//      exists, a concurrent write from another source beat us this minute;
+//      skip the PI alert to avoid flooding.
+//   3. Patch the incoming doc with the computed dedup_key.
+//   4. For acute events: send email to PI (if SMTP secrets are configured)
+//      and write to `pi_alerts` collection.
+//
+// Dedup window: 1 minute.  All 3 sources (gateway_input, gateway_output,
+// m3_turn) for the same user + same text hash within one minute collapse
+// to a single alert.
+// ---------------------------------------------------------------------------
+
+exports.onSafetyEventCreated = onDocumentCreated(
+  {
+    document: "safety_events/{eventId}",
+    region: "asia-east2",
+    secrets: [SMTP_HOST, SMTP_USER, SMTP_PASS, PI_EMAIL],
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const data = snap.data();
+    if (!data) return;
+
+    const db = admin.firestore();
+    const uid = data.uid || "";
+    const source = data.source || "unknown";
+    const textHash = data.textHash || "";
+    const level = data.level || "none";
+
+    // minuteBucket: floor to 1-minute window using the doc's server timestamp.
+    const createSeconds = snap.createTime ?
+      snap.createTime.seconds :
+      Math.floor(Date.now() / 1000);
+    const minuteBucket = Math.floor(createSeconds / 60);
+
+    const dedupInput = `${uid}|${source}|${textHash}|${minuteBucket}`;
+    const dedupKey = crypto
+      .createHash("sha256")
+      .update(dedupInput, "utf8")
+      .digest("hex");
+
+    // Patch the event doc with the computed dedup_key for auditability.
+    await snap.ref.update({dedup_key: dedupKey});
+
+    // Attempt to claim the dedup slot.  If it already exists, another source
+    // fired within the same minute — skip the PI alert.
+    const dedupRef = db.collection("safety_event_dedup").doc(dedupKey);
+    try {
+      await db.runTransaction(async (tx) => {
+        const existing = await tx.get(dedupRef);
+        if (existing.exists) {
+          throw new Error("duplicate");
+        }
+        tx.create(dedupRef, {
+          uid,
+          source,
+          textHash,
+          minuteBucket,
+          eventRef: snap.ref.path,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      });
+    } catch (err) {
+      if (err.message === "duplicate") {
+        console.log(`safety_event dedup hit for key=${dedupKey.slice(0, 8)}`);
+        return;
+      }
+      // Unexpected error: log and fall through so the alert still fires.
+      console.error("safety_event dedup tx error:", err);
+    }
+
+    // Only acute events page PI immediately.
+    if (level !== "acute") return;
+
+    const agentId = data.agentId || "unknown";
+    const alertPayload = {
+      uid,
+      source,
+      level,
+      agentId,
+      dedupKey,
+      eventPath: snap.ref.path,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    // Always write to pi_alerts — PI dashboard reads from here (Sprint 3).
+    await db.collection("pi_alerts").add(alertPayload);
+
+    // Email PI if SMTP secrets are configured.
+    let smtpHost = "";
+    let smtpUser = "";
+    let smtpPass = "";
+    let piEmail = "";
+    try {
+      smtpHost = SMTP_HOST.value();
+      smtpUser = SMTP_USER.value();
+      smtpPass = SMTP_PASS.value();
+      piEmail = PI_EMAIL.value();
+    } catch (_) { /* secrets not configured */ }
+
+    if (!smtpHost || !smtpUser || !smtpPass || !piEmail) {
+      console.log("SMTP not configured; pi_alert written to Firestore only");
+      return;
+    }
+
+    const nodemailer = require("nodemailer");
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: 587,
+      secure: false,
+      auth: {user: smtpUser, pass: smtpPass},
+    });
+    await transporter.sendMail({
+      from: smtpUser,
+      to: piEmail,
+      subject: `[LonelinessCombatting] Acute distress alert — ${agentId}`,
+      text: [
+        "An acute distress event was detected.",
+        `Agent: ${agentId}`,
+        `Source: ${source}`,
+        `Event path: ${snap.ref.path}`,
+        "",
+        "Review the safety_events collection in the Firebase Console.",
+        "Do NOT reply to this automated message.",
+      ].join("\n"),
+    });
+    console.log(`Acute alert email sent to PI for event ${snap.ref.path}`);
   },
 );

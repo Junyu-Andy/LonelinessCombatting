@@ -191,6 +191,10 @@ class UserProfile {
   /// time (Dev Req §6.2). Free-text, lower-cased, deduplicated.
   final List<String> interests;
 
+  /// C.2 — stratification cell assigned at signup (0–3, based on age group).
+  /// Null for users enrolled before Sprint 1 (treated as cell 0 in analysis).
+  final int? strataCell;
+
   /// Timestamps of the first time each agent introduced itself to the
   /// user (Dev Req §3.3). Missing entries mean the intro has not been
   /// shown yet and must be played the next time the agent opens.
@@ -212,6 +216,7 @@ class UserProfile {
     this.ahJanAhBakVariant,
     this.closeContacts = const [],
     this.interests = const [],
+    this.strataCell,
     this.firstIntroSeen = const {},
   });
 
@@ -228,6 +233,7 @@ class UserProfile {
     AgentGenderVariant? ahJanAhBakVariant,
     List<CloseContact>? closeContacts,
     List<String>? interests,
+    int? strataCell,
     Map<String, DateTime>? firstIntroSeen,
   }) {
     return UserProfile(
@@ -247,6 +253,7 @@ class UserProfile {
       ahJanAhBakVariant: ahJanAhBakVariant ?? this.ahJanAhBakVariant,
       closeContacts: closeContacts ?? this.closeContacts,
       interests: interests ?? this.interests,
+      strataCell: strataCell ?? this.strataCell,
       firstIntroSeen: firstIntroSeen ?? this.firstIntroSeen,
     );
   }
@@ -267,6 +274,7 @@ class UserProfile {
         'ahJanAhBakVariant': ahJanAhBakVariant?.code,
         'closeContacts': closeContacts.map((c) => c.toMap()).toList(),
         'interests': interests,
+        'strataCell': strataCell,
         'firstIntroSeen': {
           for (final e in firstIntroSeen.entries)
             e.key: e.value.toIso8601String(),
@@ -330,6 +338,7 @@ class UserProfile {
           AgentGenderVariant.tryParse(map['ahJanAhBakVariant'] as String?),
       closeContacts: contacts,
       interests: interests,
+      strataCell: (map['strataCell'] as num?)?.toInt(),
       firstIntroSeen: intro,
     );
   }

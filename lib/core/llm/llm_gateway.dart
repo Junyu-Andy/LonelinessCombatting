@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../safety/distress_detector.dart';
+import '../safety/safety_event_writer.dart';
+import 'turn_metadata.dart';
+
+export 'turn_metadata.dart';
 
 /// Unified LLM entry point for every Arm A module. All LLM calls in the app
 /// MUST go through this gateway so that:
@@ -11,33 +15,33 @@ import '../safety/distress_detector.dart';
 ///   2. A post-generation content filter can be added in one place.
 ///   3. Conversation logs are tagged with module + agent for the 10%
 ///      random safety audit and per-agent PPR analysis.
+///   4. (B.7) Safety events are written to Firestore for PI alerting.
+///   5. (B.2) System-prompt hash is returned from the CF and surfaced on
+///      [LlmResponse.metadata] for callers to persist on the turn doc.
 ///
-/// Sprint 2 extends [send] with agent persona resolution:
-///   - [agentId]      — registry id; tagged on the request for audit
-///   - [promptKey]    — server-resolved prompt key (e.g. `siu_yan_v1`)
-///   - [variantName]  — substituted into `{{VARIANT_NAME}}` server-side
-///   - [contextSuffix]— appended after the persona prompt server-side
-///   - [systemPrompt] — legacy raw prompt path, still honoured
-///
-/// Arm B modules MUST NOT call this gateway. They use static templates.
+/// Arm B modules MUST NOT call this gateway. They use static templates
+/// and write [TurnMetadata.armB] directly when persisting turns.
 class LlmGateway {
   LlmGateway({
     DistressDetector? detector,
     LlmClient? client,
+    SafetyEventWriter? safetyWriter,
   })  : _detector = detector ?? const DistressDetector(),
-        _client = client ?? const DeepseekLlmClient();
+        _client = client ?? const DeepseekLlmClient(),
+        _safetyWriter = safetyWriter;
 
   final DistressDetector _detector;
   final LlmClient _client;
 
+  /// Null when Firebase is unavailable (guest mode). Safety events are
+  /// silently skipped; detection still runs so the app can short-circuit.
+  final SafetyEventWriter? _safetyWriter;
+
   /// Send a request through the gateway. Returns an [LlmResponse] with the
-  /// model text and any safety flags raised either on the user input or the
-  /// output.
+  /// model text, any safety flags raised, and the per-turn metadata.
   ///
   /// Either [systemPrompt] OR [promptKey] must be provided. When both are
-  /// passed, the server prefers [promptKey] and falls back to
-  /// [systemPrompt] when the key cannot be resolved (e.g. an older Cloud
-  /// Function deployment that doesn't ship the prompts bundle yet).
+  /// passed, the server prefers [promptKey] and falls back to [systemPrompt].
   Future<LlmResponse> send({
     required String moduleId,
     String? systemPrompt,
@@ -47,6 +51,8 @@ class LlmGateway {
     String? contextSuffix,
     required List<LlmTurn> history,
     required String userInput,
+    String? uid,
+    String? sessionId,
   }) async {
     assert(
       systemPrompt != null || promptKey != null,
@@ -54,6 +60,17 @@ class LlmGateway {
     );
 
     final inputFlag = _detector.analyze(userInput);
+
+    if (inputFlag.isEscalation) {
+      await _safetyWriter?.maybeWrite(
+        uid: uid ?? '',
+        source: SafetySource.gatewayInput,
+        match: inputFlag,
+        inputText: userInput,
+        agentId: agentId,
+        sessionId: sessionId,
+      );
+    }
 
     // Acute distress: short-circuit. The module is responsible for showing
     // the crisis surface; we never let an LLM be the only thing standing
@@ -64,6 +81,10 @@ class LlmGateway {
         inputFlag: inputFlag,
         outputFlag: const DistressMatch(DistressLevel.none),
         shortCircuited: true,
+        metadata: TurnMetadata(
+          agentId: agentId,
+          sessionId: sessionId,
+        ),
       );
     }
 
@@ -77,24 +98,36 @@ class LlmGateway {
       history: history,
       userInput: userInput,
     );
-    final outputFlag = _detector.analyze(raw);
-    final filtered = _postFilter(raw);
+
+    final outputFlag = _detector.analyze(raw.text);
+    final filtered = _postFilter(raw.text);
+
+    if (outputFlag.isEscalation) {
+      await _safetyWriter?.maybeWrite(
+        uid: uid ?? '',
+        source: SafetySource.gatewayOutput,
+        match: outputFlag,
+        inputText: raw.text,
+        agentId: agentId,
+        sessionId: sessionId,
+      );
+    }
 
     return LlmResponse(
       text: filtered,
       inputFlag: inputFlag,
       outputFlag: outputFlag,
       shortCircuited: false,
+      metadata: TurnMetadata(
+        systemPromptHash: raw.systemPromptHash,
+        promptKey: promptKey,
+        agentId: agentId,
+        sessionId: sessionId,
+      ),
     );
   }
 
-  /// Stub post-generation filter. For Sprint 0 this only strips obvious model
-  /// artefacts; richer policy checks (interpretive overreach, unsolicited
-  /// reframing) belong here once clinical sign-off lands.
-  String _postFilter(String text) {
-    final trimmed = text.trim();
-    return trimmed;
-  }
+  String _postFilter(String text) => text.trim();
 }
 
 class LlmTurn {
@@ -107,27 +140,34 @@ class LlmResponse {
   final String text;
   final DistressMatch inputFlag;
   final DistressMatch outputFlag;
-
-  /// True when the gateway refused to call the model because the input
-  /// triggered an acute safety flag. The caller MUST surface crisis resources
-  /// instead of showing model text.
   final bool shortCircuited;
+
+  /// B.2 — per-turn metadata to be persisted by the caller on the turn doc.
+  final TurnMetadata metadata;
 
   const LlmResponse({
     required this.text,
     required this.inputFlag,
     required this.outputFlag,
     required this.shortCircuited,
+    required this.metadata,
   });
 
   bool get hasEscalation =>
       shortCircuited || inputFlag.isEscalation || outputFlag.isEscalation;
 }
 
+/// Raw response from the LLM transport, including the server-side hash.
+class LlmRawResponse {
+  final String text;
+  final String? systemPromptHash;
+  const LlmRawResponse({required this.text, this.systemPromptHash});
+}
+
 /// Pluggable transport for the gateway. Lets tests swap in a fake without
 /// touching network code.
 abstract class LlmClient {
-  Future<String> complete({
+  Future<LlmRawResponse> complete({
     required String moduleId,
     String? systemPrompt,
     String? promptKey,
@@ -143,7 +183,7 @@ class DeepseekLlmClient implements LlmClient {
   const DeepseekLlmClient();
 
   @override
-  Future<String> complete({
+  Future<LlmRawResponse> complete({
     required String moduleId,
     String? systemPrompt,
     String? promptKey,
@@ -182,7 +222,10 @@ class DeepseekLlmClient implements LlmClient {
 
       final data = result.data;
       if (data is Map) {
-        return data['text'] as String? ?? '';
+        return LlmRawResponse(
+          text: data['text'] as String? ?? '',
+          systemPromptHash: data['systemPromptHash'] as String?,
+        );
       }
     } on FirebaseFunctionsException {
       // Caller treats empty text as fallback signal.
@@ -190,6 +233,6 @@ class DeepseekLlmClient implements LlmClient {
       // Caller treats empty text as fallback signal.
     }
 
-    return '';
+    return const LlmRawResponse(text: '');
   }
 }

@@ -69,6 +69,10 @@ class ThoughtRecordRepository {
           .doc(uid)
           .collection('thought_records');
 
+  /// Deprecated after Sprint 1 (B.4). New code MUST write to
+  /// [ThoughtExerciseRepository] instead.  This method is kept for
+  /// backwards-compatible reads of existing test docs only.
+  @Deprecated('Use ThoughtExerciseRepository.create — see B.4 sprint notes')
   Future<String?> create(String uid, ThoughtRecord record) async {
     if (!available) return null;
     final ref = await _ref(uid).add(record.toMap()

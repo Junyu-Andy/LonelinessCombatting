@@ -76,7 +76,7 @@ class AuthService {
     );
     final user = credential.user!;
     await user.updateDisplayName(displayName);
-    final arm = await _armAssigner.assign(_db);
+    final assignment = await _armAssigner.assign(_db, ageGroup: ageGroup);
     final profile = UserProfile(
       uid: user.uid,
       email: user.email ?? email.trim(),
@@ -85,7 +85,8 @@ class AuthService {
       emergencyContactName: emergencyContactName,
       emergencyContactPhone: emergencyContactPhone,
       preferredLanguage: preferredLanguage,
-      arm: arm,
+      arm: assignment.arm,
+      strataCell: assignment.cell,
       consent: consent,
       createdAt: DateTime.now(),
       lastLoginAt: DateTime.now(),
@@ -132,19 +133,25 @@ class AuthService {
       final existing = UserProfile.fromMap(user.uid, doc.data() ?? {});
       // Backfill arm for accounts created before randomisation went live.
       if (existing.arm == null) {
-        final arm = await _armAssigner.assign(_db);
-        final patched = existing.copyWith(arm: arm);
-        await ref.set({'arm': arm.code}, SetOptions(merge: true));
+        final result = await _armAssigner.assign(_db,
+            ageGroup: existing.ageGroup);
+        final patched = existing.copyWith(
+            arm: result.arm, strataCell: result.cell);
+        await ref.set({
+          'arm': result.arm.code,
+          'strataCell': result.cell,
+        }, SetOptions(merge: true));
         return patched;
       }
       return existing;
     }
-    final arm = await _armAssigner.assign(_db);
+    final result = await _armAssigner.assign(_db);
     final profile = UserProfile(
       uid: user.uid,
       email: user.email ?? '',
       displayName: user.displayName ?? (user.email ?? '用戶').split('@').first,
-      arm: arm,
+      arm: result.arm,
+      strataCell: result.cell,
       createdAt: DateTime.now(),
       lastLoginAt: DateTime.now(),
     );

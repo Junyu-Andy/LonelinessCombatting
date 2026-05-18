@@ -9,6 +9,7 @@ import '../core/agents/persona_resolver.dart';
 import '../core/core_services_scope.dart';
 import '../core/cross_referral/handoff_executor.dart';
 import '../core/cross_referral/referral_routing_service.dart';
+import '../core/fcm/fcm_service.dart';
 import '../core/llm/llm_gateway.dart';
 import '../core/memory/cross_module_memory.dart';
 import '../core/memory/memory_store.dart';
@@ -41,6 +42,7 @@ class MyApp extends StatefulWidget {
   final PersonaResolver personaResolver;
   final ReferralRoutingService referralRouting;
   final HandoffExecutor handoffExecutor;
+  final FcmService fcm;
 
   const MyApp({
     super.key,
@@ -58,6 +60,7 @@ class MyApp extends StatefulWidget {
     required this.personaResolver,
     required this.referralRouting,
     required this.handoffExecutor,
+    required this.fcm,
   });
 
   @override
@@ -65,6 +68,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  String? _lastFcmUid;
+
   @override
   void initState() {
     super.initState();
@@ -78,9 +83,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.settings.removeListener(_onSettingsChange);
-    // Best-effort — flush a session_end on teardown.
     widget.analytics.endSession();
     super.dispose();
+  }
+
+  /// Called by [AuthGate] (via auth state stream) when the signed-in uid
+  /// changes.  Initialises FCM on first sign-in; deregisters on sign-out.
+  Future<void> _onAuthUidChanged(String? uid) async {
+    if (uid == _lastFcmUid) return;
+    _lastFcmUid = uid;
+    if (uid != null) {
+      await widget.fcm.initialize(uid);
+    } else {
+      await widget.fcm.deregister();
+    }
   }
 
   void _onSettingsChange() {
@@ -169,6 +185,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             home: AuthGate(
               authService: widget.authService,
               analytics: widget.analytics,
+              onAuthUidChanged: _onAuthUidChanged,
             ),
           ),
           ),

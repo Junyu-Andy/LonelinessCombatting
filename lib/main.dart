@@ -1,3 +1,4 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,12 +10,14 @@ import 'core/agent_context/shared_context_service.dart';
 import 'core/agents/persona_resolver.dart';
 import 'core/cross_referral/handoff_executor.dart';
 import 'core/cross_referral/referral_routing_service.dart';
+import 'core/fcm/fcm_service.dart';
 import 'core/llm/llm_gateway.dart';
 import 'core/memory/cross_module_memory.dart';
 import 'core/memory/memory_store.dart';
 import 'core/safety/distress_detector.dart';
 import 'core/safety/distress_router.dart';
 import 'core/safety/distress_state.dart';
+import 'core/safety/safety_event_writer.dart';
 import 'features/analytics/data/analytics_service.dart';
 import 'features/auth/data/auth_service.dart';
 import 'firebase_options.dart';
@@ -27,6 +30,22 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // B.11 — App Check.
+    // Debug builds use the debug provider so local emulators and dev devices
+    // aren't locked out.  Release builds use platform attestation:
+    //   iOS  → DeviceCheck  (works on device from iOS 11+)
+    //   Android → Play Integrity (supersedes SafetyNet)
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kDebugMode
+          ? AndroidProvider.debug
+          : AndroidProvider.playIntegrity,
+      appleProvider: kDebugMode
+          ? AppleProvider.debug
+          : AppleProvider.deviceCheck,
+      webProvider: ReCaptchaV3Provider('recaptcha-v3-site-key'),
+    );
+
     firebaseReady = true;
   } catch (e, st) {
     // firebase_options.dart is still the placeholder — see SETUP_FIREBASE.md.
@@ -40,6 +59,7 @@ Future<void> main() async {
   const detector = DistressDetector();
   final distressState = DistressState();
   final distressRouter = DistressRouter(state: distressState);
+  final safetyWriter = SafetyEventWriter(available: firebaseReady);
   final memory = MemoryStore(available: firebaseReady);
   final crossModuleMemory = CrossModuleMemoryService(
     memory: memory,
@@ -53,6 +73,8 @@ Future<void> main() async {
   );
   final referralRouting = ReferralRoutingService(sharedContext: sharedContext);
   final handoffExecutor = HandoffExecutor(sharedContext: sharedContext);
+  final fcm = FcmService(available: firebaseReady);
+
   runApp(
     MyApp(
       settings: AppSettings(
@@ -60,7 +82,7 @@ Future<void> main() async {
       ),
       authService: AuthService(available: firebaseReady),
       analytics: AnalyticsService(firebaseReady: firebaseReady),
-      llm: LlmGateway(detector: detector),
+      llm: LlmGateway(detector: detector, safetyWriter: safetyWriter),
       memory: memory,
       distress: detector,
       distressState: distressState,
@@ -71,6 +93,7 @@ Future<void> main() async {
       personaResolver: personaResolver,
       referralRouting: referralRouting,
       handoffExecutor: handoffExecutor,
+      fcm: fcm,
     ),
   );
 }
