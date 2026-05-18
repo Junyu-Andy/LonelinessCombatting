@@ -156,7 +156,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           settings: widget.settings,
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
-            title: 'AppName',
+            title: '陪住',
             theme: widget.settings.highContrast
                 ? AppTheme.highContrast
                 : AppTheme.light,

@@ -167,10 +167,19 @@ class _TungTungPageState extends State<TungTungPage> {
       suffix.writeln(persona!.contextSuffix);
       suffix.writeln();
     }
-    if (profile != null && profile.interests.isNotEmpty) {
+    // Interests are ONLY injected for free-form chitchat — never when
+    // Tung Tung is grounded in an article ("問下呢篇" flow) or running
+    // a web search.  In those modes the user wants help with the
+    // specific topic, not a hobby suggestion.
+    final inChitchatMode =
+        widget.articleContext == null && _searches.isEmpty;
+    if (inChitchatMode &&
+        profile != null &&
+        profile.interests.isNotEmpty) {
       suffix.writeln(isEn
-          ? '[Interests captured at onboarding]'
-          : '[onboarding 時話過嘅興趣]');
+          ? '[Interests captured at onboarding — only reference if the '
+              'user opens a chitchat thread; do NOT push them]'
+          : '[onboarding 時話過嘅興趣 — 只有用戶主動講開閒聊先可以引用，唔好硬推]');
       for (final i in profile.interests.take(10)) {
         suffix.writeln('- $i');
       }
@@ -320,7 +329,12 @@ class _TungTungPageState extends State<TungTungPage> {
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                   children: [
                     for (final t in _turns) _TurnBubble(turn: t),
+                    // Interest chips only surface in pure chitchat mode.
+                    // In the article-Q&A flow ("問下呢篇") the user is
+                    // here for the article — surfacing hobbies would
+                    // derail them.
                     if (!_turns.any((t) => t.fromUser) &&
+                        widget.articleContext == null &&
                         profile != null &&
                         profile.interests.isNotEmpty)
                       _InterestChips(
@@ -415,6 +429,7 @@ class _InterestChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: Wrap(
@@ -423,8 +438,22 @@ class _InterestChips extends StatelessWidget {
         children: [
           for (final i in interests)
             ActionChip(
-              label: Text(i),
+              label: Text(
+                i,
+                // Explicit colour + weight — the M3 default was too
+                // low-contrast (white-on-grey) for older readers.
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
               onPressed: () => onTap(i),
+              backgroundColor: theme.colorScheme.surface,
+              side: BorderSide(
+                color: theme.colorScheme.outline,
+                width: 1,
+              ),
             ),
         ],
       ),

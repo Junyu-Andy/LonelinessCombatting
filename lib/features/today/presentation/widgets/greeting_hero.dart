@@ -101,9 +101,12 @@ class GreetingHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
+                  // Brand tagline locked: 【陪住】你 (Chinese square
+                  // brackets bracket the app name, then 「你」on the
+                  // outside).  English keeps a simple "With You is here."
                   isEn
-                      ? '${l10n.appTitle} is with you.'
-                      : '${l10n.appTitle} 陪你。',
+                      ? '${l10n.appTitle} is here.'
+                      : '【${l10n.appTitle}】你。',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.white.withValues(alpha: 0.9),
                     height: 1.35,

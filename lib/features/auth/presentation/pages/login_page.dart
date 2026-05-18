@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/safety/safety_overlay.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/auth_service.dart';
 import '../../data/user_profile.dart';
@@ -329,7 +330,8 @@ class _Header extends StatelessWidget {
           children: [
             Icon(Icons.favorite, size: 36, color: theme.colorScheme.primary),
             const SizedBox(width: 12),
-            Text('AppName', style: theme.textTheme.titleLarge),
+            Text(AppLocalizations.of(context)!.appTitle,
+                style: theme.textTheme.titleLarge),
           ],
         ),
         const SizedBox(height: 14),

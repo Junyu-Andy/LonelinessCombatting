@@ -613,7 +613,7 @@ class _AboutCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  'AppName',
+                  l10n.appTitle,
                   style: theme.textTheme.titleMedium,
                 ),
               ],

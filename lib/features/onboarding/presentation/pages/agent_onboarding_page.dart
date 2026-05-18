@@ -615,11 +615,34 @@ class _TungTungSlide extends StatelessWidget {
             children: [
               for (final seed in seeds)
                 FilterChip(
-                  label: Text(isEn ? seed.en : seed.zh),
+                  label: Text(
+                    isEn ? seed.en : seed.zh,
+                    // Explicit label colour fixes the M3 default that
+                    // rendered as low-contrast white-on-grey for our
+                    // older-adult target audience.
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: selected.contains(seed.id)
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: selected.contains(seed.id)
+                          ? agent.accentColor.withValues(alpha: 1.0)
+                          : theme.colorScheme.onSurface,
+                    ),
+                  ),
                   selected: selected.contains(seed.id),
                   onSelected: (_) => onToggle(seed.id),
-                  selectedColor: agent.accentColor.withValues(alpha: 0.25),
+                  // Unselected: opaque surface so text reads cleanly;
+                  // border carries the agent accent at low alpha.
+                  backgroundColor: theme.colorScheme.surface,
+                  selectedColor: agent.accentColor.withValues(alpha: 0.18),
                   checkmarkColor: agent.accentColor,
+                  side: BorderSide(
+                    color: selected.contains(seed.id)
+                        ? agent.accentColor
+                        : theme.colorScheme.outline,
+                    width: selected.contains(seed.id) ? 2 : 1,
+                  ),
                 ),
             ],
           ),
