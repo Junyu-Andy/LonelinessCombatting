@@ -17,7 +17,7 @@ const SMTP_PASS = defineSecret("SMTP_PASS");
 const PI_EMAIL = defineSecret("PI_EMAIL");
 
 // ---------------------------------------------------------------------------
-// Prompt resolution (Dev Req §3.2, §8 — prompts live server-side so the
+// Prompt resolution (Dev Req §3.2, §8 – prompts live server-side so the
 // client cannot tamper with them).
 //
 // Files under functions/prompts/{key}.txt are loaded once at cold-start
@@ -59,7 +59,7 @@ function resolvePrompt(payload) {
   const template = loadPrompt(promptKey);
   if (!template) return rawPrompt || null;
   let out = template;
-  const variantName = payload.variantName || "阿珍／阿伯";
+  const variantName = payload.variantName || "阿Jan／阿伯";
   out = out.split("{{VARIANT_NAME}}").join(variantName);
   const contextSuffix = payload.contextSuffix;
   if (contextSuffix && typeof contextSuffix === "string") {
@@ -262,9 +262,7 @@ exports.proxyDeepSeek = onCall(
 );
 
 // ---------------------------------------------------------------------------
-// safetyAcknowledgement — returns the templated per-agent safety text for
-// a (agentId, level, locale) tuple. Per Dev Req §9 these strings stay on
-// the server so the safety team can revise copy without a mobile release.
+// safetyAcknowledgement – returns the templated per-agent safety text.
 // ---------------------------------------------------------------------------
 
 exports.safetyAcknowledgement = onCall(
@@ -284,11 +282,7 @@ exports.safetyAcknowledgement = onCall(
 );
 
 // ---------------------------------------------------------------------------
-// referralJudgement — Cross-referral Layer 2 (Dev Req §5.2).
-//
-// Sprint 5 wires the keyword pre-filter on the client; this function
-// asks DeepSeek to decide SURFACE / DEFER / SKIP given the current
-// agent's persona and the candidate target.
+// referralJudgement – Cross-referral Layer 2 (Dev Req §5.2).
 // ---------------------------------------------------------------------------
 
 exports.referralJudgement = onCall(
@@ -347,19 +341,19 @@ your own agent voice if SURFACE, else empty>"}` :
       `而家有個 cross-referral 候選 raise 咗，target 係 ${targetAgentId}。
 觸發內容係：「${matchedText}」
 
-睇翻成段對話，揀以下其中一個：
+睇翻段對話，答以下其中一個：
 SURFACE: 用戶有 wrap up 跡象或者想呢段內容俾人接住傾深啲。
 DEFER: 用戶仲喺諗緊或者你哋已經喺處理緊。
-SKIP: 內容係順帶提一句，唔重要。
+SKIP: 內容係順帶一句，唔重要。
 
 限制：
 - 一段對話最多一次 referral。
-- 用戶明確話「想繼續同你傾」嗰陣唔好 surface。
+- 用戶明確話「想繼續同你」唔好 surface。
 - 過去 5 turn 內已經 offer 過 referral 唔好再 surface。
 
 請用呢個 JSON 格式答：
 {"decision":"SURFACE|DEFER|SKIP","suggestion":"<如果 SURFACE 用你本人嘅
-agent 聲音寫嗰句邀請；其他情況留空>"}`;
+agent 聲音寫邀請；其他情況留空>"}`;
 
     const messages = [];
     recentTurns.slice(-10).forEach((t) => {
@@ -412,31 +406,17 @@ agent 聲音寫嗰句邀請；其他情況留空>"}`;
 );
 
 // ---------------------------------------------------------------------------
-// webSearch — Tung Tung's grounded lookup (Dev Req §6.1).
-//
-// The actual search backend is pluggable. Sprint 4 ships with a stub
-// that returns an empty result set when SEARCH_API_KEY is not set. To
-// enable real search:
-//   1. Sign up for Google Programmable Search Engine (or alternative).
-//   2. firebase functions:secrets:set SEARCH_API_KEY=...
-//   3. firebase functions:secrets:set SEARCH_CX=...
-//   4. firebase deploy --only functions:webSearch
+// webSearch – Tung Tung's grounded lookup (Dev Req §6.1).
+// Using Brave Search API (replaces Google Custom Search JSON API).
 // ---------------------------------------------------------------------------
 
 const SEARCH_API_KEY = defineSecret("SEARCH_API_KEY");
-const SEARCH_CX = defineSecret("SEARCH_CX");
 
 const _searchSafetyDeny = [
-  // Health-advice (Dev Req §6.3). Stick to phrases that strongly
-  // imply prescribing or diagnosing — earlier drafts matched single
-  // characters like 藥 which swallowed all benign Chinese health
-  // content.
   /\b(diagnose|diagnosis|prescribe|cure|dosage)\b/i,
   /(處方|劑量|診斷指引|醫療建議)/,
-  // Financial-advice
   /\b(buy now|sell now|invest in)\b/i,
   /(股票推介|理財建議|投資建議)/,
-  // Self-harm
   /\b(self.?harm|suicide method)\b/i,
   /(自殺方法|自殘方法)/,
 ];
@@ -451,7 +431,7 @@ function passesSafetyFilter(text) {
 
 exports.webSearch = onCall(
   {
-    secrets: [SEARCH_API_KEY, SEARCH_CX],
+    secrets: [SEARCH_API_KEY],
     region: "asia-east2",
     enforceAppCheck: true,
     maxInstances: 5,
@@ -466,48 +446,46 @@ exports.webSearch = onCall(
     if (!query) {
       throw new HttpsError("invalid-argument", "empty query");
     }
+
     let apiKey = "";
-    let cx = "";
     let apiKeyErr = null;
-    let cxErr = null;
     try {
       apiKey = SEARCH_API_KEY.value();
     } catch (err) {
       apiKeyErr = err;
     }
-    try {
-      cx = SEARCH_CX.value();
-    } catch (err) {
-      cxErr = err;
-    }
-    if (!apiKey || !cx) {
-      const reason = !apiKey && !cx ?
-        "both_secrets_unset" :
-        !apiKey ? "search_api_key_unset" : "search_cx_unset";
-      console.warn("webSearch unavailable:", reason,
-          {apiKeyErr: apiKeyErr && apiKeyErr.message,
-            cxErr: cxErr && cxErr.message});
-      return {results: [], unavailable: true, reason: reason};
+
+    if (!apiKey) {
+      console.warn("webSearch unavailable: search_api_key_unset",
+        {apiKeyErr: apiKeyErr && apiKeyErr.message});
+      return {results: [], unavailable: true, reason: "search_api_key_unset"};
     }
 
-    const url = new URL("https://www.googleapis.com/customsearch/v1");
-    url.searchParams.set("key", apiKey);
-    url.searchParams.set("cx", cx);
+    const url = new URL("https://api.search.brave.com/res/v1/web/search");
     url.searchParams.set("q", query);
-    url.searchParams.set("num", "5");
-    url.searchParams.set("safe", "active");
+    url.searchParams.set("count", "5");
+    url.searchParams.set("safesearch", "strict");
 
-    const response = await fetch(url.toString());
+    const response = await fetch(url.toString(), {
+      headers: {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "X-Subscription-Token": apiKey,
+      },
+    });
+
     if (!response.ok) {
       throw new HttpsError("internal", `search ${response.status}`);
     }
+
     const data = await response.json();
-    const items = Array.isArray(data.items) ? data.items : [];
+    const items = Array.isArray(data.web && data.web.results)
+      ? data.web.results : [];
     const results = items
       .map((it) => ({
         title: it.title || "",
-        snippet: it.snippet || "",
-        link: it.link || "",
+        snippet: it.description || "",
+        link: it.url || "",
       }))
       .filter((r) => passesSafetyFilter(`${r.title} ${r.snippet}`));
     return {results: results, unavailable: false};
