@@ -586,7 +586,7 @@ class _AboutCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  isEn ? 'Companion App Demo' : '陪伴型 App Demo',
+                  'AppName',
                   style: theme.textTheme.titleMedium,
                 ),
               ],

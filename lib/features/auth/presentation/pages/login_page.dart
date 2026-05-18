@@ -329,7 +329,7 @@ class _Header extends StatelessWidget {
           children: [
             Icon(Icons.favorite, size: 36, color: theme.colorScheme.primary),
             const SizedBox(width: 12),
-            Text('陪伴型 Demo', style: theme.textTheme.titleLarge),
+            Text('AppName', style: theme.textTheme.titleLarge),
           ],
         ),
         const SizedBox(height: 14),
