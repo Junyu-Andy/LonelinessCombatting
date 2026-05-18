@@ -9,7 +9,12 @@ class _FakeClient implements LlmClient {
 
   @override
   Future<String> complete({
-    required String systemPrompt,
+    required String moduleId,
+    String? systemPrompt,
+    String? promptKey,
+    String? agentId,
+    String? variantName,
+    String? contextSuffix,
     required List<LlmTurn> history,
     required String userInput,
   }) async {

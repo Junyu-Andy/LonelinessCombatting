@@ -5,7 +5,6 @@ import '../../../../core/reminders/reminder_service.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
-import '../../../cognitive_restructure/data/thought_record.dart';
 import '../../data/action_plan.dart';
 
 /// M7 — Action Loop, Arm B (rule-based).
@@ -17,16 +16,14 @@ import '../../data/action_plan.dart';
 ///
 /// No LLM. Same persistence target as Arm A (`action_plans/`).
 ///
-/// [seedAction] lets caller modules (M4 hand-off, M6 acceptance) pre-fill
-/// the action field.
-/// [linkedThoughtRecordId] lets M4 record the cross-link.
+/// [seedAction] lets caller modules (M6 acceptance) pre-fill the action
+/// field. The legacy M4 thought-record cross-link was removed when M4
+/// was deprecated in Sprint 3.
 class ActionLoopArmBPage extends StatefulWidget {
   final String? seedAction;
-  final String? linkedThoughtRecordId;
   const ActionLoopArmBPage({
     super.key,
     this.seedAction,
-    this.linkedThoughtRecordId,
   });
 
   @override
@@ -80,11 +77,6 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
           createdAt: DateTime.now(),
         ),
       );
-      final linkId = widget.linkedThoughtRecordId;
-      if (planId != null && linkId != null) {
-        final trRepo = ThoughtRecordRepository(available: auth.available);
-        await trRepo.linkActionPlan(profile.uid, linkId, planId);
-      }
       if (planId != null) {
         final reminders = FirestoreReminderQueue(available: auth.available);
         await reminders.schedule(
