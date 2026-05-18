@@ -1,8 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../features/auth/data/user_profile.dart';
+
 /// Spec §M7: "Plan saved with a follow-up reminder for the next session
 /// after the planned time." Spec §Adherence: "Reminders configurable by
 /// user; respect quiet hours."
+///
+/// B.10 (Sprint 4 fix): when the user has activated 今日休息 today, the
+/// schedule API skips writing the reminder doc entirely.  This is the
+/// "dignified pause" behaviour from Product Overview §3.4 — reminders
+/// must be suppressed for the day, not merely flagged.  Reminders whose
+/// `fireAt` is on a future day still go through, since 今日休息 only
+/// covers the current local day.
 ///
 /// This file holds the *interface* between app code and a future local-
 /// notification implementation. Concrete delivery (Android channel + iOS
@@ -16,9 +25,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 ///     queue and register OS-level alarms.
 ///   - Skips delivery silently in guest mode or when Firebase is down.
 abstract class ReminderService {
+  /// Schedule a reminder for [uid].  When [profile] is non-null and
+  /// `profile.isQuietToday == true`, requests for **today** are
+  /// suppressed (B.10).  Returns null when suppressed.
   Future<String?> schedule({
     required String uid,
     required ReminderRequest request,
+    UserProfile? profile,
   });
 
   Future<void> cancel({required String uid, required String reminderId});
@@ -83,8 +96,18 @@ class FirestoreReminderQueue implements ReminderService {
   Future<String?> schedule({
     required String uid,
     required ReminderRequest request,
+    UserProfile? profile,
   }) async {
     if (!available) return null;
+    // B.10 — suppress reminders for today when 今日休息 is active.
+    // Reminders scheduled for tomorrow or later go through.
+    if (profile != null && profile.isQuietToday) {
+      final now = DateTime.now();
+      final sameDay = request.fireAt.year == now.year &&
+          request.fireAt.month == now.month &&
+          request.fireAt.day == now.day;
+      if (sameDay) return null;
+    }
     final doc = await _ref(uid).add(request.toMap());
     return doc.id;
   }

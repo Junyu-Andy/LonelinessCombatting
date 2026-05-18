@@ -14,6 +14,9 @@ import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../reflective_dialogue/data/negative_cognition_detector.dart';
+import '../../../thought_exercise/presentation/naming_thought_card.dart';
+import '../../../thought_exercise/presentation/thought_exercise_page.dart';
 import 'check_in_shared.dart';
 
 /// M2 — hybrid check-in (Arm A). Free-text or voice opener, LLM produces
@@ -59,6 +62,16 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// Active cross-referral suggestion (Sprint 5). Cleared on dismiss
   /// or after the user accepts the handoff.
   SurfacedReferral? _pendingReferral;
+
+  /// Phase A spec §2.6 — Siu Yan's Thought Exercise offer pathway.
+  /// **Only Siu Yan** is authorised to surface the TE tool (Hybrid arm
+  /// only).  When the negative-cognition detector matches on a user turn,
+  /// we cache the matched thought + the assistant turn that preceded it
+  /// (for the B.5 audit trigger) and render [NamingThoughtCard] on the
+  /// next frame.  The card auto-fills Field 3 of the exercise on accept.
+  static const _negCogDetector = NegativeCognitionDetector();
+  String? _pendingNamingThought;
+  String? _pendingNamingInvitation;
 
   @override
   void didChangeDependencies() {
@@ -216,9 +229,32 @@ class _CheckInArmAState extends State<CheckInArmA> {
       await core.distressRouter.route(escalation, context: context);
     }
 
-    // Cross-referral routing (Sprint 5). Skip when a card is already
-    // showing this turn or the conversation has escalated to safety.
-    if (_pendingReferral == null && !response.hasEscalation) {
+    // Phase A spec §2.6 — Siu Yan's Thought Exercise offer.  We surface
+    // the naming card iff (a) negative cognition matched on this turn,
+    // (b) no other card is currently pending, (c) distress hasn't
+    // escalated.  Cached invitation = Siu Yan's last assistant reply
+    // (B.5 audit-trigger race fix).
+    if (_pendingNamingThought == null &&
+        _pendingReferral == null &&
+        !response.hasEscalation) {
+      final match = _negCogDetector.scan(text);
+      if (match != null) {
+        final lastBot = _turns.lastWhere(
+          (t) => !t.fromUser && !t.isSystem,
+          orElse: () => _Turn.bot(''),
+        );
+        setState(() {
+          _pendingNamingThought = match.fullTurn;
+          _pendingNamingInvitation = lastBot.text;
+        });
+      }
+    }
+
+    // Cross-referral routing (Sprint 5). Skip when a naming card is
+    // pending or the conversation has escalated to safety.
+    if (_pendingNamingThought == null &&
+        _pendingReferral == null &&
+        !response.hasEscalation) {
       core.referralRouting.onUserTurn(AgentRegistry.siuYanId);
       final surfaced = await core.referralRouting.maybeSurface(
         sourceAgentId: AgentRegistry.siuYanId,
@@ -233,6 +269,41 @@ class _CheckInArmAState extends State<CheckInArmA> {
         setState(() => _pendingReferral = surfaced);
       }
     }
+  }
+
+  Future<void> _acceptNaming() async {
+    final thought = _pendingNamingThought;
+    final invitation = _pendingNamingInvitation;
+    if (thought == null) return;
+    final profile = AppSettingsScope.read(context).profile;
+    setState(() {
+      _pendingNamingThought = null;
+      _pendingNamingInvitation = null;
+    });
+    if (mounted) {
+      await AnalyticsScope.of(context)
+          .logM5ThoughtExerciseOpened(origin: 'siu_yan_offer');
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ThoughtExercisePage(
+          initialThought: thought,
+          agentId: AgentRegistry.siuYanId,
+          agentInvitationText: invitation,
+          originTurnRef: profile != null
+              ? 'users/${profile.uid}/agent_contexts/${AgentRegistry.siuYanId}'
+              : null,
+        ),
+      ),
+    );
+  }
+
+  void _declineNaming() {
+    setState(() {
+      _pendingNamingThought = null;
+      _pendingNamingInvitation = null;
+    });
   }
 
   DistressMatch _higher(DistressMatch a, DistressMatch b) {
@@ -328,6 +399,12 @@ class _CheckInArmAState extends State<CheckInArmA> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         ),
+                      ),
+                    if (_pendingNamingThought != null)
+                      NamingThoughtCard(
+                        thought: _pendingNamingThought!,
+                        onAccept: _acceptNaming,
+                        onDecline: _declineNaming,
                       ),
                     if (_pendingReferral != null)
                       ReferralSuggestionCard(

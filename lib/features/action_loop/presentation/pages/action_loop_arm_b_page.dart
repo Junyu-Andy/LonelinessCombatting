@@ -81,6 +81,7 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
         final reminders = FirestoreReminderQueue(available: auth.available);
         await reminders.schedule(
           uid: profile.uid,
+          profile: profile, // B.10 — 今日休息 suppression
           request: ReminderRequest(
             kind: 'm7_followup',
             fireAt: DateTime.now().add(const Duration(hours: 24)),

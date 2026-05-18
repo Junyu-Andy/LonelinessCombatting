@@ -73,7 +73,17 @@ Future<void> main() async {
     agentContext: agentContext,
     sharedContext: sharedContext,
   );
-  final referralRouting = ReferralRoutingService(sharedContext: sharedContext);
+  final analytics = AnalyticsService(firebaseReady: firebaseReady);
+  // Wire per-layer cross-referral telemetry into analytics so Phase A
+  // can calibrate keyword-filter recall + LLM SURFACE/DEFER/SKIP rates.
+  // The routing service has no AnalyticsService dependency by design;
+  // the telemetry callback bridges the two.
+  final referralRouting = ReferralRoutingService(
+    sharedContext: sharedContext,
+    telemetry: (phase, params) {
+      analytics.logEvent('cross_referral_$phase', params);
+    },
+  );
   final handoffExecutor = HandoffExecutor(sharedContext: sharedContext);
   final fcm = FcmService(available: firebaseReady);
 
@@ -83,7 +93,7 @@ Future<void> main() async {
         locale: const Locale('zh'),
       ),
       authService: AuthService(available: firebaseReady),
-      analytics: AnalyticsService(firebaseReady: firebaseReady),
+      analytics: analytics,
       llm: LlmGateway(
         detector: detector,
         safetyWriter: safetyWriter,
