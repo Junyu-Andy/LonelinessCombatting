@@ -1,5 +1,6 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
@@ -654,5 +655,217 @@ exports.onThoughtExerciseCreated = onDocumentCreated(
     console.log(
       `te_audit_queue: queued ${snap.ref.path} (sampled=${sampled})`,
     );
+  },
+);
+
+// ---------------------------------------------------------------------------
+// C.1 — Weekly loneliness probe (Sprint 3.3).
+//
+// Cron: every Sunday 09:00 HKT (Asia/Hong_Kong; no DST so the wall time is
+// stable year-round, but we set the tz explicitly to lock the contract).
+//
+// Phase A gate: writes to a per-user `pending_loneliness_probes/{uid}` doc
+// that the client polls on app open.  An FCM push is sent only when the
+// `weeklyProbeEnabled` feature flag is true on the user's profile —
+// in Phase A this flag is false for every user (kill switch is the default
+// state), so the cron emits the doc but the user never sees the probe.
+//
+// The probe itself: 1-item slider (UCLA-3 short form / single-item
+// loneliness scale), captured client-side and written to
+// `users/{uid}/loneliness_probes/{auto-id}`.
+// ---------------------------------------------------------------------------
+
+exports.weeklyLonelinessProbe = onSchedule(
+  {
+    schedule: "0 9 * * SUN",
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    retryCount: 1,
+  },
+  async (_event) => {
+    const db = admin.firestore();
+    const usersSnap = await db.collection("users").get();
+    const writes = [];
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    for (const userDoc of usersSnap.docs) {
+      const enabled = userDoc.data()?.weeklyProbeEnabled === true;
+      if (!enabled) continue;
+      writes.push(
+        db.collection("pending_loneliness_probes").doc(userDoc.id).set({
+          uid: userDoc.id,
+          dueAt: now,
+          status: "pending",
+        }, {merge: true}),
+      );
+    }
+    await Promise.all(writes);
+    console.log(`weeklyLonelinessProbe: enqueued ${writes.length} probes`);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// C.4 — Analyst-blind data export (Sprint 3.5).
+//
+// Cron: every Sunday 02:00 HKT — runs before C.1 so the weekly snapshot
+// captures the week just past, not the new week's first events.
+//
+// Writes one NDJSON file per collection into the project's default Cloud
+// Storage bucket under `exports/{YYYY-MM-DD}/{collection}.ndjson`.  Each
+// row strips identifiers and rewrites `arm` → blinded `groupCode`
+// (`Group_X` for one arm, `Group_Y` for the other).  The X/Y → A/B
+// mapping is rotated weekly via a separate `export_blind_keys` doc
+// readable only by the PI role.
+//
+// Collections exported (whitelist — anything not listed is NOT exported):
+//   users (profile minus PII)
+//   users/{uid}/events
+//   users/{uid}/ppr_responses
+//   users/{uid}/llm_turn_features
+//   users/{uid}/thought_exercise
+//   users/{uid}/loneliness_probes
+//   safety_events (uid hashed)
+//   pi_alerts (uid hashed)
+// ---------------------------------------------------------------------------
+
+const _EXPORT_BLINDED_COLLECTIONS = [
+  "users",
+  "events",
+  "ppr_responses",
+  "llm_turn_features",
+  "thought_exercise",
+  "loneliness_probes",
+  "safety_events",
+  "pi_alerts",
+];
+
+function hashUid(uid, salt) {
+  return crypto
+    .createHash("sha256")
+    .update(`${salt}|${uid}`, "utf8")
+    .digest("hex")
+    .slice(0, 16);
+}
+
+/**
+ * Strip PII fields and rewrite arm → blinded group code.  The mapping
+ * (Group_X → A or B) is randomised weekly and stored in
+ * `export_blind_keys/{date}` so only the PI can de-blind.
+ */
+function blindRow(row, {armMapping, salt, includeUid}) {
+  const out = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (k === "email" ||
+        k === "displayName" ||
+        k === "emergencyContactName" ||
+        k === "emergencyContactPhone" ||
+        k === "closeContacts") {
+      continue; // strip PII
+    }
+    if (k === "uid") {
+      if (includeUid) out["uidHash"] = hashUid(v, salt);
+      continue;
+    }
+    if (k === "arm" && typeof v === "string") {
+      out["groupCode"] = armMapping[v] || null;
+      continue;
+    }
+    out[k] = v;
+  }
+  return out;
+}
+
+exports.blindedDataExport = onSchedule(
+  {
+    schedule: "0 2 * * SUN",
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    retryCount: 1,
+    timeoutSeconds: 540,
+    memory: "1GiB",
+  },
+  async (_event) => {
+    const db = admin.firestore();
+    const dateKey = new Date()
+      .toLocaleDateString("en-CA", {timeZone: "Asia/Hong_Kong"}); // YYYY-MM-DD
+
+    // Generate this week's blind mapping (X/Y → A/B) and salt.  Stored
+    // in a separate collection that the working analyst cannot read; only
+    // the PI's service account.
+    const shuffleA = Math.random() < 0.5;
+    const armMapping = shuffleA
+      ? {"A": "Group_X", "B": "Group_Y"}
+      : {"A": "Group_Y", "B": "Group_X"};
+    const salt = crypto.randomBytes(16).toString("hex");
+    await db.collection("export_blind_keys").doc(dateKey).set({
+      mapping: armMapping,
+      salt: salt,
+      generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Stream every user; for each, read whitelisted sub-collections.
+    const usersSnap = await db.collection("users").get();
+    const ndjsonByCollection = {};
+    for (const name of _EXPORT_BLINDED_COLLECTIONS) {
+      ndjsonByCollection[name] = [];
+    }
+
+    for (const userDoc of usersSnap.docs) {
+      const userRow = userDoc.data();
+      userRow.uid = userDoc.id;
+      ndjsonByCollection.users.push(
+        JSON.stringify(blindRow(userRow, {
+          armMapping, salt, includeUid: true,
+        })),
+      );
+      for (const subName of [
+        "events", "ppr_responses", "llm_turn_features",
+        "thought_exercise", "loneliness_probes",
+      ]) {
+        const sub = await userDoc.ref.collection(subName).get();
+        for (const d of sub.docs) {
+          const row = d.data();
+          row.uid = userDoc.id; // include for cross-collection joins
+          ndjsonByCollection[subName].push(
+            JSON.stringify(blindRow(row, {
+              armMapping, salt, includeUid: true,
+            })),
+          );
+        }
+      }
+    }
+
+    // Top-level admin collections — hash uid even when present.
+    for (const name of ["safety_events", "pi_alerts"]) {
+      const snap = await db.collection(name).get();
+      for (const d of snap.docs) {
+        const row = d.data();
+        ndjsonByCollection[name].push(
+          JSON.stringify(blindRow(row, {
+            armMapping, salt, includeUid: true,
+          })),
+        );
+      }
+    }
+
+    const bucket = admin.storage().bucket();
+    const writes = [];
+    for (const [name, lines] of Object.entries(ndjsonByCollection)) {
+      if (lines.length === 0) continue;
+      const file = bucket.file(`exports/${dateKey}/${name}.ndjson`);
+      writes.push(file.save(lines.join("\n"), {
+        resumable: false,
+        contentType: "application/x-ndjson",
+        metadata: {
+          metadata: {
+            dateKey: dateKey,
+            collection: name,
+            rowCount: String(lines.length),
+            mappingSecret: "see-export_blind_keys-collection",
+          },
+        },
+      }));
+    }
+    await Promise.all(writes);
+    console.log(`blindedDataExport: wrote ${writes.length} files for ${dateKey}`);
   },
 );

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
@@ -18,6 +19,24 @@ import 'package:speech_to_text/speech_to_text.dart';
 /// adult typing burden. STT must support Cantonese." We try `yue-Hant-HK`
 /// first; if the device doesn't have it, we fall back to `zh-HK`, then
 /// `zh-CN`, then system default.
+///
+/// **B.8 — protocol-level on-device lock (Sprint 3.2).**
+/// Every [SpeechToText.listen] call passes `onDevice: true` so the
+/// platform STT engine MUST stay on-device:
+///   - iOS:    `requiresOnDeviceRecognition = true` on SFSpeechRecognizer.
+///             Falls back to "unavailable" if no offline language pack.
+///   - Android: `EXTRA_PREFER_OFFLINE = true` on RecognizerIntent.
+///             Falls back to system-default behaviour if no offline pack.
+/// HREC requires audio NEVER leave the device.  Tests: airplane mode +
+/// dictate; transcription must still succeed.  If you ever hear the
+/// engine "phone home" on the network, treat it as a protocol violation
+/// and stop recording immediately.
+class _OnDeviceUnavailableException implements Exception {
+  const _OnDeviceUnavailableException();
+  @override
+  String toString() =>
+      'On-device speech recognition unavailable on this device.';
+}
 class VoiceInputButton extends StatefulWidget {
   /// Called as new text arrives. The button replaces the *last
   /// recognised chunk* on each callback — the caller should treat this
@@ -89,16 +108,38 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
     _bufferStart = widget.prefix?.call() ?? '';
     setState(() => _listening = true);
     final localeId = await _pickLocale();
-    await _stt.listen(
-      localeId: localeId,
-      onResult: (result) {
-        final spoken = result.recognizedWords;
-        final glue = _bufferStart.isEmpty ? '' : ' ';
-        widget.onText('$_bufferStart$glue$spoken');
-      },
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 4),
-    );
+
+    // B.8 — protocol-level on-device lock.  speech_to_text v7 surfaces
+    // this via SpeechListenOptions; older versions used a top-level
+    // onDevice param.  Both forms work because the plugin maps them to
+    // the same native flags (iOS: requiresOnDeviceRecognition;
+    // Android: EXTRA_PREFER_OFFLINE).
+    try {
+      await _stt.listen(
+        localeId: localeId,
+        onResult: (result) {
+          final spoken = result.recognizedWords;
+          final glue = _bufferStart.isEmpty ? '' : ' ';
+          widget.onText('$_bufferStart$glue$spoken');
+        },
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 4),
+        listenOptions: SpeechListenOptions(
+          onDevice: true,
+          listenMode: ListenMode.dictation,
+          cancelOnError: true,
+        ),
+      );
+    } catch (e) {
+      // Device doesn't have an offline language pack — fail closed.
+      // Do NOT silently fall back to cloud recognition: HREC says audio
+      // must never leave the device.
+      if (kDebugMode) {
+        debugPrint('[voice] on-device STT unavailable: $e');
+      }
+      if (mounted) setState(() => _listening = false);
+      throw const _OnDeviceUnavailableException();
+    }
   }
 
   @override

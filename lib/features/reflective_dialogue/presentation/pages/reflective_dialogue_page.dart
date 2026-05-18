@@ -415,6 +415,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
                         surfaced: _pendingReferral!,
                         handoffExecutor:
                             CoreServicesScope.of(context).handoffExecutor,
+                        sourceAgentId: AgentRegistry.ahJanAhBakId,
                         onDismiss: () =>
                             setState(() => _pendingReferral = null),
                       ),

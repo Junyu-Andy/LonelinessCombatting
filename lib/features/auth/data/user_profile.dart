@@ -208,6 +208,12 @@ class UserProfile {
   /// resolves staleness against `DateTime.now()`.
   final DateTime? quietTodayActivatedAt;
 
+  /// C.1 — server-side feature flag mirror.  When true, the weekly
+  /// loneliness-probe cron enqueues a probe for this user every Sunday
+  /// 09:00 HKT.  Defaults to false (Phase A).  Flipped per-user by the
+  /// PI when Phase B begins — not toggled in-app.
+  final bool weeklyProbeEnabled;
+
   /// Timestamps of the first time each agent introduced itself to the
   /// user (Dev Req §3.3). Missing entries mean the intro has not been
   /// shown yet and must be played the next time the agent opens.
@@ -232,6 +238,7 @@ class UserProfile {
     this.strataCell,
     this.firstPprSeenByAgent = const {},
     this.quietTodayActivatedAt,
+    this.weeklyProbeEnabled = false,
     this.firstIntroSeen = const {},
   });
 
@@ -259,6 +266,7 @@ class UserProfile {
     int? strataCell,
     Map<String, DateTime>? firstPprSeenByAgent,
     DateTime? quietTodayActivatedAt,
+    bool? weeklyProbeEnabled,
     Map<String, DateTime>? firstIntroSeen,
   }) {
     return UserProfile(
@@ -282,6 +290,7 @@ class UserProfile {
       firstPprSeenByAgent: firstPprSeenByAgent ?? this.firstPprSeenByAgent,
       quietTodayActivatedAt:
           quietTodayActivatedAt ?? this.quietTodayActivatedAt,
+      weeklyProbeEnabled: weeklyProbeEnabled ?? this.weeklyProbeEnabled,
       firstIntroSeen: firstIntroSeen ?? this.firstIntroSeen,
     );
   }
@@ -308,6 +317,7 @@ class UserProfile {
             e.key: e.value.toIso8601String(),
         },
         'quietTodayActivatedAt': quietTodayActivatedAt?.toIso8601String(),
+        'weeklyProbeEnabled': weeklyProbeEnabled,
         'firstIntroSeen': {
           for (final e in firstIntroSeen.entries)
             e.key: e.value.toIso8601String(),
@@ -384,6 +394,7 @@ class UserProfile {
       strataCell: (map['strataCell'] as num?)?.toInt(),
       firstPprSeenByAgent: firstPpr,
       quietTodayActivatedAt: parseDate(map['quietTodayActivatedAt']),
+      weeklyProbeEnabled: (map['weeklyProbeEnabled'] as bool?) ?? false,
       firstIntroSeen: intro,
     );
   }

@@ -81,6 +81,24 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // C.1 Weekly loneliness probe queue — admin-write only.  The
+    // weekly cron writes per-user pending probes; client reads its
+    // own pending probe under users/{uid}/... (handled by the
+    // wildcard owner rule above).  The top-level mirror is admin-only.
+    // ============================================================
+    match /pending_loneliness_probes/{uid} {
+      allow read, write: if false;
+    }
+
+    // ============================================================
+    // C.4 Blinded export keys — PI service account only.  Working
+    // analysts must NEVER read this collection or blinding fails.
+    // ============================================================
+    match /export_blind_keys/{dateKey} {
+      allow read, write: if false;
+    }
+
+    // ============================================================
     // C.2 stratified RCT arm-balance counter (Sprint 1.4).
     //
     // Schema: { cell_0: {aCount, bCount}, cell_1: ..., cell_2: ...,

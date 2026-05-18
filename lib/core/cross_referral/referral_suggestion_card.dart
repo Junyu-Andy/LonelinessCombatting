@@ -5,30 +5,89 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../features/analytics/presentation/analytics_scope.dart';
 import '../agent_context/shared_context_service.dart';
 import '../agents/agent_avatar.dart';
 import '../agents/agent_registry.dart';
 import 'handoff_executor.dart';
 import 'referral_routing_service.dart';
 
-class ReferralSuggestionCard extends StatelessWidget {
+class ReferralSuggestionCard extends StatefulWidget {
   final SurfacedReferral surfaced;
   final HandoffExecutor handoffExecutor;
   final VoidCallback onDismiss;
+
+  /// B.3 — the agent whose surface is currently rendering this card.
+  /// Used for the `fromAgent` field on cross_referral_* analytics events.
+  /// Optional for back-compat with existing call sites; callers should
+  /// pass it for the events to fire with full fidelity.
+  final String? sourceAgentId;
 
   const ReferralSuggestionCard({
     super.key,
     required this.surfaced,
     required this.handoffExecutor,
     required this.onDismiss,
+    this.sourceAgentId,
   });
+
+  @override
+  State<ReferralSuggestionCard> createState() => _ReferralSuggestionCardState();
+}
+
+class _ReferralSuggestionCardState extends State<ReferralSuggestionCard> {
+  bool _offerLogged = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // B.3 — fire cross_referral_offered exactly once per mount.  The
+    // matched text is pre-truncated to 32 chars + length so analytics
+    // never carries the full user phrase (PII boundary).
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (_offerLogged || !mounted) return;
+      _offerLogged = true;
+      final fromAgent = widget.sourceAgentId ?? 'unknown';
+      final matched = widget.surfaced.match.matchedPhrase;
+      final prefix = matched.length > 32 ? matched.substring(0, 32) : matched;
+      await AnalyticsScope.of(context).logCrossReferralOffered(
+        fromAgent: fromAgent,
+        toAgent: widget.surfaced.match.trigger.targetAgentId,
+        matchedTextLen: matched.length,
+        matchedTextPrefix32: prefix,
+      );
+    });
+  }
+
+  Future<void> _onAccept() async {
+    final fromAgent = widget.sourceAgentId ?? 'unknown';
+    await AnalyticsScope.of(context).logCrossReferralAccepted(
+      fromAgent: fromAgent,
+      toAgent: widget.surfaced.match.trigger.targetAgentId,
+    );
+    widget.onDismiss();
+    if (!mounted) return;
+    await widget.handoffExecutor.handoff(
+      context: context,
+      match: widget.surfaced.match,
+    );
+  }
+
+  Future<void> _onDecline() async {
+    final fromAgent = widget.sourceAgentId ?? 'unknown';
+    await AnalyticsScope.of(context).logCrossReferralDeclined(
+      fromAgent: fromAgent,
+      toAgent: widget.surfaced.match.trigger.targetAgentId,
+    );
+    widget.onDismiss();
+  }
 
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     final target =
-        AgentRegistry.tryById(surfaced.match.trigger.targetAgentId);
+        AgentRegistry.tryById(widget.surfaced.match.trigger.targetAgentId);
     if (target == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -64,7 +123,7 @@ class ReferralSuggestionCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                surfaced.suggestionText,
+                widget.surfaced.suggestionText,
                 style: theme.textTheme.bodyLarge?.copyWith(height: 1.45),
               ),
               const SizedBox(height: 12),
@@ -75,13 +134,7 @@ class ReferralSuggestionCard extends StatelessWidget {
                       style: FilledButton.styleFrom(
                         backgroundColor: target.accentColor,
                       ),
-                      onPressed: () async {
-                        onDismiss();
-                        await handoffExecutor.handoff(
-                          context: context,
-                          match: surfaced.match,
-                        );
-                      },
+                      onPressed: _onAccept,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(
@@ -94,7 +147,7 @@ class ReferralSuggestionCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: onDismiss,
+                      onPressed: _onDecline,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(

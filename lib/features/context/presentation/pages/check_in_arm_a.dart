@@ -334,6 +334,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
                         surfaced: _pendingReferral!,
                         handoffExecutor: CoreServicesScope.of(context)
                             .handoffExecutor,
+                        sourceAgentId: AgentRegistry.siuYanId,
                         onDismiss: () =>
                             setState(() => _pendingReferral = null),
                       ),

@@ -137,11 +137,288 @@ class _DashboardBody extends StatelessWidget {
         _SectionHeader(label: isEn ? 'Transcript audit queue' : '對話審計隊列'),
         const _TranscriptAuditList(),
         const SizedBox(height: 24),
+        // B.5 — Thought-Exercise audit queue (Sprint 3.1).  Reads from
+        // te_audit_queue/{id}; click-through opens an audit form that
+        // captures the 6 dimensions defined in the CF trigger.
+        _SectionHeader(
+            label: isEn ? 'Thought-exercise audit' : '想法練習審計'),
+        const _ThoughtExerciseAuditList(),
+        const SizedBox(height: 24),
         _SectionHeader(label: isEn ? 'Cross-referral' : '跨 agent 轉介'),
         const _CrossReferralStats(),
         const SizedBox(height: 24),
         _SectionHeader(label: isEn ? 'PPR aggregates' : 'PPR 總體分布'),
         const _PprAggregates(),
+      ],
+    );
+  }
+}
+
+/// B.5 — TE audit queue widget (Sprint 3.1).
+///
+/// Shows the most recent ~25 pending audit docs with the cached
+/// `agentInvitationText`, a thumbnail of the user's thought, and a
+/// "review" affordance that opens the [_TeAuditForm] modal.
+class _ThoughtExerciseAuditList extends StatelessWidget {
+  const _ThoughtExerciseAuditList();
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final theme = Theme.of(context);
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('te_audit_queue')
+          .where('sampled', isEqualTo: true)
+          .where('status', isEqualTo: 'pending')
+          .orderBy('createdAt', descending: true)
+          .limit(25)
+          .snapshots(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: LinearProgressIndicator(),
+          );
+        }
+        final docs = snap.data?.docs ?? const [];
+        if (docs.isEmpty) {
+          return Text(
+            isEn ? 'No pending audits.' : '冇等待審計嘅項目。',
+            style: theme.textTheme.bodyMedium,
+          );
+        }
+        return Column(
+          children: [
+            for (final doc in docs)
+              Card(
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                child: ListTile(
+                  // PII-safety: never put thoughtPreview into the URL or
+                  // any logging call — keep it inside the widget tree only.
+                  title: Text(
+                    doc.data()['agentInvitationText'] as String? ??
+                        (isEn ? '(no invitation cached)' : '(無快取邀請)'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    doc.data()['thoughtPreview'] as String? ?? '',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: TextButton(
+                    onPressed: () => _openAuditForm(context, doc),
+                    child: Text(isEn ? 'Review' : '審計'),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _openAuditForm(
+    BuildContext context,
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => _TeAuditForm(docRef: doc.reference, initial: doc.data()),
+    );
+  }
+}
+
+class _TeAuditForm extends StatefulWidget {
+  final DocumentReference<Map<String, dynamic>> docRef;
+  final Map<String, dynamic> initial;
+  const _TeAuditForm({required this.docRef, required this.initial});
+
+  @override
+  State<_TeAuditForm> createState() => _TeAuditFormState();
+}
+
+class _TeAuditFormState extends State<_TeAuditForm> {
+  int? _invitationAppropriateness;
+  bool? _contentClinicalDrift;
+  int? _mechanismAlignment;
+  int? _culturalFit;
+  String _safetyConcern = 'none';
+  final _notesCtrl = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    await widget.docRef.set({
+      'status': 'reviewed',
+      'reviewedAt': FieldValue.serverTimestamp(),
+      'audit': {
+        'invitation_appropriateness': _invitationAppropriateness,
+        'content_clinical_drift': _contentClinicalDrift,
+        'mechanism_alignment': _mechanismAlignment,
+        'cultural_fit': _culturalFit,
+        'safety_concern': _safetyConcern,
+        'researcher_notes': _notesCtrl.text.trim(),
+      },
+    }, SetOptions(merge: true));
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    return AlertDialog(
+      title: Text(isEn ? 'TE audit (6 dimensions)' : '想法練習審計（6 項）'),
+      content: SizedBox(
+        width: 500,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(widget.initial['agentInvitationText'] as String? ?? ''),
+              const SizedBox(height: 8),
+              Text(widget.initial['thoughtPreview'] as String? ?? '',
+                  style: Theme.of(context).textTheme.bodySmall),
+              const Divider(height: 24),
+              _Likert5(
+                label: isEn
+                    ? 'Invitation appropriateness'
+                    : '邀請語句合適度',
+                value: _invitationAppropriateness,
+                onChanged: (v) =>
+                    setState(() => _invitationAppropriateness = v),
+              ),
+              const SizedBox(height: 12),
+              _YesNo(
+                label: isEn
+                    ? 'Content shows clinical drift?'
+                    : '內容係咪偏向臨床診斷？',
+                value: _contentClinicalDrift,
+                onChanged: (v) => setState(() => _contentClinicalDrift = v),
+              ),
+              const SizedBox(height: 12),
+              _Likert5(
+                label: isEn ? 'Mechanism alignment' : '機制一致性',
+                value: _mechanismAlignment,
+                onChanged: (v) => setState(() => _mechanismAlignment = v),
+              ),
+              const SizedBox(height: 12),
+              _Likert5(
+                label: isEn ? 'Cultural fit' : '文化貼切度',
+                value: _culturalFit,
+                onChanged: (v) => setState(() => _culturalFit = v),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _safetyConcern,
+                decoration: InputDecoration(
+                  labelText: isEn ? 'Safety concern' : '安全關注',
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'none', child: Text('none')),
+                  DropdownMenuItem(value: 'low', child: Text('low')),
+                  DropdownMenuItem(value: 'medium', child: Text('medium')),
+                  DropdownMenuItem(value: 'high', child: Text('high')),
+                ],
+                onChanged: (v) =>
+                    setState(() => _safetyConcern = v ?? 'none'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _notesCtrl,
+                decoration: InputDecoration(
+                  labelText: isEn ? 'Notes' : '備註',
+                  border: const OutlineInputBorder(),
+                ),
+                minLines: 2,
+                maxLines: 5,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          child: Text(isEn ? 'Cancel' : '取消'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: Text(isEn ? 'Save' : '儲存'),
+        ),
+      ],
+    );
+  }
+}
+
+class _Likert5 extends StatelessWidget {
+  final String label;
+  final int? value;
+  final ValueChanged<int> onChanged;
+  const _Likert5(
+      {required this.label, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label),
+        Row(
+          children: List.generate(5, (i) {
+            final v = i + 1;
+            final selected = value == v;
+            return Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: ChoiceChip(
+                label: Text('$v'),
+                selected: selected,
+                onSelected: (_) => onChanged(v),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+}
+
+class _YesNo extends StatelessWidget {
+  final String label;
+  final bool? value;
+  final ValueChanged<bool> onChanged;
+  const _YesNo(
+      {required this.label, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label),
+        Row(
+          children: [
+            ChoiceChip(
+              label: const Text('yes'),
+              selected: value == true,
+              onSelected: (_) => onChanged(true),
+            ),
+            const SizedBox(width: 6),
+            ChoiceChip(
+              label: const Text('no'),
+              selected: value == false,
+              onSelected: (_) => onChanged(false),
+            ),
+          ],
+        ),
       ],
     );
   }
