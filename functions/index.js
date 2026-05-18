@@ -5,6 +5,7 @@ const admin = require("firebase-admin");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const {computeLlmFlags} = require("./llm_flags");
 
 admin.initializeApp();
 
@@ -162,11 +163,27 @@ exports.proxyDeepSeek = onCall(
       data.choices[0].message &&
       data.choices[0].message.content;
 
+    // B.1 — compute the 5 mechanism flags.  Pure regex pipeline on the
+    // (userInput, assistantOutput, agentContext) tuple.  Determinism is the
+    // contract: the same triple always yields the same flag bundle.
+    //
+    // The user input is the LAST `user` message in `messages`; the agent
+    // context is an optional snapshot passed by the client.  Both arms go
+    // through this CF for safety, but only Arm A clients persist the
+    // result — see LlmTurnFeatures.armBSkip in the Dart layer.
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const llmFlags = computeLlmFlags({
+      userInput: lastUser ? (lastUser.content || "") : "",
+      assistantOutput: text || "",
+      agentContext: payload.agentContext || null,
+    });
+
     return {
       text: text || "",
       moduleId: moduleId,
       agentId: agentId,
       systemPromptHash: systemPromptHash,
+      llmFlags: llmFlags,
     };
   },
 );
@@ -558,5 +575,84 @@ exports.onSafetyEventCreated = onDocumentCreated(
       ].join("\n"),
     });
     console.log(`Acute alert email sent to PI for event ${snap.ref.path}`);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// B.5 — Thought Exercise audit queue trigger (Sprint 2.2).
+//
+// Fires when a new ThoughtExerciseEntry lands at
+// `users/{uid}/thought_exercise/{entryId}`.  Writes a corresponding audit
+// document to `te_audit_queue/{auditId}` for the researcher dashboard
+// (B.13 in Sprint 3) to surface and classify against 6 audit dimensions.
+//
+// Race-condition fix (sprint-plan R7):
+//   agentInvitationText and originTurnRef are read from the entry doc
+//   itself — they were cached there at entry-create time by the Siu Yan
+//   offer pathway in the Dart layer.  We do NOT read
+//   agent_contexts.siu_yan.shortTermBuffer here, because by the time the
+//   trigger fires the buffer may have rotated.
+//
+// The audit doc holds 6 placeholder dimensions (filled by the researcher
+// during review):
+//   1. invitation_appropriateness   (1-5)
+//   2. content_clinical_drift       (boolean)
+//   3. mechanism_alignment          (1-5)
+//   4. cultural_fit                 (1-5)
+//   5. safety_concern               (none|low|medium|high)
+//   6. researcher_notes             (free text)
+// ---------------------------------------------------------------------------
+
+exports.onThoughtExerciseCreated = onDocumentCreated(
+  {
+    document: "users/{uid}/thought_exercise/{entryId}",
+    region: "asia-east2",
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const entry = snap.data();
+    if (!entry) return;
+
+    const {uid, entryId} = event.params;
+    const db = admin.firestore();
+
+    // 10% sample: deterministic by entryId so audits are reproducible.
+    // Use first 2 hex chars of sha256(entryId) — < 0x1A ≈ 10.16%.
+    const sampleHash = crypto
+      .createHash("sha256")
+      .update(entryId, "utf8")
+      .digest("hex")
+      .slice(0, 2);
+    const sampled = parseInt(sampleHash, 16) < 0x1A;
+
+    // Always write the audit doc but mark non-sampled ones so the dashboard
+    // can hide them by default while keeping a complete index.
+    await db.collection("te_audit_queue").add({
+      entryRef: snap.ref.path,
+      uid,
+      entryId,
+      // Cached at entry-create-time — no race with buffer rotation.
+      agentId: entry.agentId || null,
+      agentInvitationText: entry.agentInvitationText || null,
+      originTurnRef: entry.originTurnRef || null,
+      // Thumbnail for queue UI; full content lives in the entryRef doc.
+      thoughtPreview: (entry.thought || "").slice(0, 80),
+      sampled,
+      status: "pending",
+      audit: {
+        invitation_appropriateness: null,
+        content_clinical_drift: null,
+        mechanism_alignment: null,
+        cultural_fit: null,
+        safety_concern: null,
+        researcher_notes: null,
+      },
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log(
+      `te_audit_queue: queued ${snap.ref.path} (sampled=${sampled})`,
+    );
   },
 );

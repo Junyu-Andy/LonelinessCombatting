@@ -22,8 +22,11 @@ import '../../../../core/cross_referral/referral_routing_service.dart';
 import '../../../../core/cross_referral/referral_suggestion_card.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
+import '../../../../core/repair/repair_button.dart';
+import '../../../../core/repair/turn_repair_controller.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/negative_cognition_detector.dart';
 import 'thought_record_exercise_page.dart';
 
@@ -47,10 +50,37 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
   bool _busy = false;
   static const _detector = NegativeCognitionDetector();
 
+  /// B.9 — repair controller.  Persists across rebuilds so debounce + click
+  /// count survive setState.  Disposed when the page unmounts.
+  final TurnRepairController _repair = TurnRepairController();
+
+  /// B.9 — per-turn templates used when the user keeps tapping repair after
+  /// the first regenerate.  Plain HK Cantonese / English, no LLM.
+  static const _repairTemplates = <List<String>>[
+    [
+      '對唔住，我未完全捉到你嘅意思。你可唔可以再講多兩句？',
+      "I'm sorry — I didn't quite catch what you meant. Could you say more?",
+    ],
+    [
+      '我再聽多次。你而家最想我聽到嘅係邊一part？',
+      'Let me listen again. Which part do you most want me to hear?',
+    ],
+    [
+      '我哋慢慢嚟。你寫一句最重要嘅，我就跟住嗰句講。',
+      "Let's slow down. Write the one line that matters most and I'll follow it.",
+    ],
+  ];
+
   /// The last user turn that surfaced a negative-cognition match — we
   /// only show one naming card per conversation per match so the user
   /// isn't repeatedly nudged on the same thought.
   String? _pendingNamingThought;
+
+  /// B.5 — agent's invitation text cached at naming-card surface time so
+  /// the audit trigger can resolve provenance without racing against
+  /// the agent_contexts shortTermBuffer.  Stored when [_pendingNamingThought]
+  /// is set; consumed when the user taps "開練習".
+  String? _pendingNamingInvitation;
 
   /// Active cross-referral surfaced by the routing service. Cleared on
   /// dismiss or after handoff.
@@ -102,6 +132,8 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       contextSuffix: persona?.contextSuffix,
       history: history,
       userInput: text,
+      uid: profile?.uid,
+      armCode: profile?.arm?.code,
     );
 
     if (profile != null &&
@@ -132,9 +164,14 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
         : (isEn
             ? 'I\'m listening. Tell me more whenever you\'re ready.'
             : '我喺度聽緊。你準備好嗰陣再講多啲都得。');
+    final turnKey = 'turn_${DateTime.now().microsecondsSinceEpoch}';
     setState(() {
       _busy = false;
-      _turns.add(_Turn.bot(replyText));
+      _turns.add(_Turn.bot(
+        replyText,
+        key: turnKey,
+        sourceUserInput: text,
+      ));
     });
 
     if (profile != null &&
@@ -161,6 +198,10 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       if (match != null) {
         setState(() {
           _pendingNamingThought = match.fullTurn;
+          // B.5 — cache the assistant's invitation (the LLM reply that
+          // surfaced just before the naming card).  Read NOW from local
+          // state; never read from agent_contexts at audit-trigger time.
+          _pendingNamingInvitation = replyText;
         });
       }
     }
@@ -203,20 +244,121 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
 
   Future<void> _acceptNaming() async {
     final thought = _pendingNamingThought;
+    final invitation = _pendingNamingInvitation;
     if (thought == null) return;
-    setState(() => _pendingNamingThought = null);
+    final profile = AppSettingsScope.read(context).profile;
+    setState(() {
+      _pendingNamingThought = null;
+      _pendingNamingInvitation = null;
+    });
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ThoughtRecordExercisePage(
           initialThought: thought,
           originSurface: 'reflective_dialogue',
+          // B.5 — populate the cached provenance fields for the audit trigger.
+          agentId: AgentRegistry.ahJanAhBakId,
+          agentInvitationText: invitation,
+          originTurnRef: profile != null
+              ? 'users/${profile.uid}/agent_contexts/${AgentRegistry.ahJanAhBakId}'
+              : null,
         ),
       ),
     );
   }
 
   void _declineNaming() {
-    setState(() => _pendingNamingThought = null);
+    setState(() {
+      _pendingNamingThought = null;
+      _pendingNamingInvitation = null;
+    });
+  }
+
+  /// B.9 — handle a thumbs-down on assistant turn [turn].  First click
+  /// re-sends the source input to the LLM with `regenerate: true`; later
+  /// clicks advance a rule-based template.  Debounced 2s by the controller.
+  Future<void> _handleRepair(_Turn turn) async {
+    if (_busy) return;
+    final key = turn.key;
+    final source = turn.sourceUserInput;
+    if (key == null || source == null || source.isEmpty) return;
+
+    final action = _repair.onThumbsDown(key);
+    if (action == null) return; // debounced
+
+    final analytics = AnalyticsScope.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final core = CoreServicesScope.of(context);
+    final profile = AppSettingsScope.read(context).profile;
+
+    await analytics.logRepairClicked(
+      agentId: AgentRegistry.ahJanAhBakId,
+      moduleId: 'reflective_dialogue',
+    );
+
+    // Mark the original turn as repaired so we don't show the button again.
+    setState(() {
+      final idx = _turns.indexWhere((t) => t.key == key);
+      if (idx >= 0) _turns[idx] = _turns[idx].markRepaired();
+    });
+
+    if (action.isLlmRegenerate) {
+      setState(() => _busy = true);
+      final persona = await core.personaResolver.resolve(
+        agentId: AgentRegistry.ahJanAhBakId,
+        profile: profile,
+      );
+      // Build history that excludes the bad turn but keeps prior context.
+      final history = _turns
+          .where((t) => t.key != key)
+          .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
+          .toList();
+      final response = await core.llm.send(
+        moduleId: 'reflective_dialogue',
+        promptKey: persona?.promptKey,
+        agentId: AgentRegistry.ahJanAhBakId,
+        variantName: persona?.variantName,
+        systemPrompt: persona == null ? _fallbackPersonaPrompt : null,
+        contextSuffix: persona?.contextSuffix,
+        history: history,
+        userInput: source,
+        uid: profile?.uid,
+        armCode: profile?.arm?.code,
+        regenerate: true,
+      );
+      final newText = response.text.trim().isNotEmpty
+          ? response.text.trim()
+          : _repairTemplates[0][isEn ? 1 : 0];
+      final newKey = 'turn_${DateTime.now().microsecondsSinceEpoch}_r';
+      setState(() {
+        _busy = false;
+        _turns.add(_Turn.bot(
+          newText,
+          key: newKey,
+          sourceUserInput: source,
+        ));
+      });
+      await analytics.logRepairCompleted(
+        agentId: AgentRegistry.ahJanAhBakId,
+        moduleId: 'reflective_dialogue',
+        resolution: 'llm_regenerate',
+      );
+    } else {
+      final tpl = _repairTemplates[
+          action.templateIndex.clamp(0, _repairTemplates.length - 1)];
+      setState(() {
+        _turns.add(_Turn.bot(
+          tpl[isEn ? 1 : 0],
+          key: 'turn_${DateTime.now().microsecondsSinceEpoch}_t',
+          sourceUserInput: source,
+        ));
+      });
+      await analytics.logRepairCompleted(
+        agentId: AgentRegistry.ahJanAhBakId,
+        moduleId: 'reflective_dialogue',
+        resolution: 'template_advance',
+      );
+    }
   }
 
   @override
@@ -243,7 +385,13 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
                             : '你想諗咩、想講咩都得，我喺度聽。',
                         style: theme.textTheme.titleLarge,
                       ),
-                    for (final t in _turns) _TurnBubble(turn: t),
+                    for (final t in _turns)
+                      _TurnBubble(
+                        turn: t,
+                        onRepair: t.fromUser || t.isSystem || t.repaired
+                            ? null
+                            : () => _handleRepair(t),
+                      ),
                     if (_busy)
                       const Align(
                         alignment: Alignment.centerLeft,
@@ -290,15 +438,38 @@ class _Turn {
   final bool fromUser;
   final bool isSystem;
   final String text;
-  const _Turn._(this.fromUser, this.isSystem, this.text);
+
+  /// Stable key for B.9 repair tracking — assistant turns use a generated
+  /// id; user turns use null.
+  final String? key;
+
+  /// For assistant turns: the user input that produced this response, used
+  /// when re-sending on repair.
+  final String? sourceUserInput;
+
+  /// For assistant turns: true once the user has tapped 唔啱意思 on it.
+  final bool repaired;
+
+  const _Turn._(this.fromUser, this.isSystem, this.text,
+      {this.key, this.sourceUserInput, this.repaired = false});
+
   factory _Turn.user(String t) => _Turn._(true, false, t);
-  factory _Turn.bot(String t) => _Turn._(false, false, t);
+  factory _Turn.bot(String t, {String? key, String? sourceUserInput}) =>
+      _Turn._(false, false, t, key: key, sourceUserInput: sourceUserInput);
   factory _Turn.system(String t) => _Turn._(false, true, t);
+
+  _Turn markRepaired() => _Turn._(fromUser, isSystem, text,
+      key: key, sourceUserInput: sourceUserInput, repaired: true);
 }
 
 class _TurnBubble extends StatelessWidget {
   final _Turn turn;
-  const _TurnBubble({required this.turn});
+
+  /// B.9 — when non-null, render a 唔啱意思 button below the bubble.  Null
+  /// for user turns, system turns, and bubbles already repaired.
+  final VoidCallback? onRepair;
+
+  const _TurnBubble({required this.turn, this.onRepair});
 
   @override
   Widget build(BuildContext context) {
@@ -316,17 +487,25 @@ class _TurnBubble extends StatelessWidget {
     return Align(
       alignment:
           turn.fromUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.78),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Text(turn.text,
-            style: TextStyle(fontSize: 17, height: 1.4, color: fg)),
+      child: Column(
+        crossAxisAlignment: turn.fromUser
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.78),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Text(turn.text,
+                style: TextStyle(fontSize: 17, height: 1.4, color: fg)),
+          ),
+          if (onRepair != null) RepairButton(onTap: onRepair!),
+        ],
       ),
     );
   }

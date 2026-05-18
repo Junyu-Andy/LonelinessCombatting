@@ -72,6 +72,15 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // B.5 Thought-Exercise audit queue — admin-only.  Written by the
+    // onThoughtExerciseCreated CF; read by the researcher dashboard
+    // via a service account (Sprint 3 B.13).
+    // ============================================================
+    match /te_audit_queue/{auditId} {
+      allow read, write: if false;
+    }
+
+    // ============================================================
     // C.2 stratified RCT arm-balance counter (Sprint 1.4).
     //
     // Schema: { cell_0: {aCount, bCount}, cell_1: ..., cell_2: ...,

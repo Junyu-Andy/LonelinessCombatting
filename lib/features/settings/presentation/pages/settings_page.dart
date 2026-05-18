@@ -3,6 +3,7 @@ import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
@@ -107,6 +108,32 @@ class _SettingsPageState extends State<SettingsPage> {
                 : '打開後，主要文字會有語音朗讀。',
             value: _voiceReadback,
             onChanged: (value) => setState(() => _voiceReadback = value),
+          ),
+          const SizedBox(height: 14),
+          // B.10 — 今日休息 dignified pause.  Idempotent: toggling back off
+          // is intentionally not supported once activated; the flag clears
+          // at midnight local time (see UserProfile.isQuietToday).
+          _SwitchTileCard(
+            icon: Icons.bedtime_outlined,
+            title: isEn ? 'Rest today' : '今日休息',
+            subtitle: isEn
+                ? 'No reminders or nudges today. Resumes tomorrow.'
+                : '今日唔會有任何提醒或推送。聽日自動回復。',
+            value: settings.profile?.isQuietToday ?? false,
+            onChanged: (value) async {
+              final profile = settings.profile;
+              if (profile == null || !value) return;
+              final auth = AuthServiceScope.of(context);
+              final activated = await auth.activateQuietToday(profile);
+              if (activated) {
+                settings.profile = profile.copyWith(
+                  quietTodayActivatedAt: DateTime.now(),
+                );
+                if (context.mounted) {
+                  await AnalyticsScope.of(context).logQuietTodayActivated();
+                }
+              }
+            },
           ),
           const SizedBox(height: 28),
           _SectionHeader(

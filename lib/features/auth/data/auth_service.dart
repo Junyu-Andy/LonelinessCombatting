@@ -112,6 +112,19 @@ class AuthService {
     );
   }
 
+  /// B.10 — activate 今日休息 for [uid].  Idempotent: if already activated
+  /// today, this is a no-op (returns false).  Returns true when newly set.
+  Future<bool> activateQuietToday(UserProfile profile) async {
+    if (!available) return false;
+    if (profile.isQuietToday) return false;
+    final now = DateTime.now();
+    await _db.collection('users').doc(profile.uid).set(
+      {'quietTodayActivatedAt': now.toIso8601String()},
+      SetOptions(merge: true),
+    );
+    return true;
+  }
+
   Future<UserProfile> _loadOrCreateProfile(User user) async {
     final ref = _db.collection('users').doc(user.uid);
 

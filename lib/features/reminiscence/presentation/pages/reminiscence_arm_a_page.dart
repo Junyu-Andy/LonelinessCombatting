@@ -504,12 +504,20 @@ clay-pot rice stand..."
     // Pop the reminiscence page first so the PPR brief becomes the
     // new top route. The brief itself pops back to the My Story tab
     // when the participant submits.
+    // B.6 — compute mandatory-first flag from the user profile so the
+    // first brief PPR per agent surfaces a non-dismissable modal.
+    final profile = AppSettingsScope.read(context).profile;
+    final mandatory =
+        profile != null &&
+        !profile.firstPprSeenByAgent
+            .containsKey(AgentRegistry.ahJanAhBakId);
     Navigator.of(context).pop();
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => PprBriefPage(
           agentId: AgentRegistry.ahJanAhBakId,
           sessionTag: 'm3_w${widget.theme.weekIndex}',
+          mandatory: mandatory,
         ),
       ),
     );

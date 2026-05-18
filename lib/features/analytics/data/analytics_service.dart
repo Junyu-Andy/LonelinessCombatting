@@ -37,12 +37,36 @@ class AnalyticsService {
   String _locale = 'zh';
   bool _highContrast = false;
 
+  /// B.3 — arm rides along with every event so analysts can partition
+  /// without joining against the user profile.  Set by the auth gate when
+  /// the user profile loads; null in guest mode.
+  String? _arm;
+
   String get sessionId => _sessionId;
 
-  void setEnvironment({String? locale, bool? highContrast}) {
+  void setEnvironment({String? locale, bool? highContrast, String? arm}) {
     if (locale != null) _locale = locale;
     if (highContrast != null) _highContrast = highContrast;
+    if (arm != null) _arm = arm;
   }
+
+  /// B.3 — event names that REQUIRE the [_arm] tag to be set.  Asserted in
+  /// debug builds so a missing arm field crashes early.  In release builds
+  /// the event still fires (with arm=null) so we don't drop data.
+  static const Set<String> _armRequiredEvents = {
+    'm2_check_in_submitted',
+    'm3_session_start', 'm3_turn_sent', 'm3_session_end',
+    'm5_reflective_session_start', 'm5_reflective_session_end',
+    'm5_thought_exercise_opened', 'm5_thought_exercise_saved',
+    'm6_social_suggestion_shown', 'm6_social_suggestion_accepted',
+    'm7_plan_saved', 'm7_followup_completed',
+    'm8_article_opened',
+    'm9_progress_viewed',
+    'cross_referral_offered', 'cross_referral_accepted',
+    'cross_referral_declined', 'repair_clicked', 'repair_completed',
+    'ppr_brief_shown', 'ppr_brief_submitted', 'ppr_brief_skipped',
+    'quiet_today_activated',
+  };
 
   /// Called whenever the signed-in user changes. When transitioning from
   /// guest → signed-in we flush the buffered events under the new uid.
@@ -82,12 +106,21 @@ class AnalyticsService {
     String name, [
     Map<String, dynamic> params = const {},
   ]) async {
+    // B.3 — arm tag is required on the per-module event list and asserted
+    // in debug so missing-arm bugs surface in dev.  Release builds still
+    // ship the event so analysts get partial data.
+    assert(
+      !_armRequiredEvents.contains(name) || _arm != null,
+      'analytics event "$name" requires arm to be set via setEnvironment',
+    );
+
     final event = <String, dynamic>{
       'name': name,
       'params': params,
       'sessionId': _sessionId,
       'locale': _locale,
       'highContrast': _highContrast,
+      if (_arm != null) 'arm': _arm,
       'timestamp': DateTime.now().toIso8601String(),
     };
 
@@ -161,6 +194,156 @@ class AnalyticsService {
       logEvent('emergency_opened', {'from': from});
 
   Future<void> logAuth(String kind) => logEvent('auth_$kind');
+
+  // -------------------------------------------------------------------------
+  // B.3 — module-level event helpers (Sprint 2.4).
+  //
+  // Twenty-two new event types wired across M2/M3/M5–M9 + cross-referral +
+  // repair + brief PPR + 今日休息.  All carry the implicit `arm` field via
+  // [logEvent] (asserted in debug).  Free-text fields are summarised to
+  // length / hash to preserve zero-PII.
+  // -------------------------------------------------------------------------
+
+  // M2 — daily check-in
+  Future<void> logM2CheckInSubmitted({
+    required int mood,
+    required int loneliness,
+    required int socialEnergy,
+  }) =>
+      logEvent('m2_check_in_submitted', {
+        'mood': mood,
+        'loneliness': loneliness,
+        'socialEnergy': socialEnergy,
+      });
+
+  // M3 — reminiscence session
+  Future<void> logM3SessionStart({required int weekIndex}) =>
+      logEvent('m3_session_start', {'week': weekIndex});
+
+  Future<void> logM3TurnSent({required int turnIndex, required int charLen}) =>
+      logEvent('m3_turn_sent', {'turn': turnIndex, 'len': charLen});
+
+  Future<void> logM3SessionEnd({
+    required int weekIndex,
+    required int turnCount,
+    required int durationSeconds,
+    required String trigger, // 'manual' | 'idle_60s'
+  }) =>
+      logEvent('m3_session_end', {
+        'week': weekIndex,
+        'turns': turnCount,
+        'durationSeconds': durationSeconds,
+        'trigger': trigger,
+      });
+
+  // M5 — reflective dialogue + thought exercise
+  Future<void> logM5SessionStart() => logEvent('m5_reflective_session_start');
+
+  Future<void> logM5SessionEnd({
+    required int turnCount,
+    required int durationSeconds,
+  }) =>
+      logEvent('m5_reflective_session_end', {
+        'turns': turnCount,
+        'durationSeconds': durationSeconds,
+      });
+
+  Future<void> logM5ThoughtExerciseOpened({required String origin}) =>
+      logEvent('m5_thought_exercise_opened', {'origin': origin});
+
+  Future<void> logM5ThoughtExerciseSaved({required int totalCharLen}) =>
+      logEvent('m5_thought_exercise_saved', {'len': totalCharLen});
+
+  // M6 — social suggestions
+  Future<void> logM6SuggestionShown({required String suggestionId}) =>
+      logEvent('m6_social_suggestion_shown', {'id': suggestionId});
+
+  Future<void> logM6SuggestionAccepted({required String suggestionId}) =>
+      logEvent('m6_social_suggestion_accepted', {'id': suggestionId});
+
+  // M7 — action loop
+  Future<void> logM7PlanSaved({required String kind}) =>
+      logEvent('m7_plan_saved', {'kind': kind});
+
+  Future<void> logM7FollowUpCompleted({required String outcome}) =>
+      logEvent('m7_followup_completed', {'outcome': outcome});
+
+  // M8 — education
+  Future<void> logM8ArticleOpened({required String articleId}) =>
+      logEvent('m8_article_opened', {'id': articleId});
+
+  // M9 — progress
+  Future<void> logM9ProgressViewed() => logEvent('m9_progress_viewed');
+
+  // Cross-referral (4 events)
+  Future<void> logCrossReferralOffered({
+    required String fromAgent,
+    required String toAgent,
+    required int matchedTextLen,
+    required String matchedTextPrefix32,
+  }) =>
+      logEvent('cross_referral_offered', {
+        'fromAgent': fromAgent,
+        'toAgent': toAgent,
+        'matchedTextLen': matchedTextLen,
+        // Pre-truncated; the agent UI must never pass full text here.
+        'matchedTextPrefix32': matchedTextPrefix32,
+      });
+
+  Future<void> logCrossReferralAccepted({
+    required String fromAgent,
+    required String toAgent,
+  }) =>
+      logEvent('cross_referral_accepted', {
+        'fromAgent': fromAgent,
+        'toAgent': toAgent,
+      });
+
+  Future<void> logCrossReferralDeclined({
+    required String fromAgent,
+    required String toAgent,
+  }) =>
+      logEvent('cross_referral_declined', {
+        'fromAgent': fromAgent,
+        'toAgent': toAgent,
+      });
+
+  // Repair (B.9)
+  Future<void> logRepairClicked({
+    required String agentId,
+    required String moduleId,
+  }) =>
+      logEvent('repair_clicked', {
+        'agentId': agentId,
+        'moduleId': moduleId,
+      });
+
+  Future<void> logRepairCompleted({
+    required String agentId,
+    required String moduleId,
+    required String resolution, // 'llm_regenerate' | 'template_advance'
+  }) =>
+      logEvent('repair_completed', {
+        'agentId': agentId,
+        'moduleId': moduleId,
+        'resolution': resolution,
+      });
+
+  // Brief PPR (B.6)
+  Future<void> logPprBriefShown({required String agentId, required bool mandatory}) =>
+      logEvent('ppr_brief_shown', {
+        'agentId': agentId,
+        'mandatory': mandatory,
+      });
+
+  Future<void> logPprBriefSubmitted({required String agentId}) =>
+      logEvent('ppr_brief_submitted', {'agentId': agentId});
+
+  Future<void> logPprBriefSkipped({required String agentId}) =>
+      logEvent('ppr_brief_skipped', {'agentId': agentId});
+
+  // 今日休息 (B.10)
+  Future<void> logQuietTodayActivated() => logEvent('quiet_today_activated');
 
   static String _newId() {
     final rand = Random.secure();

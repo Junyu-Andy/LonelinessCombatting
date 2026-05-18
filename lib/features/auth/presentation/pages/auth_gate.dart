@@ -64,6 +64,8 @@ class _AuthGateState extends State<AuthGate> {
             final previous = _lastUid;
             _lastUid = profile?.uid;
             await widget.analytics.setUser(profile?.uid);
+            // B.3 — propagate arm code so every subsequent event carries it.
+            widget.analytics.setEnvironment(arm: profile?.arm?.code);
             await widget.onAuthUidChanged?.call(profile?.uid);
             if (profile != null && previous == null) {
               await widget.analytics.logAuth('signed_in');

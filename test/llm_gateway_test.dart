@@ -18,6 +18,8 @@ class _FakeClient implements LlmClient {
     String? contextSuffix,
     required List<LlmTurn> history,
     required String userInput,
+    bool regenerate = false,
+    Map<String, dynamic>? agentContextSnapshot,
   }) async {
     calls++;
     return LlmRawResponse(text: canned, systemPromptHash: fakeHash);

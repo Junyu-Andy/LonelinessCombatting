@@ -20,6 +20,7 @@ import 'core/safety/distress_state.dart';
 import 'core/safety/safety_event_writer.dart';
 import 'features/analytics/data/analytics_service.dart';
 import 'features/auth/data/auth_service.dart';
+import 'features/llm_features/data/llm_turn_features.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -60,6 +61,7 @@ Future<void> main() async {
   final distressState = DistressState();
   final distressRouter = DistressRouter(state: distressState);
   final safetyWriter = SafetyEventWriter(available: firebaseReady);
+  final llmFeaturesRepo = LlmTurnFeaturesRepository(available: firebaseReady);
   final memory = MemoryStore(available: firebaseReady);
   final crossModuleMemory = CrossModuleMemoryService(
     memory: memory,
@@ -82,7 +84,11 @@ Future<void> main() async {
       ),
       authService: AuthService(available: firebaseReady),
       analytics: AnalyticsService(firebaseReady: firebaseReady),
-      llm: LlmGateway(detector: detector, safetyWriter: safetyWriter),
+      llm: LlmGateway(
+        detector: detector,
+        safetyWriter: safetyWriter,
+        featuresRepo: llmFeaturesRepo,
+      ),
       memory: memory,
       distress: detector,
       distressState: distressState,
