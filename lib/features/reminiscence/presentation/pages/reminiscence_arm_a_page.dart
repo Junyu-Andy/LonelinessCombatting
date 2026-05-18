@@ -506,7 +506,7 @@ clay-pot rice stand..."
     // when the participant submits.
     // B.6 — compute mandatory-first flag from the user profile so the
     // first brief PPR per agent surfaces a non-dismissable modal.
-    final profile = AppSettingsScope.read(context).profile;
+    // (profile is already in scope from line 484.)
     final mandatory =
         profile != null &&
         !profile.firstPprSeenByAgent

@@ -7,7 +7,7 @@ import '../../../education/presentation/pages/education_library_page.dart';
 import '../../../personalization/presentation/pages/personalization_page.dart';
 import '../../../progress/presentation/pages/progress_page.dart';
 import '../../../reflective_dialogue/presentation/pages/reflective_dialogue_page.dart';
-import '../../../reflective_dialogue/presentation/pages/thought_record_exercise_page.dart';
+import '../../../thought_exercise/presentation/thought_exercise_page.dart';
 import '../widgets/me_list_item.dart';
 
 /// Me tab — infrastructure + personal resources. Five entries, **no
@@ -40,13 +40,14 @@ class MePage extends StatelessWidget {
           _Divider(theme: theme),
           MeListItem(
             icon: Icons.lightbulb_outline,
-            label: isEn ? 'Look at a thought' : '望吓一個諗法',
+            // Phase A spec §5.2 — locked label "望一望心入面".
+            label: isEn ? 'Look at a thought' : '望一望心入面',
             subtitle: isEn
-                ? 'A small three-field exercise'
-                : '一個三條問題嘅短練習',
+                ? 'A small structured self-reflection'
+                : '一個小練習，慢慢望一望自己嘅諗法',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => const ThoughtRecordExercisePage(),
+                builder: (_) => const ThoughtExercisePage(),
               ),
             ),
           ),
