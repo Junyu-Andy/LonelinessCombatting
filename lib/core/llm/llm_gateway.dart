@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../features/llm_features/data/llm_turn_features.dart';
 import '../safety/distress_detector.dart';
@@ -287,7 +288,9 @@ class DeepseekLlmClient implements LlmClient {
           .instanceFor(region: 'asia-east2')
           .httpsCallable('proxyDeepSeek')
           .call(payload)
-          .timeout(const Duration(seconds: 25));
+          // Matches CF-side 55s; client times out a hair earlier so the
+          // user sees a fallback ack rather than a hung spinner.
+          .timeout(const Duration(seconds: 50));
 
       final data = result.data;
       if (data is Map) {
@@ -301,10 +304,34 @@ class DeepseekLlmClient implements LlmClient {
           llmFlags: flags,
         );
       }
-    } on FirebaseFunctionsException {
-      // Caller treats empty text as fallback signal.
-    } catch (_) {
-      // Caller treats empty text as fallback signal.
+      // Unexpected response shape — log so it's visible.
+      if (kDebugMode) {
+        debugPrint('[LlmGateway] unexpected response shape: $data');
+      }
+    } on FirebaseFunctionsException catch (e, st) {
+      // Surface CF errors instead of swallowing them.  Common causes:
+      //   - unauthenticated: user not signed in (auth gate broken)
+      //   - permission-denied / failed-precondition: App Check rejected
+      //     the call.  Re-check enforceAppCheck or register a debug
+      //     token in Firebase Console → App Check → Apps.
+      //   - internal: DeepSeek upstream error.  The CF now embeds the
+      //     status + first 400 chars of the body in e.message.
+      //   - deadline-exceeded: the model took > 55s; usually means the
+      //     prompt is too long or the network blipped.
+      if (kDebugMode) {
+        debugPrint('[LlmGateway] FirebaseFunctionsException '
+            'code=${e.code} message=${e.message}');
+        debugPrintStack(stackTrace: st);
+      }
+    } on TimeoutException {
+      if (kDebugMode) {
+        debugPrint('[LlmGateway] CF call timed out after 50s');
+      }
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[LlmGateway] unexpected error: $e');
+        debugPrintStack(stackTrace: st);
+      }
     }
 
     return const LlmRawResponse(text: '');

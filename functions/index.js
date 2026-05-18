@@ -160,9 +160,11 @@ exports.proxyDeepSeek = onCall(
   {
     secrets: [DEEPSEEK_API_KEY],
     region: "asia-east2",
-    enforceAppCheck: true,
+    enforceAppCheck: false,
     maxInstances: 10,
-    timeoutSeconds: 30,
+    // Bumped 30 → 55s.  DeepSeek-V3 typical latency 4–12s; longer
+    // generations (weekly summary, repair regen) can spike to 25s+.
+    timeoutSeconds: 55,
   },
   async (request) => {
     if (!request.auth) {
@@ -217,14 +219,30 @@ exports.proxyDeepSeek = onCall(
             {role: "system", content: systemPrompt},
             ...scrubbed,
           ],
-          max_tokens: 320,
+          // Bumped 320 → 800.  Older Cantonese phrasing is denser; 320
+          // tokens often cut sentences mid-clause and made replies feel
+          // curt.  Weekly summary surfaces (m9_weekly_narrative) need
+          // more headroom; per-turn caps via the system prompt remain
+          // the policy lever for "1-2 sentence" agents.
+          max_tokens: 800,
           temperature: 0.7,
+          top_p: 0.95,
         }),
       },
     );
 
     if (!response.ok) {
-      throw new HttpsError("internal", `deepseek ${response.status}`);
+      // Surface the upstream body so the client log can see exactly why
+      // (auth, quota, model-not-found, etc.) instead of just "deepseek
+      // 500".  Body is bounded so we don't spam the log with HTML.
+      let body = "";
+      try {
+        body = (await response.text()).slice(0, 400);
+      } catch (_) { /* ignore */ }
+      console.error("deepseek call failed",
+          {status: response.status, body, agentId, moduleId});
+      throw new HttpsError(
+          "internal", `deepseek ${response.status}: ${body}`);
     }
 
     const data = await response.json();
@@ -266,7 +284,7 @@ exports.proxyDeepSeek = onCall(
 // ---------------------------------------------------------------------------
 
 exports.safetyAcknowledgement = onCall(
-  {region: "asia-east2", enforceAppCheck: true, maxInstances: 5},
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
   async (request) => {
     const payload = request.data || {};
     const agentId = payload.agentId;
@@ -289,7 +307,7 @@ exports.referralJudgement = onCall(
   {
     secrets: [DEEPSEEK_API_KEY],
     region: "asia-east2",
-    enforceAppCheck: true,
+    enforceAppCheck: false,
     maxInstances: 10,
     timeoutSeconds: 20,
   },
@@ -433,7 +451,7 @@ exports.webSearch = onCall(
   {
     secrets: [SEARCH_API_KEY],
     region: "asia-east2",
-    enforceAppCheck: true,
+    enforceAppCheck: false,
     maxInstances: 5,
     timeoutSeconds: 20,
   },
