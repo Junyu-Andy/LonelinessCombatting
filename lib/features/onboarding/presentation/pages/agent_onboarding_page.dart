@@ -39,7 +39,12 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
 
   AgentGenderVariant? _ahJanVariant;
   final Set<String> _selectedInterests = {};
-  late final Map<String, bool> _transcriptRetentionByAgent = {
+
+  /// Phase A defaults transcript retention to ON for every agent.
+  /// The matching informed-consent statement is collected on paper
+  /// rather than in the app per the May-2026 review, so we no longer
+  /// surface the per-agent toggles here.
+  static const Map<String, bool> _transcriptRetentionByAgent = {
     AgentRegistry.siuYanId: true,
     AgentRegistry.ahJanAhBakId: true,
     AgentRegistry.tungTungId: true,
@@ -88,7 +93,7 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
     );
   }
 
-  int get _pageCount => 5;
+  int get _pageCount => 4;
 
   Future<void> _finish() async {
     final auth = AuthServiceScope.of(context);
@@ -174,13 +179,7 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
                         _selectedInterests.add(id);
                       }
                     }),
-                  ),
-                  _RetentionAndFinishSlide(
-                    isEn: isEn,
-                    perAgent: _transcriptRetentionByAgent,
-                    onToggle: (id, v) =>
-                        setState(() => _transcriptRetentionByAgent[id] = v),
-                    error: _error,
+                    errorMessage: _error,
                   ),
                 ],
               ),
@@ -556,12 +555,14 @@ class _TungTungSlide extends StatelessWidget {
   final List<_InterestSeed> seeds;
   final Set<String> selected;
   final ValueChanged<String> onToggle;
+  final String? errorMessage;
 
   const _TungTungSlide({
     required this.isEn,
     required this.seeds,
     required this.selected,
     required this.onToggle,
+    this.errorMessage,
   });
 
   @override
@@ -622,67 +623,16 @@ class _TungTungSlide extends StatelessWidget {
                 ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RetentionAndFinishSlide extends StatelessWidget {
-  final bool isEn;
-  final Map<String, bool> perAgent;
-  final void Function(String agentId, bool value) onToggle;
-  final String? error;
-
-  const _RetentionAndFinishSlide({
-    required this.isEn,
-    required this.perAgent,
-    required this.onToggle,
-    required this.error,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            isEn
-                ? 'Conversation memory, per companion'
-                : '每個夥伴嘅對話記錄',
-            style: theme.textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            isEn
-                ? 'Each companion can keep a short summary of what you '
-                    'shared so it can refer back next time. You can turn '
-                    'this off for any companion individually. Summaries '
-                    'you have already reviewed remain regardless.'
-                : '每個夥伴都可以保留一段對話摘要，下次再傾偈嗰陣可以記得返。'
-                    '你可以分開為每個夥伴關閉呢個功能。你睇過嘅 session 摘要會繼續保留。',
-            style: theme.textTheme.bodyLarge?.copyWith(height: 1.45),
-          ),
-          const SizedBox(height: 16),
-          for (final agent in AgentRegistry.all)
-            _AgentRetentionTile(
-              agent: agent,
-              value: perAgent[agent.id] ?? true,
-              onChanged: (v) => onToggle(agent.id, v),
-            ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             isEn
                 ? 'Tap "Done" to finish setup and meet your companions.'
                 : '撳「完成」就可以開始同夥伴傾偈。',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: theme.colorScheme.onSurface,
             ),
           ),
-          if (error != null) ...[
+          if (errorMessage != null) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -691,7 +641,7 @@ class _RetentionAndFinishSlide extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                error!,
+                errorMessage!,
                 style: TextStyle(color: theme.colorScheme.onErrorContainer),
               ),
             ),
@@ -702,61 +652,6 @@ class _RetentionAndFinishSlide extends StatelessWidget {
   }
 }
 
-class _AgentRetentionTile extends StatelessWidget {
-  final AgentDefinition agent;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _AgentRetentionTile({
-    required this.agent,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final variant = agent.resolveVariant(null);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-          child: Row(
-            children: [
-              AgentAvatar(agent: agent, size: 44),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isEn ? variant.displayNameEn : variant.displayNameZh,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 16),
-                    ),
-                    Text(
-                      isEn
-                          ? (value
-                              ? 'Will keep a summary'
-                              : 'Will not keep any summary')
-                          : (value ? '會保留對話摘要' : '唔會保留任何摘要'),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(value: value, onChanged: onChanged),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _InterestSeed {
   final String id;

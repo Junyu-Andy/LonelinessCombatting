@@ -557,35 +557,35 @@ clay-pot rice stand..."
                     child: LinearProgressIndicator(),
                   ),
                 const SizedBox(height: 12),
-                // UX-polish: weight the "Save my edits" affirmative
-                // action as the prominent CTA; "Use original" stays
-                // available but as a quieter alternative.
-                FilledButton(
-                  onPressed: _busy || _saved
-                      ? null
-                      : () => _saveSummary(useOriginal: false),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      _saved
-                          ? (isEn ? 'Saved' : '已儲存')
-                          : (isEn ? 'Save my edits' : '儲存我嘅修改'),
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: _busy || _saved
-                      ? null
-                      : () => _saveSummary(useOriginal: true),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                      isEn ? 'Use original (no edits)' : '用返原版（唔改）',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ),
+                // The CTA wording reflects whether the participant
+                // actually edited the LLM summary. If the text is
+                // unchanged, show "儲存"; once they touch it, the
+                // button reads "儲存我嘅修改" so they understand the
+                // edited version is what's being persisted.
+                ListenableBuilder(
+                  listenable: _summaryCtrl,
+                  builder: (ctx, _) {
+                    final original = (_endSummaryOriginal ?? '').trim();
+                    final current = _summaryCtrl.text.trim();
+                    final isEdited =
+                        original.isNotEmpty && current != original;
+                    return FilledButton(
+                      onPressed: _busy || _saved
+                          ? null
+                          : () => _saveSummary(useOriginal: !isEdited),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                          _saved
+                              ? (isEn ? 'Saved' : '已儲存')
+                              : (isEdited
+                                  ? (isEn ? 'Save my edits' : '儲存我嘅修改')
+                                  : (isEn ? 'Save' : '儲存')),
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

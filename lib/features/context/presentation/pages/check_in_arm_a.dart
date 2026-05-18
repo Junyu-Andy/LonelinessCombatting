@@ -5,6 +5,8 @@ import '../../../../core/agent_context/agent_context_service.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../core/cross_referral/referral_routing_service.dart';
+import '../../../../core/cross_referral/referral_suggestion_card.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/memory/cross_module_memory.dart';
@@ -48,10 +50,27 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// content into a reply.
   CrossModuleCallback? _crossModuleCallbackUsedThisSession;
 
+  /// Seeds the conversation with Siu Yan's opening bubble so the
+  /// surface reads as a chat from the first frame instead of a
+  /// faceless prompt. Localisation is handled here rather than in
+  /// initState because Localizations.of needs the inherited context.
+  bool _openerSeeded = false;
+
+  /// Active cross-referral suggestion (Sprint 5). Cleared on dismiss
+  /// or after the user accepts the handoff.
+  SurfacedReferral? _pendingReferral;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _analytics = AnalyticsScope.of(context);
+    if (!_openerSeeded) {
+      _openerSeeded = true;
+      final isEn = Localizations.localeOf(context).languageCode == 'en';
+      _turns.add(_Turn.bot(isEn
+          ? 'Hi — how are you today? Write a few words or speak whenever you\'re ready.'
+          : '你好啊。你今日點？寫幾句、或者用咪都得。'));
+    }
   }
 
   @override
@@ -63,7 +82,9 @@ class _CheckInArmAState extends State<CheckInArmA> {
   Future<void> _send() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
-    final isFirstTurn = _turns.isEmpty;
+    // The opening bot bubble is seeded in didChangeDependencies, so
+    // "first turn" here means the first user-authored turn.
+    final isFirstTurn = !_turns.any((t) => t.fromUser);
     if (isFirstTurn) {
       await TranscriptConsentPrompter.maybePrompt(
         context: context,
@@ -194,6 +215,24 @@ class _CheckInArmAState extends State<CheckInArmA> {
     if (escalation.level != DistressLevel.none) {
       await core.distressRouter.route(escalation, context: context);
     }
+
+    // Cross-referral routing (Sprint 5). Skip when a card is already
+    // showing this turn or the conversation has escalated to safety.
+    if (_pendingReferral == null && !response.hasEscalation) {
+      core.referralRouting.onUserTurn(AgentRegistry.siuYanId);
+      final surfaced = await core.referralRouting.maybeSurface(
+        sourceAgentId: AgentRegistry.siuYanId,
+        profile: profile,
+        userTurn: text,
+        recentTurns: _turns
+            .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
+            .toList(),
+        localeCode: isEn ? 'en' : 'zh',
+      );
+      if (mounted && surfaced != null) {
+        setState(() => _pendingReferral = surfaced);
+      }
+    }
   }
 
   DistressMatch _higher(DistressMatch a, DistressMatch b) {
@@ -251,80 +290,152 @@ class _CheckInArmAState extends State<CheckInArmA> {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
 
+    final userTurnCount = _turns.where((t) => t.fromUser).length;
+    final canEnd = userTurnCount >= 1 && !_saved;
     return FirstIntroOverlay(
       agentId: AgentRegistry.siuYanId,
       child: Scaffold(
-      appBar: AppBar(title: Text(isEn ? 'Today\'s Check-in' : '今日 Check-in')),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                children: [
-                  if (_turns.isEmpty)
-                    Text(
-                      isEn
-                          ? 'How are you today? Write a few words or speak.'
-                          : '你今日點呀？寫幾個字、或者講都得。',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                  for (final t in _turns) _TurnBubble(turn: t),
-                  if (_busy)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                    ),
-                  if (_turns.length >= 2) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      isEn
-                          ? 'One last thing — how would you describe your '
-                              'mood today?'
-                          : '最後一條 —— 你今日心情，揀一個你覺得最似嘅樣？',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 12),
-                    MoodFacePicker(
-                      value: _face,
-                      onChanged: (v) => setState(() {
-                        _face = v;
-                        _facePicked = true;
-                      }),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: _saved ? null : _saveSession,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(
-                          _saved
-                              ? (isEn ? 'Saved' : '已儲存')
-                              : (isEn ? 'Save check-in' : '儲存今日 Check-in'),
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+        appBar: AppBar(
+          title: Text(isEn ? 'Today\'s Check-in' : '今日 Check-in'),
+          actions: [
+            TextButton(
+              onPressed: canEnd ? () => _openMoodSheet(isEn) : null,
+              child: Text(
+                _saved
+                    ? (isEn ? 'Saved' : '已儲存')
+                    : (isEn ? 'End' : '完成'),
+                style: const TextStyle(fontSize: 16),
               ),
-            ),
-            _Composer(
-              controller: _inputCtrl,
-              busy: _busy,
-              onSend: _send,
             ),
           ],
         ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  children: [
+                    for (final t in _turns) _TurnBubble(turn: t),
+                    if (_busy)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
+                    if (_pendingReferral != null)
+                      ReferralSuggestionCard(
+                        surfaced: _pendingReferral!,
+                        handoffExecutor: CoreServicesScope.of(context)
+                            .handoffExecutor,
+                        onDismiss: () =>
+                            setState(() => _pendingReferral = null),
+                      ),
+                  ],
+                ),
+              ),
+              _Composer(
+                controller: _inputCtrl,
+                busy: _busy,
+                onSend: _send,
+              ),
+            ],
+          ),
+        ),
       ),
-    ),
+    );
+  }
+
+  /// Bottom-sheet mood picker. Surfaces only when the participant
+  /// taps "完成" — earlier iterations anchored the picker at the foot
+  /// of the chat list which read as visual clutter throughout the
+  /// session.
+  Future<void> _openMoodSheet(bool isEn) async {
+    final theme = Theme.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetCtx) {
+        var localFace = _face;
+        var localPicked = _facePicked;
+        var localBusy = false;
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 8,
+                bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isEn
+                        ? 'How would you describe your mood today?'
+                        : '你今日心情，揀一個你覺得最似嘅樣？',
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 16),
+                  MoodFacePicker(
+                    value: localFace,
+                    onChanged: (v) => setSheet(() {
+                      localFace = v;
+                      localPicked = true;
+                    }),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: !localPicked || localBusy
+                          ? null
+                          : () async {
+                              setSheet(() => localBusy = true);
+                              setState(() {
+                                _face = localFace;
+                                _facePicked = true;
+                              });
+                              await _saveSession();
+                              if (!ctx.mounted) return;
+                              Navigator.of(ctx).pop();
+                            },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Text(
+                          isEn ? 'Save check-in' : '儲存今日 Check-in',
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Center(
+                    child: TextButton(
+                      onPressed: localBusy
+                          ? null
+                          : () => Navigator.of(ctx).pop(),
+                      child: Text(
+                        isEn ? 'Not yet' : '未準備好',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

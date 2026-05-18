@@ -301,9 +301,12 @@ const SEARCH_API_KEY = defineSecret("SEARCH_API_KEY");
 const SEARCH_CX = defineSecret("SEARCH_CX");
 
 const _searchSafetyDeny = [
-  // Health-advice (Dev Req §6.3)
-  /\b(diagnos(e|is)|treatment|cure|medication)\b/i,
-  /(藥物|藥|藥效|診斷|治療|劑量)/,
+  // Health-advice (Dev Req §6.3). Stick to phrases that strongly
+  // imply prescribing or diagnosing — earlier drafts matched single
+  // characters like 藥 which swallowed all benign Chinese health
+  // content.
+  /\b(diagnose|diagnosis|prescribe|cure|dosage)\b/i,
+  /(處方|劑量|診斷指引|醫療建議)/,
   // Financial-advice
   /\b(buy now|sell now|invest in)\b/i,
   /(股票推介|理財建議|投資建議)/,
@@ -339,18 +342,26 @@ exports.webSearch = onCall(
     }
     let apiKey = "";
     let cx = "";
+    let apiKeyErr = null;
+    let cxErr = null;
     try {
       apiKey = SEARCH_API_KEY.value();
     } catch (err) {
-      apiKey = "";
+      apiKeyErr = err;
     }
     try {
       cx = SEARCH_CX.value();
     } catch (err) {
-      cx = "";
+      cxErr = err;
     }
     if (!apiKey || !cx) {
-      return {results: [], unavailable: true};
+      const reason = !apiKey && !cx ?
+        "both_secrets_unset" :
+        !apiKey ? "search_api_key_unset" : "search_cx_unset";
+      console.warn("webSearch unavailable:", reason,
+          {apiKeyErr: apiKeyErr && apiKeyErr.message,
+            cxErr: cxErr && cxErr.message});
+      return {results: [], unavailable: true, reason: reason};
     }
 
     const url = new URL("https://www.googleapis.com/customsearch/v1");

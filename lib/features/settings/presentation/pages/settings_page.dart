@@ -110,32 +110,6 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 28),
           _SectionHeader(
-            icon: Icons.history_edu_outlined,
-            title: isEn ? 'Privacy' : '私隱',
-          ),
-          const SizedBox(height: 14),
-          _TranscriptRetentionTile(
-            isEn: isEn,
-            value: settings.profile?.consent.transcriptRetention ?? true,
-            onChanged: settings.profile == null
-                ? null
-                : (next) async {
-                    final profile = settings.profile!;
-                    final updated = profile.copyWith(
-                      consent: profile.consent.copyWith(
-                        transcriptRetention: next,
-                      ),
-                    );
-                    settings.profile = updated;
-                    try {
-                      await AuthServiceScope.of(context).updateProfile(updated);
-                    } catch (_) {
-                      // Guest mode / offline — local state already updated.
-                    }
-                  },
-          ),
-          const SizedBox(height: 28),
-          _SectionHeader(
             icon: Icons.shield_outlined,
             title: isEn ? 'System Boundaries' : '系統界線',
           ),

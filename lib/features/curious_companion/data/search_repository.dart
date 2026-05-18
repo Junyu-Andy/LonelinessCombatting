@@ -23,13 +23,20 @@ class SearchResponse {
   final List<SearchResult> results;
 
   /// True when the cloud function reports it is not yet configured
-  /// (SEARCH_API_KEY / SEARCH_CX secrets not set). The UI uses this
-  /// to fall back to "I'm not sure — want to look together?" copy.
+  /// (SEARCH_API_KEY / SEARCH_CX secrets not set, or the function
+  /// hasn't been redeployed after the secrets were set). The UI uses
+  /// this to fall back to "I'm not sure — want to look together?" copy.
   final bool unavailable;
+
+  /// Optional reason string when [unavailable] is true. Values:
+  ///   `both_secrets_unset` · `search_api_key_unset` · `search_cx_unset`
+  ///   · `network_error` · `function_unavailable`
+  final String? reason;
 
   const SearchResponse({
     required this.results,
     required this.unavailable,
+    this.reason,
   });
 }
 
@@ -41,7 +48,11 @@ class SearchRepository {
 
   Future<SearchResponse> search(String query) async {
     if (!available || query.trim().isEmpty) {
-      return const SearchResponse(results: [], unavailable: true);
+      return const SearchResponse(
+        results: [],
+        unavailable: true,
+        reason: 'function_unavailable',
+      );
     }
     try {
       final result = await FirebaseFunctions
@@ -51,9 +62,14 @@ class SearchRepository {
           .timeout(const Duration(seconds: 15));
       final data = result.data;
       if (data is! Map) {
-        return const SearchResponse(results: [], unavailable: true);
+        return const SearchResponse(
+          results: [],
+          unavailable: true,
+          reason: 'malformed_response',
+        );
       }
       final unavailable = (data['unavailable'] as bool?) ?? false;
+      final reason = data['reason'] as String?;
       final rawResults = data['results'];
       final out = <SearchResult>[];
       if (rawResults is List) {
@@ -67,11 +83,23 @@ class SearchRepository {
           }
         }
       }
-      return SearchResponse(results: out, unavailable: unavailable);
-    } on FirebaseFunctionsException {
-      return const SearchResponse(results: [], unavailable: true);
-    } catch (_) {
-      return const SearchResponse(results: [], unavailable: true);
+      return SearchResponse(
+        results: out,
+        unavailable: unavailable,
+        reason: reason,
+      );
+    } on FirebaseFunctionsException catch (e) {
+      return SearchResponse(
+        results: const [],
+        unavailable: true,
+        reason: 'function_error:${e.code}',
+      );
+    } catch (e) {
+      return SearchResponse(
+        results: const [],
+        unavailable: true,
+        reason: 'network_error',
+      );
     }
   }
 }

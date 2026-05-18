@@ -49,7 +49,13 @@ class _TungTungPageState extends State<TungTungPage> {
   final _inputCtrl = TextEditingController();
   final List<_Turn> _turns = [];
   bool _busy = false;
-  late final SearchRepository _searchRepo;
+  SearchRepository? _searchRepo;
+
+  /// Toggle armed by the inline "幫我查" button. When true, the next
+  /// _send() call runs a web search first and injects the results
+  /// alongside the user turn so Tung Tung grounds its reply on them.
+  /// Cleared after each send so the user must re-arm intentionally.
+  bool _searchArmed = false;
 
   /// Map of search query → result snippets, accumulated this session.
   /// Tung Tung's next LLM call appends a `[SEARCH_RESULTS]` block
@@ -61,11 +67,44 @@ class _TungTungPageState extends State<TungTungPage> {
     super.initState();
   }
 
+  bool _openerSeeded = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final auth = AuthServiceScope.of(context);
-    _searchRepo = SearchRepository(available: auth.available);
+    // Assigned once; didChangeDependencies fires repeatedly (locale
+    // change, settings change, route push/pop) and a `late final`
+    // crashes on the second assignment.
+    if (_searchRepo == null) {
+      final auth = AuthServiceScope.of(context);
+      _searchRepo = SearchRepository(available: auth.available);
+    }
+    // Seed an opening bubble so the page reads as a chat from the
+    // first frame. Tung Tung's tone is light + curious; the article
+    // grounded mode (M8 hand-off) opens differently.
+    if (!_openerSeeded) {
+      _openerSeeded = true;
+      final isEn = Localizations.localeOf(context).languageCode == 'en';
+      final profile = AppSettingsScope.read(context).profile;
+      final interests = profile?.interests ?? const <String>[];
+      final highlight = interests.isNotEmpty ? interests.first : null;
+      String opener;
+      if (widget.articleContext != null) {
+        opener = isEn
+            ? 'I read the piece you opened. Ask me anything about it.'
+            : '我睇完你揀嘅嗰篇。有咩想問都得。';
+      } else if (highlight != null) {
+        opener = isEn
+            ? 'Hi — you mentioned $highlight when we first met. '
+                'Anything you want to chat about today?'
+            : '你好啊。你之前提過「$highlight」。今日想傾啲咩？';
+      } else {
+        opener = isEn
+            ? 'Hi — what have you been wondering about lately?'
+            : '你好啊。最近有冇咩想知或者想傾嘅嘢？';
+      }
+      _turns.add(_Turn.bot(opener));
+    }
   }
 
   @override
@@ -74,8 +113,8 @@ class _TungTungPageState extends State<TungTungPage> {
     super.dispose();
   }
 
-  Future<void> _send({String? prefilledInput}) async {
-    final text = (prefilledInput ?? _inputCtrl.text).trim();
+  Future<void> _send() async {
+    final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
     final isFirstTurn = _turns.isEmpty;
     if (isFirstTurn) {
@@ -85,11 +124,33 @@ class _TungTungPageState extends State<TungTungPage> {
       );
       if (!mounted) return;
     }
+
+    // Snapshot + reset the search-armed flag now so a second send
+    // doesn't accidentally re-search the same query.
+    final searchThisTurn = _searchArmed;
+
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));
       _inputCtrl.clear();
+      _searchArmed = false;
     });
+
+    // If the user armed search, run it before the LLM call so the
+    // results are part of this turn's contextSuffix.
+    if (searchThisTurn && _searchRepo != null) {
+      final resp = await _searchRepo!.search(text);
+      if (!mounted) return;
+      setState(() {
+        _searches.add(_SearchSession(
+          query: text,
+          results: resp.results,
+          unavailable: resp.unavailable,
+          reason: resp.reason,
+        ));
+      });
+    }
+
     final core = CoreServicesScope.of(context);
     final profile = AppSettingsScope.read(context).profile;
     final isEn = Localizations.localeOf(context).languageCode == 'en';
@@ -221,33 +282,8 @@ class _TungTungPageState extends State<TungTungPage> {
           'Kong at 2896 0000 right now.'
       : '你啱啱講嘅嘢非常重要。請即刻打撒瑪利亞會 2896 0000。';
 
-  Future<void> _onLookup() async {
-    final query = _inputCtrl.text.trim();
-    if (query.isEmpty) {
-      _showSnack(context,
-          Localizations.localeOf(context).languageCode == 'en'
-              ? 'Type what you\'d like to look up first.'
-              : '先寫低你想查嘅嘢。');
-      return;
-    }
-    setState(() => _busy = true);
-    final resp = await _searchRepo.search(query);
-    if (!mounted) return;
-    setState(() {
-      _searches.add(_SearchSession(
-        query: query,
-        results: resp.results,
-        unavailable: resp.unavailable,
-      ));
-      _busy = false;
-    });
-    await _send(prefilledInput: query);
-  }
-
-  void _showSnack(BuildContext ctx, String msg) {
-    ScaffoldMessenger.of(ctx).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
-    );
+  void _toggleSearch() {
+    setState(() => _searchArmed = !_searchArmed);
   }
 
   @override
@@ -283,9 +319,8 @@ class _TungTungPageState extends State<TungTungPage> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                   children: [
-                    if (_turns.isEmpty)
-                      _Welcome(profile: profile, accent: agent.accentColor),
-                    if (_turns.isEmpty &&
+                    for (final t in _turns) _TurnBubble(turn: t),
+                    if (!_turns.any((t) => t.fromUser) &&
                         profile != null &&
                         profile.interests.isNotEmpty)
                       _InterestChips(
@@ -296,7 +331,6 @@ class _TungTungPageState extends State<TungTungPage> {
                               : '我想傾下 $label';
                         },
                       ),
-                    for (final t in _turns) _TurnBubble(turn: t),
                     if (_busy)
                       const Align(
                         alignment: Alignment.centerLeft,
@@ -315,7 +349,8 @@ class _TungTungPageState extends State<TungTungPage> {
                       _SearchResultsCard(session: _searches.last),
                     if (_searches.isNotEmpty &&
                         _searches.last.unavailable)
-                      _SearchUnavailableHint(),
+                      _SearchUnavailableHint(
+                          reason: _searches.last.reason),
                   ],
                 ),
               ),
@@ -323,8 +358,9 @@ class _TungTungPageState extends State<TungTungPage> {
                 controller: _inputCtrl,
                 busy: _busy,
                 accent: agent.accentColor,
+                searchArmed: _searchArmed,
                 onSend: _send,
-                onLookup: _onLookup,
+                onToggleSearch: _toggleSearch,
               ),
             ],
           ),
@@ -338,10 +374,12 @@ class _SearchSession {
   final String query;
   final List<SearchResult> results;
   final bool unavailable;
+  final String? reason;
   const _SearchSession({
     required this.query,
     required this.results,
     required this.unavailable,
+    this.reason,
   });
 }
 
@@ -475,10 +513,26 @@ class _SearchResultsCard extends StatelessWidget {
 }
 
 class _SearchUnavailableHint extends StatelessWidget {
+  final String? reason;
+  const _SearchUnavailableHint({this.reason});
+
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
+    final detail = switch (reason) {
+      'search_api_key_unset' =>
+        isEn ? 'SEARCH_API_KEY secret is not set.' : 'SEARCH_API_KEY 未設定。',
+      'search_cx_unset' =>
+        isEn ? 'SEARCH_CX secret is not set.' : 'SEARCH_CX 未設定。',
+      'both_secrets_unset' => isEn
+          ? 'Search secrets are not set. Run `firebase functions:secrets:set` '
+              'and redeploy the webSearch function.'
+          : '搜尋所需嘅 secret 未設定。請設好 secret 之後重新 deploy webSearch。',
+      'function_unavailable' =>
+        isEn ? 'Firebase Functions are not reachable.' : 'Firebase Functions 連唔到。',
+      _ => null,
+    };
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Container(
@@ -487,12 +541,26 @@ class _SearchUnavailableHint extends StatelessWidget {
           color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(
-          isEn
-              ? 'Lookup is not yet available — the search API key '
-                  'hasn\'t been configured in this deployment.'
-              : '搜尋功能未啟用 —— 部署嘅時候未設定 search API key。',
-          style: theme.textTheme.bodyMedium,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isEn
+                  ? 'Lookup is not yet available — the search backend is '
+                      'not configured.'
+                  : '搜尋功能未啟用 —— 後端未配置。',
+              style: theme.textTheme.bodyMedium,
+            ),
+            if (detail != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                detail,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -535,15 +603,17 @@ class _Composer extends StatelessWidget {
   final TextEditingController controller;
   final bool busy;
   final Color accent;
-  final Future<void> Function({String? prefilledInput}) onSend;
-  final VoidCallback onLookup;
+  final bool searchArmed;
+  final Future<void> Function() onSend;
+  final VoidCallback onToggleSearch;
 
   const _Composer({
     required this.controller,
     required this.busy,
     required this.accent,
+    required this.searchArmed,
     required this.onSend,
-    required this.onLookup,
+    required this.onToggleSearch,
   });
 
   @override
@@ -553,29 +623,38 @@ class _Composer extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
         decoration: BoxDecoration(
           border: Border(
             top: BorderSide(color: theme.dividerColor, width: 1),
           ),
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                TextButton.icon(
-                  onPressed: busy ? null : onLookup,
-                  icon: const Icon(Icons.travel_explore_outlined, size: 20),
-                  label: Text(
-                    isEn ? 'Look this up' : '幫我查',
-                    style: const TextStyle(fontSize: 14),
+            if (searchArmed)
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 6),
+                child: Text(
+                  isEn
+                      ? 'Tung Tung will search the web for your next message.'
+                      : '通通會用網絡搜尋你下一句要查嘅嘢。',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: accent,
+                    fontWeight: FontWeight.w600,
                   ),
-                  style: TextButton.styleFrom(foregroundColor: accent),
                 ),
-              ],
-            ),
+              ),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                _SearchToggleButton(
+                  armed: searchArmed,
+                  accent: accent,
+                  enabled: !busy,
+                  onPressed: onToggleSearch,
+                ),
+                const SizedBox(width: 4),
                 VoiceInputButton(
                   prefix: () => controller.text,
                   onText: (t) => controller.text = t,
@@ -587,7 +666,11 @@ class _Composer extends StatelessWidget {
                     maxLines: 4,
                     style: const TextStyle(fontSize: 17),
                     decoration: InputDecoration(
-                      hintText: isEn ? 'Type or speak…' : '寫或者講都得…',
+                      hintText: searchArmed
+                          ? (isEn
+                              ? 'What should I look up?'
+                              : '想查咩？')
+                          : (isEn ? 'Type or speak…' : '寫或者講都得…'),
                     ),
                   ),
                 ),
@@ -602,6 +685,51 @@ class _Composer extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Toggle that arms the search-augmented send. When `armed`, the icon
+/// is filled with the agent's accent; otherwise it renders as an
+/// outlined idle button. Tapping flips the flag; the actual search
+/// runs when the user hits send.
+class _SearchToggleButton extends StatelessWidget {
+  final bool armed;
+  final Color accent;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  const _SearchToggleButton({
+    required this.armed,
+    required this.accent,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final tooltip = isEn
+        ? (armed ? 'Search ON for next message' : 'Search the web')
+        : (armed ? '下一句會搜尋' : '幫我查');
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: enabled ? onPressed : null,
+      iconSize: 22,
+      style: IconButton.styleFrom(
+        backgroundColor: armed ? accent : Colors.transparent,
+        foregroundColor: armed
+            ? Colors.white
+            : Theme.of(context).colorScheme.onSurfaceVariant,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: armed ? accent : Theme.of(context).colorScheme.outlineVariant,
+            width: 1.4,
+          ),
+        ),
+      ),
+      icon: const Icon(Icons.travel_explore_outlined),
     );
   }
 }

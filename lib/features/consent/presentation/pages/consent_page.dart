@@ -148,9 +148,10 @@ class _BoundaryCard extends StatelessWidget {
   }
 }
 
-/// Concise data-handling summary. Full details live in the printed
-/// 研究知情同意書 / research consent form — this card only names what
-/// the app stores and where to change it.
+/// Concise data-handling summary. The detailed informed-consent for
+/// conversation retention is collected on paper alongside this app
+/// (May-2026 review decision), so the in-app copy names only what
+/// the participant needs to know to use the tool.
 class _DataSummaryCard extends StatelessWidget {
   final bool isEn;
   const _DataSummaryCard({required this.isEn});
@@ -161,13 +162,13 @@ class _DataSummaryCard extends StatelessWidget {
       icon: Icons.lock_outline,
       title: isEn ? 'Data handling' : '資料處理',
       detail: isEn
-          ? 'Conversation summaries and functional data (mood scores, '
-              'completed actions, reminders) are stored under your account. '
-              'Conversation retention may be switched off any time at '
-              'Settings → Privacy.'
-          : '對話摘要與基本功能數據（心情分數、已完成的小行動、提醒時間）'
-              '將儲存於您的帳戶之內。對話記錄保留功能可隨時於'
-              '「設定 → 私隱」內關閉。',
+          ? 'Basic functional data (mood scores, completed actions, '
+              'reminder times) is stored under your account so the app '
+              'can work. Details on conversation retention appear in '
+              'the printed consent form you signed with the research team.'
+          : '基本功能數據（心情分數、已完成的小行動、提醒時間）'
+              '會儲存於您的帳戶之內，以維持應用程式運作。'
+              '有關對話記錄保留嘅詳情，請參閱您同研究團隊簽署嘅紙本知情同意書。',
     );
   }
 }

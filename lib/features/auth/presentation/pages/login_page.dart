@@ -177,7 +177,14 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 20),
                   _SectionLabel(
                     icon: Icons.contacts_outlined,
-                    text: '緊急聯絡人（可選）',
+                    text: '緊急聯絡人（必須）',
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '我哋會喺「即時支援」頁面顯示呢位聯絡人，方便有需要時搵到佢。',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
@@ -187,6 +194,8 @@ class _LoginPageState extends State<LoginPage> {
                       labelText: '聯絡人稱呼',
                       prefixIcon: Icon(Icons.favorite_outline),
                     ),
+                    validator: (v) =>
+                        (v ?? '').trim().isEmpty ? '請填寫聯絡人稱呼。' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -197,6 +206,12 @@ class _LoginPageState extends State<LoginPage> {
                       labelText: '聯絡電話',
                       prefixIcon: Icon(Icons.phone_outlined),
                     ),
+                    validator: (v) {
+                      final value = (v ?? '').trim();
+                      if (value.isEmpty) return '請填寫聯絡電話。';
+                      if (value.length < 6) return '電話號碼太短。';
+                      return null;
+                    },
                   ),
                 ],
                 if (_error != null) ...[
@@ -278,16 +293,18 @@ class _HkuBadge extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             '由香港大學數據及系統工程學系開發',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 2),
           Text(
             'HKU Department of Data and Systems Engineering',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
           ),
