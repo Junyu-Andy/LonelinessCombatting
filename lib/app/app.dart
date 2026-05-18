@@ -140,7 +140,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           settings: widget.settings,
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
-            title: 'Companion Demo',
+            title: 'AppName',
             theme: widget.settings.highContrast
                 ? AppTheme.highContrast
                 : AppTheme.light,

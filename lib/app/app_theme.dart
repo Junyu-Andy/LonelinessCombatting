@@ -155,6 +155,8 @@ class AppTheme {
       chipTheme: ChipThemeData(
         labelStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        backgroundColor: cardColor,
+        side: BorderSide(color: outline, width: borderWidth),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
         ),
