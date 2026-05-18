@@ -113,7 +113,21 @@ class AuthService {
 
   Future<UserProfile> _loadOrCreateProfile(User user) async {
     final ref = _db.collection('users').doc(user.uid);
-    final doc = await ref.get();
+
+    // createUserWithEmailAndPassword fires authStateChanges before signUp()
+    // has had a chance to write the profile doc (with the user-provided
+    // displayName) to Firestore. Without a short retry, we'd race ahead and
+    // auto-create a fallback profile whose displayName is the email prefix
+    // — and that wrong name would then stick in the UI for the whole
+    // session. Poll for the doc up to ~1.5s before falling back.
+    var doc = await ref.get();
+    if (!doc.exists && (user.displayName == null || user.displayName!.isEmpty)) {
+      for (var i = 0; i < 5 && !doc.exists; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        doc = await ref.get();
+      }
+    }
+
     if (doc.exists) {
       final existing = UserProfile.fromMap(user.uid, doc.data() ?? {});
       // Backfill arm for accounts created before randomisation went live.

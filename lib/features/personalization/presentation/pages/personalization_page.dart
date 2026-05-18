@@ -109,8 +109,6 @@ class PersonalizationPage extends StatelessWidget {
                   else
                     _ProfileCard(profile: profile),
                   const SizedBox(height: 18),
-                  const _RecentCheckInCard(mood: 3, loneliness: 4),
-                  const SizedBox(height: 18),
                   const FollowUpSection(),
                 ],
               ),
@@ -431,89 +429,3 @@ class _ProfileEditorState extends State<_ProfileEditor> {
   }
 }
 
-class _RecentCheckInCard extends StatelessWidget {
-  final int mood;
-  final int loneliness;
-
-  const _RecentCheckInCard({
-    required this.mood,
-    required this.loneliness,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.timeline_rounded,
-                    size: 24, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Builder(builder: (ctx) {
-                  final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-                  return Text(isEn ? 'Recent Status' : '最近狀態', style: theme.textTheme.titleLarge);
-                }),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Builder(builder: (ctx) {
-              final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-              return Column(
-                children: [
-                  _StatBar(label: isEn ? 'Mood' : '心情', value: mood),
-                  const SizedBox(height: 8),
-                  _StatBar(label: isEn ? 'Loneliness' : '孤獨感', value: loneliness),
-                ],
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatBar extends StatelessWidget {
-  final String label;
-  final int value;
-
-  const _StatBar({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        SizedBox(
-            width: 80,
-            child: Text(label, style: theme.textTheme.bodyLarge)),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: value / 5),
-              duration: const Duration(milliseconds: 500),
-              builder: (context, t, _) => LinearProgressIndicator(
-                value: t,
-                minHeight: 12,
-                backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                    theme.colorScheme.primary),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text('$value/5',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.primary,
-            )),
-      ],
-    );
-  }
-}

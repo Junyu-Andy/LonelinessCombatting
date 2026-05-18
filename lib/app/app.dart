@@ -3,7 +3,12 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../core/agent_context/agent_context_service.dart';
+import '../core/agent_context/shared_context_service.dart';
+import '../core/agents/persona_resolver.dart';
 import '../core/core_services_scope.dart';
+import '../core/cross_referral/handoff_executor.dart';
+import '../core/cross_referral/referral_routing_service.dart';
 import '../core/llm/llm_gateway.dart';
 import '../core/memory/cross_module_memory.dart';
 import '../core/memory/memory_store.dart';
@@ -31,6 +36,11 @@ class MyApp extends StatefulWidget {
   final DistressState distressState;
   final DistressRouter distressRouter;
   final CrossModuleMemoryService crossModuleMemory;
+  final AgentContextService agentContext;
+  final SharedContextService sharedContext;
+  final PersonaResolver personaResolver;
+  final ReferralRoutingService referralRouting;
+  final HandoffExecutor handoffExecutor;
 
   const MyApp({
     super.key,
@@ -43,6 +53,11 @@ class MyApp extends StatefulWidget {
     required this.distressState,
     required this.distressRouter,
     required this.crossModuleMemory,
+    required this.agentContext,
+    required this.sharedContext,
+    required this.personaResolver,
+    required this.referralRouting,
+    required this.handoffExecutor,
   });
 
   @override
@@ -116,6 +131,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           distressState: widget.distressState,
           distressRouter: widget.distressRouter,
           crossModuleMemory: widget.crossModuleMemory,
+          agentContext: widget.agentContext,
+          sharedContext: widget.sharedContext,
+          personaResolver: widget.personaResolver,
+          referralRouting: widget.referralRouting,
+          handoffExecutor: widget.handoffExecutor,
           child: AppSettingsScope(
           settings: widget.settings,
           child: MaterialApp(

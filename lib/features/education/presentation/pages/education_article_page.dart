@@ -6,6 +6,7 @@ import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
+import '../../../curious_companion/presentation/pages/tung_tung_page.dart';
 import '../../data/education_library.dart';
 
 /// M8 article view.
@@ -137,12 +138,19 @@ Here is the article:
                   const SizedBox(height: 20),
                   if (Arm.isA(context) && !_askMode)
                     OutlinedButton.icon(
-                      onPressed: () => setState(() => _askMode = true),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => TungTungPage(
+                            articleTitle: title,
+                            articleContext: body,
+                          ),
+                        ),
+                      ),
                       icon: const Icon(Icons.chat_bubble_outline),
                       label: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         child: Text(
-                          isEn ? 'Ask me about this' : '問下呢篇',
+                          isEn ? 'Ask Tung Tung about this' : '問通通呢篇',
                           style: const TextStyle(fontSize: 18),
                         ),
                       ),

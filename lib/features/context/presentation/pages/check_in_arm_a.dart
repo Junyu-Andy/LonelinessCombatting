@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/agent_context/agent_context_service.dart';
+import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../core/cross_referral/referral_routing_service.dart';
+import '../../../../core/cross_referral/referral_suggestion_card.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/memory/cross_module_memory.dart';
@@ -22,19 +27,13 @@ class CheckInArmA extends StatefulWidget {
 }
 
 class _CheckInArmAState extends State<CheckInArmA> {
-  static const _systemPrompt = '''
-You are 阿暖, a warm, attentive companion in a research-grade mHealth app for
-older adults in Hong Kong. The user has just told you how they are today.
-
-Rules:
-- Reply in plain Cantonese-friendly Traditional Chinese unless the user wrote
-  in English (then reply in English).
-- 1–2 sentences max. Reflect what they said, naming a specific detail.
-- Then ask ONE gentle follow-up question — only if their note was brief or
-  surfaced something worth exploring. Otherwise just acknowledge.
-- Never advise. Never diagnose. Never reframe their feeling. Do not say
-  "you must have felt..." or "try to think positively".
-- Never claim to be a doctor or a person. You are a digital companion.
+  /// Client-side fallback used only when the Cloud Function bundle does
+  /// not ship the Siu Yan prompt yet (e.g. functions deployed from an
+  /// older revision). Production responses come from the server-side
+  /// `siu_yan_v1.txt` resolved by promptKey.
+  static const _fallbackPersonaPrompt = '''
+你叫小欣，係一個 AI 機械人，唔係真人。每次回覆 1-2 句、reference 用戶啱啱講嘅
+具體細節、不分析、不診斷、不重 frame、不建立依賴。
 ''';
 
   final _inputCtrl = TextEditingController();
@@ -51,10 +50,27 @@ Rules:
   /// content into a reply.
   CrossModuleCallback? _crossModuleCallbackUsedThisSession;
 
+  /// Seeds the conversation with Siu Yan's opening bubble so the
+  /// surface reads as a chat from the first frame instead of a
+  /// faceless prompt. Localisation is handled here rather than in
+  /// initState because Localizations.of needs the inherited context.
+  bool _openerSeeded = false;
+
+  /// Active cross-referral suggestion (Sprint 5). Cleared on dismiss
+  /// or after the user accepts the handoff.
+  SurfacedReferral? _pendingReferral;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _analytics = AnalyticsScope.of(context);
+    if (!_openerSeeded) {
+      _openerSeeded = true;
+      final isEn = Localizations.localeOf(context).languageCode == 'en';
+      _turns.add(_Turn.bot(isEn
+          ? 'Hi — how are you today? Write a few words or speak whenever you\'re ready.'
+          : '你好啊。你今日點？寫幾句、或者用咪都得。'));
+    }
   }
 
   @override
@@ -66,7 +82,9 @@ Rules:
   Future<void> _send() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
-    final isFirstTurn = _turns.isEmpty;
+    // The opening bot bubble is seeded in didChangeDependencies, so
+    // "first turn" here means the first user-authored turn.
+    final isFirstTurn = !_turns.any((t) => t.fromUser);
     if (isFirstTurn) {
       await TranscriptConsentPrompter.maybePrompt(
         context: context,
@@ -111,10 +129,21 @@ Rules:
       }
     }
 
-    final systemPrompt = _systemPrompt +
-        (_crossModuleCallbackUsedThisSession
-                ?.toSystemPromptInjection(isEn: isEn) ??
-            '');
+    // Resolve Siu Yan persona + agent_context suffix. Falls back to a
+    // tiny client-side persona prompt if the resolver returns null
+    // (e.g. Firebase unavailable during guest mode demo).
+    final persona = await core.personaResolver.resolve(
+      agentId: AgentRegistry.siuYanId,
+      profile: profile,
+      includeSharedMood: true,
+    );
+    final crossModuleInjection = _crossModuleCallbackUsedThisSession
+            ?.toSystemPromptInjection(isEn: isEn) ??
+        '';
+    final contextSuffix = [
+      if (persona?.contextSuffix != null) persona!.contextSuffix!,
+      if (crossModuleInjection.trim().isNotEmpty) crossModuleInjection.trim(),
+    ].join('\n\n').trim();
 
     final history = _turns
         .take(_turns.length - 1)
@@ -122,10 +151,29 @@ Rules:
         .toList();
     final response = await core.llm.send(
       moduleId: 'm2_check_in',
-      systemPrompt: systemPrompt,
+      promptKey: persona?.promptKey,
+      agentId: persona?.agent.id ?? AgentRegistry.siuYanId,
+      systemPrompt: persona == null ? _fallbackPersonaPrompt : null,
+      contextSuffix: contextSuffix.isEmpty ? null : contextSuffix,
       history: history,
       userInput: text,
     );
+
+    // Append the user's turn to Siu Yan's short-term buffer so
+    // subsequent sessions and cross-agent reads (PersonaResolver) can
+    // see it. Honours the per-agent transcript retention flag.
+    if (profile != null &&
+        profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId)) {
+      await core.agentContext.appendTurn(
+        uid: profile.uid,
+        agentId: AgentRegistry.siuYanId,
+        turn: AgentContextTurn(
+          fromUser: true,
+          text: text,
+          timestamp: DateTime.now(),
+        ),
+      );
+    }
     if (!mounted) return;
     if (response.shortCircuited) {
       setState(() {
@@ -145,11 +193,45 @@ Rules:
         _turns.add(_Turn.bot(_scriptedAck()));
       }
     });
+
+    // Persist the assistant turn so the buffer round-trips properly.
+    if (profile != null &&
+        response.text.isNotEmpty &&
+        profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId)) {
+      await core.agentContext.appendTurn(
+        uid: profile.uid,
+        agentId: AgentRegistry.siuYanId,
+        turn: AgentContextTurn(
+          fromUser: false,
+          text: response.text,
+          timestamp: DateTime.now(),
+        ),
+      );
+    }
+
     // Route the higher of the two flags so moderate-on-output still
     // triggers the soft sheet even if input was clean.
     final escalation = _higher(response.inputFlag, response.outputFlag);
     if (escalation.level != DistressLevel.none) {
       await core.distressRouter.route(escalation, context: context);
+    }
+
+    // Cross-referral routing (Sprint 5). Skip when a card is already
+    // showing this turn or the conversation has escalated to safety.
+    if (_pendingReferral == null && !response.hasEscalation) {
+      core.referralRouting.onUserTurn(AgentRegistry.siuYanId);
+      final surfaced = await core.referralRouting.maybeSurface(
+        sourceAgentId: AgentRegistry.siuYanId,
+        profile: profile,
+        userTurn: text,
+        recentTurns: _turns
+            .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
+            .toList(),
+        localeCode: isEn ? 'en' : 'zh',
+      );
+      if (mounted && surfaced != null) {
+        setState(() => _pendingReferral = surfaced);
+      }
     }
   }
 
@@ -208,77 +290,152 @@ Rules:
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(isEn ? 'Today\'s Check-in' : '今日 Check-in')),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                children: [
-                  if (_turns.isEmpty)
-                    Text(
-                      isEn
-                          ? 'How are you today? Write a few words or speak.'
-                          : '你今日點呀？寫幾個字、或者講都得。',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                  for (final t in _turns) _TurnBubble(turn: t),
-                  if (_busy)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                    ),
-                  if (_turns.length >= 2) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      isEn
-                          ? 'One last thing — how would you describe your '
-                              'mood today?'
-                          : '最後一條 —— 你今日心情，揀一個你覺得最似嘅樣？',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 12),
-                    MoodFacePicker(
-                      value: _face,
-                      onChanged: (v) => setState(() {
-                        _face = v;
-                        _facePicked = true;
-                      }),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: _saved ? null : _saveSession,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(
-                          _saved
-                              ? (isEn ? 'Saved' : '已儲存')
-                              : (isEn ? 'Save check-in' : '儲存今日 Check-in'),
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+    final userTurnCount = _turns.where((t) => t.fromUser).length;
+    final canEnd = userTurnCount >= 1 && !_saved;
+    return FirstIntroOverlay(
+      agentId: AgentRegistry.siuYanId,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(isEn ? 'Today\'s Check-in' : '今日 Check-in'),
+          actions: [
+            TextButton(
+              onPressed: canEnd ? () => _openMoodSheet(isEn) : null,
+              child: Text(
+                _saved
+                    ? (isEn ? 'Saved' : '已儲存')
+                    : (isEn ? 'End' : '完成'),
+                style: const TextStyle(fontSize: 16),
               ),
-            ),
-            _Composer(
-              controller: _inputCtrl,
-              busy: _busy,
-              onSend: _send,
             ),
           ],
         ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  children: [
+                    for (final t in _turns) _TurnBubble(turn: t),
+                    if (_busy)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
+                    if (_pendingReferral != null)
+                      ReferralSuggestionCard(
+                        surfaced: _pendingReferral!,
+                        handoffExecutor: CoreServicesScope.of(context)
+                            .handoffExecutor,
+                        onDismiss: () =>
+                            setState(() => _pendingReferral = null),
+                      ),
+                  ],
+                ),
+              ),
+              _Composer(
+                controller: _inputCtrl,
+                busy: _busy,
+                onSend: _send,
+              ),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+
+  /// Bottom-sheet mood picker. Surfaces only when the participant
+  /// taps "完成" — earlier iterations anchored the picker at the foot
+  /// of the chat list which read as visual clutter throughout the
+  /// session.
+  Future<void> _openMoodSheet(bool isEn) async {
+    final theme = Theme.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetCtx) {
+        var localFace = _face;
+        var localPicked = _facePicked;
+        var localBusy = false;
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 8,
+                bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isEn
+                        ? 'How would you describe your mood today?'
+                        : '你今日心情，揀一個你覺得最似嘅樣？',
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 16),
+                  MoodFacePicker(
+                    value: localFace,
+                    onChanged: (v) => setSheet(() {
+                      localFace = v;
+                      localPicked = true;
+                    }),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: !localPicked || localBusy
+                          ? null
+                          : () async {
+                              setSheet(() => localBusy = true);
+                              setState(() {
+                                _face = localFace;
+                                _facePicked = true;
+                              });
+                              await _saveSession();
+                              if (!ctx.mounted) return;
+                              Navigator.of(ctx).pop();
+                            },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Text(
+                          isEn ? 'Save check-in' : '儲存今日 Check-in',
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Center(
+                    child: TextButton(
+                      onPressed: localBusy
+                          ? null
+                          : () => Navigator.of(ctx).pop(),
+                      child: Text(
+                        isEn ? 'Not yet' : '未準備好',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

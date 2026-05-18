@@ -6,6 +6,8 @@ import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import '../../../education/presentation/pages/education_library_page.dart';
 import '../../../personalization/presentation/pages/personalization_page.dart';
 import '../../../progress/presentation/pages/progress_page.dart';
+import '../../../reflective_dialogue/presentation/pages/reflective_dialogue_page.dart';
+import '../../../reflective_dialogue/presentation/pages/thought_record_exercise_page.dart';
 import '../widgets/me_list_item.dart';
 
 /// Me tab — infrastructure + personal resources. Five entries, **no
@@ -17,11 +19,38 @@ class MePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
 
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(0, 12, 0, 100),
         children: [
+          MeListItem(
+            icon: Icons.psychology_outlined,
+            label: isEn ? 'Reflect with Ah Jan / Ah Bak' : '搵阿珍／阿伯傾下',
+            subtitle: isEn
+                ? 'Open-ended reflective chat'
+                : '隨意傾下心入面諗緊嘅事',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ReflectiveDialoguePage(),
+              ),
+            ),
+          ),
+          _Divider(theme: theme),
+          MeListItem(
+            icon: Icons.lightbulb_outline,
+            label: isEn ? 'Look at a thought' : '望吓一個諗法',
+            subtitle: isEn
+                ? 'A small three-field exercise'
+                : '一個三條問題嘅短練習',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ThoughtRecordExercisePage(),
+              ),
+            ),
+          ),
+          _Divider(theme: theme),
           MeListItem(
             icon: Icons.bar_chart_outlined,
             label: l10n.meItemProgress,

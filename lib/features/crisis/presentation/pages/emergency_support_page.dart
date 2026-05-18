@@ -1,15 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../../../app/app_settings_scope.dart';
 import '../../../../core/safety/safety_overlay.dart';
 
+/// Emergency support page surfaced when the safety pill is tapped or
+/// the distress router routes here on an acute flag.
+///
+/// Buttons used to be inert (empty onPressed). They now copy the
+/// number to the clipboard and surface a confirmation snackbar — the
+/// most reliable cross-platform behaviour we can ship without the
+/// url_launcher dependency. The Phase A pilot's older-adult cohort
+/// can paste into the dialer (or the researcher walks them through
+/// it in the cognitive interview).
+///
+/// Defaults trimmed per the May-2026 review:
+///   • Hotline list reduced from four to two (Samaritans + Suicide
+///     Prevention Services).
+///   • Hard-coded "表姐 / 阿May" trusted-contact rows removed; the page
+///     now reads from `UserProfile.emergencyContactName/Phone` (which
+///     onboarding now requires).
+///   • Opening copy reframed from "如果你或者身邊嘅人有即時危險" to
+///     "如果你有不安嘅諗法" so a participant in moderate distress
+///     does not bounce off a phrasing that only fits acute danger.
 class EmergencySupportPage extends StatelessWidget {
   const EmergencySupportPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final profile = AppSettingsScope.of(context).profile;
+    final contactName = profile?.emergencyContactName?.trim();
+    final contactPhone = profile?.emergencyContactPhone?.trim();
+    final hasContact =
+        contactName != null && contactName.isNotEmpty;
 
-    return SafetyOverlaySuppressor(child: Scaffold(
+    return SafetyOverlaySuppressor(
+        child: Scaffold(
       appBar: AppBar(
         title: const Text('即時支援'),
       ),
@@ -28,14 +55,14 @@ class EmergencySupportPage extends StatelessWidget {
                 Row(
                   children: [
                     Icon(
-                      Icons.priority_high_rounded,
+                      Icons.favorite_rounded,
                       size: 32,
                       color: theme.colorScheme.onErrorContainer,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '如果你或者身邊嘅人有即時危險',
+                        '如果你有不安嘅諗法',
                         style: theme.textTheme.titleLarge?.copyWith(
                           color: theme.colorScheme.onErrorContainer,
                         ),
@@ -45,17 +72,19 @@ class EmergencySupportPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '請立即撥 999，或者去最近嘅急症室。',
+                  '可以打電話搵下面任何一個聆聽者傾下。'
+                  '如果你或者身邊嘅人有即時危險，請即刻撥 999 或者去最近嘅急症室。',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.colorScheme.onErrorContainer,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
+                    height: 1.45,
                   ),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: () {},
+                    onPressed: () => _copyAndNotify(context, '999'),
                     style: FilledButton.styleFrom(
                       backgroundColor: theme.colorScheme.error,
                       foregroundColor: theme.colorScheme.onError,
@@ -86,46 +115,19 @@ class EmergencySupportPage extends StatelessWidget {
             hours: '全日 24 小時',
             note: '面對情緒困擾、孤獨時可以致電。',
           ),
-          const SizedBox(height: 12),
-          const _HotlineCard(
-            name: '長者安居協會「平安鐘」',
-            number: '2338 8312',
-            hours: '全日 24 小時',
-            note: '專為長者而設，處理緊急同日常需要。',
-          ),
-          const SizedBox(height: 12),
-          const _HotlineCard(
-            name: '社會福利署熱線',
-            number: '2343 2255',
-            hours: '全日 24 小時',
-            note: '可以轉介社工支援同社區資源。',
-          ),
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.contacts_outlined,
             title: '你嘅信任聯絡人',
           ),
           const SizedBox(height: 14),
-          const _TrustedContactCard(
-            name: '表姐',
-            relation: '家人',
-            number: '9123 4567',
-          ),
-          const SizedBox(height: 12),
-          const _TrustedContactCard(
-            name: '阿May',
-            relation: '朋友',
-            number: '9876 5432',
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.person_add_alt, size: 26),
-              label: const Text('加多一個信任聯絡人'),
-            ),
-          ),
+          if (hasContact)
+            _TrustedContactCard(
+              name: contactName,
+              number: contactPhone ?? '',
+            )
+          else
+            _EmptyTrustedContactHint(theme: theme),
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.self_improvement,
@@ -170,6 +172,22 @@ class EmergencySupportPage extends StatelessWidget {
       ),
     ));
   }
+}
+
+/// Phone-dial buttons in Phase A copy the number to the clipboard so
+/// participants can paste into the system dialer. Adding the
+/// `url_launcher` dependency to fire `tel:` URIs is the obvious next
+/// step but is held off to keep the dependency surface minimal until
+/// the Phase B build.
+Future<void> _copyAndNotify(BuildContext context, String number) async {
+  await Clipboard.setData(ClipboardData(text: number));
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('電話 $number 已複製。打開電話應用程式貼上即可撥出。'),
+      duration: const Duration(seconds: 4),
+    ),
+  );
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -256,9 +274,9 @@ class _HotlineCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: () {},
+                onPressed: () => _copyAndNotify(context, number),
                 icon: const Icon(Icons.phone_rounded, size: 26),
-                label: const Text('打呢個電話'),
+                label: const Text('複製電話號碼'),
               ),
             ),
           ],
@@ -270,18 +288,17 @@ class _HotlineCard extends StatelessWidget {
 
 class _TrustedContactCard extends StatelessWidget {
   final String name;
-  final String relation;
   final String number;
 
   const _TrustedContactCard({
     required this.name,
-    required this.relation,
     required this.number,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final hasNumber = number.trim().isNotEmpty;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -310,7 +327,7 @@ class _TrustedContactCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '$relation・$number',
+                    hasNumber ? number : '未填電話',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -319,14 +336,45 @@ class _TrustedContactCard extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: () {},
+              onPressed: hasNumber
+                  ? () => _copyAndNotify(context, number)
+                  : null,
               iconSize: 32,
               style: IconButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,
                 foregroundColor: theme.colorScheme.onPrimary,
+                disabledBackgroundColor: theme.colorScheme.surfaceContainerHighest,
                 padding: const EdgeInsets.all(12),
               ),
               icon: const Icon(Icons.phone_rounded),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyTrustedContactHint extends StatelessWidget {
+  final ThemeData theme;
+  const _EmptyTrustedContactHint({required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.person_off_outlined,
+                size: 26, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '仲未設定信任聯絡人。可以喺「設定 → 個人資料」入面填。',
+                style: theme.textTheme.bodyLarge,
+              ),
             ),
           ],
         ),

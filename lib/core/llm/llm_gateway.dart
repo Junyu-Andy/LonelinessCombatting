@@ -9,8 +9,15 @@ import '../safety/distress_detector.dart';
 ///   1. Distress detection runs on both the user input and the model output
 ///      before anything is shown to the user.
 ///   2. A post-generation content filter can be added in one place.
-///   3. Conversation logs are tagged with the module ID + arm for the 10%
-///      random safety audit (per Spec §Backend and data).
+///   3. Conversation logs are tagged with module + agent for the 10%
+///      random safety audit and per-agent PPR analysis.
+///
+/// Sprint 2 extends [send] with agent persona resolution:
+///   - [agentId]      — registry id; tagged on the request for audit
+///   - [promptKey]    — server-resolved prompt key (e.g. `siu_yan_v1`)
+///   - [variantName]  — substituted into `{{VARIANT_NAME}}` server-side
+///   - [contextSuffix]— appended after the persona prompt server-side
+///   - [systemPrompt] — legacy raw prompt path, still honoured
 ///
 /// Arm B modules MUST NOT call this gateway. They use static templates.
 class LlmGateway {
@@ -27,14 +34,25 @@ class LlmGateway {
   /// model text and any safety flags raised either on the user input or the
   /// output.
   ///
-  /// [moduleId] is one of the spec module identifiers (e.g. `m3_reminiscence`,
-  /// `m4_cog_restructure`, `m7_action_loop`). Used for audit tagging.
+  /// Either [systemPrompt] OR [promptKey] must be provided. When both are
+  /// passed, the server prefers [promptKey] and falls back to
+  /// [systemPrompt] when the key cannot be resolved (e.g. an older Cloud
+  /// Function deployment that doesn't ship the prompts bundle yet).
   Future<LlmResponse> send({
     required String moduleId,
-    required String systemPrompt,
+    String? systemPrompt,
+    String? promptKey,
+    String? agentId,
+    String? variantName,
+    String? contextSuffix,
     required List<LlmTurn> history,
     required String userInput,
   }) async {
+    assert(
+      systemPrompt != null || promptKey != null,
+      'LlmGateway.send requires either systemPrompt or promptKey',
+    );
+
     final inputFlag = _detector.analyze(userInput);
 
     // Acute distress: short-circuit. The module is responsible for showing
@@ -52,6 +70,10 @@ class LlmGateway {
     final raw = await _client.complete(
       moduleId: moduleId,
       systemPrompt: systemPrompt,
+      promptKey: promptKey,
+      agentId: agentId,
+      variantName: variantName,
+      contextSuffix: contextSuffix,
       history: history,
       userInput: userInput,
     );
@@ -107,7 +129,11 @@ class LlmResponse {
 abstract class LlmClient {
   Future<String> complete({
     required String moduleId,
-    required String systemPrompt,
+    String? systemPrompt,
+    String? promptKey,
+    String? agentId,
+    String? variantName,
+    String? contextSuffix,
     required List<LlmTurn> history,
     required String userInput,
   });
@@ -119,16 +145,16 @@ class DeepseekLlmClient implements LlmClient {
   @override
   Future<String> complete({
     required String moduleId,
-    required String systemPrompt,
+    String? systemPrompt,
+    String? promptKey,
+    String? agentId,
+    String? variantName,
+    String? contextSuffix,
     required List<LlmTurn> history,
     required String userInput,
   }) async {
     try {
-      final result = await FirebaseFunctions
-          .instanceFor(region: 'asia-east2')
-          .httpsCallable('proxyDeepSeek')
-          .call(<String, dynamic>{
-        'systemPrompt': systemPrompt,
+      final payload = <String, dynamic>{
         'messages': [
           for (final t in history)
             {
@@ -141,7 +167,18 @@ class DeepseekLlmClient implements LlmClient {
           },
         ],
         'moduleId': moduleId,
-      }).timeout(const Duration(seconds: 25));
+      };
+      if (systemPrompt != null) payload['systemPrompt'] = systemPrompt;
+      if (promptKey != null) payload['promptKey'] = promptKey;
+      if (agentId != null) payload['agentId'] = agentId;
+      if (variantName != null) payload['variantName'] = variantName;
+      if (contextSuffix != null) payload['contextSuffix'] = contextSuffix;
+
+      final result = await FirebaseFunctions
+          .instanceFor(region: 'asia-east2')
+          .httpsCallable('proxyDeepSeek')
+          .call(payload)
+          .timeout(const Duration(seconds: 25));
 
       final data = result.data;
       if (data is Map) {

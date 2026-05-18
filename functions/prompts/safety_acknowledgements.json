@@ -1,0 +1,33 @@
+{
+  "_comment": "Templated per-agent safety acknowledgements (Dev Req §9). Surfaced verbatim when DistressDetector raises moderate-or-above; the LLM is NOT consulted on these turns.",
+  "siu_yan": {
+    "moderate": {
+      "zh": "聽起上嚟今日好沉重。等我哋停一停 —— 呢度有資源可以幫到你嘅。",
+      "en": "That sounds very heavy today. Let's pause for a moment — there's support here that can help."
+    },
+    "acute": {
+      "zh": "你啱啱講嘅嘢我聽到。請即刻打撒瑪利亞會 2896 0000，佢哋會聽你講。我會繼續喺度。",
+      "en": "I heard what you just said. Please call Samaritans Hong Kong at 2896 0000 right now. I'll stay here."
+    }
+  },
+  "ah_jan_ah_bak": {
+    "moderate": {
+      "zh": "咁樣聽起上嚟好沉重。我哋唔好繼續呢段傾偈住。呢度有支援，要唔要睇下？",
+      "en": "That weighs heavy. Let's not continue this conversation right now. There's support here — would you like to see it?"
+    },
+    "acute": {
+      "zh": "多謝你信我，肯講出嚟。請即刻打撒瑪利亞會 2896 0000。我會喺度等你。",
+      "en": "Thank you for trusting me. Please call Samaritans Hong Kong at 2896 0000 right now. I'll be here."
+    }
+  },
+  "tung_tung": {
+    "moderate": {
+      "zh": "呢個話題比我擅長嘅深啲。小欣會更加識聽你講呢啲嘢 —— 要唔要搵佢？另外，呢度都有支援資源。",
+      "en": "This topic goes deeper than what I'm good at. Siu Yan is better at listening to this kind of thing — would you like to find her? There's also support here."
+    },
+    "acute": {
+      "zh": "你啱啱講嘅嘢非常重要。請即刻打撒瑪利亞會 2896 0000。我會幫你搵小欣。",
+      "en": "What you just said is very important. Please call Samaritans Hong Kong at 2896 0000 right now. I'll help you find Siu Yan."
+    }
+  }
+}
