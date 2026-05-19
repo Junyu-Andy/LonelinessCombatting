@@ -4,17 +4,29 @@ import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/data/navigation_telemetry.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
 import '../features/me/presentation/pages/me_page.dart';
-import '../features/my_story/presentation/pages/my_story_page.dart';
 import '../features/settings/presentation/pages/settings_page.dart';
+import '../features/talk/presentation/pages/talk_page.dart';
 import '../features/today/presentation/pages/today_page.dart';
 import '../l10n/app_localizations.dart';
 import '../shared/widgets/app_app_bar.dart';
 
+/// Top-level shell.  Four bottom-nav tabs per Product Overview §3.2:
+///
+///   AppTab.today    → 睇今日 (Today)     · TodayPage
+///   AppTab.myStory  → 搵人傾 (Talk)      · TalkPage   (3 agent rooms)
+///   AppTab.me       → 做啲嘢 (Do)        · MePage     (tools)
+///   AppTab.settings → 自己 (Self)        · SettingsPage (Progress / Profile /
+///                                          Emergency / Display / Language /
+///                                          Notifications / 今日休息 /
+///                                          Boundaries / FAQ / Privacy /
+///                                          Research)
+///
+/// The AppTab enum names are kept (myStory / me / settings) for
+/// telemetry-backwards-compat — the analytics keys + NavIntent map
+/// would break if renamed.  Internally each enum value now points at
+/// the spec-correct surface.
 enum AppTab { today, myStory, me, settings }
 
-/// Top-level shell. Four bottom-nav tabs (Today / My Story / Me /
-/// Settings) hosted inside an [IndexedStack] so per-tab scroll position
-/// survives switches.
 class MainShell extends StatefulWidget {
   /// The trigger that brought the user to the shell on this app
   /// session — propagated by main.dart so [NavigationTelemetry] can
@@ -39,11 +51,13 @@ class _MainShellState extends State<MainShell> {
   AnalyticsService? _analytics;
   NavigationTelemetry? _navTelemetry;
 
+  // Analytics keys updated to the new IA labels so analysts read
+  // "talk"/"do"/"self" instead of the legacy "my_story"/"me"/"settings".
   static const _analyticsKeys = {
     AppTab.today: 'today',
-    AppTab.myStory: 'my_story',
-    AppTab.me: 'me',
-    AppTab.settings: 'settings',
+    AppTab.myStory: 'talk',
+    AppTab.me: 'do',
+    AppTab.settings: 'self',
   };
 
   static const _navIntents = {
@@ -99,10 +113,10 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final titles = {
-      AppTab.today: l10n.tabToday,
-      AppTab.myStory: l10n.tabMyStory,
-      AppTab.me: l10n.tabMe,
-      AppTab.settings: l10n.settingsTab,
+      AppTab.today: l10n.tabToday,       // 睇今日
+      AppTab.myStory: l10n.tabMyStory,   // 搵人傾
+      AppTab.me: l10n.tabMe,             // 做啲嘢
+      AppTab.settings: l10n.settingsTab, // 自己
     };
 
     return Scaffold(
@@ -111,9 +125,9 @@ class _MainShellState extends State<MainShell> {
         index: _current.index,
         children: const [
           TodayPage(),
-          MyStoryPage(),
-          MePage(),
-          SettingsPage(),
+          TalkPage(),     // ← was MyStoryPage; now 搵人傾 (3 agent rooms)
+          MePage(),       // ← repurposed as 做啲嘢 (tools)
+          SettingsPage(), // ← repurposed as 自己 (Progress + Profile + admin)
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -127,20 +141,23 @@ class _MainShellState extends State<MainShell> {
             tooltip: l10n.tabToday,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.menu_book_outlined),
-            selectedIcon: const Icon(Icons.menu_book),
+            // 搵人傾 — door to the three agent rooms.
+            icon: const Icon(Icons.forum_outlined),
+            selectedIcon: const Icon(Icons.forum),
             label: l10n.tabMyStory,
             tooltip: l10n.tabMyStory,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            selectedIcon: const Icon(Icons.person),
+            // 做啲嘢 — tools (Action Loop / TE / Education / Social).
+            icon: const Icon(Icons.checklist_outlined),
+            selectedIcon: const Icon(Icons.checklist),
             label: l10n.tabMe,
             tooltip: l10n.tabMe,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.settings_outlined),
-            selectedIcon: const Icon(Icons.settings),
+            // 自己 — Progress + Profile + Emergency + Settings sections.
+            icon: const Icon(Icons.person_outline),
+            selectedIcon: const Icon(Icons.person),
             label: l10n.settingsTab,
             tooltip: l10n.settingsTab,
           ),

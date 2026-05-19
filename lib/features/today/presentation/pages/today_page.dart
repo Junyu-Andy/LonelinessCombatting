@@ -6,7 +6,6 @@ import '../widgets/active_plan_banner.dart';
 import '../widgets/agent_tile_row.dart';
 import '../widgets/greeting_hero.dart';
 import '../widgets/quiet_today_banner.dart';
-import '../widgets/tool_quick_links.dart';
 
 /// Home tab (屋企) — agent-tile entry point.
 ///
@@ -30,15 +29,17 @@ class TodayPage extends StatelessWidget {
     return SafeArea(
       child: ListView(
         padding: EdgeInsets.zero,
+        // 睇今日 per Product Overview §3.2: greeting + agent-tile entry
+        // points + plan banner + safety pill + (later) weekly LLM card.
+        // Tools moved to 做啲嘢 tab as part of the four-tab IA.
         children: const [
           GreetingHero(),
           QuietTodayBanner(),
           MissedCheckInBanner(),
           ActivePlanBanner(),
           AgentTileRow(),
-          ToolQuickLinks(),
           Padding(
-            padding: EdgeInsets.fromLTRB(20, 4, 20, 72),
+            padding: EdgeInsets.fromLTRB(20, 8, 20, 72),
             child: SafetyFooterCard(analyticsTag: 'today_safety_footer'),
           ),
         ],

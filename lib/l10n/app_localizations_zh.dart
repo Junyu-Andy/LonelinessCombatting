@@ -24,7 +24,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get followUpTab => '跟進';
 
   @override
-  String get settingsTab => '設定';
+  String get settingsTab => '自己';
 
   @override
   String get homeSubtitle => '呢度係 demo 嘅首頁總覽。';
@@ -93,13 +93,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get enterDemo => '進入 Demo';
 
   @override
-  String get tabToday => '今日';
+  String get tabToday => '睇今日';
 
   @override
-  String get tabMyStory => '人生點滴';
+  String get tabMyStory => '搵人傾';
 
   @override
-  String get tabMe => '我的記錄';
+  String get tabMe => '做啲嘢';
 
   @override
   String get greetingMorning => '早晨';
@@ -198,7 +198,7 @@ class AppLocalizationsZhHantHk extends AppLocalizationsZh {
   String get followUpTab => '跟進';
 
   @override
-  String get settingsTab => '設定';
+  String get settingsTab => '自己';
 
   @override
   String get homeSubtitle => '呢度係 demo 嘅首頁總覽。';

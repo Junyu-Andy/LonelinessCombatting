@@ -24,7 +24,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get followUpTab => 'Follow-up';
 
   @override
-  String get settingsTab => 'Settings';
+  String get settingsTab => 'Self';
 
   @override
   String get homeSubtitle => 'This is the home overview for the demo.';
@@ -100,10 +100,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabToday => 'Today';
 
   @override
-  String get tabMyStory => 'My Story';
+  String get tabMyStory => 'Talk';
 
   @override
-  String get tabMe => 'Me';
+  String get tabMe => 'Do';
 
   @override
   String get greetingMorning => 'Good morning';

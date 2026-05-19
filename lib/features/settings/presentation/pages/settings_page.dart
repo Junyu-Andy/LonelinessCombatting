@@ -8,7 +8,9 @@ import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
+import '../../../personalization/presentation/pages/personalization_page.dart';
 import '../../../ppr/presentation/pages/ppr_weekly_page.dart';
+import '../../../progress/presentation/pages/progress_page.dart';
 import '../../../researcher_dashboard/presentation/pages/researcher_dashboard_page.dart';
 import 'faq_page.dart';
 import 'privacy_policy_page.dart';
@@ -49,6 +51,49 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 20),
             _ProfileCard(profile: settings.profile!, isEn: isEn),
           ],
+
+          // 自己 tab (Product Overview §3.2) now folds three personal
+          // surfaces above the existing settings sections:
+          //   · 我的紀錄 (Progress)
+          //   · 我的資料 (Profile / Personalization)
+          //   · 緊急支援 (Emergency support)
+          const SizedBox(height: 24),
+          _SectionHeader(
+            icon: Icons.person_outline,
+            title: isEn ? 'About me' : '關於我',
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.bar_chart_outlined,
+            title: l10n.meItemProgress,
+            subtitle: l10n.meItemProgressSubtitle,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ProgressPage()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.account_circle_outlined,
+            title: l10n.meItemProfile,
+            subtitle: l10n.meItemProfileSubtitle,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PersonalizationPage(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.support_outlined,
+            title: l10n.meItemCrisis,
+            subtitle: l10n.meItemCrisisSubtitle,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const EmergencySupportPage(),
+              ),
+            ),
+          ),
+
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.text_fields_rounded,
@@ -849,6 +894,65 @@ class _SignOutButton extends StatelessWidget {
         final isEn = Localizations.localeOf(ctx).languageCode == 'en';
         return Text(isEn ? 'Sign out' : '登出');
       }),
+    );
+  }
+}
+
+/// Simple ListTile-style navigation card used by the new 自己 tab
+/// header (Progress / Profile / Emergency).  Visually consistent with
+/// the existing [_SwitchTileCard] but without the trailing switch.
+class _NavTileCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _NavTileCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, size: 28, color: theme.colorScheme.primary),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        )),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          height: 1.35,
+                        )),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  color: theme.colorScheme.outline),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
