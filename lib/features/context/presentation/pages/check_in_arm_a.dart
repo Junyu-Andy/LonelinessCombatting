@@ -312,10 +312,14 @@ class _CheckInArmAState extends State<CheckInArmA> {
 
   String _acuteSafetyMessage() {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
+    // System-voice crisis copy (NOT agent voice).  Deliberately avoids
+    // attachment phrasing forbidden in the agent prompts ("我好擔心你"
+    // / "我會諗起你") — this is a directive system message shown when
+    // the LLM is short-circuited, not Siu Yan speaking.
     return isEn
-        ? 'I hear how hard this is. Please call Samaritans Hong Kong at '
-            '2896 0000 right now — they are open 24 hours.'
-        : '聽到你咁講，我好擔心你。請即刻打撒瑪利亞會熱線 2896 0000，'
+        ? "What you've just said is heavy. Please call the Samaritans "
+            "Hong Kong hotline now: 2896 0000 (24 hours)."
+        : '你頭先講嘅嘢好重。請即刻打撒瑪利亞會熱線 2896 0000，'
             '24 小時都有人聽。';
   }
 

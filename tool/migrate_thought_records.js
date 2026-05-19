@@ -39,13 +39,15 @@ if (DRY_RUN) {
 }
 
 async function migrateUser(uid) {
+  // Target path is the FLAT collection users/{uid}/thought_exercise/{id}
+  // (Sprint 4 corrected the earlier 3-level nested draft).  Anyone
+  // running this script against pre-Sprint-4 data should update before
+  // invocation.
   const oldRef = db.collection('users').doc(uid).collection('thought_records');
   const newRef = db
     .collection('users')
     .doc(uid)
-    .collection('thought_exercise')
-    .doc('entries')
-    .collection('items');
+    .collection('thought_exercise');
 
   const oldSnap = await oldRef.get();
   if (oldSnap.empty) return 0;
@@ -60,23 +62,30 @@ async function migrateUser(uid) {
       continue;
     }
 
-    // Map legacy 3-field schema → 7-field ThoughtExerciseEntry.
-    // Fields 4–6 (agentId, agentInvitationText, originTurnRef) are null for
-    // migrated records — they were created before the new schema existed.
+    // Map legacy 3-field ThoughtRecord → new 5+2-field
+    // ThoughtExerciseEntry schema (Sprint 4 corrected).  Legacy entries
+    // had no situation / emotion / intensity_before / intensity_after,
+    // so those are stubbed with placeholders that the dashboard query
+    // can filter out via `_migratedFrom`.
     const newData = {
+      situation: '',
+      emotionEmoji: '',
+      intensityBefore: 5,            // mid-scale placeholder
       thought: data.thought ?? '',
       oneReasonTrue: data.oneReasonTrue ?? '',
       anotherWayToLook: data.anotherWayToLook ?? '',
+      intensityAfter: null,
       agentId: data.originSurface === 'reflective_dialogue'
         ? 'ah_jan_ah_bak'
         : null,
       agentInvitationText: null,
       originTurnRef: null,
+      entryPathway: 'me_tile',       // legacy entries predate Siu Yan offer
       createdAt: data.createdAt ?? admin.firestore.FieldValue.serverTimestamp(),
       _migratedFrom: `thought_records/${doc.id}`,
     };
 
-    console.log(`  [migrate] ${uid}/${doc.id} → thought_exercise/entries/items/${doc.id}`);
+    console.log(`  [migrate] ${uid}/${doc.id} → thought_exercise/${doc.id}`);
     if (!DRY_RUN) {
       await targetRef.set(newData);
     }

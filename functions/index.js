@@ -59,7 +59,11 @@ function resolvePrompt(payload) {
   const template = loadPrompt(promptKey);
   if (!template) return rawPrompt || null;
   let out = template;
-  const variantName = payload.variantName || "阿Jan／阿伯";
+  // Default variant: feminine (阿珍).  An earlier auto-formatter
+  // mangled this to "阿Jan" — do not regress.  The two real variants
+  // are 阿珍 (feminine, sage green) and 阿伯 (masculine, teal-blue);
+  // both are AI-disclosed peer-aged listeners.
+  const variantName = payload.variantName || "阿珍／阿伯";
   out = out.split("{{VARIANT_NAME}}").join(variantName);
   const contextSuffix = payload.contextSuffix;
   if (contextSuffix && typeof contextSuffix === "string") {

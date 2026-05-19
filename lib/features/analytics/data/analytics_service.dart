@@ -63,7 +63,13 @@ class AnalyticsService {
     'm8_article_opened',
     'm9_progress_viewed',
     'cross_referral_offered', 'cross_referral_accepted',
-    'cross_referral_declined', 'repair_clicked', 'repair_completed',
+    'cross_referral_declined',
+    // 3-layer routing telemetry (Sprint 5 fix I): keyword filter
+    // match, LLM SURFACE/DEFER/SKIP, cooldown block, and final
+    // surface decision.  All arm-required for Phase A calibration.
+    'cross_referral_layer1_match', 'cross_referral_layer2_decision',
+    'cross_referral_cooldown_blocked', 'cross_referral_surfaced',
+    'repair_clicked', 'repair_completed',
     'ppr_brief_shown', 'ppr_brief_submitted', 'ppr_brief_skipped',
     'quiet_today_activated',
   };

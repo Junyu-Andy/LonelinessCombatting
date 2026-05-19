@@ -238,10 +238,13 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     return a.level.index >= b.level.index ? a : b;
   }
 
+  // System-voice crisis copy.  Avoids attachment phrasing forbidden
+  // in agent prompts — this message is shown when the LLM is
+  // short-circuited, not Ah Jan/Ah Bak speaking.
   String _acuteSafetyMessage(bool isEn) => isEn
-      ? 'I hear how heavy this is. Please call Samaritans Hong Kong at '
-          '2896 0000 right now.'
-      : '聽到你咁講，我好擔心你。請即刻打撒瑪利亞會 2896 0000。';
+      ? "What you've just said is heavy. Please call Samaritans Hong "
+          "Kong now: 2896 0000."
+      : '你頭先講嘅嘢好重。請即刻打撒瑪利亞會 2896 0000。';
 
   /// B.9 — handle a thumbs-down on assistant turn [turn].  First click
   /// re-sends the source input to the LLM with `regenerate: true`; later
