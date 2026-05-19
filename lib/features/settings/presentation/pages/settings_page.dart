@@ -11,6 +11,7 @@ import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import '../../../personalization/presentation/pages/personalization_page.dart';
 import '../../../ppr/presentation/pages/ppr_weekly_page.dart';
 import '../../../progress/presentation/pages/progress_page.dart';
+import '../../../my_story/presentation/pages/my_story_page.dart';
 import '../../../researcher_dashboard/presentation/pages/researcher_dashboard_page.dart';
 import 'faq_page.dart';
 import 'privacy_policy_page.dart';
@@ -69,6 +70,22 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: l10n.meItemProgressSubtitle,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const ProgressPage()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          // 人生回顧 — index into the 4-week Ah Jan/Ah Bak curriculum +
+          // story threads.  The reminiscence sessions themselves live
+          // under 搵人傾 → Ah Jan/Ah Bak; this entry is the read-only
+          // overview (週、主題、past summaries) the IA used to surface
+          // as the standalone "人生點滴" tab before the four-tab restructure.
+          _NavTileCard(
+            icon: Icons.menu_book_outlined,
+            title: isEn ? 'Life-review progress' : '人生回顧',
+            subtitle: isEn
+                ? '4-week curriculum, past sessions, story threads'
+                : '4 週主題、過往 session、人生線索',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const MyStoryPage()),
             ),
           ),
           const SizedBox(height: 10),
