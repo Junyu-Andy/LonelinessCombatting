@@ -43,6 +43,11 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
   // 5 emoji choices for Field 2.  Kept few + culturally neutral.
   static const _emojis = ['😟', '😔', '😐', '🙂', '😊'];
 
+  // Research Review v2 Item 5: first-visit hint.  In-memory flag resets
+  // each app session; persistent suppression requires Firestore/prefs integration.
+  static bool _firstVisitHintShown = false;
+  bool _showFirstVisitHint = false;
+
   late final TextEditingController _situationCtrl;
   late final TextEditingController _thoughtCtrl;
   final _reasonCtrl = TextEditingController();
@@ -61,6 +66,10 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
     super.initState();
     _situationCtrl = TextEditingController();
     _thoughtCtrl = TextEditingController(text: widget.initialThought ?? '');
+    if (!_firstVisitHintShown) {
+      _showFirstVisitHint = true;
+      _firstVisitHintShown = true;
+    }
   }
 
   @override
@@ -162,6 +171,38 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Research Review v2 Item 5: first-visit hint banner.
+            if (_showFirstVisitHint) ...[
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        isEn
+                            ? 'Here you can look back at your recent moods and thoughts. Take it slow — no rush.'
+                            : '呢度可以畀你睇返自己最近嘅心情同諗法。慢慢嚟，唔趕。',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      color: theme.colorScheme.onPrimaryContainer,
+                      onPressed: () => setState(() => _showFirstVisitHint = false),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+              ),
+            ],
             // Intro line (pixel-identical across arms, static text)
             Text(
               isEn

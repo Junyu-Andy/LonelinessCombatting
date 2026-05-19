@@ -108,13 +108,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get greetingMorning => 'Good morning';
   @override
-  String get greetingNoon => 'Good noon';
-  @override
   String get greetingAfternoon => 'Good afternoon';
   @override
   String get greetingEvening => 'Good evening';
   @override
-  String get greetingNight => "It's late — take it easy";
+  String get greetingNight => "It's late now";
+  @override
+  String get greetingTagline => 'With You is here.';
 
   @override
   String get todayCheckInTitle => "Today's Check-in";

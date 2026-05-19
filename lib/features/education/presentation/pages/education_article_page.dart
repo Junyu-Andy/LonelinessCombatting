@@ -140,6 +140,18 @@ Here is the article:
                       height: 1.55,
                     ),
                   ),
+                  // Research Review v2 Item 1: crisis hint footer.
+                  if ((isEn
+                        ? widget.article.crisisHintEn
+                        : widget.article.crisisHintZh) !=
+                      null) ...[
+                    const SizedBox(height: 24),
+                    _CrisisHintFooter(
+                      text: isEn
+                          ? widget.article.crisisHintEn!
+                          : widget.article.crisisHintZh!,
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   if (Arm.isA(context) && !_askMode)
                     OutlinedButton.icon(
@@ -227,6 +239,46 @@ class _Bubble extends StatelessWidget {
         ),
         child: Text(turn.text,
             style: TextStyle(fontSize: 17, height: 1.4, color: fg)),
+      ),
+    );
+  }
+}
+
+class _CrisisHintFooter extends StatelessWidget {
+  final String text;
+  const _CrisisHintFooter({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.error.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.favorite_border_rounded,
+            size: 20,
+            color: theme.colorScheme.error,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

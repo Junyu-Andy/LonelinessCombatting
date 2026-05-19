@@ -21,20 +21,19 @@ class GreetingHero extends StatelessWidget {
     final hour = now.hour;
     final String greetingBase;
     final IconData icon;
+    // Research Review v2 Item 7: 4-branch greeting schedule.
+    // ⚠️ "下午好" and "夜晚好" flagged for linguist review — may feel slightly Mandarin.
     if (hour >= 5 && hour < 11) {
-      greetingBase = l10n.greetingMorning;
+      greetingBase = l10n.greetingMorning;       // 05:00–11:00
       icon = Icons.wb_sunny_outlined;
-    } else if (hour >= 11 && hour < 14) {
-      greetingBase = l10n.greetingNoon;
+    } else if (hour >= 11 && hour < 18) {
+      greetingBase = l10n.greetingAfternoon;     // 11:00–18:00 (absorbed noon)
       icon = Icons.light_mode_outlined;
-    } else if (hour >= 14 && hour < 18) {
-      greetingBase = l10n.greetingAfternoon;
-      icon = Icons.wb_cloudy_outlined;
-    } else if (hour >= 18 && hour < 22) {
-      greetingBase = l10n.greetingEvening;
+    } else if (hour >= 18 && hour < 23) {
+      greetingBase = l10n.greetingEvening;       // 18:00–23:00
       icon = Icons.nights_stay_outlined;
     } else {
-      greetingBase = l10n.greetingNight;
+      greetingBase = l10n.greetingNight;         // 23:00–05:00
       icon = Icons.bedtime_outlined;
     }
 
@@ -101,12 +100,10 @@ class GreetingHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  // Brand tagline locked: 【陪住】你 (Chinese square
-                  // brackets bracket the app name, then 「你」on the
-                  // outside).  English keeps a simple "With You is here."
-                  isEn
-                      ? '${l10n.appTitle} is here.'
-                      : '【${l10n.appTitle}】你。',
+                  // Research Review v2 Item 3: tagline in l10n for trademark
+                  // swapping.  ⚠️ HIGH collision risk with "陪我講 Shall We Talk"
+                  // — swap via greetingTagline key when legal clears alternative.
+                  l10n.greetingTagline,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.white.withValues(alpha: 0.9),
                     height: 1.35,

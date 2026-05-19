@@ -115,23 +115,30 @@ void main() {
   });
 
   // ---------- B.4 Tung Tung rule-based pool ------------------------------
-  group('TungTungRulePool 16-item static pool', () {
-    test('exactly 16 items', () {
-      expect(TungTungRulePool.items.length, 16);
+  // Research Review v2: pool expanded to 20 items; research to select 16.
+  group('TungTungRulePool 20-item static pool', () {
+    test('exactly 20 items', () {
+      expect(TungTungRulePool.items.length, 20);
     });
-    test('all items have both zh and en text, non-empty', () {
+    test('all items have id, zh and en text, non-empty', () {
       for (final item in TungTungRulePool.items) {
+        expect(item.id.isNotEmpty, true);
         expect(item.zh.isNotEmpty, true);
         expect(item.en.isNotEmpty, true);
       }
     });
+    test('all item ids are unique', () {
+      final ids = TungTungRulePool.items.map((i) => i.id).toList();
+      expect(ids.toSet().length, equals(ids.length));
+    });
     test('rotation is deterministic by turn index', () {
       final first = TungTungRulePool.openerFor(0);
-      final eighth = TungTungRulePool.openerFor(8);
-      final sixteenth = TungTungRulePool.openerFor(16);
+      final twentieth = TungTungRulePool.openerFor(20);
       expect(first.zh, equals(TungTungRulePool.openerFor(0).zh));
-      expect(sixteenth.zh, equals(first.zh)); // wraps at 16
-      expect(eighth.zh, isNot(equals(first.zh)));
+      expect(twentieth.zh, equals(first.zh)); // wraps at 20
+    });
+    test('version string is set', () {
+      expect(TungTungRulePool.version.isNotEmpty, true);
     });
   });
 

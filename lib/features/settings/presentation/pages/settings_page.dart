@@ -78,12 +78,16 @@ class _SettingsPageState extends State<SettingsPage> {
           // under 搵人傾 → Ah Jan/Ah Bak; this entry is the read-only
           // overview (週、主題、past summaries) the IA used to surface
           // as the standalone "人生點滴" tab before the four-tab restructure.
+          // Research Review v2 Item 6: title swappable — research recommends
+          // "我嘅故事" if this is NOT a full clinical life-review curriculum.
+          // Current: "人生回顧" (formal); alt key: lifeReviewAltTitle = "我嘅故事".
+          // Sub-text added per Item 6 spec.
           _NavTileCard(
             icon: Icons.menu_book_outlined,
             title: isEn ? 'Life-review progress' : '人生回顧',
             subtitle: isEn
-                ? '4-week curriculum, past sessions, story threads'
-                : '4 週主題、過往 session、人生線索',
+                ? 'Take your time — skip anything you\'d rather not discuss.'
+                : '慢慢嚟，可以跳過唔想講嘅時期。',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const MyStoryPage()),
             ),

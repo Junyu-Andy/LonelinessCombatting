@@ -51,10 +51,11 @@ class MePage extends StatelessWidget {
           MeListItem(
             icon: Icons.lightbulb_outline,
             // Phase A spec §5.2 — locked label "望一望心入面".
+            // Research Review v2 Item 5: subtitle = "了解吓自己嘅心情".
             label: isEn ? 'Look at a thought' : '望一望心入面',
             subtitle: isEn
-                ? 'A small structured self-reflection (5 fields)'
-                : '一個小練習，慢慢望一望自己嘅諗法',
+                ? 'Gently understand your own mood'
+                : '了解吓自己嘅心情',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => const ThoughtExercisePage(),

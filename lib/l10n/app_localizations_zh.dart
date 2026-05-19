@@ -104,13 +104,13 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get greetingMorning => '早晨';
   @override
-  String get greetingNoon => '午安';
-  @override
   String get greetingAfternoon => '下午好';
   @override
   String get greetingEvening => '夜晚好';
   @override
-  String get greetingNight => '夜深喇，慢慢嚟';
+  String get greetingNight => '夜深啦';
+  @override
+  String get greetingTagline => '【陪住】你。';
 
   @override
   String get todayCheckInTitle => '今日 Check-in';

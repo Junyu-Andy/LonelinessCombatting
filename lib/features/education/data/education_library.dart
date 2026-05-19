@@ -13,18 +13,38 @@
 ///   - English on en side
 ///   - No medical advice, no diagnostic claims, no commands
 ///   - End with an opening, not a directive ("如果你想…", "If you'd like…")
+/// Research Review v2 Item 1: article schema extended with review provenance
+/// and optional crisis-hint footer. Per-article feature flag [enabled] allows
+/// individual articles to be hidden without a code push during Phase A.
 class EducationArticle {
   final String id;
   final String titleZh;
   final String titleEn;
   final String bodyZh;
   final String bodyEn;
+  // Review provenance — set by researcher after cultural advisor sign-off.
+  final String? lastReviewedAt;   // ISO-8601 date string, e.g. '2026-06-01'
+  final String? reviewerId;        // Researcher/advisor ID
+  final String? reviewType;        // 'cultural_advisor' | 'linguist' | 'pi'
+  // Feature flag: false hides article from the list in Phase A without a code push.
+  final bool enabled;
+  // Crisis hint footer (Item 1 §3): rendered below article body if non-null.
+  // Must include crisis hotline per HREC requirement.
+  final String? crisisHintZh;
+  final String? crisisHintEn;
+
   const EducationArticle({
     required this.id,
     required this.titleZh,
     required this.titleEn,
     required this.bodyZh,
     required this.bodyEn,
+    this.lastReviewedAt,
+    this.reviewerId,
+    this.reviewType,
+    this.enabled = true,
+    this.crisisHintZh,
+    this.crisisHintEn,
   });
 }
 
@@ -395,6 +415,8 @@ If you want to hold them:
 
 Remembering them isn't staying behind. It's carrying them forward.
 ''',
+      crisisHintZh: '如果你有時感到好難頂，唔需要一個人扛。撒瑪利亞防止自殺會熱線 2382 0000，24 小時都有人聽。',
+      crisisHintEn: 'If the weight sometimes feels too heavy to carry alone, you don\'t have to. Samaritans of HK: 2382 0000 — 24 hours.',
     ),
     EducationArticle(
       id: 'mh_jong_bo_fan_yan',
@@ -508,6 +530,8 @@ A few ways:
 "Action" doesn't have to mean a big thing.
 Small and light is enough.
 ''',
+      crisisHintZh: '如果你有時感到好難頂，唔需要一個人扛。撒瑪利亞防止自殺會熱線 2382 0000，24 小時都有人聽。',
+      crisisHintEn: 'If things ever feel too heavy: Samaritans of HK 2382 0000 — 24 hours, always someone there.',
     ),
     EducationArticle(
       id: 'saying_yes_when_unsure',

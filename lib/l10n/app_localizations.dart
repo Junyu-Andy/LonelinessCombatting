@@ -281,10 +281,12 @@ abstract class AppLocalizations {
   String get tabMe;
 
   String get greetingMorning;
-  String get greetingNoon;
   String get greetingAfternoon;
   String get greetingEvening;
   String get greetingNight;
+  // Item 3 (Research v2): tagline extracted to l10n for trademark-safe swapping.
+  // ⚠️ HIGH collision risk with gov "陪我講 Shall We Talk" — keep pending legal sign-off.
+  String get greetingTagline;
 
   String get todayCheckInTitle;
   String get todayCheckInSubtitle;
