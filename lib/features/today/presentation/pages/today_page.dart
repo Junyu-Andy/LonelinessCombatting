@@ -6,6 +6,7 @@ import '../widgets/active_plan_banner.dart';
 import '../widgets/agent_tile_row.dart';
 import '../widgets/daily_mood_card.dart';
 import '../widgets/greeting_hero.dart';
+import '../widgets/pending_prompts_banner.dart';
 import '../widgets/quiet_today_banner.dart';
 
 /// Home tab (屋企) — agent-tile entry point.
@@ -36,6 +37,7 @@ class TodayPage extends StatelessWidget {
         children: const [
           GreetingHero(),
           QuietTodayBanner(),
+          PendingPromptsBanner(),
           DailyMoodCard(),
           MissedCheckInBanner(),
           ActivePlanBanner(),

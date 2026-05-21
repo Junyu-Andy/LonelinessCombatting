@@ -27,6 +27,9 @@ import '../../../../core/repair/turn_repair_controller.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../brief_pr/data/brief_pr_gate.dart';
+import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/negative_cognition_detector.dart';
 
 class ReflectiveDialoguePage extends StatefulWidget {
@@ -46,7 +49,9 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
 
   final _inputCtrl = TextEditingController();
   final List<_Turn> _turns = [];
+  final DateTime _sessionStartedAt = DateTime.now();
   bool _busy = false;
+  bool _briefPrSurfaced = false;
   static const _detector = NegativeCognitionDetector();
 
   /// B.9 — repair controller.  Persists across rebuilds so debounce + click
@@ -345,7 +350,12 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     final theme = Theme.of(context);
     return FirstIntroOverlay(
       agentId: AgentRegistry.ahJanAhBakId,
-      child: Scaffold(
+      child: PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (didPop, _) async {
+          if (didPop) await _maybeSurfaceBriefPr();
+        },
+        child: Scaffold(
         appBar: AppBar(
           title: Text(isEn ? 'Reflective chat' : '反思傾偈'),
         ),
@@ -363,13 +373,25 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
                             : '你想諗咩、想講咩都得，我喺度聽。',
                         style: theme.textTheme.titleLarge,
                       ),
-                    for (final t in _turns)
+                    for (int i = 0; i < _turns.length; i++) ...[
                       _TurnBubble(
-                        turn: t,
-                        onRepair: t.fromUser || t.isSystem || t.repaired
+                        turn: _turns[i],
+                        onRepair: _turns[i].fromUser ||
+                                _turns[i].isSystem ||
+                                _turns[i].repaired
                             ? null
-                            : () => _handleRepair(t),
+                            : () => _handleRepair(_turns[i]),
                       ),
+                      if (!_turns[i].fromUser && !_turns[i].isSystem)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ThumbsFeedback(
+                            agentId: 'ah_jan_ah_bak',
+                            moduleId: 'reflective_dialogue',
+                            turnKey: _turns[i].key ?? 'turn_$i',
+                          ),
+                        ),
+                    ],
                     if (_busy)
                       const Align(
                         alignment: Alignment.centerLeft,
@@ -401,6 +423,40 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
               ),
             ],
           ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  Future<void> _maybeSurfaceBriefPr() async {
+    if (_briefPrSurfaced) return;
+    _briefPrSurfaced = true;
+    final profile = AppSettingsScope.read(context).profile;
+    if (profile == null) return;
+    final exchangeCount = _turns.where((t) => t.fromUser).length;
+    final gate = BriefPrGate();
+    final shouldShow = await gate.shouldSurfaceBriefPr(
+      uid: profile.uid,
+      agentId: 'ah_jan_ah_bak',
+      sessionStartedAt: _sessionStartedAt,
+      exchangeCount: exchangeCount,
+    );
+    if (!shouldShow || !mounted) return;
+    final anchor = await gate.isAnchorPromptFor(
+      uid: profile.uid,
+      agentId: 'ah_jan_ah_bak',
+    );
+    if (!mounted) return;
+    // Resolve gender variant display name.
+    final agent = AgentRegistry.byId(AgentRegistry.ahJanAhBakId);
+    final variant = agent.resolveVariant(profile.ahJanAhBakVariant);
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BriefPrPage(
+          agentId: 'ah_jan_ah_bak',
+          agentDisplayName: variant.displayNameZh,
+          isAnchorPrompt: anchor,
         ),
       ),
     );

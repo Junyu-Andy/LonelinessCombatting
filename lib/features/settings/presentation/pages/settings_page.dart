@@ -15,6 +15,9 @@ import '../../../my_story/presentation/pages/my_story_page.dart';
 import '../../../researcher_dashboard/presentation/pages/researcher_dashboard_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
+import '../../../weekly_pr/data/weekly_pr_trigger.dart';
+import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
+import '../../../../core/arm/arm_scope.dart';
 import 'faq_page.dart';
 import 'privacy_policy_page.dart';
 
@@ -97,6 +100,37 @@ class _SettingsPageState extends State<SettingsPage> {
                 builder: (_) => const AgentDiffPage(wave: 2),
               ),
             ),
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.rate_review_outlined,
+            title: isEn ? 'Weekly companion review' : '每週夥伴評估',
+            subtitle: isEn
+                ? '12 short items per companion used this week'
+                : '回想下你呢個禮拜同夥伴傾偈嘅感受',
+            onTap: () async {
+              final profile = settings.profile;
+              if (profile == null) return;
+              final trigger = WeeklyPrTrigger();
+              final agents = await trigger.agentsUsedThisWeek(profile.uid);
+              if (!context.mounted) return;
+              if (agents.isEmpty) {
+                final armCode = Arm.of(context)?.code ?? 'B';
+                await trigger.writeNoReferent(profile.uid, armCode);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('呢個禮拜冇用過任何 companion。'),
+                  ),
+                );
+                return;
+              }
+              await Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => WeeklyPrPage(agents: agents),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 10),
           // 人生回顧 — index into the 4-week Ah Jan/Ah Bak curriculum +

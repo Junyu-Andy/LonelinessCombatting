@@ -351,6 +351,189 @@ class AnalyticsService {
   // 今日休息 (B.10)
   Future<void> logQuietTodayActivated() => logEvent('quiet_today_activated');
 
+  // -------------------------------------------------------------------------
+  // Sprint 2 §3.2 — module-level events.  These wrap [logEvent] so call
+  // sites stay declarative; payload shapes mirror the spec.
+  // -------------------------------------------------------------------------
+
+  Future<void> logSessionStart({
+    String? platform,
+    String? locale,
+    bool? highContrast,
+    String? appVersion,
+  }) =>
+      logEvent('session_start', {
+        if (platform != null) 'platform': platform,
+        if (locale != null) 'locale': locale,
+        if (highContrast != null) 'highContrast': highContrast,
+        if (appVersion != null) 'appVersion': appVersion,
+      });
+
+  Future<void> logSessionEnd({
+    required int durationSeconds,
+    required String exitReason,
+  }) =>
+      logEvent('session_end', {
+        'durationSeconds': durationSeconds,
+        'exitReason': exitReason,
+      });
+
+  Future<void> logM2CheckInStarted() => logEvent('m2_check_in_started');
+
+  Future<void> logM2CheckInAbandoned({required String lastScreen}) =>
+      logEvent('m2_check_in_abandoned', {'lastScreen': lastScreen});
+
+  Future<void> logTungTungChatStarted() => logEvent('tung_tung_chat_started');
+
+  Future<void> logTungTungChatEnded({
+    required int durationSeconds,
+    required int turnCount,
+  }) =>
+      logEvent('tung_tung_chat_ended', {
+        'durationSeconds': durationSeconds,
+        'turnCount': turnCount,
+      });
+
+  Future<void> logTungTungTopicChipTapped({required String topic}) =>
+      logEvent('tung_tung_topic_chip_tapped', {'topic': topic});
+
+  Future<void> logResponseFeedbackSubmitted({
+    required String agentId,
+    required String moduleId,
+    required String rating,
+    List<String>? reasons,
+  }) =>
+      logEvent('response_feedback_submitted', {
+        'agentId': agentId,
+        'moduleId': moduleId,
+        'rating': rating,
+        if (reasons != null) 'reasons': reasons,
+      });
+
+  Future<void> logBriefPrSubmitted({
+    required String agentId,
+    required String moduleId,
+    required Map<String, int?> items,
+    required bool isAnchorPrompt,
+  }) =>
+      logEvent('brief_pr_submitted', {
+        'agentId': agentId,
+        'moduleId': moduleId,
+        'items': items,
+        'isAnchorPrompt': isAnchorPrompt,
+      });
+
+  Future<void> logBriefPrSkipped({
+    required String agentId,
+    required bool isAnchorPrompt,
+  }) =>
+      logEvent('brief_pr_skipped', {
+        'agentId': agentId,
+        'isAnchorPrompt': isAnchorPrompt,
+      });
+
+  Future<void> logWeeklyPrSubmitted({
+    required String weekIso,
+    required String agentId,
+  }) =>
+      logEvent('weekly_pr_submitted', {
+        'weekIso': weekIso,
+        'agentId': agentId,
+      });
+
+  Future<void> logWeeklyPrSkipped({
+    required String weekIso,
+    required String agentId,
+  }) =>
+      logEvent('weekly_pr_skipped', {
+        'weekIso': weekIso,
+        'agentId': agentId,
+      });
+
+  Future<void> logPgicSubmitted({
+    required String weekIso,
+    required int rating,
+  }) =>
+      logEvent('pgic_submitted', {
+        'weekIso': weekIso,
+        'rating': rating,
+      });
+
+  Future<void> logPgicSkipped({required String weekIso}) =>
+      logEvent('pgic_skipped', {'weekIso': weekIso});
+
+  Future<void> logDailyMoodSubmitted({required int mood}) =>
+      logEvent('daily_mood_submitted', {'mood': mood});
+
+  Future<void> logDailyMoodSkipped({required int consecutiveSkipCount}) =>
+      logEvent('daily_mood_skipped', {
+        'consecutiveSkipCount': consecutiveSkipCount,
+      });
+
+  Future<void> logAgentDiffStarted({required String timepoint}) =>
+      logEvent('agent_diff_started', {'timepoint': timepoint});
+
+  Future<void> logAgentDiffCompleted({
+    required String timepoint,
+    required int partsCompleted,
+  }) =>
+      logEvent('agent_diff_completed', {
+        'timepoint': timepoint,
+        'partsCompleted': partsCompleted,
+      });
+
+  Future<void> logSafetyPillTapped({
+    required String currentLevel,
+    required String surface,
+  }) =>
+      logEvent('safety_pill_tapped', {
+        'currentLevel': currentLevel,
+        'surface': surface,
+      });
+
+  Future<void> logCrisisResourcesOpened({required String from}) =>
+      logEvent('crisis_resources_opened', {'from': from});
+
+  Future<void> logDistressDetected({
+    required String level,
+    required String surface,
+    String? agentId,
+  }) =>
+      logEvent('distress_detected', {
+        'level': level,
+        'surface': surface,
+        if (agentId != null) 'agentId': agentId,
+      });
+
+  Future<void> logTranscriptConsentToggled({required bool newValue}) =>
+      logEvent('transcript_consent_toggled', {'newValue': newValue});
+
+  Future<void> logScreenEntered({
+    required String screenName,
+    String? fromScreenName,
+    String? agentId,
+    String? moduleId,
+  }) =>
+      logEvent('screen_entered', {
+        'screenName': screenName,
+        if (fromScreenName != null) 'fromScreenName': fromScreenName,
+        if (agentId != null) 'agentId': agentId,
+        if (moduleId != null) 'moduleId': moduleId,
+      });
+
+  Future<void> logScreenExited({
+    required String screenName,
+    required int durationSeconds,
+    String? toScreenName,
+    required String exitReason,
+  }) =>
+      logEvent('screen_exited', {
+        'screenName': screenName,
+        'durationSeconds': durationSeconds,
+        if (toScreenName != null) 'toScreenName': toScreenName,
+        'exitReason': exitReason,
+      });
+
   static String _newId() {
     final rand = Random.secure();
     final now = DateTime.now().microsecondsSinceEpoch.toRadixString(36);

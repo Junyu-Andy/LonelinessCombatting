@@ -7,6 +7,7 @@ import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../curious_companion/presentation/pages/tung_tung_page.dart';
+import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/education_library.dart';
 
 /// M8 article view.
@@ -176,7 +177,19 @@ Here is the article:
                     const SizedBox(height: 12),
                     Divider(color: theme.colorScheme.outlineVariant),
                     const SizedBox(height: 8),
-                    for (final t in _turns) _Bubble(turn: t),
+                    for (int i = 0; i < _turns.length; i++) ...[
+                      _Bubble(turn: _turns[i]),
+                      if (!_turns[i].fromUser)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ThumbsFeedback(
+                            agentId: 'tung_tung',
+                            moduleId:
+                                'm8_education_${widget.article.id}',
+                            turnKey: 'turn_$i',
+                          ),
+                        ),
+                    ],
                     if (_busy)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),

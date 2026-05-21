@@ -17,6 +17,8 @@ import '../core/safety/distress_detector.dart';
 import '../core/safety/distress_router.dart';
 import '../core/safety/distress_state.dart';
 import '../core/safety/safety_overlay.dart';
+import '../core/telemetry/screen_dwell_observer.dart';
+import '../core/telemetry/screen_dwell_tracker.dart';
 import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
 import '../features/auth/data/auth_service.dart';
@@ -69,6 +71,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   String? _lastFcmUid;
+  final ScreenDwellObserver _dwellObserver = ScreenDwellObserver();
 
   @override
   void initState() {
@@ -76,7 +79,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     widget.settings.addListener(_onSettingsChange);
     _onSettingsChange();
-    widget.analytics.startSession(platform: _currentPlatform());
+    ScreenDwellTracker.instance.bind(widget.analytics);
+    widget.analytics.logSessionStart(platform: _currentPlatform());
   }
 
   @override
@@ -111,13 +115,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        widget.analytics.startSession(platform: _currentPlatform());
+        widget.analytics.logSessionStart(platform: _currentPlatform());
         break;
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
-        widget.analytics.endSession();
+        ScreenDwellTracker.instance.backgroundAll();
+        widget.analytics.logSessionEnd(
+          durationSeconds: 0,
+          exitReason: 'background',
+        );
         break;
     }
   }
@@ -156,6 +164,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           settings: widget.settings,
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
+            navigatorObservers: [_dwellObserver],
             title: '陪住',
             theme: widget.settings.highContrast
                 ? AppTheme.highContrast

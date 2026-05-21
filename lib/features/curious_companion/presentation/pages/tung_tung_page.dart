@@ -26,6 +26,9 @@ import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
+import '../../../brief_pr/data/brief_pr_gate.dart';
+import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/search_repository.dart';
 
 class TungTungPage extends StatefulWidget {
@@ -48,6 +51,8 @@ class _TungTungPageState extends State<TungTungPage> {
 
   final _inputCtrl = TextEditingController();
   final List<_Turn> _turns = [];
+  final DateTime _sessionStartedAt = DateTime.now();
+  bool _briefPrSurfaced = false;
   bool _busy = false;
   SearchRepository? _searchRepo;
 
@@ -310,7 +315,12 @@ class _TungTungPageState extends State<TungTungPage> {
 
     return FirstIntroOverlay(
       agentId: AgentRegistry.tungTungId,
-      child: Scaffold(
+      child: PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (didPop, _) async {
+          if (didPop) await _maybeSurfaceBriefPr();
+        },
+        child: Scaffold(
         appBar: AppBar(
           title: Row(
             children: [
@@ -333,7 +343,18 @@ class _TungTungPageState extends State<TungTungPage> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                   children: [
-                    for (final t in _turns) _TurnBubble(turn: t),
+                    for (int i = 0; i < _turns.length; i++) ...[
+                      _TurnBubble(turn: _turns[i]),
+                      if (!_turns[i].fromUser && !_turns[i].isSystem)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ThumbsFeedback(
+                            agentId: 'tung_tung',
+                            moduleId: 'tung_tung_chat',
+                            turnKey: 'turn_$i',
+                          ),
+                        ),
+                    ],
                     // Interest chips only surface in pure chitchat mode.
                     // In the article-Q&A flow ("問下呢篇") the user is
                     // here for the article — surfacing hobbies would
@@ -383,6 +404,37 @@ class _TungTungPageState extends State<TungTungPage> {
               ),
             ],
           ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  Future<void> _maybeSurfaceBriefPr() async {
+    if (_briefPrSurfaced) return;
+    _briefPrSurfaced = true;
+    final profile = AppSettingsScope.read(context).profile;
+    if (profile == null) return;
+    final exchangeCount = _turns.where((t) => t.fromUser).length;
+    final gate = BriefPrGate();
+    final shouldShow = await gate.shouldSurfaceBriefPr(
+      uid: profile.uid,
+      agentId: 'tung_tung',
+      sessionStartedAt: _sessionStartedAt,
+      exchangeCount: exchangeCount,
+    );
+    if (!shouldShow || !mounted) return;
+    final anchor = await gate.isAnchorPromptFor(
+      uid: profile.uid,
+      agentId: 'tung_tung',
+    );
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BriefPrPage(
+          agentId: 'tung_tung',
+          agentDisplayName: '通通',
+          isAnchorPrompt: anchor,
         ),
       ),
     );

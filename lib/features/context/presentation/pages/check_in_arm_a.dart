@@ -14,6 +14,9 @@ import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../brief_pr/data/brief_pr_gate.dart';
+import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../../reflective_dialogue/data/negative_cognition_detector.dart';
 import '../../../thought_exercise/presentation/naming_thought_card.dart';
 import '../../../thought_exercise/presentation/thought_exercise_page.dart';
@@ -41,6 +44,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
 
   final _inputCtrl = TextEditingController();
   final List<_Turn> _turns = [];
+  final DateTime _sessionStartedAt = DateTime.now();
   bool _busy = false;
   MoodFace _face = MoodFace.neutral;
   bool _facePicked = false;
@@ -360,6 +364,35 @@ class _CheckInArmAState extends State<CheckInArmA> {
     );
     if (!mounted) return;
     setState(() => _saved = true);
+    await _maybeSurfaceBriefPr();
+  }
+
+  Future<void> _maybeSurfaceBriefPr() async {
+    final profile = AppSettingsScope.read(context).profile;
+    if (profile == null) return;
+    final exchangeCount = _turns.where((t) => t.fromUser).length;
+    final gate = BriefPrGate();
+    final shouldShow = await gate.shouldSurfaceBriefPr(
+      uid: profile.uid,
+      agentId: 'siu_yan',
+      sessionStartedAt: _sessionStartedAt,
+      exchangeCount: exchangeCount,
+    );
+    if (!shouldShow || !mounted) return;
+    final anchor = await gate.isAnchorPromptFor(
+      uid: profile.uid,
+      agentId: 'siu_yan',
+    );
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BriefPrPage(
+          agentId: 'siu_yan',
+          agentDisplayName: '小欣',
+          isAnchorPrompt: anchor,
+        ),
+      ),
+    );
   }
 
   @override
@@ -393,7 +426,18 @@ class _CheckInArmAState extends State<CheckInArmA> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                   children: [
-                    for (final t in _turns) _TurnBubble(turn: t),
+                    for (int i = 0; i < _turns.length; i++) ...[
+                      _TurnBubble(turn: _turns[i]),
+                      if (!_turns[i].fromUser && !_turns[i].isSystem)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ThumbsFeedback(
+                            agentId: 'siu_yan',
+                            moduleId: 'm2_check_in',
+                            turnKey: 'turn_$i',
+                          ),
+                        ),
+                    ],
                     if (_busy)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
