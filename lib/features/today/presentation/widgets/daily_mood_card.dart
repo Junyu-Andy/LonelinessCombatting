@@ -3,11 +3,16 @@
 /// Shows a 5-face emoji picker. Once tapped, saves to
 /// `users/{uid}/daily_mood/{YYYY-MM-DD}` and shows a confirmation.
 /// Does not re-show if already submitted today.
+///
+/// Arm A: confirmation view shows a CTA to open Siu Yan (check-in).
+/// Arm B: confirmation view only.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/arm/arm_scope.dart';
+import '../../../context/presentation/pages/check_in_arm_a.dart';
 
 class DailyMoodCard extends StatefulWidget {
   const DailyMoodCard({super.key});
@@ -165,33 +170,60 @@ class _DailyMoodCardState extends State<DailyMoodCard> {
       (f) => f.$1 == _selectedValue,
       orElse: () => _faces[2],
     );
-    return Row(
+    final isArmA = Arm.isA(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(selected.$2, style: const TextStyle(fontSize: 36)),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '多謝你分享！',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.primary,
-                ),
+        Row(
+          children: [
+            Text(selected.$2, style: const TextStyle(fontSize: 36)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '多謝你分享！',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '今日嘅心情：${selected.$3}',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 2),
-              Text(
-                '今日嘅心情：${selected.$3}',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+        if (isArmA) ...[
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const CheckInArmA(),
+                ),
+              ),
+              icon: const Icon(Icons.chat_bubble_outline, size: 20),
+              label: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  '想同小欣傾下偈嗎？',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

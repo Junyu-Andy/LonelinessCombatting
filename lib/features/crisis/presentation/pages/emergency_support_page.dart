@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/safety/safety_overlay.dart';
@@ -7,16 +7,11 @@ import '../../../../core/safety/safety_overlay.dart';
 /// Emergency support page surfaced when the safety pill is tapped or
 /// the distress router routes here on an acute flag.
 ///
-/// Buttons used to be inert (empty onPressed). They now copy the
-/// number to the clipboard and surface a confirmation snackbar — the
-/// most reliable cross-platform behaviour we can ship without the
-/// url_launcher dependency. The Phase A pilot's older-adult cohort
-/// can paste into the dialer (or the researcher walks them through
-/// it in the cognitive interview).
+/// Buttons fire `tel:` URIs via url_launcher for one-tap dialling on
+/// Android and iOS. Falls back to a clipboard copy + snackbar on
+/// platforms that don't support tel: (web).
 ///
 /// Defaults trimmed per the May-2026 review:
-///   • Hotline list reduced from four to two (Samaritans + Suicide
-///     Prevention Services).
 ///   • Hard-coded "表姐 / 阿May" trusted-contact rows removed; the page
 ///     now reads from `UserProfile.emergencyContactName/Phone` (which
 ///     onboarding now requires).
@@ -84,7 +79,7 @@ class EmergencySupportPage extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: () => _copyAndNotify(context, '999'),
+                    onPressed: () => _dialNumber(context, '999'),
                     style: FilledButton.styleFrom(
                       backgroundColor: theme.colorScheme.error,
                       foregroundColor: theme.colorScheme.onError,
@@ -188,20 +183,20 @@ class EmergencySupportPage extends StatelessWidget {
   }
 }
 
-/// Phone-dial buttons in Phase A copy the number to the clipboard so
-/// participants can paste into the system dialer. Adding the
-/// `url_launcher` dependency to fire `tel:` URIs is the obvious next
-/// step but is held off to keep the dependency surface minimal until
-/// the Phase B build.
-Future<void> _copyAndNotify(BuildContext context, String number) async {
-  await Clipboard.setData(ClipboardData(text: number));
-  if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text('電話 $number 已複製。打開電話應用程式貼上即可撥出。'),
-      duration: const Duration(seconds: 4),
-    ),
-  );
+Future<void> _dialNumber(BuildContext context, String number) async {
+  final digits = number.replaceAll(RegExp(r'\s'), '');
+  final uri = Uri(scheme: 'tel', path: digits);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri);
+  } else {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('請手動撥打 $number'),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -288,9 +283,9 @@ class _HotlineCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: () => _copyAndNotify(context, number),
+                onPressed: () => _dialNumber(context, number),
                 icon: const Icon(Icons.phone_rounded, size: 26),
-                label: const Text('複製電話號碼'),
+                label: Text('撥打 $number'),
               ),
             ),
           ],
@@ -351,7 +346,7 @@ class _TrustedContactCard extends StatelessWidget {
             ),
             IconButton(
               onPressed: hasNumber
-                  ? () => _copyAndNotify(context, number)
+                  ? () => _dialNumber(context,number)
                   : null,
               iconSize: 32,
               style: IconButton.styleFrom(
