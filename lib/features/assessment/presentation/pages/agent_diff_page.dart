@@ -6,7 +6,8 @@
 ///   Part C: scenario preference (W4 only, 5 scenarios × 4-option radio)
 ///   Part D: free-text response
 ///
-/// Stores result at `users/{uid}/agent_diff/{w2 or w4}`.
+/// Stores result at `users/{uid}/agent_diff/{auto-id}` with
+/// `timepoint: "week2"|"week4"` field (Sprint 1 spec).
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -80,13 +81,11 @@ class _AgentDiffPageState extends State<AgentDiffPage>
           freeResponse: _freeResponseCtrl.text.trim(),
           answeredAt: DateTime.now(),
         );
-        final docId = 'w${widget.wave}';
         await FirebaseFirestore.instance
             .collection('users')
             .doc(profile.uid)
             .collection('agent_diff')
-            .doc(docId)
-            .set(response.toFirestore());
+            .add(response.toFirestore());
       } catch (_) {
         // Graceful degradation.
       }

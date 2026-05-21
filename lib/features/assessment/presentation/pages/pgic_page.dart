@@ -1,7 +1,7 @@
 /// Weekly PGIC (Patient Global Impression of Change) assessment page.
 ///
 /// 7-point single-select scale comparing current loneliness to last week.
-/// Stores response at `users/{uid}/pgic_responses/{auto-id}`.
+/// Stores response at `users/{uid}/pgic/{auto-id}` (Sprint 1 spec).
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -46,7 +46,7 @@ class _PgicPageState extends State<PgicPage> {
         await FirebaseFirestore.instance
             .collection('users')
             .doc(profile.uid)
-            .collection('pgic_responses')
+            .collection('pgic')
             .add(response.toFirestore());
       } catch (_) {
         // Graceful degradation: Firebase unavailable in guest mode.

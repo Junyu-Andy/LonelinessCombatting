@@ -1,14 +1,14 @@
 /// Repository for saving and loading the intake questionnaire response.
 ///
-/// Document path: `users/{uid}/onboarding_intake/v1`
+/// Document path: `users/{uid}/onboarding/intake` (Sprint 1 spec).
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'intake_response.dart';
 
 class IntakeRepository {
-  static const _subcollection = 'onboarding_intake';
-  static const _docId = 'v1';
+  static const _subcollection = 'onboarding';
+  static const _docId = 'intake';
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 

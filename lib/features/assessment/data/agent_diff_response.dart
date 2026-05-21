@@ -1,6 +1,8 @@
 /// W2/W4 Agent Differentiation assessment data model.
 ///
-/// Stored at `users/{uid}/agent_diff/{w2 or w4}`.
+/// Stored at `users/{uid}/agent_diff/{auto-id}` with `timepoint` field
+/// (Sprint 1 spec — was `w2|w4` doc id, now auto-id with timepoint
+/// string `"week2"|"week4"`).
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -33,8 +35,12 @@ class AgentDiffResponse {
     required this.answeredAt,
   });
 
+  /// Sprint 1 timepoint string: `"week2"` or `"week4"`.
+  String get timepoint => 'week$wave';
+
   Map<String, dynamic> toFirestore() => {
         'wave': wave,
+        'timepoint': timepoint,
         'usageFreq': usageFreq,
         'personality': personality,
         'function': function,
