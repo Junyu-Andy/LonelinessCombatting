@@ -123,16 +123,17 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     if (widget.agents.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('每週夥伴評估')),
-        body: const Center(
+        appBar: AppBar(title: Text(isEn ? 'Weekly companion check-in' : '每週夥伴評估')),
+        body: Center(
           child: Padding(
-            padding: EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24),
             child: Text(
-              '呢個禮拜冇用過任何 companion。',
-              style: TextStyle(fontSize: 18),
+              isEn ? 'You have not used any companion this week.' : '呢個禮拜冇用過任何 companion。',
+              style: const TextStyle(fontSize: 18),
             ),
           ),
         ),
@@ -141,11 +142,28 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
     final agent = _currentAgent;
     final item = _items[_itemIndex];
     final text = WeeklyPrItems.render(item.text, agent.displayName);
-    final isLastItem = _itemIndex + 1 == _items.length;
     final isLastAgent = _agentIndex + 1 == widget.agents.length;
+    final labelsEn = const {
+      1: '1 — Strongly disagree',
+      2: '2 — Disagree',
+      3: '3 — Slightly disagree',
+      4: '4 — Neutral',
+      5: '5 — Slightly agree',
+      6: '6 — Agree',
+      7: '7 — Strongly agree',
+    };
+    final labelsZh = const {
+      1: '1 — 非常唔同意',
+      2: '2 — 唔同意',
+      3: '3 — 少少唔同意',
+      4: '4 — 中間',
+      5: '5 — 少少同意',
+      6: '6 — 同意',
+      7: '7 — 非常同意',
+    };
     return Scaffold(
       appBar: AppBar(
-        title: const Text('每週夥伴評估'),
+        title: Text(isEn ? 'Weekly companion check-in' : '每週夥伴評估'),
       ),
       body: SafeArea(
         child: ListView(
@@ -160,7 +178,9 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
             ),
             const SizedBox(height: 4),
             Text(
-              '回想過去呢一個禮拜你同 ${agent.displayName} 嘅對話：',
+              isEn
+                  ? 'Think back on your conversations with ${agent.displayName} this past week:'
+                  : '回想過去呢一個禮拜你同 ${agent.displayName} 嘅對話：',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -169,7 +189,9 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '問題 ${_itemIndex + 1} / ${_items.length}',
+              isEn
+                  ? 'Question ${_itemIndex + 1} / ${_items.length}'
+                  : '問題 ${_itemIndex + 1} / ${_items.length}',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w600,
@@ -192,15 +214,7 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
             const SizedBox(height: 20),
             ...List.generate(7, (i) {
               final rating = i + 1;
-              const labels = {
-                1: '1 — 非常唔同意',
-                2: '2 — 唔同意',
-                3: '3 — 少少唔同意',
-                4: '4 — 中間',
-                5: '5 — 少少同意',
-                6: '6 — 同意',
-                7: '7 — 非常同意',
-              };
+              final labels = isEn ? labelsEn : labelsZh;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: SizedBox(
@@ -229,7 +243,9 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
               child: TextButton(
                 onPressed: _saving ? null : _skipAgent,
                 child: Text(
-                  isLastAgent && isLastItem ? '跳過呢個夥伴' : '跳過呢個夥伴',
+                  isLastAgent
+                      ? (isEn ? 'Skip this companion' : '跳過呢個夥伴')
+                      : (isEn ? 'Skip this companion' : '跳過呢個夥伴'),
                   style: const TextStyle(fontSize: 15),
                 ),
               ),

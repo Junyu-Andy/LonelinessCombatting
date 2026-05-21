@@ -21,7 +21,7 @@ class _PgicPageState extends State<PgicPage> {
   bool _saving = false;
   bool _saved = false;
 
-  static const _options = <(int, String, Color)>[
+  static const _optionsZh = <(int, String, Color)>[
     (1, '改善咗好多（冇咁孤單）', Color(0xFF1B5E20)),
     (2, '改善咗', Color(0xFF388E3C)),
     (3, '少少改善（少少冇咁孤單）', Color(0xFF66BB6A)),
@@ -29,6 +29,16 @@ class _PgicPageState extends State<PgicPage> {
     (5, '差咗少少（多咗少少孤單）', Color(0xFFFFB300)),
     (6, '差咗', Color(0xFFF57C00)),
     (7, '差咗好多（更加孤單）', Color(0xFFB71C1C)),
+  ];
+
+  static const _optionsEn = <(int, String, Color)>[
+    (1, 'Much better (far less lonely)', Color(0xFF1B5E20)),
+    (2, 'Better', Color(0xFF388E3C)),
+    (3, 'Slightly better (a little less lonely)', Color(0xFF66BB6A)),
+    (4, 'No change', Color(0xFF78909C)),
+    (5, 'Slightly worse (a little lonelier)', Color(0xFFFFB300)),
+    (6, 'Worse', Color(0xFFF57C00)),
+    (7, 'Much worse (much lonelier)', Color(0xFFB71C1C)),
   ];
 
   Future<void> _submit() async {
@@ -61,17 +71,21 @@ class _PgicPageState extends State<PgicPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
+    final options = isEn ? _optionsEn : _optionsZh;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('每週感受變化'),
+        title: Text(isEn ? 'Weekly check-in' : '每週感受變化'),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
           children: [
             Text(
-              '同上個星期比較，你而家覺得自己嘅孤單感整體上有冇變化？',
+              isEn
+                  ? 'Compared to last week, how has your overall loneliness changed?'
+                  : '同上個星期比較，你而家覺得自己嘅孤單感整體上有冇變化？',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 fontSize: 20,
@@ -80,7 +94,7 @@ class _PgicPageState extends State<PgicPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '請揀最貼近你感受嘅一個。',
+              isEn ? 'Choose the one that best matches how you feel.' : '請揀最貼近你感受嘅一個。',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontSize: 16,
@@ -101,7 +115,7 @@ class _PgicPageState extends State<PgicPage> {
                     const SizedBox(width: 14),
                     Expanded(
                       child: Text(
-                        '多謝你嘅回覆！已經儲存。',
+                        isEn ? 'Thank you for your reply! Saved.' : '多謝你嘅回覆！已經儲存。',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -114,8 +128,8 @@ class _PgicPageState extends State<PgicPage> {
               ),
               const SizedBox(height: 24),
             ],
-            ...List.generate(_options.length, (i) {
-              final opt = _options[i];
+            ...List.generate(options.length, (i) {
+              final opt = options[i];
               final isSelected = _selected == opt.$1;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
@@ -200,7 +214,7 @@ class _PgicPageState extends State<PgicPage> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('提交'),
+                      : Text(isEn ? 'Submit' : '提交'),
                 ),
               ),
           ],

@@ -146,11 +146,12 @@ class _BriefPrPageState extends State<BriefPrPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     final name = widget.agentDisplayName;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('一啲簡短回饋'),
+        title: Text(isEn ? 'A quick check-in' : '一啲簡短回饋'),
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
@@ -158,7 +159,7 @@ class _BriefPrPageState extends State<BriefPrPage> {
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
           children: [
             Text(
-              '頭先同 $name 嘅對話：',
+              isEn ? 'Your conversation with $name just now:' : '頭先同 $name 嘅對話：',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -167,7 +168,7 @@ class _BriefPrPageState extends State<BriefPrPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '揀一個位置最似你嘅感受。',
+              isEn ? 'Slide to the position that best matches how you felt.' : '揀一個位置最似你嘅感受。',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontSize: 16,
@@ -175,9 +176,9 @@ class _BriefPrPageState extends State<BriefPrPage> {
             ),
             const SizedBox(height: 24),
             _SliderRow(
-              label: '$name 明白我。',
-              leftAnchor: '完全唔係咁',
-              rightAnchor: '完全係咁',
+              label: isEn ? '$name understood me.' : '$name 明白我。',
+              leftAnchor: isEn ? 'Not at all' : '完全唔係咁',
+              rightAnchor: isEn ? 'Very much' : '完全係咁',
               value: _understanding,
               onChanged: (v) => setState(() {
                 _understanding = v;
@@ -186,9 +187,9 @@ class _BriefPrPageState extends State<BriefPrPage> {
             ),
             const SizedBox(height: 28),
             _SliderRow(
-              label: '$name 尊重我。',
-              leftAnchor: '完全唔係咁',
-              rightAnchor: '完全係咁',
+              label: isEn ? '$name respected me.' : '$name 尊重我。',
+              leftAnchor: isEn ? 'Not at all' : '完全唔係咁',
+              rightAnchor: isEn ? 'Very much' : '完全係咁',
               value: _validation,
               onChanged: (v) => setState(() {
                 _validation = v;
@@ -197,9 +198,9 @@ class _BriefPrPageState extends State<BriefPrPage> {
             ),
             const SizedBox(height: 28),
             _SliderRow(
-              label: '$name 關心我。',
-              leftAnchor: '完全唔係咁',
-              rightAnchor: '完全係咁',
+              label: isEn ? '$name cared about me.' : '$name 關心我。',
+              leftAnchor: isEn ? 'Not at all' : '完全唔係咁',
+              rightAnchor: isEn ? 'Very much' : '完全係咁',
               value: _caring,
               onChanged: (v) => setState(() {
                 _caring = v;
@@ -210,9 +211,11 @@ class _BriefPrPageState extends State<BriefPrPage> {
             Divider(color: theme.colorScheme.outlineVariant, thickness: 1),
             const SizedBox(height: 24),
             _SliderRow(
-              label: '$name 嘅回應好似搞錯重點，或者唔在乎。',
-              leftAnchor: '完全唔係咁',
-              rightAnchor: '好係咁',
+              label: isEn
+                  ? '$name\'s response seemed to miss the point or feel indifferent.'
+                  : '$name 嘅回應好似搞錯重點，或者唔在乎。',
+              leftAnchor: isEn ? 'Not at all' : '完全唔係咁',
+              rightAnchor: isEn ? 'Very much' : '好係咁',
               value: _insensitivity,
               onChanged: (v) => setState(() {
                 _insensitivity = v;
@@ -236,7 +239,7 @@ class _BriefPrPageState extends State<BriefPrPage> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('完成'),
+                    : Text(isEn ? 'Done' : '完成'),
               ),
             ),
             if (_skipVisible && !widget.isAnchorPrompt) ...[
@@ -244,7 +247,7 @@ class _BriefPrPageState extends State<BriefPrPage> {
               Center(
                 child: TextButton(
                   onPressed: _saving ? null : _skip,
-                  child: const Text('跳過', style: TextStyle(fontSize: 16)),
+                  child: Text(isEn ? 'Skip' : '跳過', style: const TextStyle(fontSize: 16)),
                 ),
               ),
             ],

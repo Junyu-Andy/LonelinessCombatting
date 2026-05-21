@@ -211,3 +211,109 @@ Topic chip options:
 | 可以寫低你嘅感受或者建議… | Write your thoughts or suggestions here… |
 | 多謝你嘅評估！已經儲存。 | Thank you for the check-in! Your responses are saved. |
 | 提交評估 | Submit |
+
+---
+
+## Batch 2 & 3
+
+Files that were **already fully bilingual** before this batch — no edits needed:
+
+- `lib/features/settings/presentation/pages/settings_page.dart` — already bilingual.
+- `lib/features/settings/presentation/pages/privacy_policy_page.dart` — already bilingual.
+- `lib/features/settings/presentation/pages/faq_page.dart` — already bilingual.
+- `lib/features/action_loop/presentation/pages/action_loop_arm_a_page.dart` — already bilingual (found at `lib/features/action_loop/`, not `lib/features/me/`).
+- `lib/features/wellbeing/presentation/pages/calm_page.dart` — already bilingual.
+- `lib/features/progress/presentation/pages/progress_page.dart` — already bilingual (found at `lib/features/progress/`, not `lib/features/me/`).
+- `lib/features/auth/presentation/pages/login_page.dart` — already bilingual.
+- `lib/features/reminiscence/presentation/pages/reminiscence_arm_a_page.dart` — already bilingual.
+- `lib/features/curious_companion/presentation/pages/tung_tung_page.dart` — already bilingual (error messages + UI, not LLM prompts).
+- `lib/features/researcher_dashboard/presentation/pages/researcher_dashboard_page.dart` — already bilingual.
+
+Files **edited** in this batch:
+
+---
+
+### brief_pr_page.dart
+
+| Cantonese | English |
+|---|---|
+| 一啲簡短回饋 | A quick check-in |
+| 頭先同 $name 嘅對話： | Your conversation with $name just now: |
+| 揀一個位置最似你嘅感受。 | Slide to the position that best matches how you felt. |
+| $name 明白我。 | $name understood me. |
+| $name 尊重我。 | $name respected me. |
+| $name 關心我。 | $name cared about me. |
+| $name 嘅回應好似搞錯重點，或者唔在乎。 | $name's response seemed to miss the point or feel indifferent. |
+| 完全唔係咁 | Not at all |
+| 完全係咁 | Very much |
+| 好係咁 | Very much |
+| 完成 | Done |
+| 跳過 | Skip |
+
+---
+
+### weekly_pr_page.dart
+
+| Cantonese | English |
+|---|---|
+| 每週夥伴評估 | Weekly companion check-in |
+| 呢個禮拜冇用過任何 companion。 | You have not used any companion this week. |
+| 回想過去呢一個禮拜你同 $name 嘅對話： | Think back on your conversations with $name this past week: |
+| 問題 X / 12 | Question X / 12 |
+| 1 — 非常唔同意 | 1 — Strongly disagree |
+| 2 — 唔同意 | 2 — Disagree |
+| 3 — 少少唔同意 | 3 — Slightly disagree |
+| 4 — 中間 | 4 — Neutral |
+| 5 — 少少同意 | 5 — Slightly agree |
+| 6 — 同意 | 6 — Agree |
+| 7 — 非常同意 | 7 — Strongly agree |
+| 跳過呢個夥伴 | Skip this companion |
+
+---
+
+### pending_prompts_banner.dart
+
+| Cantonese | English |
+|---|---|
+| 今日有個簡短嘅週評 | A quick weekly check-in today |
+| 同上週比較，孤單感有冇變化？ | Has your loneliness changed since last week? |
+| 每週夥伴評估 | Weekly companion check-in |
+| 回想下你呢個禮拜同夥伴傾偈嘅感受。 | Share how your conversations with your companion felt this week. |
+| 夥伴評估（第 2 週） | Companion assessment (Week 2) |
+| 請花幾分鐘比較三個夥伴。 | A few minutes to compare the three companions. |
+| 夥伴評估（第 4 週） | Companion assessment (Week 4) |
+
+---
+
+### pgic_page.dart
+
+| Cantonese | English |
+|---|---|
+| 每週感受變化 | Weekly check-in |
+| 同上個星期比較，你而家覺得自己嘅孤單感整體上有冇變化？ | Compared to last week, how has your overall loneliness changed? |
+| 請揀最貼近你感受嘅一個。 | Choose the one that best matches how you feel. |
+| 多謝你嘅回覆！已經儲存。 | Thank you for your reply! Saved. |
+| 改善咗好多（冇咁孤單） | Much better (far less lonely) |
+| 改善咗 | Better |
+| 少少改善（少少冇咁孤單） | Slightly better (a little less lonely) |
+| 冇變 | No change |
+| 差咗少少（多咗少少孤單） | Slightly worse (a little lonelier) |
+| 差咗 | Worse |
+| 差咗好多（更加孤單） | Much worse (much lonelier) |
+| 提交 | Submit |
+
+---
+
+### daily_mood_card.dart
+
+| Cantonese | English |
+|---|---|
+| 你今日感覺點呀？ | How are you feeling today? |
+| 好差 | Very bad |
+| 差 | Bad |
+| 麻麻地 | So-so |
+| 幾好 | Good |
+| 好好 | Great |
+| 多謝你分享！ | Thank you for sharing! |
+| 今日嘅心情：… | Today's mood: … |
+| 想同小欣傾下偈嗎？ | Want to chat with Siu Yan? |

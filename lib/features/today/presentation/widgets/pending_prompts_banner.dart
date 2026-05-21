@@ -81,21 +81,26 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
   Widget build(BuildContext context) {
     final p = _pending;
     if (p == null || !p.any) return const SizedBox.shrink();
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     final tiles = <Widget>[];
 
     if (p.pgic) {
       tiles.add(_BannerTile(
         icon: Icons.sentiment_satisfied_outlined,
-        title: '今日有個簡短嘅週評',
-        subtitle: '同上週比較，孤單感有冇變化？',
+        title: isEn ? 'A quick weekly check-in today' : '今日有個簡短嘅週評',
+        subtitle: isEn
+            ? 'Has your loneliness changed since last week?'
+            : '同上週比較，孤單感有冇變化？',
         onTap: () => _openPgicThenWeekly(p.weeklyPrAgents),
       ));
     } else if (p.weeklyPr) {
       tiles.add(_BannerTile(
         icon: Icons.people_alt_outlined,
-        title: '每週夥伴評估',
-        subtitle: '回想下你呢個禮拜同夥伴傾偈嘅感受。',
+        title: isEn ? 'Weekly companion check-in' : '每週夥伴評估',
+        subtitle: isEn
+            ? 'Share how your conversations with your companion felt this week.'
+            : '回想下你呢個禮拜同夥伴傾偈嘅感受。',
         onTap: () => _openWeekly(p.weeklyPrAgents),
       ));
     }
@@ -103,16 +108,20 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
     if (p.agentDiffW2) {
       tiles.add(_BannerTile(
         icon: Icons.assessment_outlined,
-        title: '夥伴評估（第 2 週）',
-        subtitle: '請花幾分鐘比較三個夥伴。',
+        title: isEn ? 'Companion assessment (Week 2)' : '夥伴評估（第 2 週）',
+        subtitle: isEn
+            ? 'A few minutes to compare the three companions.'
+            : '請花幾分鐘比較三個夥伴。',
         onTap: () => _openAgentDiff(2),
       ));
     }
     if (p.agentDiffW4) {
       tiles.add(_BannerTile(
         icon: Icons.assessment_outlined,
-        title: '夥伴評估（第 4 週）',
-        subtitle: '請花幾分鐘比較三個夥伴。',
+        title: isEn ? 'Companion assessment (Week 4)' : '夥伴評估（第 4 週）',
+        subtitle: isEn
+            ? 'A few minutes to compare the three companions.'
+            : '請花幾分鐘比較三個夥伴。',
         onTap: () => _openAgentDiff(4),
       ));
     }
