@@ -100,16 +100,19 @@ class _AgentDiffPageState extends State<AgentDiffPage>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final tabs = [
-      const Tab(text: 'A 使用頻率'),
-      const Tab(text: 'B 性格印象'),
-      if (_isW4) const Tab(text: 'C 情境偏好'),
-      const Tab(text: 'D 你想講'),
+      Tab(text: isEn ? 'A How often' : 'A 使用頻率'),
+      Tab(text: isEn ? 'B Personality' : 'B 性格印象'),
+      if (_isW4) Tab(text: isEn ? 'C Situations' : 'C 情境偏好'),
+      Tab(text: isEn ? 'D Your thoughts' : 'D 你想講'),
     ];
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('夥伴評估 (第 ${widget.wave} 週)'),
+        title: Text(isEn
+            ? 'Companion check-in (Week ${widget.wave})'
+            : '夥伴評估 (第 ${widget.wave} 週)'),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -157,18 +160,23 @@ class _PartAView extends StatelessWidget {
 
   const _PartAView({required this.usageFreq, required this.onChanged});
 
-  static const _freqLabels = ['完全冇用', '少少', '定期', '好頻繁'];
+  static const _freqLabelsZh = ['完全冇用', '少少', '定期', '好頻繁'];
+  static const _freqLabelsEn = ['Not at all', 'A little', 'Regularly', 'Very often'];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final freqLabels = isEn ? _freqLabelsEn : _freqLabelsZh;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '上個月你用咗以下夥伴幾多次？',
+            isEn
+                ? 'In the last month, how often did you use each companion?'
+                : '上個月你用咗以下夥伴幾多次？',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -191,14 +199,14 @@ class _PartAView extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 children: [
-                  const TableCell(
+                  TableCell(
                     child: Padding(
-                      padding: EdgeInsets.all(10),
-                      child: Text('夥伴',
-                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                      padding: const EdgeInsets.all(10),
+                      child: Text(isEn ? 'Companion' : '夥伴',
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                     ),
                   ),
-                  ..._freqLabels.map(
+                  ...freqLabels.map(
                     (l) => TableCell(
                       child: Padding(
                         padding: const EdgeInsets.all(6),
@@ -283,13 +291,16 @@ class _PartBView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '請為每個夥伴嘅性格評分（1=完全唔符合，5=非常符合）',
+            isEn
+                ? "Please rate each companion's personality (1 = not at all, 5 = very much)"
+                : '請為每個夥伴嘅性格評分（1=完全唔符合，5=非常符合）',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -397,23 +408,34 @@ class _PartCView extends StatelessWidget {
     'any',
   ];
 
-  static const _agentOptionLabels = {
+  static const _agentOptionLabelsZh = {
     AgentDiffAgents.siuYan: '小欣',
     AgentDiffAgents.ahJanAhBak: '阿珍／阿伯',
     AgentDiffAgents.tungTung: '通通',
     'any': '都係',
   };
 
+  static const _agentOptionLabelsEn = {
+    AgentDiffAgents.siuYan: 'Siu Yan',
+    AgentDiffAgents.ahJanAhBak: 'Ah Jan / Ah Bak',
+    AgentDiffAgents.tungTung: 'Tung Tung',
+    'any': 'Any of them',
+  };
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final agentOptionLabels = isEn ? _agentOptionLabelsEn : _agentOptionLabelsZh;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '以下情況你會選擇邊個夥伴？',
+            isEn
+                ? 'In these situations, which companion would you choose?'
+                : '以下情況你會選擇邊個夥伴？',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -440,7 +462,7 @@ class _PartCView extends StatelessWidget {
                     runSpacing: 8,
                     children: _agentOptions.map((agentId) {
                       final agentLabel =
-                          _agentOptionLabels[agentId] ?? agentId;
+                          agentOptionLabels[agentId] ?? agentId;
                       final isSelected = selected == agentId;
                       return GestureDetector(
                         onTap: () => onChanged(scenarioId, agentId),
@@ -506,13 +528,14 @@ class _PartDView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '仲有咩想補充？',
+            isEn ? 'Anything else you would like to share?' : '仲有咩想補充？',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -520,7 +543,9 @@ class _PartDView extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '關於呢三個夥伴，你有咩感受、意見或者建議，都可以寫喺度。',
+            isEn
+                ? 'Any thoughts, feelings or suggestions about the three companions — you can write them here.'
+                : '關於呢三個夥伴，你有咩感受、意見或者建議，都可以寫喺度。',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               fontSize: 16,
@@ -533,10 +558,12 @@ class _PartDView extends StatelessWidget {
             maxLines: 8,
             enabled: !saved,
             style: const TextStyle(fontSize: 17),
-            decoration: const InputDecoration(
-              hintText: '可以寫低你嘅感受或者建議…',
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.all(16),
+            decoration: InputDecoration(
+              hintText: isEn
+                  ? 'Write your thoughts or suggestions here…'
+                  : '可以寫低你嘅感受或者建議…',
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.all(16),
             ),
           ),
           const SizedBox(height: 24),
@@ -554,7 +581,9 @@ class _PartDView extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '多謝你嘅評估！已經儲存。',
+                      isEn
+                          ? 'Thank you for the check-in! Your responses are saved.'
+                          : '多謝你嘅評估！已經儲存。',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
@@ -582,7 +611,7 @@ class _PartDView extends StatelessWidget {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('提交評估'),
+                    : Text(isEn ? 'Submit' : '提交評估'),
               ),
             ),
         ],

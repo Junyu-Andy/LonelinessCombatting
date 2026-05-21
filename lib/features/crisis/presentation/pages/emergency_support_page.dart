@@ -24,6 +24,7 @@ class EmergencySupportPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final profile = AppSettingsScope.of(context).profile;
     final contactName = profile?.emergencyContactName?.trim();
     final contactPhone = profile?.emergencyContactPhone?.trim();
@@ -33,7 +34,7 @@ class EmergencySupportPage extends StatelessWidget {
     return SafetyOverlaySuppressor(
         child: Scaffold(
       appBar: AppBar(
-        title: const Text('即時支援'),
+        title: Text(isEn ? 'Get help now' : '即時支援'),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
@@ -57,7 +58,7 @@ class EmergencySupportPage extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '如果你有不安嘅諗法',
+                        isEn ? 'If you are having upsetting thoughts' : '如果你有不安嘅諗法',
                         style: theme.textTheme.titleLarge?.copyWith(
                           color: theme.colorScheme.onErrorContainer,
                         ),
@@ -67,8 +68,11 @@ class EmergencySupportPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '可以打電話搵下面任何一個聆聽者傾下。'
-                  '如果你或者身邊嘅人有即時危險，請即刻撥 999 或者去最近嘅急症室。',
+                  isEn
+                      ? 'You can call any of the listeners below for a chat. '
+                          'If you or someone near you is in immediate danger, please call 999 right away or go to the nearest A&E.'
+                      : '可以打電話搵下面任何一個聆聽者傾下。'
+                          '如果你或者身邊嘅人有即時危險，請即刻撥 999 或者去最近嘅急症室。',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.colorScheme.onErrorContainer,
                     fontWeight: FontWeight.w500,
@@ -85,7 +89,7 @@ class EmergencySupportPage extends StatelessWidget {
                       foregroundColor: theme.colorScheme.onError,
                     ),
                     icon: const Icon(Icons.local_phone_rounded, size: 30),
-                    label: const Text('撥 999'),
+                    label: Text(isEn ? 'Call 999' : '撥 999'),
                   ),
                 ),
               ],
@@ -94,40 +98,52 @@ class EmergencySupportPage extends StatelessWidget {
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.support_agent_outlined,
-            title: '24 小時情緒支援熱線',
+            title: isEn ? '24-hour emotional support hotlines' : '24 小時情緒支援熱線',
           ),
           const SizedBox(height: 14),
-          const _HotlineCard(
-            name: '撒瑪利亞防止自殺會',
+          _HotlineCard(
+            name: isEn ? 'Samaritan Befrienders Hong Kong' : '撒瑪利亞防止自殺會',
             number: '2382 0000',
-            hours: '全日 24 小時',
-            note: '24 小時防止自殺熱線。',
+            hours: isEn ? '24 hours' : '全日 24 小時',
+            note: isEn
+                ? '24-hour suicide prevention hotline.'
+                : '24 小時防止自殺熱線。',
           ),
           const SizedBox(height: 12),
-          const _HotlineCard(
-            name: '香港撒瑪利亞會（多語）',
+          _HotlineCard(
+            name: isEn
+                ? 'The Samaritans Hong Kong (multilingual)'
+                : '香港撒瑪利亞會（多語）',
             number: '2896 0000',
-            hours: '全日 24 小時',
-            note: '可以粵語、普通話或英語溝通。',
+            hours: isEn ? '24 hours' : '全日 24 小時',
+            note: isEn
+                ? 'Cantonese, Mandarin or English available.'
+                : '可以粵語、普通話或英語溝通。',
           ),
           const SizedBox(height: 12),
-          const _HotlineCard(
-            name: '醫管局精神健康專線',
+          _HotlineCard(
+            name: isEn
+                ? 'Hospital Authority mental health hotline'
+                : '醫管局精神健康專線',
             number: '2466 7350',
-            hours: '24 小時',
-            note: '香港醫院管理局精神科熱線。',
+            hours: isEn ? '24 hours' : '24 小時',
+            note: isEn
+                ? 'Hong Kong Hospital Authority psychiatric hotline.'
+                : '香港醫院管理局精神科熱線。',
           ),
           const SizedBox(height: 12),
-          const _HotlineCard(
-            name: '999 緊急服務',
+          _HotlineCard(
+            name: isEn ? '999 emergency services' : '999 緊急服務',
             number: '999',
-            hours: '24 小時',
-            note: '即時危險時請即刻撥打。',
+            hours: isEn ? '24 hours' : '24 小時',
+            note: isEn
+                ? 'Call right away if you are in immediate danger.'
+                : '即時危險時請即刻撥打。',
           ),
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.contacts_outlined,
-            title: '你嘅信任聯絡人',
+            title: isEn ? 'Your trusted contact' : '你嘅信任聯絡人',
           ),
           const SizedBox(height: 14),
           if (hasContact)
@@ -140,7 +156,7 @@ class EmergencySupportPage extends StatelessWidget {
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.self_improvement,
-            title: '等嚟緊再深呼吸幾下',
+            title: isEn ? 'While you wait, take a few deep breaths' : '等嚟緊再深呼吸幾下',
           ),
           const SizedBox(height: 14),
           Card(
@@ -150,28 +166,36 @@ class EmergencySupportPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '現在可以試吓嘅幾個動作',
+                    isEn ? 'A few things you can try now' : '現在可以試吓嘅幾個動作',
                     style: theme.textTheme.titleMedium,
                   ),
                   const SizedBox(height: 14),
-                  const _TipRow(
+                  _TipRow(
                     number: '1',
-                    text: '坐落或者攰住牆，慢慢深呼吸三次。',
+                    text: isEn
+                        ? 'Sit down or lean against a wall, and slowly take three deep breaths.'
+                        : '坐落或者攰住牆，慢慢深呼吸三次。',
                   ),
                   const SizedBox(height: 10),
-                  const _TipRow(
+                  _TipRow(
                     number: '2',
-                    text: '望下周圍，講出你見到嘅三樣嘢。',
+                    text: isEn
+                        ? 'Look around, and name three things you can see.'
+                        : '望下周圍，講出你見到嘅三樣嘢。',
                   ),
                   const SizedBox(height: 10),
-                  const _TipRow(
+                  _TipRow(
                     number: '3',
-                    text: '飲一啖水，畀身體一啲時間放鬆。',
+                    text: isEn
+                        ? 'Drink a sip of water and give your body a moment to relax.'
+                        : '飲一啖水，畀身體一啲時間放鬆。',
                   ),
                   const SizedBox(height: 10),
-                  const _TipRow(
+                  _TipRow(
                     number: '4',
-                    text: '撥電話或者傳訊息畀上面任何一個人。',
+                    text: isEn
+                        ? 'Call or text any of the people listed above.'
+                        : '撥電話或者傳訊息畀上面任何一個人。',
                   ),
                 ],
               ),
@@ -190,9 +214,10 @@ Future<void> _dialNumber(BuildContext context, String number) async {
     await launchUrl(uri);
   } else {
     if (!context.mounted) return;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('請手動撥打 $number'),
+        content: Text(isEn ? 'Please dial $number manually' : '請手動撥打 $number'),
         duration: const Duration(seconds: 4),
       ),
     );
@@ -282,11 +307,15 @@ class _HotlineCard extends StatelessWidget {
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => _dialNumber(context, number),
-                icon: const Icon(Icons.phone_rounded, size: 26),
-                label: Text('撥打 $number'),
-              ),
+              child: Builder(builder: (context) {
+                final isEn =
+                    Localizations.localeOf(context).languageCode == 'en';
+                return FilledButton.icon(
+                  onPressed: () => _dialNumber(context, number),
+                  icon: const Icon(Icons.phone_rounded, size: 26),
+                  label: Text(isEn ? 'Call $number' : '撥打 $number'),
+                );
+              }),
             ),
           ],
         ),
@@ -307,6 +336,7 @@ class _TrustedContactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final hasNumber = number.trim().isNotEmpty;
     return Card(
       child: Padding(
@@ -336,7 +366,7 @@ class _TrustedContactCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    hasNumber ? number : '未填電話',
+                    hasNumber ? number : (isEn ? 'No phone number' : '未填電話'),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -370,6 +400,7 @@ class _EmptyTrustedContactHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return Card(
       color: theme.colorScheme.surfaceContainerHighest,
       child: Padding(
@@ -381,7 +412,9 @@ class _EmptyTrustedContactHint extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                '仲未設定信任聯絡人。可以喺「設定 → 個人資料」入面填。',
+                isEn
+                    ? 'No trusted contact yet. You can add one in Settings → Profile.'
+                    : '仲未設定信任聯絡人。可以喺「設定 → 個人資料」入面填。',
                 style: theme.textTheme.bodyLarge,
               ),
             ),

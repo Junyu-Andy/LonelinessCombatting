@@ -290,13 +290,14 @@ class _StepIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '第 $step 步，共 6 步',
+            isEn ? 'Step $step of 6' : '第 $step 步，共 6 步',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               fontSize: 15,
@@ -455,6 +456,7 @@ class _WelcomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return Padding(
       padding: const EdgeInsets.all(28),
       child: Column(
@@ -465,7 +467,7 @@ class _WelcomePage extends StatelessWidget {
               size: 56, color: theme.colorScheme.primary),
           const SizedBox(height: 24),
           Text(
-            '你好！我哋好高興見到你。',
+            isEn ? 'Hello! We are so glad to see you.' : '你好！我哋好高興見到你。',
             style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w700,
               height: 1.3,
@@ -473,7 +475,9 @@ class _WelcomePage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '喺正式開始前，想多了解你一啲。大約需要 10-15 分鐘。',
+            isEn
+                ? 'Before we begin, we would like to know a bit more about you. It takes about 10–15 minutes.'
+                : '喺正式開始前，想多了解你一啲。大約需要 10-15 分鐘。',
             style: theme.textTheme.bodyLarge?.copyWith(
               fontSize: 18,
               height: 1.5,
@@ -481,7 +485,9 @@ class _WelcomePage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '你可以隨時跳過唔想答嘅問題。所有資料只會用嚟改善你嘅使用體驗。',
+            isEn
+                ? 'You can skip any question you do not want to answer. Everything you share is only used to make this app better for you.'
+                : '你可以隨時跳過唔想答嘅問題。所有資料只會用嚟改善你嘅使用體驗。',
             style: theme.textTheme.bodyMedium?.copyWith(
               fontSize: 17,
               height: 1.5,
@@ -497,7 +503,7 @@ class _WelcomePage extends StatelessWidget {
                 minimumSize: const Size(double.infinity, 56),
                 textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
-              child: const Text('開始'),
+              child: Text(isEn ? 'Start' : '開始'),
             ),
           ),
           const SizedBox(height: 16),
@@ -534,7 +540,7 @@ class _Part1Page extends StatelessWidget {
     required this.onSkipTimings,
   });
 
-  static const _goalOptions = <(String, String)>[
+  static const _goalOptionsZh = <(String, String)>[
     (IntakeOptions.mainGoalCompanionship, '有人可以日日同我傾下偈'),
     (IntakeOptions.mainGoalEmotionalOutlet, '一個可以講下自己感受嘅地方'),
     (IntakeOptions.mainGoalReconnect, '一啲可以幫我同屋企人或者朋友重新聯絡嘅辦法'),
@@ -544,7 +550,17 @@ class _Part1Page extends StatelessWidget {
     (IntakeOptions.mainGoalOther, '其他（請寫低）'),
   ];
 
-  static const _timingOptions = <(String, String)>[
+  static const _goalOptionsEn = <(String, String)>[
+    (IntakeOptions.mainGoalCompanionship, 'Someone to chat with every day'),
+    (IntakeOptions.mainGoalEmotionalOutlet, 'A place to share how I feel'),
+    (IntakeOptions.mainGoalReconnect, 'Ways to reconnect with family or friends'),
+    (IntakeOptions.mainGoalLearning, 'Learn something new'),
+    (IntakeOptions.mainGoalShareMemories, 'Share my memories and life stories'),
+    (IntakeOptions.mainGoalCurious, 'Just curious — having a look'),
+    (IntakeOptions.mainGoalOther, 'Other (please write)'),
+  ];
+
+  static const _timingOptionsZh = <(String, String)>[
     (IntakeOptions.timingMornings, '早上'),
     (IntakeOptions.timingAfternoons, '下晝'),
     (IntakeOptions.timingEvenings, '夜晚'),
@@ -556,9 +572,24 @@ class _Part1Page extends StatelessWidget {
     (IntakeOptions.timingOther, '其他'),
   ];
 
+  static const _timingOptionsEn = <(String, String)>[
+    (IntakeOptions.timingMornings, 'Mornings'),
+    (IntakeOptions.timingAfternoons, 'Afternoons'),
+    (IntakeOptions.timingEvenings, 'Evenings'),
+    (IntakeOptions.timingNights, 'Late at night'),
+    (IntakeOptions.timingWeekends, 'Weekends'),
+    (IntakeOptions.timingAfterMealsAlone, 'After eating alone'),
+    (IntakeOptions.timingFestivals, 'Festivals / holidays'),
+    (IntakeOptions.timingVaries, 'No fixed time'),
+    (IntakeOptions.timingOther, 'Other'),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final goalOptions = isEn ? _goalOptionsEn : _goalOptionsZh;
+    final timingOptions = isEn ? _timingOptionsEn : _timingOptionsZh;
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       children: [
@@ -568,7 +599,9 @@ class _Part1Page extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                '你主要想從呢個 app 得到啲乜？',
+                isEn
+                    ? 'What do you mainly hope to get from this app?'
+                    : '你主要想從呢個 app 得到啲乜？',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                   fontSize: 20,
@@ -582,7 +615,7 @@ class _Part1Page extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '必填',
+                isEn ? 'Required' : '必填',
                 style: TextStyle(
                   fontSize: 13,
                   color: theme.colorScheme.onErrorContainer,
@@ -594,7 +627,7 @@ class _Part1Page extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '可以揀多過一個',
+          isEn ? 'You can pick more than one' : '可以揀多過一個',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 15,
@@ -602,7 +635,7 @@ class _Part1Page extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _ChipGroup(
-          options: _goalOptions,
+          options: goalOptions,
           selected: selectedGoals,
           onToggled: onGoalToggled,
         ),
@@ -612,16 +645,18 @@ class _Part1Page extends StatelessWidget {
             onChanged: onOtherTextChanged,
             maxLines: 3,
             style: const TextStyle(fontSize: 17),
-            decoration: const InputDecoration(
-              hintText: '請寫低你嘅其他目的…',
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.all(14),
+            decoration: InputDecoration(
+              hintText: isEn
+                  ? 'Please tell us what else you are hoping for…'
+                  : '請寫低你嘅其他目的…',
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.all(14),
             ),
           ),
         ],
         const SizedBox(height: 32),
         Text(
-          '你通常幾時會覺得孤單？',
+          isEn ? 'When do you usually feel lonely?' : '你通常幾時會覺得孤單？',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -629,7 +664,7 @@ class _Part1Page extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '（可選 · 可以跳過）',
+          isEn ? '(Optional · you can skip)' : '（可選 · 可以跳過）',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 15,
@@ -637,7 +672,7 @@ class _Part1Page extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _ChipGroup(
-          options: _timingOptions,
+          options: timingOptions,
           selected: selectedTimings,
           onToggled: onTimingToggled,
         ),
@@ -651,7 +686,7 @@ class _Part1Page extends StatelessWidget {
                   minimumSize: const Size(0, 52),
                   textStyle: const TextStyle(fontSize: 17),
                 ),
-                child: const Text('跳過'),
+                child: Text(isEn ? 'Skip' : '跳過'),
               ),
             ),
             const SizedBox(width: 12),
@@ -663,7 +698,7 @@ class _Part1Page extends StatelessWidget {
                   minimumSize: const Size(0, 52),
                   textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 ),
-                child: const Text('儲存並繼續'),
+                child: Text(isEn ? 'Save and continue' : '儲存並繼續'),
               ),
             ),
           ],
@@ -701,13 +736,14 @@ class _Part2Page extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       children: [
         const _StepIndicator(step: 2),
         const SizedBox(height: 24),
         Text(
-          '生命中重要嘅人',
+          isEn ? 'People who matter to you' : '生命中重要嘅人',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -715,7 +751,9 @@ class _Part2Page extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '你最重視嘅人係邊幾個？（最多 5 位，可以跳過）',
+          isEn
+              ? 'Who are the people you care about most? (Up to 5, you can skip)'
+              : '你最重視嘅人係邊幾個？（最多 5 位，可以跳過）',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 15,
@@ -725,18 +763,18 @@ class _Part2Page extends StatelessWidget {
         const SizedBox(height: 12),
         _PersonTable(
           people: importantPeople,
-          extraLabel: '聯絡頻率',
+          extraLabel: isEn ? 'How often in touch' : '聯絡頻率',
           onRemove: onImportantPersonRemoved,
         ),
         if (importantPeople.length < 5)
           _AddPersonButton(
-            label: '+ 加一位重要嘅人',
-            extraLabel: '聯絡頻率（可選）',
+            label: isEn ? '+ Add someone important' : '+ 加一位重要嘅人',
+            extraLabel: isEn ? 'How often in touch (optional)' : '聯絡頻率（可選）',
             onAdd: onImportantPersonAdded,
           ),
         const SizedBox(height: 28),
         Text(
-          '想重新聯絡嘅人',
+          isEn ? 'People you would like to reconnect with' : '想重新聯絡嘅人',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -744,7 +782,9 @@ class _Part2Page extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '有冇人你希望可以重拾聯絡？（最多 3 位，可以跳過）',
+          isEn
+              ? 'Is there anyone you hope to reconnect with? (Up to 3, you can skip)'
+              : '有冇人你希望可以重拾聯絡？（最多 3 位，可以跳過）',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 15,
@@ -754,13 +794,15 @@ class _Part2Page extends StatelessWidget {
         const SizedBox(height: 12),
         _PersonTable(
           people: reconnectPeople,
-          extraLabel: '阻礙原因',
+          extraLabel: isEn ? 'What is in the way' : '阻礙原因',
           onRemove: onReconnectPersonRemoved,
         ),
         if (reconnectPeople.length < 3)
           _AddPersonButton(
-            label: '+ 加一位想聯絡嘅人',
-            extraLabel: '係咩令你唔容易聯絡？（可選）',
+            label: isEn ? '+ Add someone to reconnect with' : '+ 加一位想聯絡嘅人',
+            extraLabel: isEn
+                ? 'What makes it hard to reach out? (optional)'
+                : '係咩令你唔容易聯絡？（可選）',
             onAdd: onReconnectPersonAdded,
           ),
         const SizedBox(height: 32),
@@ -773,7 +815,7 @@ class _Part2Page extends StatelessWidget {
                   minimumSize: const Size(0, 52),
                   textStyle: const TextStyle(fontSize: 17),
                 ),
-                child: const Text('跳過'),
+                child: Text(isEn ? 'Skip' : '跳過'),
               ),
             ),
             const SizedBox(width: 12),
@@ -785,7 +827,7 @@ class _Part2Page extends StatelessWidget {
                   minimumSize: const Size(0, 52),
                   textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 ),
-                child: const Text('儲存並繼續'),
+                child: Text(isEn ? 'Save and continue' : '儲存並繼續'),
               ),
             ),
           ],
@@ -877,30 +919,33 @@ class _AddPersonButton extends StatelessWidget {
   }
 
   Future<void> _showAddDialog(BuildContext context) async {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final nameCtrl = TextEditingController();
     final relCtrl = TextEditingController();
     final extraCtrl = TextEditingController();
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('加一個人', style: TextStyle(fontSize: 18)),
+        title: Text(isEn ? 'Add a person' : '加一個人', style: const TextStyle(fontSize: 18)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: '姓名 / 稱呼',
-                labelStyle: TextStyle(fontSize: 16),
+              decoration: InputDecoration(
+                labelText: isEn ? 'Name or what you call them' : '姓名 / 稱呼',
+                labelStyle: const TextStyle(fontSize: 16),
               ),
               style: const TextStyle(fontSize: 17),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: relCtrl,
-              decoration: const InputDecoration(
-                labelText: '關係（例如：女兒、舊朋友）',
-                labelStyle: TextStyle(fontSize: 16),
+              decoration: InputDecoration(
+                labelText: isEn
+                    ? 'Relationship (e.g. daughter, old friend)'
+                    : '關係（例如：女兒、舊朋友）',
+                labelStyle: const TextStyle(fontSize: 16),
               ),
               style: const TextStyle(fontSize: 17),
             ),
@@ -918,7 +963,7 @@ class _AddPersonButton extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('取消', style: TextStyle(fontSize: 16)),
+            child: Text(isEn ? 'Cancel' : '取消', style: const TextStyle(fontSize: 16)),
           ),
           FilledButton(
             onPressed: () {
@@ -929,7 +974,7 @@ class _AddPersonButton extends StatelessWidget {
                 'extra': extraCtrl.text.trim(),
               });
             },
-            child: const Text('加入', style: TextStyle(fontSize: 16)),
+            child: Text(isEn ? 'Add' : '加入', style: const TextStyle(fontSize: 16)),
           ),
         ],
       ),
@@ -970,13 +1015,14 @@ class _Part3Page extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       children: [
         const _StepIndicator(step: 3),
         const SizedBox(height: 24),
         Text(
-          '你平時係點過一日？',
+          isEn ? 'What does a typical day look like?' : '你平時係點過一日？',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -984,7 +1030,7 @@ class _Part3Page extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '（可選 · 可以跳過）',
+          isEn ? '(Optional · you can skip)' : '（可選 · 可以跳過）',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 15,
@@ -993,27 +1039,27 @@ class _Part3Page extends StatelessWidget {
         const SizedBox(height: 20),
         _DayPartField(
           icon: Icons.wb_sunny_outlined,
-          label: '早上通常做咩？',
+          label: isEn ? 'What do you usually do in the morning?' : '早上通常做咩？',
           initialValue: morning,
           onChanged: onMorningChanged,
         ),
         const SizedBox(height: 14),
         _DayPartField(
           icon: Icons.wb_cloudy_outlined,
-          label: '下晝通常做咩？',
+          label: isEn ? 'What about the afternoon?' : '下晝通常做咩？',
           initialValue: afternoon,
           onChanged: onAfternoonChanged,
         ),
         const SizedBox(height: 14),
         _DayPartField(
           icon: Icons.nights_stay_outlined,
-          label: '夜晚通常做咩？',
+          label: isEn ? 'And in the evening?' : '夜晚通常做咩？',
           initialValue: evening,
           onChanged: onEveningChanged,
         ),
         const SizedBox(height: 28),
         Text(
-          '而家係咩喺你心入面？',
+          isEn ? 'What is on your mind right now?' : '而家係咩喺你心入面？',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -1021,7 +1067,7 @@ class _Part3Page extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '唔一定要答，係可選嘅。',
+          isEn ? 'You do not have to answer — this is optional.' : '唔一定要答，係可選嘅。',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 15,
@@ -1032,10 +1078,10 @@ class _Part3Page extends StatelessWidget {
           onChanged: onOnMindChanged,
           maxLines: 4,
           style: const TextStyle(fontSize: 17),
-          decoration: const InputDecoration(
-            hintText: '有咩想講都可以寫喺度…',
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.all(14),
+          decoration: InputDecoration(
+            hintText: isEn ? 'Anything you want to share, write it here…' : '有咩想講都可以寫喺度…',
+            border: const OutlineInputBorder(),
+            contentPadding: const EdgeInsets.all(14),
           ),
         ),
         const SizedBox(height: 32),
@@ -1048,7 +1094,7 @@ class _Part3Page extends StatelessWidget {
                   minimumSize: const Size(0, 52),
                   textStyle: const TextStyle(fontSize: 17),
                 ),
-                child: const Text('跳過'),
+                child: Text(isEn ? 'Skip' : '跳過'),
               ),
             ),
             const SizedBox(width: 12),
@@ -1060,7 +1106,7 @@ class _Part3Page extends StatelessWidget {
                   minimumSize: const Size(0, 52),
                   textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 ),
-                child: const Text('儲存並繼續'),
+                child: Text(isEn ? 'Save and continue' : '儲存並繼續'),
               ),
             ),
           ],
@@ -1140,7 +1186,7 @@ class _Part4Page extends StatelessWidget {
     required this.onSkip,
   });
 
-  static const _activityOptions = <(String, String)>[
+  static const _activityOptionsZh = <(String, String)>[
     (IntakeOptions.actTv, '睇電視睇劇'),
     (IntakeOptions.actRadio, '聽收音機'),
     (IntakeOptions.actReading, '睇報紙睇書'),
@@ -1158,7 +1204,25 @@ class _Part4Page extends StatelessWidget {
     (IntakeOptions.actOther, '其他'),
   ];
 
-  static const _topicOptions = <(String, String)>[
+  static const _activityOptionsEn = <(String, String)>[
+    (IntakeOptions.actTv, 'Watching TV / drama'),
+    (IntakeOptions.actRadio, 'Listening to the radio'),
+    (IntakeOptions.actReading, 'Reading newspapers / books'),
+    (IntakeOptions.actMahjong, 'Mahjong / card games'),
+    (IntakeOptions.actTaichi, 'Tai chi / morning exercise'),
+    (IntakeOptions.actWalking, 'Walks / hiking'),
+    (IntakeOptions.actGardening, 'Gardening / caring for plants'),
+    (IntakeOptions.actCooking, 'Cooking'),
+    (IntakeOptions.actReligious, 'Religious activities'),
+    (IntakeOptions.actVolunteering, 'Volunteering'),
+    (IntakeOptions.actDining, 'Yum cha / meals with friends'),
+    (IntakeOptions.actGrandkids, 'Playing with grandchildren'),
+    (IntakeOptions.actMusic, 'Listening to / singing songs'),
+    (IntakeOptions.actCrafts, 'Handicrafts'),
+    (IntakeOptions.actOther, 'Other'),
+  ];
+
+  static const _topicOptionsZh = <(String, String)>[
     (IntakeOptions.topicHkHistory, '香港舊時嘅嘢香港歷史'),
     (IntakeOptions.topicFood, '飲食煮餸'),
     (IntakeOptions.topicFamilyStories, '屋企人嘅故事'),
@@ -1172,16 +1236,31 @@ class _Part4Page extends StatelessWidget {
     (IntakeOptions.topicOther, '其他'),
   ];
 
+  static const _topicOptionsEn = <(String, String)>[
+    (IntakeOptions.topicHkHistory, 'Old Hong Kong / HK history'),
+    (IntakeOptions.topicFood, 'Food and cooking'),
+    (IntakeOptions.topicFamilyStories, 'Family stories'),
+    (IntakeOptions.topicNature, 'Plants and animals'),
+    (IntakeOptions.topicMusicFilm, 'Music, opera and films from your era'),
+    (IntakeOptions.topicHealth, 'Health and well-being'),
+    (IntakeOptions.topicCurrentEvents, 'News and current events'),
+    (IntakeOptions.topicReligion, 'Faith and life values'),
+    (IntakeOptions.topicTravel, 'Travel'),
+    (IntakeOptions.topicSports, 'Sports'),
+    (IntakeOptions.topicOther, 'Other'),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       children: [
         const _StepIndicator(step: 4),
         const SizedBox(height: 24),
         Text(
-          '你平時鍾意做啲咩消遣？',
+          isEn ? 'What do you like to do for fun?' : '你平時鍾意做啲咩消遣？',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -1189,7 +1268,7 @@ class _Part4Page extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '（可選 · 可以跳過）',
+          isEn ? '(Optional · you can skip)' : '（可選 · 可以跳過）',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 15,
@@ -1197,7 +1276,7 @@ class _Part4Page extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _ChipGroup(
-          options: _activityOptions,
+          options: isEn ? _activityOptionsEn : _activityOptionsZh,
           selected: selectedActivities,
           onToggled: onActivityToggled,
         ),
@@ -1206,16 +1285,16 @@ class _Part4Page extends StatelessWidget {
           TextField(
             onChanged: onActivitiesOtherChanged,
             style: const TextStyle(fontSize: 17),
-            decoration: const InputDecoration(
-              hintText: '請寫低其他消遣…',
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.all(14),
+            decoration: InputDecoration(
+              hintText: isEn ? 'Please write your other hobbies…' : '請寫低其他消遣…',
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.all(14),
             ),
           ),
         ],
         const SizedBox(height: 28),
         Text(
-          '你有興趣講開邊啲話題？',
+          isEn ? 'What topics do you enjoy talking about?' : '你有興趣講開邊啲話題？',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -1223,7 +1302,7 @@ class _Part4Page extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '（可選 · 可以跳過）',
+          isEn ? '(Optional · you can skip)' : '（可選 · 可以跳過）',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 15,
@@ -1231,7 +1310,7 @@ class _Part4Page extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _ChipGroup(
-          options: _topicOptions,
+          options: isEn ? _topicOptionsEn : _topicOptionsZh,
           selected: selectedTopics,
           onToggled: onTopicToggled,
         ),
@@ -1240,10 +1319,10 @@ class _Part4Page extends StatelessWidget {
           TextField(
             onChanged: onTopicsOtherChanged,
             style: const TextStyle(fontSize: 17),
-            decoration: const InputDecoration(
-              hintText: '請寫低其他話題…',
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.all(14),
+            decoration: InputDecoration(
+              hintText: isEn ? 'Please write your other topics…' : '請寫低其他話題…',
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.all(14),
             ),
           ),
         ],
@@ -1257,7 +1336,7 @@ class _Part4Page extends StatelessWidget {
                   minimumSize: const Size(0, 52),
                   textStyle: const TextStyle(fontSize: 17),
                 ),
-                child: const Text('跳過'),
+                child: Text(isEn ? 'Skip' : '跳過'),
               ),
             ),
             const SizedBox(width: 12),
@@ -1269,7 +1348,7 @@ class _Part4Page extends StatelessWidget {
                   minimumSize: const Size(0, 52),
                   textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 ),
-                child: const Text('儲存並繼續'),
+                child: Text(isEn ? 'Save and continue' : '儲存並繼續'),
               ),
             ),
           ],
@@ -1300,7 +1379,7 @@ class _Part5Page extends StatelessWidget {
     required this.onSkip,
   });
 
-  static const _chapterOptions = <(String, String)>[
+  static const _chapterOptionsZh = <(String, String)>[
     (IntakeOptions.chapterChildhood, '細個嘅時候'),
     (IntakeOptions.chapterSchool, '讀書嘅日子'),
     (IntakeOptions.chapterFirstJob, '出嚟做嘢返工嘅日子'),
@@ -1313,16 +1392,30 @@ class _Part5Page extends StatelessWidget {
     (IntakeOptions.chapterPresentFocus, '我寧願講返而家唔太想再諗以前'),
   ];
 
+  static const _chapterOptionsEn = <(String, String)>[
+    (IntakeOptions.chapterChildhood, 'Childhood'),
+    (IntakeOptions.chapterSchool, 'School days'),
+    (IntakeOptions.chapterFirstJob, 'Starting work / working life'),
+    (IntakeOptions.chapterMarriage, 'Dating and marriage'),
+    (IntakeOptions.chapterRaisingKids, 'Raising children'),
+    (IntakeOptions.chapterMoves, 'Moving home / migrating'),
+    (IntakeOptions.chapterHkMilestones, 'Big moments in Hong Kong'),
+    (IntakeOptions.chapterHobbiesDeveloped, 'Interests or skills picked up over the years'),
+    (IntakeOptions.chapterTravel, 'Travel memories'),
+    (IntakeOptions.chapterPresentFocus, "I'd rather talk about now, not the past"),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       children: [
         const _StepIndicator(step: 5),
         const SizedBox(height: 24),
         Text(
-          '你想傾下人生嘅邊個階段？',
+          isEn ? 'Which part of your life would you like to talk about?' : '你想傾下人生嘅邊個階段？',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -1330,7 +1423,7 @@ class _Part5Page extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '（可選 · 可以跳過）',
+          isEn ? '(Optional · you can skip)' : '（可選 · 可以跳過）',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 15,
@@ -1338,13 +1431,13 @@ class _Part5Page extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _ChipGroup(
-          options: _chapterOptions,
+          options: isEn ? _chapterOptionsEn : _chapterOptionsZh,
           selected: selectedChapters,
           onToggled: onChapterToggled,
         ),
         const SizedBox(height: 28),
         Text(
-          '有冇唔想提起嘅話題？',
+          isEn ? 'Anything you would rather not talk about?' : '有冇唔想提起嘅話題？',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -1352,7 +1445,9 @@ class _Part5Page extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '係可選嘅。你寫落嘅，我哋嘅 AI 都唔會主動提起。',
+          isEn
+              ? "This is optional. Whatever you write here, our AI won't bring up on its own."
+              : '係可選嘅。你寫落嘅，我哋嘅 AI 都唔會主動提起。',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 15,
@@ -1364,10 +1459,12 @@ class _Part5Page extends StatelessWidget {
           onChanged: onAvoidTopicsChanged,
           maxLines: 4,
           style: const TextStyle(fontSize: 17),
-          decoration: const InputDecoration(
-            hintText: '例如：某啲家庭事，或者某段時期…',
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.all(14),
+          decoration: InputDecoration(
+            hintText: isEn
+                ? 'For example: certain family matters, or a particular period…'
+                : '例如：某啲家庭事，或者某段時期…',
+            border: const OutlineInputBorder(),
+            contentPadding: const EdgeInsets.all(14),
           ),
         ),
         const SizedBox(height: 32),
@@ -1380,7 +1477,7 @@ class _Part5Page extends StatelessWidget {
                   minimumSize: const Size(0, 52),
                   textStyle: const TextStyle(fontSize: 17),
                 ),
-                child: const Text('跳過'),
+                child: Text(isEn ? 'Skip' : '跳過'),
               ),
             ),
             const SizedBox(width: 12),
@@ -1392,7 +1489,7 @@ class _Part5Page extends StatelessWidget {
                   minimumSize: const Size(0, 52),
                   textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 ),
-                child: const Text('儲存並繼續'),
+                child: Text(isEn ? 'Save and continue' : '儲存並繼續'),
               ),
             ),
           ],
@@ -1423,14 +1520,21 @@ class _Part6Page extends StatelessWidget {
     required this.onNext,
   });
 
-  static const _inputModeOptions = <(String, String)>[
+  static const _inputModeOptionsZh = <(String, String)>[
     (IntakeOptions.inputTyping, '主要打字'),
     (IntakeOptions.inputVoice, '主要用語音'),
     (IntakeOptions.inputBoth, '兩樣都差唔多'),
     (IntakeOptions.inputUnsure, '暫時未知'),
   ];
 
-  static const _timeOptions = <(String, String)>[
+  static const _inputModeOptionsEn = <(String, String)>[
+    (IntakeOptions.inputTyping, 'Mostly typing'),
+    (IntakeOptions.inputVoice, 'Mostly voice'),
+    (IntakeOptions.inputBoth, 'About the same'),
+    (IntakeOptions.inputUnsure, 'Not sure yet'),
+  ];
+
+  static const _timeOptionsZh = <(String, String)>[
     (IntakeOptions.timeMorning, '朝早'),
     (IntakeOptions.timeMidday, '晏晝'),
     (IntakeOptions.timeAfternoon, '下晝'),
@@ -1439,9 +1543,19 @@ class _Part6Page extends StatelessWidget {
     (IntakeOptions.timeNoRoutine, '冇固定時間'),
   ];
 
+  static const _timeOptionsEn = <(String, String)>[
+    (IntakeOptions.timeMorning, 'Morning'),
+    (IntakeOptions.timeMidday, 'Midday'),
+    (IntakeOptions.timeAfternoon, 'Afternoon'),
+    (IntakeOptions.timeEvening, 'Evening'),
+    (IntakeOptions.timeBeforeBed, 'Before bed'),
+    (IntakeOptions.timeNoRoutine, 'No fixed time'),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       children: [
@@ -1451,7 +1565,7 @@ class _Part6Page extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                '你喜歡點樣同 AI 溝通？',
+                isEn ? 'How do you like to talk with the AI?' : '你喜歡點樣同 AI 溝通？',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                   fontSize: 20,
@@ -1465,7 +1579,7 @@ class _Part6Page extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '必填',
+                isEn ? 'Required' : '必填',
                 style: TextStyle(
                   fontSize: 13,
                   color: theme.colorScheme.onErrorContainer,
@@ -1477,13 +1591,13 @@ class _Part6Page extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _RadioChipGroup(
-          options: _inputModeOptions,
+          options: isEn ? _inputModeOptionsEn : _inputModeOptionsZh,
           selected: selectedInputMode,
           onSelected: onInputModeSelected,
         ),
         const SizedBox(height: 28),
         Text(
-          '你通常幾時最方便用呢個 app？',
+          isEn ? 'When is it most convenient to use this app?' : '你通常幾時最方便用呢個 app？',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -1491,7 +1605,7 @@ class _Part6Page extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '（可選 · 可以跳過）',
+          isEn ? '(Optional · you can skip)' : '（可選 · 可以跳過）',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 15,
@@ -1499,7 +1613,7 @@ class _Part6Page extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _ChipGroup(
-          options: _timeOptions,
+          options: isEn ? _timeOptionsEn : _timeOptionsZh,
           selected: selectedTimes,
           onToggled: onTimeToggled,
         ),
@@ -1512,7 +1626,7 @@ class _Part6Page extends StatelessWidget {
               minimumSize: const Size(double.infinity, 56),
               textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
-            child: const Text('下一步'),
+            child: Text(isEn ? 'Next' : '下一步'),
           ),
         ),
       ],
@@ -1533,6 +1647,7 @@ class _DonePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return Padding(
       padding: const EdgeInsets.all(28),
       child: Column(
@@ -1542,7 +1657,7 @@ class _DonePage extends StatelessWidget {
               size: 80, color: theme.colorScheme.primary),
           const SizedBox(height: 24),
           Text(
-            '多謝你答晒所有問題！',
+            isEn ? 'Thank you for answering everything!' : '多謝你答晒所有問題！',
             style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w700,
               height: 1.3,
@@ -1551,7 +1666,9 @@ class _DonePage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '我哋已經為你度身設定好一切。\n而家可以正式開始喇！',
+            isEn
+                ? "We've set everything up for you.\nYou can get started now!"
+                : '我哋已經為你度身設定好一切。\n而家可以正式開始喇！',
             style: theme.textTheme.bodyLarge?.copyWith(
               fontSize: 18,
               height: 1.5,
@@ -1574,7 +1691,7 @@ class _DonePage extends StatelessWidget {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text('開始使用'),
+                  : Text(isEn ? 'Start' : '開始使用'),
             ),
           ),
         ],
