@@ -118,13 +118,19 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
 
+    final rdContextSuffix = [
+      if (persona?.contextSuffix != null) persona!.contextSuffix!,
+      if (profile?.avoidTopics?.isNotEmpty == true)
+        '⛔ 用戶要求唔好提起呢啲話題（就算唔小心都唔好）：${profile!.avoidTopics}',
+    ].join('\n\n').trim();
+
     final response = await core.llm.send(
       moduleId: 'reflective_dialogue',
       promptKey: persona?.promptKey,
       agentId: AgentRegistry.ahJanAhBakId,
       variantName: persona?.variantName,
       systemPrompt: persona == null ? _fallbackPersonaPrompt : null,
-      contextSuffix: persona?.contextSuffix,
+      contextSuffix: rdContextSuffix.isEmpty ? null : rdContextSuffix,
       history: history,
       userInput: text,
       uid: profile?.uid,

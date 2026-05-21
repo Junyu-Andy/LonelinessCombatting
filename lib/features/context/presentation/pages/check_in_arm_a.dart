@@ -156,6 +156,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
     final contextSuffix = [
       if (persona?.contextSuffix != null) persona!.contextSuffix!,
       if (crossModuleInjection.trim().isNotEmpty) crossModuleInjection.trim(),
+      if (profile?.avoidTopics?.isNotEmpty == true)
+        '⛔ 用戶要求唔好提起呢啲話題（就算唔小心都唔好）：${profile!.avoidTopics}',
     ].join('\n\n').trim();
 
     final history = _turns

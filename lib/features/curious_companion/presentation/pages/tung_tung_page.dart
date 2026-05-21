@@ -213,6 +213,11 @@ class _TungTungPageState extends State<TungTungPage> {
       }
       suffix.writeln();
     }
+    if (profile?.avoidTopics?.isNotEmpty == true) {
+      suffix.writeln(
+          '⛔ 用戶要求唔好提起呢啲話題（就算唔小心都唔好）：${profile!.avoidTopics}');
+      suffix.writeln();
+    }
 
     final history = _turns
         .take(_turns.length - 1)

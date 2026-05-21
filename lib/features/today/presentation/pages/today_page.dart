@@ -4,6 +4,7 @@ import '../../../adherence/presentation/widgets/missed_checkin_banner.dart';
 import '../../../crisis/presentation/widgets/safety_footer_card.dart';
 import '../widgets/active_plan_banner.dart';
 import '../widgets/agent_tile_row.dart';
+import '../widgets/daily_mood_card.dart';
 import '../widgets/greeting_hero.dart';
 import '../widgets/quiet_today_banner.dart';
 
@@ -35,6 +36,7 @@ class TodayPage extends StatelessWidget {
         children: const [
           GreetingHero(),
           QuietTodayBanner(),
+          DailyMoodCard(),
           MissedCheckInBanner(),
           ActivePlanBanner(),
           AgentTileRow(),

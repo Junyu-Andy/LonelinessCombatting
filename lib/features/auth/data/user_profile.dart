@@ -219,6 +219,21 @@ class UserProfile {
   /// shown yet and must be played the next time the agent opens.
   final Map<String, DateTime> firstIntroSeen;
 
+  /// Safety field — topics the user asked agents NOT to raise.
+  /// Propagated into agent system prompts as a hard constraint.
+  /// Captured in onboarding intake Part 5.
+  final String? avoidTopics;
+
+  /// True once the 6-part intake questionnaire is completed.
+  /// Used by ConsentGate to decide whether to show IntakeFlowPage.
+  final bool hasCompletedIntake;
+
+  /// Preferred input mode from intake Part 6 (typing / voice / both / unsure).
+  final String? inputMode;
+
+  /// Preferred chat times from intake Part 6.
+  final List<String>? preferredTimes;
+
   const UserProfile({
     required this.uid,
     required this.email,
@@ -240,6 +255,10 @@ class UserProfile {
     this.quietTodayActivatedAt,
     this.weeklyProbeEnabled = false,
     this.firstIntroSeen = const {},
+    this.avoidTopics,
+    this.hasCompletedIntake = false,
+    this.inputMode,
+    this.preferredTimes,
   });
 
   /// B.10 — true when the activation timestamp is for the current local day.
@@ -268,6 +287,10 @@ class UserProfile {
     DateTime? quietTodayActivatedAt,
     bool? weeklyProbeEnabled,
     Map<String, DateTime>? firstIntroSeen,
+    String? avoidTopics,
+    bool? hasCompletedIntake,
+    String? inputMode,
+    List<String>? preferredTimes,
   }) {
     return UserProfile(
       uid: uid,
@@ -292,6 +315,10 @@ class UserProfile {
           quietTodayActivatedAt ?? this.quietTodayActivatedAt,
       weeklyProbeEnabled: weeklyProbeEnabled ?? this.weeklyProbeEnabled,
       firstIntroSeen: firstIntroSeen ?? this.firstIntroSeen,
+      avoidTopics: avoidTopics ?? this.avoidTopics,
+      hasCompletedIntake: hasCompletedIntake ?? this.hasCompletedIntake,
+      inputMode: inputMode ?? this.inputMode,
+      preferredTimes: preferredTimes ?? this.preferredTimes,
     );
   }
 
@@ -322,6 +349,10 @@ class UserProfile {
           for (final e in firstIntroSeen.entries)
             e.key: e.value.toIso8601String(),
         },
+        'avoidTopics': avoidTopics,
+        'hasCompletedIntake': hasCompletedIntake,
+        'inputMode': inputMode,
+        'preferredTimes': preferredTimes,
       };
 
   factory UserProfile.fromMap(String uid, Map<String, dynamic> map) {
@@ -396,6 +427,10 @@ class UserProfile {
       quietTodayActivatedAt: parseDate(map['quietTodayActivatedAt']),
       weeklyProbeEnabled: (map['weeklyProbeEnabled'] as bool?) ?? false,
       firstIntroSeen: intro,
+      avoidTopics: map['avoidTopics'] as String?,
+      hasCompletedIntake: (map['hasCompletedIntake'] as bool?) ?? false,
+      inputMode: map['inputMode'] as String?,
+      preferredTimes: (map['preferredTimes'] as List?)?.whereType<String>().toList(),
     );
   }
 }

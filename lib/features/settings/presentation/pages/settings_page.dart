@@ -13,6 +13,8 @@ import '../../../ppr/presentation/pages/ppr_weekly_page.dart';
 import '../../../progress/presentation/pages/progress_page.dart';
 import '../../../my_story/presentation/pages/my_story_page.dart';
 import '../../../researcher_dashboard/presentation/pages/researcher_dashboard_page.dart';
+import '../../../assessment/presentation/pages/pgic_page.dart';
+import '../../../assessment/presentation/pages/agent_diff_page.dart';
 import 'faq_page.dart';
 import 'privacy_policy_page.dart';
 
@@ -70,6 +72,30 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: l10n.meItemProgressSubtitle,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const ProgressPage()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.sentiment_satisfied_outlined,
+            title: isEn ? 'Weekly mood change' : '每週感受變化',
+            subtitle: isEn
+                ? '7-point loneliness change rating'
+                : '過去一週，孤單感有冇變化？',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const PgicPage()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.people_alt_outlined,
+            title: isEn ? 'Companion assessment' : '夥伴評估',
+            subtitle: isEn
+                ? 'W2/W4 usage and personality rating'
+                : '第 2 及 4 週嘅夥伴使用評估',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AgentDiffPage(wave: 2),
+              ),
             ),
           ),
           const SizedBox(height: 10),
