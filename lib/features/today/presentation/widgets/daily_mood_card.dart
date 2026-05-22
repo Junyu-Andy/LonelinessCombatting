@@ -221,7 +221,8 @@ class _DailyMoodCardState extends State<DailyMoodCard> {
             child: OutlinedButton.icon(
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => const CheckInArmA(),
+                  builder: (_) =>
+                      CheckInArmA(initialMoodValue: _selectedValue),
                 ),
               ),
               icon: const Icon(Icons.chat_bubble_outline, size: 20),

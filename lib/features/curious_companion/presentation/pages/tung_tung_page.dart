@@ -28,6 +28,7 @@ import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../onboarding/data/interest_labels.dart';
 import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/search_repository.dart';
 
@@ -486,6 +487,7 @@ class _InterestChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
@@ -496,9 +498,7 @@ class _InterestChips extends StatelessWidget {
           for (final i in interests)
             ActionChip(
               label: Text(
-                i,
-                // Explicit colour + weight — the M3 default was too
-                // low-contrast (white-on-grey) for older readers.
+                InterestLabels.label(i, isEn),
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,

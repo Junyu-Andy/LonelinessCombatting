@@ -26,7 +26,13 @@ import 'check_in_shared.dart';
 /// a brief empathetic reflection + at most one adaptive follow-up. The
 /// six-face mood picker is shown as an optional structured tail.
 class CheckInArmA extends StatefulWidget {
-  const CheckInArmA({super.key});
+  /// Optional mood face the user just picked on the home `DailyMoodCard`.
+  /// When set, Siu Yan's opener references it instead of the generic
+  /// "你今日點？" so the handoff doesn't feel like the agent forgot.
+  /// 1=好差, 2=差, 3=麻麻地, 4=幾好, 5=好好.
+  final int? initialMoodValue;
+
+  const CheckInArmA({super.key, this.initialMoodValue});
 
   @override
   State<CheckInArmA> createState() => _CheckInArmAState();
@@ -84,10 +90,70 @@ class _CheckInArmAState extends State<CheckInArmA> {
     if (!_openerSeeded) {
       _openerSeeded = true;
       final isEn = Localizations.localeOf(context).languageCode == 'en';
-      _turns.add(_Turn.bot(isEn
-          ? 'Hi — how are you today? Write a few words or speak whenever you\'re ready.'
-          : '你好啊。你今日點？寫幾句、或者用咪都得。'));
+      _turns.add(_Turn.bot(_openingLine(isEn)));
+      // If the user came in from DailyMoodCard with a picked face, sync
+      // the bottom-sheet face state so "完成" doesn't re-ask for mood.
+      if (widget.initialMoodValue != null) {
+        _face = _faceFromValue(widget.initialMoodValue!);
+        _facePicked = true;
+      }
     }
+  }
+
+  String _openingLine(bool isEn) {
+    final mood = widget.initialMoodValue;
+    if (mood == null) {
+      return isEn
+          ? 'Hi — how are you today? Write a few words or speak whenever you\'re ready.'
+          : '你好啊。你今日點？寫幾句、或者用咪都得。';
+    }
+    // Mood-aware opener — references the face the user just tapped on the
+    // home card so Siu Yan doesn't ask the same question over again.
+    if (isEn) {
+      switch (mood) {
+        case 1:
+          return 'I saw you marked today as quite hard. I\'m here — take your time, what\'s weighing on you?';
+        case 2:
+          return 'You said today doesn\'t feel great. Want to tell me a bit more about what\'s going on?';
+        case 3:
+          return 'So-so today. Want to share what\'s on your mind, big or small?';
+        case 4:
+          return 'You said today feels okay. What\'s been the best part so far?';
+        case 5:
+          return 'You said today\'s been good! Tell me what made it nice.';
+      }
+    }
+    switch (mood) {
+      case 1:
+        return '見到你話今日好差。我喺度，慢慢講，係咩事令你咁辛苦呀？';
+      case 2:
+        return '你話今日差咗，係邊方面唔舒服呀？同我講多少少。';
+      case 3:
+        return '麻麻地嘅一日，腦海入面有咩想講，無論大小都得。';
+      case 4:
+        return '你話今日幾好。咁今日最好嘅一刻係咩呢？';
+      case 5:
+        return '你話今日好好喎！同我講下係咩令你咁開心？';
+    }
+    return isEn
+        ? 'Hi — what\'s on your mind today?'
+        : '你好啊。你今日點？';
+  }
+
+  MoodFace _faceFromValue(int v) {
+    switch (v) {
+      case 1:
+        return MoodFace.veryLow;
+      case 2:
+        return MoodFace.low;
+      case 3:
+        return MoodFace.neutral;
+      case 4:
+        return MoodFace.good;
+      case 5:
+        return MoodFace.great;
+    }
+    return MoodFace.neutral;
   }
 
   @override
