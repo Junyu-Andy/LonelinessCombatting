@@ -90,26 +90,57 @@ class _TungTungPageState extends State<TungTungPage> {
     // grounded mode (M8 hand-off) opens differently.
     if (!_openerSeeded) {
       _openerSeeded = true;
-      final isEn = Localizations.localeOf(context).languageCode == 'en';
-      final profile = AppSettingsScope.read(context).profile;
-      final interests = profile?.interests ?? const <String>[];
-      final highlight = interests.isNotEmpty ? interests.first : null;
-      String opener;
-      if (widget.articleContext != null) {
-        opener = isEn
-            ? 'I read the piece you opened. Ask me anything about it.'
-            : '我睇完你揀嘅嗰篇。有咩想問都得。';
-      } else if (highlight != null) {
-        opener = isEn
+      _seedOpener();
+    }
+  }
+
+  Future<void> _seedOpener() async {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final profile = AppSettingsScope.read(context).profile;
+
+    // Article-Q&A mode (M8 "問下呢篇") has its own dedicated opener
+    // flow; never substitute the cached personalised greeting there.
+    if (widget.articleContext != null) {
+      final opener = isEn
+          ? 'I read the piece you opened. Ask me anything about it.'
+          : '我睇完你揀嘅嗰篇。有咩想問都得。';
+      setState(() => _turns.add(_Turn.bot(opener)));
+      return;
+    }
+
+    // Try the cached personalised greeting warmed by TodayPage.  This
+    // references the user's interests / last session topic rather
+    // than the generic boilerplate below.
+    if (profile != null) {
+      try {
+        final core = CoreServicesScope.of(context);
+        final cached = await core.agentGreeting.readCachedGreeting(
+          uid: profile.uid,
+          agentId: AgentRegistry.tungTungId,
+          isEn: isEn,
+        );
+        if (!mounted) return;
+        if (cached != null && cached.isNotEmpty) {
+          setState(() => _turns.add(_Turn.bot(cached)));
+          return;
+        }
+      } catch (_) {
+        // fall through to hardcoded opener
+      }
+    }
+
+    final interests = profile?.interests ?? const <String>[];
+    final highlight = interests.isNotEmpty ? interests.first : null;
+    final opener = highlight != null
+        ? (isEn
             ? 'Hi — you mentioned $highlight when we first met. '
                 'Anything you want to chat about today?'
-            : '你好啊。你之前提過「$highlight」。今日想傾啲咩？';
-      } else {
-        opener = isEn
+            : '你好啊。你之前提過「$highlight」。今日想傾啲咩？')
+        : (isEn
             ? 'Hi — what have you been wondering about lately?'
-            : '你好啊。最近有冇咩想知或者想傾嘅嘢？';
-      }
-      _turns.add(_Turn.bot(opener));
+            : '你好啊。最近有冇咩想知或者想傾嘅嘢？');
+    if (mounted) {
+      setState(() => _turns.add(_Turn.bot(opener)));
     }
   }
 

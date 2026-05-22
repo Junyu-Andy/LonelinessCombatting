@@ -86,6 +86,35 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
   /// dismiss or after handoff.
   SurfacedReferral? _pendingReferral;
 
+  /// Pre-generated personalised opener for today (if the warm-up on
+  /// TodayPage succeeded).  Null = fall back to the generic empty-state
+  /// copy.  Loaded once in didChangeDependencies.
+  String? _personalisedOpener;
+  bool _openerLoaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_openerLoaded) {
+      _openerLoaded = true;
+      _loadPersonalisedOpener();
+    }
+  }
+
+  Future<void> _loadPersonalisedOpener() async {
+    final profile = AppSettingsScope.read(context).profile;
+    if (profile == null) return;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final core = CoreServicesScope.of(context);
+    final cached = await core.agentGreeting.readCachedGreeting(
+      uid: profile.uid,
+      agentId: AgentRegistry.ahJanAhBakId,
+      isEn: isEn,
+    );
+    if (!mounted || cached == null || cached.isEmpty) return;
+    setState(() => _personalisedOpener = cached);
+  }
+
   @override
   void dispose() {
     _inputCtrl.dispose();
@@ -368,9 +397,10 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
                   children: [
                     if (_turns.isEmpty)
                       Text(
-                        isEn
-                            ? 'Whatever\'s on your mind. I\'m here to listen.'
-                            : '你想諗咩、想講咩都得，我喺度聽。',
+                        _personalisedOpener ??
+                            (isEn
+                                ? 'Whatever\'s on your mind. I\'m here to listen.'
+                                : '你想諗咩、想講咩都得，我喺度聽。'),
                         style: theme.textTheme.titleLarge,
                       ),
                     for (int i = 0; i < _turns.length; i++) ...[

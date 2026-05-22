@@ -10,6 +10,7 @@ import '../core/core_services_scope.dart';
 import '../core/cross_referral/handoff_executor.dart';
 import '../core/cross_referral/referral_routing_service.dart';
 import '../core/fcm/fcm_service.dart';
+import '../core/llm/agent_greeting_service.dart';
 import '../core/llm/llm_gateway.dart';
 import '../core/memory/cross_module_memory.dart';
 import '../core/memory/memory_store.dart';
@@ -44,6 +45,7 @@ class MyApp extends StatefulWidget {
   final PersonaResolver personaResolver;
   final ReferralRoutingService referralRouting;
   final HandoffExecutor handoffExecutor;
+  final AgentGreetingService agentGreeting;
   final FcmService fcm;
 
   const MyApp({
@@ -62,6 +64,7 @@ class MyApp extends StatefulWidget {
     required this.personaResolver,
     required this.referralRouting,
     required this.handoffExecutor,
+    required this.agentGreeting,
     required this.fcm,
   });
 
@@ -160,6 +163,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           personaResolver: widget.personaResolver,
           referralRouting: widget.referralRouting,
           handoffExecutor: widget.handoffExecutor,
+          agentGreeting: widget.agentGreeting,
           child: AppSettingsScope(
           settings: widget.settings,
           child: MaterialApp(

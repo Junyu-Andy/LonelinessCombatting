@@ -11,6 +11,7 @@ import 'core/agents/persona_resolver.dart';
 import 'core/cross_referral/handoff_executor.dart';
 import 'core/cross_referral/referral_routing_service.dart';
 import 'core/fcm/fcm_service.dart';
+import 'core/llm/agent_greeting_service.dart';
 import 'core/llm/llm_gateway.dart';
 import 'core/memory/cross_module_memory.dart';
 import 'core/memory/memory_store.dart';
@@ -86,6 +87,15 @@ Future<void> main() async {
   );
   final handoffExecutor = HandoffExecutor(sharedContext: sharedContext);
   final fcm = FcmService(available: firebaseReady);
+  final llmGateway = LlmGateway(
+    detector: detector,
+    safetyWriter: safetyWriter,
+    featuresRepo: llmFeaturesRepo,
+  );
+  final agentGreeting = AgentGreetingService(
+    llmGateway,
+    agentContext: agentContext,
+  );
 
   runApp(
     MyApp(
@@ -94,11 +104,7 @@ Future<void> main() async {
       ),
       authService: AuthService(available: firebaseReady),
       analytics: analytics,
-      llm: LlmGateway(
-        detector: detector,
-        safetyWriter: safetyWriter,
-        featuresRepo: llmFeaturesRepo,
-      ),
+      llm: llmGateway,
       memory: memory,
       distress: detector,
       distressState: distressState,
@@ -109,6 +115,7 @@ Future<void> main() async {
       personaResolver: personaResolver,
       referralRouting: referralRouting,
       handoffExecutor: handoffExecutor,
+      agentGreeting: agentGreeting,
       fcm: fcm,
     ),
   );
