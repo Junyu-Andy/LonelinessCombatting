@@ -9,6 +9,7 @@ import '../features/talk/presentation/pages/talk_page.dart';
 import '../features/today/presentation/pages/today_page.dart';
 import '../l10n/app_localizations.dart';
 import '../shared/widgets/app_app_bar.dart';
+import 'app_theme.dart';
 
 /// Top-level shell.  Four bottom-nav tabs per Product Overview §3.2:
 ///
@@ -130,7 +131,11 @@ class _MainShellState extends State<MainShell> {
           SettingsPage(), // ← repurposed as 自己 (Progress + Profile + admin)
         ],
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          boxShadow: [AppTheme.navTopShadow],
+        ),
+        child: NavigationBar(
         selectedIndex: _current.index,
         onDestinationSelected: _switchTab,
         destinations: [
@@ -162,6 +167,7 @@ class _MainShellState extends State<MainShell> {
             tooltip: l10n.settingsTab,
           ),
         ],
+        ),
       ),
     );
   }
