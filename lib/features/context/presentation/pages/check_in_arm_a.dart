@@ -559,7 +559,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
       agentId: AgentRegistry.siuYanId,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(isEn ? 'Today\'s Check-in' : '今日 Check-in'),
+          title: Text(isEn ? 'Siu Yan' : '小欣'),
           actions: [
             TextButton(
               onPressed: canEnd ? () => _openMoodSheet(isEn) : null,
