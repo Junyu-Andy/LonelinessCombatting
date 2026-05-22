@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -24,16 +23,17 @@ import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../../reflective_dialogue/data/negative_cognition_detector.dart';
 import '../../../thought_exercise/presentation/naming_thought_card.dart';
 import '../../../thought_exercise/presentation/thought_exercise_page.dart';
+import '../../../today/data/mood_recorder.dart';
 import 'check_in_shared.dart';
 
 /// M2 — hybrid check-in (Arm A). Free-text or voice opener, LLM produces
 /// a brief empathetic reflection + at most one adaptive follow-up. The
 /// six-face mood picker is shown as an optional structured tail.
 class CheckInArmA extends StatefulWidget {
-  /// Optional mood face the user just picked on the home `DailyMoodCard`.
-  /// When set, Siu Yan's opener references it instead of the generic
-  /// "你今日點？" so the handoff doesn't feel like the agent forgot.
-  /// 1=好差, 2=差, 3=麻麻地, 4=幾好, 5=好好.
+  /// Optional mood face the user just picked on the home hero mood
+  /// pad.  When set, Siu Yan's opener references it instead of the
+  /// generic "你今日點？" so the handoff doesn't feel like the agent
+  /// forgot.  1=好差, 2=差, 3=麻麻地, 4=幾好, 5=好好.
   final int? initialMoodValue;
 
   const CheckInArmA({super.key, this.initialMoodValue});
@@ -106,8 +106,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
       _openerSeeded = true;
       final isEn = Localizations.localeOf(context).languageCode == 'en';
       if (widget.initialMoodValue != null) {
-        // Came in straight from DailyMoodCard — use the face the user
-        // just tapped and seed synchronously so the chat reads as
+        // Came in straight from the home mood pad — use the face the
+        // user just tapped and seed synchronously so the chat reads as
         // immediate.
         _resolvedMoodValue = widget.initialMoodValue;
         _resolvedMoodIsToday = true;
@@ -128,34 +128,20 @@ class _CheckInArmAState extends State<CheckInArmA> {
     int? moodValue;
     bool fromToday = true;
     if (profile != null) {
-      try {
-        final db = FirebaseFirestore.instance;
-        final todayDoc = await db
-            .collection('users')
-            .doc(profile.uid)
-            .collection('daily_mood')
-            .doc(_todayKey())
-            .get();
-        if (todayDoc.exists) {
-          moodValue = (todayDoc.data()?['value'] as num?)?.toInt();
-          fromToday = true;
-        } else {
-          final recent = await db
-              .collection('users')
-              .doc(profile.uid)
-              .collection('daily_mood')
-              .orderBy(FieldPath.documentId, descending: true)
-              .limit(1)
-              .get();
-          if (recent.docs.isNotEmpty) {
-            moodValue =
-                (recent.docs.first.data()['value'] as num?)?.toInt();
-            fromToday = false;
-          }
+      final recorder = MoodRecorder();
+      final today = await recorder.latestForDate(
+        uid: profile.uid,
+        dateIso: MoodRecorder.dateIsoFor(DateTime.now()),
+      );
+      if (today != null) {
+        moodValue = today.mood;
+        fromToday = true;
+      } else {
+        final recent = await recorder.mostRecent(uid: profile.uid);
+        if (recent != null) {
+          moodValue = recent.mood;
+          fromToday = false;
         }
-      } catch (_) {
-        // Firestore unavailable — fall through with moodValue == null
-        // and the opener will use the generic phrasing.
       }
     }
     if (!mounted) return;
@@ -170,14 +156,6 @@ class _CheckInArmAState extends State<CheckInArmA> {
       }
       _turns.add(_Turn.bot(_openingLine(isEn)));
     });
-  }
-
-  String _todayKey() {
-    final now = DateTime.now();
-    final y = now.year.toString().padLeft(4, '0');
-    final m = now.month.toString().padLeft(2, '0');
-    final d = now.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
   }
 
   String _openingLine(bool isEn) {

@@ -9,25 +9,25 @@ import '../../../adherence/presentation/widgets/missed_checkin_banner.dart';
 import '../../../crisis/presentation/widgets/safety_footer_card.dart';
 import '../widgets/active_plan_banner.dart';
 import '../widgets/agent_tile_row.dart';
+import '../widgets/continue_chat_card.dart';
+import '../widgets/facts_recap_row.dart';
 import '../widgets/greeting_hero.dart';
+import '../widgets/home_tool_shortcuts.dart';
 import '../widgets/pending_prompts_banner.dart';
-import '../widgets/quiet_today_banner.dart';
 
-/// Home tab (屋企) — agent-tile entry point.
+/// Home tab (屋企) — final layout per Home Layout Spec §1:
+///   1. Greeting hero with embedded 5-emoji mood pad (§1–2)
+///   2. "Continue chatting" suggestion bar (§3)
+///   3. Compliance-critical banners (rendered only when active —
+///      pending assessments, missed-check-in nudge, plan follow-up)
+///   4. "想搵邊位傾下？" + three agent tiles (§1 item 3–4)
+///   5. Facts recap line (§4)
+///   6. Tool shortcuts: 行動 / 望一望 / 進度 (§1 item 6)
+///   7. Crisis footer card — global safety pill renders separately.
 ///
-/// Dev Req §2.2 layout, top to bottom:
-///   1. Greeting hero (existing)
-///   2. Safety pill — rendered globally above all tabs, not here
-///   3. Today's plan banner (existing)
-///   4. Absence nudge (existing P3.2)
-///   5. Three agent tiles (Sprint 1)
-///   6. Tool quick links (Sprint 1)
-///   7. 999 / crisis footer (existing)
-///
-/// On first build we also kick off a fire-and-forget warm-up of today's
-/// personalised greeting for Ah Jan/Ah Bak and Tung Tung so the cache
-/// is hot by the time the user taps a tile.  Siu Yan is handled by a
-/// separate mood-aware opener flow.
+/// On first build the agent-greeting warm-up still kicks off so that
+/// Ah Jan/Ah Bak and Tung Tung have hot caches by the time the user
+/// taps a tile.  Siu Yan keeps its mood-aware opener.
 class TodayPage extends StatefulWidget {
   const TodayPage({super.key});
 
@@ -51,8 +51,6 @@ class _TodayPageState extends State<TodayPage> {
     _greetingsWarmed = true;
     final core = CoreServicesScope.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    // Fire-and-forget: latency stays off the UI path.  Errors are
-    // swallowed inside the service so the user never sees them.
     unawaited(core.agentGreeting.ensureGreeting(
       uid: profile.uid,
       agentId: AgentRegistry.ahJanAhBakId,
@@ -72,18 +70,21 @@ class _TodayPageState extends State<TodayPage> {
     return SafeArea(
       child: ListView(
         padding: EdgeInsets.zero,
-        // 睇今日 per Product Overview §3.2: greeting + agent-tile entry
-        // points + plan banner + safety pill + (later) weekly LLM card.
-        // Tools moved to 做啲嘢 tab as part of the four-tab IA.
         children: const [
           GreetingHero(),
-          QuietTodayBanner(),
+          ContinueChatCard(),
+          // Compliance banners — each hides itself when nothing is due,
+          // so the happy path matches the spec's seven-item layout but
+          // study-critical nudges still surface when the protocol calls
+          // for them.
           PendingPromptsBanner(),
           MissedCheckInBanner(),
           ActivePlanBanner(),
           AgentTileRow(),
+          FactsRecapRow(),
+          HomeToolShortcuts(),
           Padding(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, 72),
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 72),
             child: SafetyFooterCard(analyticsTag: 'today_safety_footer'),
           ),
         ],
