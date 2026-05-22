@@ -551,7 +551,6 @@ class _CheckInArmAState extends State<CheckInArmA> {
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final theme = Theme.of(context);
 
     final userTurnCount = _turns.where((t) => t.fromUser).length;
     final canEnd = userTurnCount >= 1 && !_saved;
@@ -638,11 +637,13 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// of the chat list which read as visual clutter throughout the
   /// session.
   Future<void> _openMoodSheet(bool isEn) async {
-    final theme = Theme.of(context);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      barrierColor: const Color(0x66000000),
       builder: (sheetCtx) {
         var localFace = _face;
         var localPicked = _facePicked;
@@ -664,7 +665,12 @@ class _CheckInArmAState extends State<CheckInArmA> {
                     isEn
                         ? 'How would you describe your mood today?'
                         : '你今日心情，揀一個你覺得最似嘅樣？',
-                    style: theme.textTheme.titleLarge,
+                    style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF3A3330),
+                      height: 1.35,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   MoodFacePicker(

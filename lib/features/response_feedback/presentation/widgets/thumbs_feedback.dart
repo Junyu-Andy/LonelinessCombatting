@@ -115,6 +115,13 @@ class _ThumbsFeedbackState extends State<ThumbsFeedback> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      // Force a warm off-white background and a neutral barrier — the
+      // M3 defaults pulled in `surfaceContainerLow` which collided
+      // with the chip / text colours and read as white-on-white on
+      // some devices.
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      barrierColor: const Color(0x66000000),
       builder: (ctx) => const _ReasonSheet(),
     );
     if (result == null) {
@@ -202,9 +209,21 @@ class _ReasonSheetState extends State<_ReasonSheet> {
     super.dispose();
   }
 
+  // Explicit colours throughout — the M3 ChipTheme defaults
+  // (white background, no explicit label colour) plus a white modal
+  // background were colliding to produce white-on-white labels and
+  // titles on some devices.  Hard-coding the palette here makes the
+  // sheet bullet-proof regardless of the ambient theme.
+  static const Color _ink = Color(0xFF3A3330);
+  static const Color _inkMuted = Color(0xFF8A7D72);
+  static const Color _accent = Color(0xFFC2703F);
+  static const Color _chipBg = Color(0xFFF7F2EC);
+  static const Color _chipSelectedBg = Color(0xFFE9D6BE);
+  static const Color _chipBorder = Color(0xFFE0D6C9);
+  static const Color _chipSelectedBorder = Color(0xFFC2703F);
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final showOther = _selected.contains(ResponseFeedbackReasons.other);
     return Padding(
       padding: EdgeInsets.only(
@@ -216,19 +235,19 @@ class _ReasonSheetState extends State<_ReasonSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             '咩位令你覺得唔啱？',
-            style: theme.textTheme.titleLarge?.copyWith(
+            style: TextStyle(
               fontSize: 19,
               fontWeight: FontWeight.w700,
+              color: _ink,
+              height: 1.35,
             ),
           ),
           const SizedBox(height: 4),
-          Text(
+          const Text(
             '可以揀一個或者多個。',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 14, color: _inkMuted),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -236,18 +255,15 @@ class _ReasonSheetState extends State<_ReasonSheet> {
             runSpacing: 8,
             children: ResponseFeedbackReasons.all.map((id) {
               final selected = _selected.contains(id);
-              return FilterChip(
-                label: Text(
-                  ResponseFeedbackReasons.labels[id] ?? id,
-                  style: const TextStyle(fontSize: 15),
-                ),
+              return _ReasonChip(
+                label: ResponseFeedbackReasons.labels[id] ?? id,
                 selected: selected,
-                onSelected: (v) {
+                onTap: () {
                   setState(() {
-                    if (v) {
-                      _selected.add(id);
-                    } else {
+                    if (selected) {
                       _selected.remove(id);
+                    } else {
+                      _selected.add(id);
                     }
                   });
                 },
@@ -259,9 +275,12 @@ class _ReasonSheetState extends State<_ReasonSheet> {
             TextField(
               controller: _otherCtrl,
               maxLines: 2,
-              style: const TextStyle(fontSize: 16),
+              style: const TextStyle(fontSize: 16, color: _ink),
               decoration: const InputDecoration(
                 hintText: '可以寫低你嘅感受…',
+                hintStyle: TextStyle(color: _inkMuted),
+                filled: true,
+                fillColor: Color(0xFFFBF8F3),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -279,11 +298,75 @@ class _ReasonSheetState extends State<_ReasonSheet> {
               },
               style: FilledButton.styleFrom(
                 minimumSize: const Size(double.infinity, 52),
+                backgroundColor: _accent,
+                foregroundColor: Colors.white,
               ),
-              child: const Text('完成', style: TextStyle(fontSize: 17)),
+              child: const Text(
+                '完成',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ReasonChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ReasonChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = selected
+        ? _ReasonSheetState._chipSelectedBg
+        : _ReasonSheetState._chipBg;
+    final border = selected
+        ? _ReasonSheetState._chipSelectedBorder
+        : _ReasonSheetState._chipBorder;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: border, width: selected ? 2 : 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected) ...[
+                const Icon(Icons.check_rounded,
+                    size: 18, color: _ReasonSheetState._accent),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: _ReasonSheetState._ink,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
