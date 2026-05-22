@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -12,6 +15,7 @@ import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/memory/cross_module_memory.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
+import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
@@ -69,6 +73,17 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// initState because Localizations.of needs the inherited context.
   bool _openerSeeded = false;
 
+  /// Mood value (1..5) used to phrase the opener.  Resolved from (in
+  /// priority order) the explicit `initialMoodValue`, today's
+  /// `daily_mood` doc, or the most recent `daily_mood` doc.  Null
+  /// means we have no mood history and fall back to a generic opener.
+  int? _resolvedMoodValue;
+
+  /// True iff `_resolvedMoodValue` came from today's record — controls
+  /// whether the opener phrases it as "you said today …" or "last time
+  /// you said …".
+  bool _resolvedMoodIsToday = true;
+
   /// Active cross-referral suggestion (Sprint 5). Cleared on dismiss
   /// or after the user accepts the handoff.
   SurfacedReferral? _pendingReferral;
@@ -90,50 +105,144 @@ class _CheckInArmAState extends State<CheckInArmA> {
     if (!_openerSeeded) {
       _openerSeeded = true;
       final isEn = Localizations.localeOf(context).languageCode == 'en';
-      _turns.add(_Turn.bot(_openingLine(isEn)));
-      // If the user came in from DailyMoodCard with a picked face, sync
-      // the bottom-sheet face state so "完成" doesn't re-ask for mood.
       if (widget.initialMoodValue != null) {
+        // Came in straight from DailyMoodCard — use the face the user
+        // just tapped and seed synchronously so the chat reads as
+        // immediate.
+        _resolvedMoodValue = widget.initialMoodValue;
+        _resolvedMoodIsToday = true;
         _face = _faceFromValue(widget.initialMoodValue!);
         _facePicked = true;
+        _turns.add(_Turn.bot(_openingLine(isEn)));
+      } else {
+        // Entered via the agent tile — look up today's mood first; if
+        // none, fall back to the most recent record so Siu Yan can at
+        // least say "上次你話麻麻地".
+        unawaited(_resolveMoodAndSeedOpener(isEn));
       }
     }
   }
 
+  Future<void> _resolveMoodAndSeedOpener(bool isEn) async {
+    final profile = AppSettingsScope.read(context).profile;
+    int? moodValue;
+    bool fromToday = true;
+    if (profile != null) {
+      try {
+        final db = FirebaseFirestore.instance;
+        final todayDoc = await db
+            .collection('users')
+            .doc(profile.uid)
+            .collection('daily_mood')
+            .doc(_todayKey())
+            .get();
+        if (todayDoc.exists) {
+          moodValue = (todayDoc.data()?['value'] as num?)?.toInt();
+          fromToday = true;
+        } else {
+          final recent = await db
+              .collection('users')
+              .doc(profile.uid)
+              .collection('daily_mood')
+              .orderBy(FieldPath.documentId, descending: true)
+              .limit(1)
+              .get();
+          if (recent.docs.isNotEmpty) {
+            moodValue =
+                (recent.docs.first.data()['value'] as num?)?.toInt();
+            fromToday = false;
+          }
+        }
+      } catch (_) {
+        // Firestore unavailable — fall through with moodValue == null
+        // and the opener will use the generic phrasing.
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _resolvedMoodValue = moodValue;
+      _resolvedMoodIsToday = fromToday;
+      if (moodValue != null && fromToday) {
+        // Pre-fill the end-of-session face so "完成" doesn't re-ask for
+        // a mood the user already logged today.
+        _face = _faceFromValue(moodValue);
+        _facePicked = true;
+      }
+      _turns.add(_Turn.bot(_openingLine(isEn)));
+    });
+  }
+
+  String _todayKey() {
+    final now = DateTime.now();
+    final y = now.year.toString().padLeft(4, '0');
+    final m = now.month.toString().padLeft(2, '0');
+    final d = now.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
   String _openingLine(bool isEn) {
-    final mood = widget.initialMoodValue;
+    final mood = _resolvedMoodValue;
     if (mood == null) {
       return isEn
           ? 'Hi — how are you today? Write a few words or speak whenever you\'re ready.'
           : '你好啊。你今日點？寫幾句、或者用咪都得。';
     }
-    // Mood-aware opener — references the face the user just tapped on the
-    // home card so Siu Yan doesn't ask the same question over again.
-    if (isEn) {
+    if (_resolvedMoodIsToday) {
+      if (isEn) {
+        switch (mood) {
+          case 1:
+            return 'I saw you marked today as quite hard. I\'m here — take your time, what\'s weighing on you?';
+          case 2:
+            return 'You said today doesn\'t feel great. Want to tell me a bit more about what\'s going on?';
+          case 3:
+            return 'So-so today. Want to share what\'s on your mind, big or small?';
+          case 4:
+            return 'You said today feels okay. What\'s been the best part so far?';
+          case 5:
+            return 'You said today\'s been good! Tell me what made it nice.';
+        }
+      }
       switch (mood) {
         case 1:
-          return 'I saw you marked today as quite hard. I\'m here — take your time, what\'s weighing on you?';
+          return '見到你話今日好差。我喺度，慢慢講，係咩事令你咁辛苦呀？';
         case 2:
-          return 'You said today doesn\'t feel great. Want to tell me a bit more about what\'s going on?';
+          return '你話今日差咗，係邊方面唔舒服呀？同我講多少少。';
         case 3:
-          return 'So-so today. Want to share what\'s on your mind, big or small?';
+          return '麻麻地嘅一日，腦海入面有咩想講，無論大小都得。';
         case 4:
-          return 'You said today feels okay. What\'s been the best part so far?';
+          return '你話今日幾好。咁今日最好嘅一刻係咩呢？';
         case 5:
-          return 'You said today\'s been good! Tell me what made it nice.';
+          return '你話今日好好喎！同我講下係咩令你咁開心？';
       }
-    }
-    switch (mood) {
-      case 1:
-        return '見到你話今日好差。我喺度，慢慢講，係咩事令你咁辛苦呀？';
-      case 2:
-        return '你話今日差咗，係邊方面唔舒服呀？同我講多少少。';
-      case 3:
-        return '麻麻地嘅一日，腦海入面有咩想講，無論大小都得。';
-      case 4:
-        return '你話今日幾好。咁今日最好嘅一刻係咩呢？';
-      case 5:
-        return '你話今日好好喎！同我講下係咩令你咁開心？';
+    } else {
+      // Most-recent (non-today) mood — phrase as "last time you said …
+      // how about today?" so the opener still asks for fresh input.
+      if (isEn) {
+        switch (mood) {
+          case 1:
+            return 'Last time you marked things as quite hard. How are you doing today?';
+          case 2:
+            return 'Last time felt bad. How\'s today — any different?';
+          case 3:
+            return 'Last time was so-so. What about today?';
+          case 4:
+            return 'Last time felt okay. How\'s today going?';
+          case 5:
+            return 'Last time was good! How\'s today shaping up?';
+        }
+      }
+      switch (mood) {
+        case 1:
+          return '上次你話好辛苦。今日點呀？同我講少少。';
+        case 2:
+          return '上次你話差咗少少。今日好啲未呀？';
+        case 3:
+          return '上次麻麻地。今日有冇好啲？';
+        case 4:
+          return '上次你話幾好。今日呢？';
+        case 5:
+          return '上次你話好好。今日仲係咁好嗎？';
+      }
     }
     return isEn
         ? 'Hi — what\'s on your mind today?'
@@ -673,8 +782,10 @@ class _TurnBubble extends StatelessWidget {
           color: color,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: Text(turn.text,
-            style: TextStyle(fontSize: 17, height: 1.4, color: fg)),
+        child: RichChatText(
+          text: turn.text,
+          style: TextStyle(fontSize: 17, height: 1.4, color: fg),
+        ),
       ),
     );
   }

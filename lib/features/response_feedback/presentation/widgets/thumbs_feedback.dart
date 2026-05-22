@@ -118,12 +118,15 @@ class _ThumbsFeedbackState extends State<ThumbsFeedback> {
       builder: (ctx) => const _ReasonSheet(),
     );
     if (result == null) {
-      // Tap-outside dismiss.
+      // Tap-outside dismiss.  Log it for analytics, then reset the
+      // in-memory rating so the user can re-open the sheet — earlier
+      // builds left the buttons disabled here, which read as a bug.
       await _writeFeedback(
         rating: 'down',
         reasons: const [],
         unintentionalDismiss: true,
       );
+      if (mounted) setState(() => _selectedRating = null);
       return;
     }
     await _writeFeedback(

@@ -25,6 +25,7 @@ import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
+import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
@@ -578,8 +579,10 @@ class _TurnBubble extends StatelessWidget {
           color: color,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: Text(turn.text,
-            style: TextStyle(fontSize: 17, height: 1.4, color: fg)),
+        child: RichChatText(
+          text: turn.text,
+          style: TextStyle(fontSize: 17, height: 1.4, color: fg),
+        ),
       ),
     );
   }

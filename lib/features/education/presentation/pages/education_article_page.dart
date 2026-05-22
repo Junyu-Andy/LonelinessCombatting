@@ -6,6 +6,7 @@ import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
+import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../curious_companion/presentation/pages/tung_tung_page.dart';
 import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/education_library.dart';
@@ -250,8 +251,10 @@ class _Bubble extends StatelessWidget {
           color: color,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: Text(turn.text,
-            style: TextStyle(fontSize: 17, height: 1.4, color: fg)),
+        child: RichChatText(
+          text: turn.text,
+          style: TextStyle(fontSize: 17, height: 1.4, color: fg),
+        ),
       ),
     );
   }
