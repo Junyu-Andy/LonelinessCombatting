@@ -10,8 +10,6 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/scheduling/pending_prompts_service.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
-import '../../../weekly_pr/data/weekly_pr_trigger.dart';
-import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
 
 class PendingPromptsBanner extends StatefulWidget {
   const PendingPromptsBanner({super.key});
@@ -44,26 +42,12 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
     });
   }
 
-  Future<void> _openPgicThenWeekly(List<WeeklyPrAgentUsage> agents) async {
+  Future<void> _openPgicOnly() async {
+    // Weekly PR follow-up after PGIC is deferred per product — the
+    // weekly companion review surface is not currently exposed to
+    // participants.  PGIC still fires on its weekly schedule.
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const PgicPage()),
-    );
-    if (!mounted) return;
-    if (agents.isNotEmpty) {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => WeeklyPrPage(agents: agents),
-        ),
-      );
-    }
-    if (mounted) setState(() => _pending = null);
-  }
-
-  Future<void> _openWeekly(List<WeeklyPrAgentUsage> agents) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => WeeklyPrPage(agents: agents),
-      ),
     );
     if (mounted) setState(() => _pending = null);
   }
@@ -92,18 +76,12 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
         subtitle: isEn
             ? 'Has your loneliness changed since last week?'
             : '同上週比較，孤單感有冇變化？',
-        onTap: () => _openPgicThenWeekly(p.weeklyPrAgents),
-      ));
-    } else if (p.weeklyPr) {
-      tiles.add(_BannerTile(
-        icon: Icons.people_alt_outlined,
-        title: isEn ? 'Weekly companion check-in' : '每週夥伴評估',
-        subtitle: isEn
-            ? 'Share how your conversations with your companion felt this week.'
-            : '回想下你呢個禮拜同夥伴傾偈嘅感受。',
-        onTap: () => _openWeekly(p.weeklyPrAgents),
+        onTap: _openPgicOnly,
       ));
     }
+    // Weekly PR tile suppressed per product — re-add the `else if
+    // (p.weeklyPr)` branch + `_openWeekly` route when the weekly
+    // companion review surface ships again.
 
     if (p.agentDiffW2) {
       tiles.add(_BannerTile(

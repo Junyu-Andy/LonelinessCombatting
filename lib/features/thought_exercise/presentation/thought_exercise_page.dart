@@ -66,14 +66,29 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
     super.initState();
     _situationCtrl = TextEditingController();
     _thoughtCtrl = TextEditingController(text: widget.initialThought ?? '');
+    // Each required field drives the "繼續" button's enabled state via
+    // [_isComplete], which is recomputed during build.  Without these
+    // listeners the button stayed disabled forever because TextField
+    // edits don't rebuild on their own.
+    _situationCtrl.addListener(_onFieldChanged);
+    _thoughtCtrl.addListener(_onFieldChanged);
+    _reasonCtrl.addListener(_onFieldChanged);
     if (!_firstVisitHintShown) {
       _showFirstVisitHint = true;
       _firstVisitHintShown = true;
     }
   }
 
+  void _onFieldChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
   @override
   void dispose() {
+    _situationCtrl.removeListener(_onFieldChanged);
+    _thoughtCtrl.removeListener(_onFieldChanged);
+    _reasonCtrl.removeListener(_onFieldChanged);
     _situationCtrl.dispose();
     _thoughtCtrl.dispose();
     _reasonCtrl.dispose();
