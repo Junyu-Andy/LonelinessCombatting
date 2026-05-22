@@ -9,6 +9,8 @@ import '../core/agents/persona_resolver.dart';
 import '../core/core_services_scope.dart';
 import '../core/cross_referral/handoff_executor.dart';
 import '../core/cross_referral/referral_routing_service.dart';
+import '../core/fcm/fcm_service.dart';
+import '../core/llm/agent_greeting_service.dart';
 import '../core/llm/llm_gateway.dart';
 import '../core/memory/cross_module_memory.dart';
 import '../core/memory/memory_store.dart';
@@ -16,6 +18,8 @@ import '../core/safety/distress_detector.dart';
 import '../core/safety/distress_router.dart';
 import '../core/safety/distress_state.dart';
 import '../core/safety/safety_overlay.dart';
+import '../core/telemetry/screen_dwell_observer.dart';
+import '../core/telemetry/screen_dwell_tracker.dart';
 import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
 import '../features/auth/data/auth_service.dart';
@@ -41,6 +45,8 @@ class MyApp extends StatefulWidget {
   final PersonaResolver personaResolver;
   final ReferralRoutingService referralRouting;
   final HandoffExecutor handoffExecutor;
+  final AgentGreetingService agentGreeting;
+  final FcmService fcm;
 
   const MyApp({
     super.key,
@@ -58,6 +64,8 @@ class MyApp extends StatefulWidget {
     required this.personaResolver,
     required this.referralRouting,
     required this.handoffExecutor,
+    required this.agentGreeting,
+    required this.fcm,
   });
 
   @override
@@ -65,22 +73,37 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  String? _lastFcmUid;
+  final ScreenDwellObserver _dwellObserver = ScreenDwellObserver();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.settings.addListener(_onSettingsChange);
     _onSettingsChange();
-    widget.analytics.startSession(platform: _currentPlatform());
+    ScreenDwellTracker.instance.bind(widget.analytics);
+    widget.analytics.logSessionStart(platform: _currentPlatform());
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.settings.removeListener(_onSettingsChange);
-    // Best-effort — flush a session_end on teardown.
     widget.analytics.endSession();
     super.dispose();
+  }
+
+  /// Called by [AuthGate] (via auth state stream) when the signed-in uid
+  /// changes.  Initialises FCM on first sign-in; deregisters on sign-out.
+  Future<void> _onAuthUidChanged(String? uid) async {
+    if (uid == _lastFcmUid) return;
+    _lastFcmUid = uid;
+    if (uid != null) {
+      await widget.fcm.initialize(uid);
+    } else {
+      await widget.fcm.deregister();
+    }
   }
 
   void _onSettingsChange() {
@@ -95,13 +118,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        widget.analytics.startSession(platform: _currentPlatform());
+        widget.analytics.logSessionStart(platform: _currentPlatform());
         break;
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
-        widget.analytics.endSession();
+        ScreenDwellTracker.instance.backgroundAll();
+        widget.analytics.logSessionEnd(
+          durationSeconds: 0,
+          exitReason: 'background',
+        );
         break;
     }
   }
@@ -136,11 +163,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           personaResolver: widget.personaResolver,
           referralRouting: widget.referralRouting,
           handoffExecutor: widget.handoffExecutor,
+          agentGreeting: widget.agentGreeting,
           child: AppSettingsScope(
           settings: widget.settings,
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
-            title: 'AppName',
+            navigatorObservers: [_dwellObserver],
+            title: '陪住',
             theme: widget.settings.highContrast
                 ? AppTheme.highContrast
                 : AppTheme.light,
@@ -169,6 +198,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             home: AuthGate(
               authService: widget.authService,
               analytics: widget.analytics,
+              onAuthUidChanged: _onAuthUidChanged,
             ),
           ),
           ),

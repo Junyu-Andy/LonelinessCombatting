@@ -68,6 +68,11 @@ class AuthService {
     String? emergencyContactPhone,
     String? preferredLanguage,
     ConsentFlags consent = const ConsentFlags(),
+    /// C.2 — baseline UCLA-LS-V3 total used for stratification (Phase B
+    /// §4.4).  Pass when known at signup (HKU baseline assessment
+    /// completed before in-person onboarding).  Null in Phase A is
+    /// acceptable since forceArmA shortcuts the assignment anyway.
+    int? baselineUclaScore,
   }) async {
     _ensureAvailable();
     final credential = await _auth.createUserWithEmailAndPassword(
@@ -76,7 +81,11 @@ class AuthService {
     );
     final user = credential.user!;
     await user.updateDisplayName(displayName);
-    final arm = await _armAssigner.assign(_db);
+    final assignment = await _armAssigner.assign(
+      _db,
+      ageGroup: ageGroup,
+      uclaScore: baselineUclaScore,
+    );
     final profile = UserProfile(
       uid: user.uid,
       email: user.email ?? email.trim(),
@@ -85,7 +94,8 @@ class AuthService {
       emergencyContactName: emergencyContactName,
       emergencyContactPhone: emergencyContactPhone,
       preferredLanguage: preferredLanguage,
-      arm: arm,
+      arm: assignment.arm,
+      strataCell: assignment.cell,
       consent: consent,
       createdAt: DateTime.now(),
       lastLoginAt: DateTime.now(),
@@ -111,6 +121,19 @@ class AuthService {
     );
   }
 
+  /// B.10 — activate 今日休息 for [uid].  Idempotent: if already activated
+  /// today, this is a no-op (returns false).  Returns true when newly set.
+  Future<bool> activateQuietToday(UserProfile profile) async {
+    if (!available) return false;
+    if (profile.isQuietToday) return false;
+    final now = DateTime.now();
+    await _db.collection('users').doc(profile.uid).set(
+      {'quietTodayActivatedAt': now.toIso8601String()},
+      SetOptions(merge: true),
+    );
+    return true;
+  }
+
   Future<UserProfile> _loadOrCreateProfile(User user) async {
     final ref = _db.collection('users').doc(user.uid);
 
@@ -132,19 +155,25 @@ class AuthService {
       final existing = UserProfile.fromMap(user.uid, doc.data() ?? {});
       // Backfill arm for accounts created before randomisation went live.
       if (existing.arm == null) {
-        final arm = await _armAssigner.assign(_db);
-        final patched = existing.copyWith(arm: arm);
-        await ref.set({'arm': arm.code}, SetOptions(merge: true));
+        final result = await _armAssigner.assign(_db,
+            ageGroup: existing.ageGroup);
+        final patched = existing.copyWith(
+            arm: result.arm, strataCell: result.cell);
+        await ref.set({
+          'arm': result.arm.code,
+          'strataCell': result.cell,
+        }, SetOptions(merge: true));
         return patched;
       }
       return existing;
     }
-    final arm = await _armAssigner.assign(_db);
+    final result = await _armAssigner.assign(_db);
     final profile = UserProfile(
       uid: user.uid,
       email: user.email ?? '',
       displayName: user.displayName ?? (user.email ?? '用戶').split('@').first,
-      arm: arm,
+      arm: result.arm,
+      strataCell: result.cell,
       createdAt: DateTime.now(),
       lastLoginAt: DateTime.now(),
     );

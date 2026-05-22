@@ -191,10 +191,48 @@ class UserProfile {
   /// time (Dev Req §6.2). Free-text, lower-cased, deduplicated.
   final List<String> interests;
 
+  /// C.2 — stratification cell assigned at signup (0–3, based on age group).
+  /// Null for users enrolled before Sprint 1 (treated as cell 0 in analysis).
+  final int? strataCell;
+
+  /// B.6 — timestamps of the first brief-PPR shown per agent.  Missing key
+  /// means the mandatory (non-dismissable) first-prompt modal must still
+  /// run for that agent; presence means subsequent prompts are skippable.
+  /// Lives on the profile (not the PPR doc) so the modal can decide without
+  /// querying ppr_responses.
+  final Map<String, DateTime> firstPprSeenByAgent;
+
+  /// B.10 — when set, the user activated 今日休息 today and the app should
+  /// suppress reminders + non-essential nudges until midnight local time.
+  /// Stored as a DateTime (the activation moment); helper [isQuietToday]
+  /// resolves staleness against `DateTime.now()`.
+  final DateTime? quietTodayActivatedAt;
+
+  /// C.1 — server-side feature flag mirror.  When true, the weekly
+  /// loneliness-probe cron enqueues a probe for this user every Sunday
+  /// 09:00 HKT.  Defaults to false (Phase A).  Flipped per-user by the
+  /// PI when Phase B begins — not toggled in-app.
+  final bool weeklyProbeEnabled;
+
   /// Timestamps of the first time each agent introduced itself to the
   /// user (Dev Req §3.3). Missing entries mean the intro has not been
   /// shown yet and must be played the next time the agent opens.
   final Map<String, DateTime> firstIntroSeen;
+
+  /// Safety field — topics the user asked agents NOT to raise.
+  /// Propagated into agent system prompts as a hard constraint.
+  /// Captured in onboarding intake Part 5.
+  final String? avoidTopics;
+
+  /// True once the 6-part intake questionnaire is completed.
+  /// Used by ConsentGate to decide whether to show IntakeFlowPage.
+  final bool hasCompletedIntake;
+
+  /// Preferred input mode from intake Part 6 (typing / voice / both / unsure).
+  final String? inputMode;
+
+  /// Preferred chat times from intake Part 6.
+  final List<String>? preferredTimes;
 
   const UserProfile({
     required this.uid,
@@ -212,8 +250,24 @@ class UserProfile {
     this.ahJanAhBakVariant,
     this.closeContacts = const [],
     this.interests = const [],
+    this.strataCell,
+    this.firstPprSeenByAgent = const {},
+    this.quietTodayActivatedAt,
+    this.weeklyProbeEnabled = false,
     this.firstIntroSeen = const {},
+    this.avoidTopics,
+    this.hasCompletedIntake = false,
+    this.inputMode,
+    this.preferredTimes,
   });
+
+  /// B.10 — true when the activation timestamp is for the current local day.
+  bool get isQuietToday {
+    final t = quietTodayActivatedAt;
+    if (t == null) return false;
+    final now = DateTime.now();
+    return t.year == now.year && t.month == now.month && t.day == now.day;
+  }
 
   UserProfile copyWith({
     String? displayName,
@@ -228,7 +282,15 @@ class UserProfile {
     AgentGenderVariant? ahJanAhBakVariant,
     List<CloseContact>? closeContacts,
     List<String>? interests,
+    int? strataCell,
+    Map<String, DateTime>? firstPprSeenByAgent,
+    DateTime? quietTodayActivatedAt,
+    bool? weeklyProbeEnabled,
     Map<String, DateTime>? firstIntroSeen,
+    String? avoidTopics,
+    bool? hasCompletedIntake,
+    String? inputMode,
+    List<String>? preferredTimes,
   }) {
     return UserProfile(
       uid: uid,
@@ -247,7 +309,16 @@ class UserProfile {
       ahJanAhBakVariant: ahJanAhBakVariant ?? this.ahJanAhBakVariant,
       closeContacts: closeContacts ?? this.closeContacts,
       interests: interests ?? this.interests,
+      strataCell: strataCell ?? this.strataCell,
+      firstPprSeenByAgent: firstPprSeenByAgent ?? this.firstPprSeenByAgent,
+      quietTodayActivatedAt:
+          quietTodayActivatedAt ?? this.quietTodayActivatedAt,
+      weeklyProbeEnabled: weeklyProbeEnabled ?? this.weeklyProbeEnabled,
       firstIntroSeen: firstIntroSeen ?? this.firstIntroSeen,
+      avoidTopics: avoidTopics ?? this.avoidTopics,
+      hasCompletedIntake: hasCompletedIntake ?? this.hasCompletedIntake,
+      inputMode: inputMode ?? this.inputMode,
+      preferredTimes: preferredTimes ?? this.preferredTimes,
     );
   }
 
@@ -267,10 +338,21 @@ class UserProfile {
         'ahJanAhBakVariant': ahJanAhBakVariant?.code,
         'closeContacts': closeContacts.map((c) => c.toMap()).toList(),
         'interests': interests,
+        'strataCell': strataCell,
+        'firstPprSeenByAgent': {
+          for (final e in firstPprSeenByAgent.entries)
+            e.key: e.value.toIso8601String(),
+        },
+        'quietTodayActivatedAt': quietTodayActivatedAt?.toIso8601String(),
+        'weeklyProbeEnabled': weeklyProbeEnabled,
         'firstIntroSeen': {
           for (final e in firstIntroSeen.entries)
             e.key: e.value.toIso8601String(),
         },
+        'avoidTopics': avoidTopics,
+        'hasCompletedIntake': hasCompletedIntake,
+        'inputMode': inputMode,
+        'preferredTimes': preferredTimes,
       };
 
   factory UserProfile.fromMap(String uid, Map<String, dynamic> map) {
@@ -312,6 +394,16 @@ class UserProfile {
         }
       });
     }
+    final pprRaw = map['firstPprSeenByAgent'];
+    final firstPpr = <String, DateTime>{};
+    if (pprRaw is Map) {
+      pprRaw.forEach((k, v) {
+        if (k is String) {
+          final dt = parseDate(v);
+          if (dt != null) firstPpr[k] = dt;
+        }
+      });
+    }
 
     return UserProfile(
       uid: uid,
@@ -330,7 +422,15 @@ class UserProfile {
           AgentGenderVariant.tryParse(map['ahJanAhBakVariant'] as String?),
       closeContacts: contacts,
       interests: interests,
+      strataCell: (map['strataCell'] as num?)?.toInt(),
+      firstPprSeenByAgent: firstPpr,
+      quietTodayActivatedAt: parseDate(map['quietTodayActivatedAt']),
+      weeklyProbeEnabled: (map['weeklyProbeEnabled'] as bool?) ?? false,
       firstIntroSeen: intro,
+      avoidTopics: map['avoidTopics'] as String?,
+      hasCompletedIntake: (map['hasCompletedIntake'] as bool?) ?? false,
+      inputMode: map['inputMode'] as String?,
+      preferredTimes: (map['preferredTimes'] as List?)?.whereType<String>().toList(),
     );
   }
 }

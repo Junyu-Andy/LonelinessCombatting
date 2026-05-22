@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/safety/safety_overlay.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/auth_service.dart';
 import '../../data/user_profile.dart';
@@ -90,6 +91,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final settings = AppSettingsScope.of(context);
+    final isEn = settings.locale.languageCode == 'en';
 
     return SafetyOverlaySuppressor(child: Scaffold(
       body: SafeArea(
@@ -100,7 +102,7 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _Header(isSignUp: _isSignUp),
+                _Header(isSignUp: _isSignUp, isEn: isEn),
                 const SizedBox(height: 24),
                 if (!widget.authService.available)
                   _GuestBanner()
@@ -111,14 +113,14 @@ class _LoginPageState extends State<LoginPage> {
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: '電郵',
-                    prefixIcon: Icon(Icons.mail_outline),
+                  decoration: InputDecoration(
+                    labelText: isEn ? 'Email' : '電郵',
+                    prefixIcon: const Icon(Icons.mail_outline),
                   ),
                   validator: (v) {
                     final value = v?.trim() ?? '';
-                    if (value.isEmpty) return '請輸入電郵。';
-                    if (!value.contains('@')) return '電郵格式唔啱。';
+                    if (value.isEmpty) return isEn ? 'Please enter your email.' : '請輸入電郵。';
+                    if (!value.contains('@')) return isEn ? 'Email format is incorrect.' : '電郵格式唔啱。';
                     return null;
                   },
                 ),
@@ -129,12 +131,12 @@ class _LoginPageState extends State<LoginPage> {
                   textInputAction: _isSignUp
                       ? TextInputAction.next
                       : TextInputAction.done,
-                  decoration: const InputDecoration(
-                    labelText: '密碼',
-                    prefixIcon: Icon(Icons.lock_outline),
+                  decoration: InputDecoration(
+                    labelText: isEn ? 'Password' : '密碼',
+                    prefixIcon: const Icon(Icons.lock_outline),
                   ),
                   validator: (v) {
-                    if ((v ?? '').length < 6) return '密碼最少 6 個字。';
+                    if ((v ?? '').length < 6) return isEn ? 'Password must be at least 6 characters.' : '密碼最少 6 個字。';
                     return null;
                   },
                 ),
@@ -142,46 +144,48 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 20),
                   _SectionLabel(
                     icon: Icons.badge_outlined,
-                    text: '基本資料',
+                    text: isEn ? 'Basic info' : '基本資料',
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _nameCtrl,
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: '你想我哋點樣叫你？',
-                      prefixIcon: Icon(Icons.person_outline),
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'What should we call you?' : '你想我哋點樣叫你？',
+                      prefixIcon: const Icon(Icons.person_outline),
                     ),
                     validator: (v) =>
-                        (v ?? '').trim().isEmpty ? '請輸入稱呼。' : null,
+                        (v ?? '').trim().isEmpty ? (isEn ? 'Please enter a name.' : '請輸入稱呼。') : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _ageCtrl,
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: '年齡',
-                      hintText: '例：72',
-                      prefixIcon: Icon(Icons.cake_outlined),
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'Age' : '年齡',
+                      hintText: isEn ? 'e.g. 72' : '例：72',
+                      prefixIcon: const Icon(Icons.cake_outlined),
                     ),
                     validator: (v) {
                       final text = (v ?? '').trim();
                       if (text.isEmpty) return null; // optional
                       final n = int.tryParse(text);
-                      if (n == null) return '請輸入數字。';
-                      if (n < 1 || n > 120) return '請輸入合理嘅年齡。';
+                      if (n == null) return isEn ? 'Please enter a number.' : '請輸入數字。';
+                      if (n < 1 || n > 120) return isEn ? 'Please enter a valid age.' : '請輸入合理嘅年齡。';
                       return null;
                     },
                   ),
                   const SizedBox(height: 20),
                   _SectionLabel(
                     icon: Icons.contacts_outlined,
-                    text: '緊急聯絡人（必須）',
+                    text: isEn ? 'Emergency contact (required)' : '緊急聯絡人（必須）',
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '我哋會喺「即時支援」頁面顯示呢位聯絡人，方便有需要時搵到佢。',
+                    isEn
+                        ? 'This contact will appear on the Emergency Support page so you can reach them quickly.'
+                        : '我哋會喺「即時支援」頁面顯示呢位聯絡人，方便有需要時搵到佢。',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -190,26 +194,26 @@ class _LoginPageState extends State<LoginPage> {
                   TextFormField(
                     controller: _contactNameCtrl,
                     textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: '聯絡人稱呼',
-                      prefixIcon: Icon(Icons.favorite_outline),
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'Contact name' : '聯絡人稱呼',
+                      prefixIcon: const Icon(Icons.favorite_outline),
                     ),
                     validator: (v) =>
-                        (v ?? '').trim().isEmpty ? '請填寫聯絡人稱呼。' : null,
+                        (v ?? '').trim().isEmpty ? (isEn ? 'Please enter a contact name.' : '請填寫聯絡人稱呼。') : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _contactPhoneCtrl,
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.done,
-                    decoration: const InputDecoration(
-                      labelText: '聯絡電話',
-                      prefixIcon: Icon(Icons.phone_outlined),
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'Contact phone' : '聯絡電話',
+                      prefixIcon: const Icon(Icons.phone_outlined),
                     ),
                     validator: (v) {
                       final value = (v ?? '').trim();
-                      if (value.isEmpty) return '請填寫聯絡電話。';
-                      if (value.length < 6) return '電話號碼太短。';
+                      if (value.isEmpty) return isEn ? 'Please enter a phone number.' : '請填寫聯絡電話。';
+                      if (value.length < 6) return isEn ? 'Phone number is too short.' : '電話號碼太短。';
                       return null;
                     },
                   ),
@@ -233,7 +237,7 @@ class _LoginPageState extends State<LoginPage> {
                       : Icon(_isSignUp
                           ? Icons.person_add_alt
                           : Icons.login_rounded),
-                  label: Text(_isSignUp ? '建立帳號' : '登入'),
+                  label: Text(_isSignUp ? (isEn ? 'Create account' : '建立帳號') : (isEn ? 'Sign in' : '登入')),
                 ),
                 const SizedBox(height: 10),
                 TextButton(
@@ -244,7 +248,9 @@ class _LoginPageState extends State<LoginPage> {
                             _error = null;
                           }),
                   child: Text(
-                    _isSignUp ? '已有帳號？登入' : '未有帳號？建立一個',
+                    _isSignUp
+                        ? (isEn ? 'Already have an account? Sign in' : '已有帳號？登入')
+                        : (isEn ? 'No account? Create one' : '未有帳號？建立一個'),
                     style: theme.textTheme.titleSmall,
                   ),
                 ),
@@ -316,8 +322,9 @@ class _HkuBadge extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   final bool isSignUp;
+  final bool isEn;
 
-  const _Header({required this.isSignUp});
+  const _Header({required this.isSignUp, required this.isEn});
 
   @override
   Widget build(BuildContext context) {
@@ -329,19 +336,22 @@ class _Header extends StatelessWidget {
           children: [
             Icon(Icons.favorite, size: 36, color: theme.colorScheme.primary),
             const SizedBox(width: 12),
-            Text('AppName', style: theme.textTheme.titleLarge),
+            Text(AppLocalizations.of(context)!.appTitle,
+                style: theme.textTheme.titleLarge),
           ],
         ),
         const SizedBox(height: 14),
         Text(
-          isSignUp ? '建立你嘅帳號' : '歡迎返嚟',
+          isSignUp
+              ? (isEn ? 'Create your account' : '建立你嘅帳號')
+              : (isEn ? 'Welcome back' : '歡迎返嚟'),
           style: theme.textTheme.headlineMedium,
         ),
         const SizedBox(height: 6),
         Text(
           isSignUp
-              ? '填少少資料幫我哋認識你。'
-              : '輸入你嘅電郵同密碼。',
+              ? (isEn ? 'Fill in a few details so we can get to know you.' : '填少少資料幫我哋認識你。')
+              : (isEn ? 'Enter your email and password.' : '輸入你嘅電郵同密碼。'),
           style: theme.textTheme.bodyLarge?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -406,6 +416,7 @@ class _ErrorBanner extends StatelessWidget {
 class _GuestBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
@@ -421,7 +432,9 @@ class _GuestBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Firebase 未設定。登入功能暫時唔可用，但語言同高對比模式仍然正常。',
+              isEn
+                  ? 'Firebase is not configured. Sign-in is unavailable, but language and high-contrast settings still work.'
+                  : 'Firebase 未設定。登入功能暫時唔可用，但語言同高對比模式仍然正常。',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.brown.shade800,
               ),

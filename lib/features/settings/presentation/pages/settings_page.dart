@@ -3,12 +3,21 @@ import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
+import '../../../personalization/presentation/pages/personalization_page.dart';
 import '../../../ppr/presentation/pages/ppr_weekly_page.dart';
+import '../../../progress/presentation/pages/progress_page.dart';
+import '../../../my_story/presentation/pages/my_story_page.dart';
 import '../../../researcher_dashboard/presentation/pages/researcher_dashboard_page.dart';
+import '../../../assessment/presentation/pages/pgic_page.dart';
+import '../../../assessment/presentation/pages/agent_diff_page.dart';
+import '../../../weekly_pr/data/weekly_pr_trigger.dart';
+import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
+import '../../../../core/arm/arm_scope.dart';
 import 'faq_page.dart';
 import 'privacy_policy_page.dart';
 
@@ -48,6 +57,124 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 20),
             _ProfileCard(profile: settings.profile!, isEn: isEn),
           ],
+
+          // 自己 tab (Product Overview §3.2) now folds three personal
+          // surfaces above the existing settings sections:
+          //   · 我的紀錄 (Progress)
+          //   · 我的資料 (Profile / Personalization)
+          //   · 緊急支援 (Emergency support)
+          const SizedBox(height: 24),
+          _SectionHeader(
+            icon: Icons.person_outline,
+            title: isEn ? 'About me' : '關於我',
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.bar_chart_outlined,
+            title: l10n.meItemProgress,
+            subtitle: l10n.meItemProgressSubtitle,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ProgressPage()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.sentiment_satisfied_outlined,
+            title: isEn ? 'Weekly mood change' : '每週感受變化',
+            subtitle: isEn
+                ? '7-point loneliness change rating'
+                : '過去一週，孤單感有冇變化？',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const PgicPage()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.people_alt_outlined,
+            title: isEn ? 'Companion assessment' : '夥伴評估',
+            subtitle: isEn
+                ? 'W2/W4 usage and personality rating'
+                : '第 2 及 4 週嘅夥伴使用評估',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AgentDiffPage(wave: 2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.rate_review_outlined,
+            title: isEn ? 'Weekly companion review' : '每週夥伴評估',
+            subtitle: isEn
+                ? '12 short items per companion used this week'
+                : '回想下你呢個禮拜同夥伴傾偈嘅感受',
+            onTap: () async {
+              final profile = settings.profile;
+              if (profile == null) return;
+              final trigger = WeeklyPrTrigger();
+              final agents = await trigger.agentsUsedThisWeek(profile.uid);
+              if (!context.mounted) return;
+              if (agents.isEmpty) {
+                final armCode = Arm.of(context)?.code ?? 'B';
+                await trigger.writeNoReferent(profile.uid, armCode);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('呢個禮拜冇用過任何 companion。'),
+                  ),
+                );
+                return;
+              }
+              await Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => WeeklyPrPage(agents: agents),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          // 人生回顧 — index into the 4-week Ah Jan/Ah Bak curriculum +
+          // story threads.  The reminiscence sessions themselves live
+          // under 搵人傾 → Ah Jan/Ah Bak; this entry is the read-only
+          // overview (週、主題、past summaries) the IA used to surface
+          // as the standalone "人生點滴" tab before the four-tab restructure.
+          // Research Review v2 Item 6: title swappable — research recommends
+          // "我嘅故事" if this is NOT a full clinical life-review curriculum.
+          // Current: "人生回顧" (formal); alt key: lifeReviewAltTitle = "我嘅故事".
+          // Sub-text added per Item 6 spec.
+          _NavTileCard(
+            icon: Icons.menu_book_outlined,
+            title: isEn ? 'Life-review progress' : '人生回顧',
+            subtitle: isEn
+                ? 'Take your time — skip anything you\'d rather not discuss.'
+                : '慢慢嚟，可以跳過唔想講嘅時期。',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const MyStoryPage()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.account_circle_outlined,
+            title: l10n.meItemProfile,
+            subtitle: l10n.meItemProfileSubtitle,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PersonalizationPage(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.support_outlined,
+            title: l10n.meItemCrisis,
+            subtitle: l10n.meItemCrisisSubtitle,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const EmergencySupportPage(),
+              ),
+            ),
+          ),
+
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.text_fields_rounded,
@@ -107,6 +234,32 @@ class _SettingsPageState extends State<SettingsPage> {
                 : '打開後，主要文字會有語音朗讀。',
             value: _voiceReadback,
             onChanged: (value) => setState(() => _voiceReadback = value),
+          ),
+          const SizedBox(height: 14),
+          // B.10 — 今日休息 dignified pause.  Idempotent: toggling back off
+          // is intentionally not supported once activated; the flag clears
+          // at midnight local time (see UserProfile.isQuietToday).
+          _SwitchTileCard(
+            icon: Icons.bedtime_outlined,
+            title: isEn ? 'Rest today' : '今日休息',
+            subtitle: isEn
+                ? 'No reminders or nudges today. Resumes tomorrow.'
+                : '今日唔會有任何提醒或推送。聽日自動回復。',
+            value: settings.profile?.isQuietToday ?? false,
+            onChanged: (value) async {
+              final profile = settings.profile;
+              if (profile == null || !value) return;
+              final auth = AuthServiceScope.of(context);
+              final activated = await auth.activateQuietToday(profile);
+              if (activated) {
+                settings.profile = profile.copyWith(
+                  quietTodayActivatedAt: DateTime.now(),
+                );
+                if (context.mounted) {
+                  await AnalyticsScope.of(context).logQuietTodayActivated();
+                }
+              }
+            },
           ),
           const SizedBox(height: 28),
           _SectionHeader(
@@ -571,6 +724,7 @@ class _AboutCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -586,7 +740,7 @@ class _AboutCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  'AppName',
+                  l10n.appTitle,
                   style: theme.textTheme.titleMedium,
                 ),
               ],
@@ -822,6 +976,65 @@ class _SignOutButton extends StatelessWidget {
         final isEn = Localizations.localeOf(ctx).languageCode == 'en';
         return Text(isEn ? 'Sign out' : '登出');
       }),
+    );
+  }
+}
+
+/// Simple ListTile-style navigation card used by the new 自己 tab
+/// header (Progress / Profile / Emergency).  Visually consistent with
+/// the existing [_SwitchTileCard] but without the trailing switch.
+class _NavTileCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _NavTileCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, size: 28, color: theme.colorScheme.primary),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        )),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          height: 1.35,
+                        )),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  color: theme.colorScheme.outline),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

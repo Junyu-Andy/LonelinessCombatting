@@ -1,17 +1,28 @@
+/// 做啲嘢 (Do-things) — third tab per Product Overview §3.2.
+///
+/// Tools, non-personified:
+///   - Action Loop (M7)
+///   - Thought Exercise (5-field; entry point "望一望心入面")
+///   - Education library (M8)
+///   - Social suggestions (M6)
+///
+/// Personal / admin entries (Progress, Profile, Emergency, FAQ, Privacy,
+/// Settings) moved to 自己 in the same restructure.
+///
+/// Filename retained as `me_page.dart` to avoid touching every import
+/// site; the class name [MePage] is kept as a stable alias.  Internally
+/// this is the "Do" tab.
+library;
+
 import 'package:flutter/material.dart';
 
 import '../../../../l10n/app_localizations.dart';
 import '../../../action_loop/presentation/pages/action_loop_landing.dart';
-import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import '../../../education/presentation/pages/education_library_page.dart';
-import '../../../personalization/presentation/pages/personalization_page.dart';
-import '../../../progress/presentation/pages/progress_page.dart';
-import '../../../reflective_dialogue/presentation/pages/reflective_dialogue_page.dart';
-import '../../../reflective_dialogue/presentation/pages/thought_record_exercise_page.dart';
+import '../../../social_suggestions/presentation/pages/social_suggestions_page.dart';
+import '../../../thought_exercise/presentation/thought_exercise_page.dart';
 import '../widgets/me_list_item.dart';
 
-/// Me tab — infrastructure + personal resources. Five entries, **no
-/// Settings**: Settings reaches every tab via the AppBar gear.
 class MePage extends StatelessWidget {
   const MePage({super.key});
 
@@ -25,38 +36,30 @@ class MePage extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(0, 12, 0, 100),
         children: [
-          MeListItem(
-            icon: Icons.psychology_outlined,
-            label: isEn ? 'Reflect with Ah Jan / Ah Bak' : '搵阿珍／阿伯傾下',
-            subtitle: isEn
-                ? 'Open-ended reflective chat'
-                : '隨意傾下心入面諗緊嘅事',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ReflectiveDialoguePage(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
+            child: Text(
+              isEn
+                  ? 'Small tools you can use on your own — no agent walks you through them.'
+                  : '幾個小工具，自己用都得，唔需要 agent 陪。',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.4,
               ),
             ),
           ),
-          _Divider(theme: theme),
           MeListItem(
             icon: Icons.lightbulb_outline,
-            label: isEn ? 'Look at a thought' : '望吓一個諗法',
+            // Phase A spec §5.2 — locked label "望一望心入面".
+            // Research Review v2 Item 5: subtitle = "了解吓自己嘅心情".
+            label: isEn ? 'Look at a thought' : '望一望心入面',
             subtitle: isEn
-                ? 'A small three-field exercise'
-                : '一個三條問題嘅短練習',
+                ? 'Gently understand your own mood'
+                : '了解吓自己嘅心情',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => const ThoughtRecordExercisePage(),
+                builder: (_) => const ThoughtExercisePage(),
               ),
-            ),
-          ),
-          _Divider(theme: theme),
-          MeListItem(
-            icon: Icons.bar_chart_outlined,
-            label: l10n.meItemProgress,
-            subtitle: l10n.meItemProgressSubtitle,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const ProgressPage()),
             ),
           ),
           _Divider(theme: theme),
@@ -83,23 +86,14 @@ class MePage extends StatelessWidget {
           ),
           _Divider(theme: theme),
           MeListItem(
-            icon: Icons.support_outlined,
-            label: l10n.meItemCrisis,
-            subtitle: l10n.meItemCrisisSubtitle,
+            icon: Icons.people_outline,
+            label: isEn ? 'Social suggestions' : '一啲社交小行動',
+            subtitle: isEn
+                ? "Small things to try with people you already know"
+                : '同你熟悉嘅人試一啲細微嘅事',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => const EmergencySupportPage(),
-              ),
-            ),
-          ),
-          _Divider(theme: theme),
-          MeListItem(
-            icon: Icons.person_outline,
-            label: l10n.meItemProfile,
-            subtitle: l10n.meItemProfileSubtitle,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const PersonalizationPage(),
+                builder: (_) => const SocialSuggestionsPage(),
               ),
             ),
           ),

@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../app/app_theme.dart';
 import '../../../action_loop/presentation/pages/action_loop_landing.dart';
 import '../../../education/presentation/pages/education_library_page.dart';
 import '../../../progress/presentation/pages/progress_page.dart';
@@ -76,29 +77,31 @@ class _ToolTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.5),
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: theme.colorScheme.outlineVariant,
-          ),
+          boxShadow: const [AppTheme.softCardShadow],
         ),
-        child: Column(
-          children: [
-            Icon(icon, size: 26, color: theme.colorScheme.primary),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: theme.textTheme.titleSmall,
-              textAlign: TextAlign.center,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            child: Column(
+              children: [
+                Icon(icon, size: 26, color: const Color(0xFFA8845F)),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: theme.textTheme.titleSmall,
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'AppName';
+  String get appTitle => 'With You';
 
   @override
   String get homeTab => 'Home';
@@ -24,7 +24,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get followUpTab => 'Follow-up';
 
   @override
-  String get settingsTab => 'Settings';
+  String get settingsTab => 'Self';
 
   @override
   String get homeSubtitle => 'This is the home overview for the demo.';
@@ -100,21 +100,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabToday => 'Today';
 
   @override
-  String get tabMyStory => 'My Story';
+  String get tabMyStory => 'Talk';
 
   @override
-  String get tabMe => 'Me';
+  String get tabMe => 'Do';
 
   @override
   String get greetingMorning => 'Good morning';
-  @override
-  String get greetingNoon => 'Good noon';
   @override
   String get greetingAfternoon => 'Good afternoon';
   @override
   String get greetingEvening => 'Good evening';
   @override
-  String get greetingNight => "It's late — take it easy";
+  String get greetingNight => "It's late now";
+  @override
+  String get greetingTagline => 'With You is here.';
 
   @override
   String get todayCheckInTitle => "Today's Check-in";

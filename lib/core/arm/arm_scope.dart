@@ -23,6 +23,12 @@ class Arm {
 
   /// The participant's assigned arm, or null in guest / demo mode.
   static ArmAssignment? of(BuildContext context) {
+    // TEST OVERRIDE — Phase A pilot is forcing every user to Arm A so
+    // the researcher can run end-to-end LLM walk-throughs without
+    // hitting Arm B rule-based fallbacks. Revert this stub before
+    // randomisation goes live for Phase B.
+    return ArmAssignment.a;
+    // ignore: dead_code
     if (_forced.isNotEmpty) {
       return ArmAssignment.tryParse(_forced);
     }

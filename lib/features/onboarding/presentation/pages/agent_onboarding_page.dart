@@ -17,6 +17,8 @@
 /// shell on the next AppSettings notification.
 library;
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -39,6 +41,7 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
 
   AgentGenderVariant? _ahJanVariant;
   final Set<String> _selectedInterests = {};
+  late final List<_InterestSeed> _shuffledSeeds;
 
   /// Phase A defaults transcript retention to ON for every agent.
   /// The matching informed-consent statement is collected on paper
@@ -53,23 +56,60 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
   bool _busy = false;
   String? _error;
 
-  /// Curated interest seed list. Free-text additions can be captured in
-  /// a future iteration; for Phase A this list is sufficient to power
-  /// Tung Tung's opening behaviour.
+  /// Research Review v2 Item 4: 24-candidate interest pool across 6 categories.
+  /// Cultural advisor review required before Phase A recruitment opens.
+  /// ⚠️ Items marked with risk notes: mobility assumptions (hiking, swimming),
+  /// retirement-loss assumption (past work), social network assumption (church,
+  /// volunteering). All retained pending advisor sign-off.
+  ///
+  /// Escape hatch "__skip__" must be handled specially: selecting it clears all
+  /// others; selecting any other item clears it.
   static const List<_InterestSeed> _interestSeeds = [
-    _InterestSeed(id: 'cantonese_opera', zh: '粵劇', en: 'Cantonese opera'),
-    _InterestSeed(id: 'cooking', zh: '煮食', en: 'Cooking'),
-    _InterestSeed(id: 'gardening', zh: '種花種菜', en: 'Gardening'),
-    _InterestSeed(id: 'news', zh: '新聞時事', en: 'News'),
-    _InterestSeed(id: 'walking', zh: '行山散步', en: 'Walking / hiking'),
-    _InterestSeed(id: 'tea', zh: '飲茶', en: 'Yum cha / tea'),
-    _InterestSeed(id: 'mahjong', zh: '麻雀', en: 'Mahjong'),
-    _InterestSeed(id: 'family', zh: '同家人', en: 'Family time'),
-    _InterestSeed(id: 'religion', zh: '宗教/拜神', en: 'Religious practice'),
-    _InterestSeed(id: 'old_songs', zh: '老歌', en: 'Old songs'),
-    _InterestSeed(id: 'tv_drama', zh: '電視劇', en: 'TV drama'),
-    _InterestSeed(id: 'horse_racing', zh: '馬經', en: 'Horse racing'),
+    // 飲食類
+    _InterestSeed(id: 'yum_cha',      zh: '飲茶／一盅兩件', en: 'Yum cha / dim sum'),
+    _InterestSeed(id: 'cooking',      zh: '煮食',           en: 'Cooking'),
+    _InterestSeed(id: 'wet_market',   zh: '逛街市',         en: 'Wet market'),
+    _InterestSeed(id: 'buffet',       zh: '食自助餐',       en: 'Buffet dining'),
+    // 休閒類
+    _InterestSeed(id: 'tv_drama',     zh: '睇電視劇',       en: 'TV drama'),
+    _InterestSeed(id: 'radio',        zh: '聽收音機',       en: 'Radio'),
+    _InterestSeed(id: 'reading',      zh: '看書／睇雜誌',   en: 'Books / magazines'),
+    _InterestSeed(id: 'mahjong',      zh: '打牌／打麻雀',   en: 'Cards / mahjong'),
+    _InterestSeed(id: 'gardening',    zh: '種花種菜',       en: 'Gardening'),
+    _InterestSeed(id: 'chatting',     zh: '跟人傾偈',       en: 'Chatting with people'),
+    // 運動類
+    _InterestSeed(id: 'hiking',       zh: '行山',           en: 'Hiking'), // ⚠️ mobility
+    _InterestSeed(id: 'park_walk',    zh: '公園散步',       en: 'Park walks'),
+    _InterestSeed(id: 'tai_chi',      zh: '太極拳',         en: 'Tai chi'),
+    _InterestSeed(id: 'swimming',     zh: '游水',           en: 'Swimming'), // ⚠️ mobility
+    // 文化類
+    _InterestSeed(id: 'cantonese_opera', zh: '粵劇／戲曲',  en: 'Cantonese opera'),
+    _InterestSeed(id: 'museums',      zh: '睇展覽／博物館', en: 'Museums & galleries'),
+    // 社交類
+    _InterestSeed(id: 'elderly_centre', zh: '老人中心活動', en: 'Elderly centre activities'),
+    _InterestSeed(id: 'religious',    zh: '去教會／廟宇',   en: 'Church / temple'), // ⚠️ social network
+    _InterestSeed(id: 'visit_friends',zh: '探望朋友',       en: 'Visiting friends'),
+    _InterestSeed(id: 'volunteering', zh: '義工服務',       en: 'Volunteering'), // ⚠️ social network
+    // 宗教／精神類
+    _InterestSeed(id: 'meditation',   zh: '靜坐／冥想',     en: 'Meditation'),
+    _InterestSeed(id: 'prayer',       zh: '祈禱／膜拜',     en: 'Prayer / worship'),
+    // 實用類
+    _InterestSeed(id: 'news',         zh: '新聞時事',       en: 'News & current affairs'),
+    // Escape hatch — selecting this clears all other selections.
+    _InterestSeed(id: '__skip__',     zh: '我未諗到 / 跳過', en: 'Not sure / skip'),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Shuffle per session so each participant sees a different chip order.
+    // Escape hatch always stays last.
+    final rng = Random(DateTime.now().millisecondsSinceEpoch);
+    final nonSkip = List<_InterestSeed>.from(
+      _interestSeeds.where((s) => s.id != '__skip__'),
+    )..shuffle(rng);
+    _shuffledSeeds = [...nonSkip, _interestSeeds.last];
+  }
 
   @override
   void dispose() {
@@ -107,7 +147,8 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
     final updated = profile.copyWith(
       ahJanAhBakVariant:
           _ahJanVariant ?? AgentGenderVariant.feminine, // gated above
-      interests: _selectedInterests.toList(),
+      // Filter escape hatch before saving — "__skip__" is UI-only.
+      interests: _selectedInterests.where((id) => id != '__skip__').toList(),
       consent: profile.consent.copyWith(
         transcriptRetentionByAgent: _transcriptRetentionByAgent,
       ),
@@ -170,13 +211,26 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
                   ),
                   _TungTungSlide(
                     isEn: isEn,
-                    seeds: _interestSeeds,
+                    seeds: _shuffledSeeds,
                     selected: _selectedInterests,
                     onToggle: (id) => setState(() {
-                      if (_selectedInterests.contains(id)) {
-                        _selectedInterests.remove(id);
+                      if (id == '__skip__') {
+                        // Escape hatch: clear all others, toggle skip.
+                        if (_selectedInterests.contains('__skip__')) {
+                          _selectedInterests.clear();
+                        } else {
+                          _selectedInterests
+                            ..clear()
+                            ..add('__skip__');
+                        }
                       } else {
-                        _selectedInterests.add(id);
+                        // Any real interest: deselect escape hatch if active.
+                        _selectedInterests.remove('__skip__');
+                        if (_selectedInterests.contains(id)) {
+                          _selectedInterests.remove(id);
+                        } else {
+                          _selectedInterests.add(id);
+                        }
                       }
                     }),
                     errorMessage: _error,
@@ -615,11 +669,46 @@ class _TungTungSlide extends StatelessWidget {
             children: [
               for (final seed in seeds)
                 FilterChip(
-                  label: Text(isEn ? seed.en : seed.zh),
+                  label: Text(
+                    isEn ? seed.en : seed.zh,
+                    // Explicit label colour fixes the M3 default that
+                    // rendered as low-contrast white-on-grey for our
+                    // older-adult target audience.
+                    style: TextStyle(
+                      fontSize: 15,
+                      // Escape hatch: italic to visually separate from topic chips.
+                      fontStyle: seed.id == '__skip__'
+                          ? FontStyle.italic
+                          : FontStyle.normal,
+                      fontWeight: selected.contains(seed.id)
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: seed.id == '__skip__'
+                          ? theme.colorScheme.onSurfaceVariant
+                          : selected.contains(seed.id)
+                              ? agent.accentColor.withValues(alpha: 1.0)
+                              : theme.colorScheme.onSurface,
+                    ),
+                  ),
                   selected: selected.contains(seed.id),
                   onSelected: (_) => onToggle(seed.id),
-                  selectedColor: agent.accentColor.withValues(alpha: 0.25),
-                  checkmarkColor: agent.accentColor,
+                  // Unselected: opaque surface so text reads cleanly;
+                  // border carries the agent accent at low alpha.
+                  backgroundColor: theme.colorScheme.surface,
+                  selectedColor: seed.id == '__skip__'
+                      ? theme.colorScheme.surfaceContainerHighest
+                      : agent.accentColor.withValues(alpha: 0.18),
+                  checkmarkColor: seed.id == '__skip__'
+                      ? theme.colorScheme.onSurfaceVariant
+                      : agent.accentColor,
+                  side: BorderSide(
+                    color: seed.id == '__skip__'
+                        ? theme.colorScheme.outlineVariant
+                        : selected.contains(seed.id)
+                            ? agent.accentColor
+                            : theme.colorScheme.outline,
+                    width: selected.contains(seed.id) ? 2 : 1,
+                  ),
                 ),
             ],
           ),

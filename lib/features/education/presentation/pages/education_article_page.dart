@@ -7,6 +7,7 @@ import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../curious_companion/presentation/pages/tung_tung_page.dart';
+import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/education_library.dart';
 
 /// M8 article view.
@@ -22,14 +23,19 @@ class EducationArticlePage extends StatefulWidget {
 }
 
 class _EducationArticlePageState extends State<EducationArticlePage> {
+  // "問下呢篇" Q&A — per Product Overview §3.1 + §5.3, this is Tung
+  // Tung's surface (curious companion grounded in source text).
   static const _systemPromptZhTemplate = '''
-你係阿暖，幫一位香港長者明白佢啱啱讀緊嘅一篇短文。
+你係通通（一個 AI 機械人），幫一位香港長者明白佢啱啱讀緊嘅一篇短文。
 規矩：
 - 用粵語/口語繁體中文，每次回應最多 2-3 句。
 - 你嘅答案要根據呢篇文章嘅內容回答，唔好憑空編造新資料。
 - 如果問題超出文章範圍，誠實話：「呢個我都唔係好肯定」。
 - 唔好提其他 app 功能、唔好叫佢去做行動計劃。
+- 唔好引用用戶 onboarding 時話過嘅興趣 — 而家係討論呢篇文章。
+- 唔好建議「不如試下你鍾意嘅活動」之類嘅嘢，呢度只係解釋文章。
 - 用具體例子，唔好抽象。
+- 唔好用「我會諗起你」/「我擔心你」呢類依附語言。
 
 呢篇文章係：
 """
@@ -135,6 +141,18 @@ Here is the article:
                       height: 1.55,
                     ),
                   ),
+                  // Research Review v2 Item 1: crisis hint footer.
+                  if ((isEn
+                        ? widget.article.crisisHintEn
+                        : widget.article.crisisHintZh) !=
+                      null) ...[
+                    const SizedBox(height: 24),
+                    _CrisisHintFooter(
+                      text: isEn
+                          ? widget.article.crisisHintEn!
+                          : widget.article.crisisHintZh!,
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   if (Arm.isA(context) && !_askMode)
                     OutlinedButton.icon(
@@ -159,7 +177,19 @@ Here is the article:
                     const SizedBox(height: 12),
                     Divider(color: theme.colorScheme.outlineVariant),
                     const SizedBox(height: 8),
-                    for (final t in _turns) _Bubble(turn: t),
+                    for (int i = 0; i < _turns.length; i++) ...[
+                      _Bubble(turn: _turns[i]),
+                      if (!_turns[i].fromUser)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ThumbsFeedback(
+                            agentId: 'tung_tung',
+                            moduleId:
+                                'm8_education_${widget.article.id}',
+                            turnKey: 'turn_$i',
+                          ),
+                        ),
+                    ],
                     if (_busy)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -222,6 +252,46 @@ class _Bubble extends StatelessWidget {
         ),
         child: Text(turn.text,
             style: TextStyle(fontSize: 17, height: 1.4, color: fg)),
+      ),
+    );
+  }
+}
+
+class _CrisisHintFooter extends StatelessWidget {
+  final String text;
+  const _CrisisHintFooter({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.error.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.favorite_border_rounded,
+            size: 20,
+            color: theme.colorScheme.error,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

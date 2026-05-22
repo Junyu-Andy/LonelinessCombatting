@@ -14,13 +14,25 @@ import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../brief_pr/data/brief_pr_gate.dart';
+import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
+import '../../../reflective_dialogue/data/negative_cognition_detector.dart';
+import '../../../thought_exercise/presentation/naming_thought_card.dart';
+import '../../../thought_exercise/presentation/thought_exercise_page.dart';
 import 'check_in_shared.dart';
 
 /// M2 — hybrid check-in (Arm A). Free-text or voice opener, LLM produces
 /// a brief empathetic reflection + at most one adaptive follow-up. The
 /// six-face mood picker is shown as an optional structured tail.
 class CheckInArmA extends StatefulWidget {
-  const CheckInArmA({super.key});
+  /// Optional mood face the user just picked on the home `DailyMoodCard`.
+  /// When set, Siu Yan's opener references it instead of the generic
+  /// "你今日點？" so the handoff doesn't feel like the agent forgot.
+  /// 1=好差, 2=差, 3=麻麻地, 4=幾好, 5=好好.
+  final int? initialMoodValue;
+
+  const CheckInArmA({super.key, this.initialMoodValue});
 
   @override
   State<CheckInArmA> createState() => _CheckInArmAState();
@@ -38,6 +50,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
 
   final _inputCtrl = TextEditingController();
   final List<_Turn> _turns = [];
+  final DateTime _sessionStartedAt = DateTime.now();
   bool _busy = false;
   MoodFace _face = MoodFace.neutral;
   bool _facePicked = false;
@@ -60,6 +73,16 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// or after the user accepts the handoff.
   SurfacedReferral? _pendingReferral;
 
+  /// Phase A spec §2.6 — Siu Yan's Thought Exercise offer pathway.
+  /// **Only Siu Yan** is authorised to surface the TE tool (Hybrid arm
+  /// only).  When the negative-cognition detector matches on a user turn,
+  /// we cache the matched thought + the assistant turn that preceded it
+  /// (for the B.5 audit trigger) and render [NamingThoughtCard] on the
+  /// next frame.  The card auto-fills Field 3 of the exercise on accept.
+  static const _negCogDetector = NegativeCognitionDetector();
+  String? _pendingNamingThought;
+  String? _pendingNamingInvitation;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -67,10 +90,70 @@ class _CheckInArmAState extends State<CheckInArmA> {
     if (!_openerSeeded) {
       _openerSeeded = true;
       final isEn = Localizations.localeOf(context).languageCode == 'en';
-      _turns.add(_Turn.bot(isEn
-          ? 'Hi — how are you today? Write a few words or speak whenever you\'re ready.'
-          : '你好啊。你今日點？寫幾句、或者用咪都得。'));
+      _turns.add(_Turn.bot(_openingLine(isEn)));
+      // If the user came in from DailyMoodCard with a picked face, sync
+      // the bottom-sheet face state so "完成" doesn't re-ask for mood.
+      if (widget.initialMoodValue != null) {
+        _face = _faceFromValue(widget.initialMoodValue!);
+        _facePicked = true;
+      }
     }
+  }
+
+  String _openingLine(bool isEn) {
+    final mood = widget.initialMoodValue;
+    if (mood == null) {
+      return isEn
+          ? 'Hi — how are you today? Write a few words or speak whenever you\'re ready.'
+          : '你好啊。你今日點？寫幾句、或者用咪都得。';
+    }
+    // Mood-aware opener — references the face the user just tapped on the
+    // home card so Siu Yan doesn't ask the same question over again.
+    if (isEn) {
+      switch (mood) {
+        case 1:
+          return 'I saw you marked today as quite hard. I\'m here — take your time, what\'s weighing on you?';
+        case 2:
+          return 'You said today doesn\'t feel great. Want to tell me a bit more about what\'s going on?';
+        case 3:
+          return 'So-so today. Want to share what\'s on your mind, big or small?';
+        case 4:
+          return 'You said today feels okay. What\'s been the best part so far?';
+        case 5:
+          return 'You said today\'s been good! Tell me what made it nice.';
+      }
+    }
+    switch (mood) {
+      case 1:
+        return '見到你話今日好差。我喺度，慢慢講，係咩事令你咁辛苦呀？';
+      case 2:
+        return '你話今日差咗，係邊方面唔舒服呀？同我講多少少。';
+      case 3:
+        return '麻麻地嘅一日，腦海入面有咩想講，無論大小都得。';
+      case 4:
+        return '你話今日幾好。咁今日最好嘅一刻係咩呢？';
+      case 5:
+        return '你話今日好好喎！同我講下係咩令你咁開心？';
+    }
+    return isEn
+        ? 'Hi — what\'s on your mind today?'
+        : '你好啊。你今日點？';
+  }
+
+  MoodFace _faceFromValue(int v) {
+    switch (v) {
+      case 1:
+        return MoodFace.veryLow;
+      case 2:
+        return MoodFace.low;
+      case 3:
+        return MoodFace.neutral;
+      case 4:
+        return MoodFace.good;
+      case 5:
+        return MoodFace.great;
+    }
+    return MoodFace.neutral;
   }
 
   @override
@@ -143,6 +226,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
     final contextSuffix = [
       if (persona?.contextSuffix != null) persona!.contextSuffix!,
       if (crossModuleInjection.trim().isNotEmpty) crossModuleInjection.trim(),
+      if (profile?.avoidTopics?.isNotEmpty == true)
+        '⛔ 用戶要求唔好提起呢啲話題（就算唔小心都唔好）：${profile!.avoidTopics}',
     ].join('\n\n').trim();
 
     final history = _turns
@@ -216,9 +301,32 @@ class _CheckInArmAState extends State<CheckInArmA> {
       await core.distressRouter.route(escalation, context: context);
     }
 
-    // Cross-referral routing (Sprint 5). Skip when a card is already
-    // showing this turn or the conversation has escalated to safety.
-    if (_pendingReferral == null && !response.hasEscalation) {
+    // Phase A spec §2.6 — Siu Yan's Thought Exercise offer.  We surface
+    // the naming card iff (a) negative cognition matched on this turn,
+    // (b) no other card is currently pending, (c) distress hasn't
+    // escalated.  Cached invitation = Siu Yan's last assistant reply
+    // (B.5 audit-trigger race fix).
+    if (_pendingNamingThought == null &&
+        _pendingReferral == null &&
+        !response.hasEscalation) {
+      final match = _negCogDetector.scan(text);
+      if (match != null) {
+        final lastBot = _turns.lastWhere(
+          (t) => !t.fromUser && !t.isSystem,
+          orElse: () => _Turn.bot(''),
+        );
+        setState(() {
+          _pendingNamingThought = match.fullTurn;
+          _pendingNamingInvitation = lastBot.text;
+        });
+      }
+    }
+
+    // Cross-referral routing (Sprint 5). Skip when a naming card is
+    // pending or the conversation has escalated to safety.
+    if (_pendingNamingThought == null &&
+        _pendingReferral == null &&
+        !response.hasEscalation) {
       core.referralRouting.onUserTurn(AgentRegistry.siuYanId);
       final surfaced = await core.referralRouting.maybeSurface(
         sourceAgentId: AgentRegistry.siuYanId,
@@ -235,16 +343,55 @@ class _CheckInArmAState extends State<CheckInArmA> {
     }
   }
 
+  Future<void> _acceptNaming() async {
+    final thought = _pendingNamingThought;
+    final invitation = _pendingNamingInvitation;
+    if (thought == null) return;
+    final profile = AppSettingsScope.read(context).profile;
+    setState(() {
+      _pendingNamingThought = null;
+      _pendingNamingInvitation = null;
+    });
+    if (mounted) {
+      await AnalyticsScope.of(context)
+          .logM5ThoughtExerciseOpened(origin: 'siu_yan_offer');
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ThoughtExercisePage(
+          initialThought: thought,
+          agentId: AgentRegistry.siuYanId,
+          agentInvitationText: invitation,
+          originTurnRef: profile != null
+              ? 'users/${profile.uid}/agent_contexts/${AgentRegistry.siuYanId}'
+              : null,
+        ),
+      ),
+    );
+  }
+
+  void _declineNaming() {
+    setState(() {
+      _pendingNamingThought = null;
+      _pendingNamingInvitation = null;
+    });
+  }
+
   DistressMatch _higher(DistressMatch a, DistressMatch b) {
     return a.level.index >= b.level.index ? a : b;
   }
 
   String _acuteSafetyMessage() {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
+    // System-voice crisis copy (NOT agent voice).  Deliberately avoids
+    // attachment phrasing forbidden in the agent prompts ("我好擔心你"
+    // / "我會諗起你") — this is a directive system message shown when
+    // the LLM is short-circuited, not Siu Yan speaking.
     return isEn
-        ? 'I hear how hard this is. Please call Samaritans Hong Kong at '
-            '2896 0000 right now — they are open 24 hours.'
-        : '聽到你咁講，我好擔心你。請即刻打撒瑪利亞會熱線 2896 0000，'
+        ? "What you've just said is heavy. Please call the Samaritans "
+            "Hong Kong hotline now: 2896 0000 (24 hours)."
+        : '你頭先講嘅嘢好重。請即刻打撒瑪利亞會熱線 2896 0000，'
             '24 小時都有人聽。';
   }
 
@@ -283,6 +430,35 @@ class _CheckInArmAState extends State<CheckInArmA> {
     );
     if (!mounted) return;
     setState(() => _saved = true);
+    await _maybeSurfaceBriefPr();
+  }
+
+  Future<void> _maybeSurfaceBriefPr() async {
+    final profile = AppSettingsScope.read(context).profile;
+    if (profile == null) return;
+    final exchangeCount = _turns.where((t) => t.fromUser).length;
+    final gate = BriefPrGate();
+    final shouldShow = await gate.shouldSurfaceBriefPr(
+      uid: profile.uid,
+      agentId: 'siu_yan',
+      sessionStartedAt: _sessionStartedAt,
+      exchangeCount: exchangeCount,
+    );
+    if (!shouldShow || !mounted) return;
+    final anchor = await gate.isAnchorPromptFor(
+      uid: profile.uid,
+      agentId: 'siu_yan',
+    );
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BriefPrPage(
+          agentId: 'siu_yan',
+          agentDisplayName: '小欣',
+          isAnchorPrompt: anchor,
+        ),
+      ),
+    );
   }
 
   @override
@@ -316,7 +492,18 @@ class _CheckInArmAState extends State<CheckInArmA> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                   children: [
-                    for (final t in _turns) _TurnBubble(turn: t),
+                    for (int i = 0; i < _turns.length; i++) ...[
+                      _TurnBubble(turn: _turns[i]),
+                      if (!_turns[i].fromUser && !_turns[i].isSystem)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ThumbsFeedback(
+                            agentId: 'siu_yan',
+                            moduleId: 'm2_check_in',
+                            turnKey: 'turn_$i',
+                          ),
+                        ),
+                    ],
                     if (_busy)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -329,11 +516,18 @@ class _CheckInArmAState extends State<CheckInArmA> {
                           ),
                         ),
                       ),
+                    if (_pendingNamingThought != null)
+                      NamingThoughtCard(
+                        thought: _pendingNamingThought!,
+                        onAccept: _acceptNaming,
+                        onDecline: _declineNaming,
+                      ),
                     if (_pendingReferral != null)
                       ReferralSuggestionCard(
                         surfaced: _pendingReferral!,
                         handoffExecutor: CoreServicesScope.of(context)
                             .handoffExecutor,
+                        sourceAgentId: AgentRegistry.siuYanId,
                         onDismiss: () =>
                             setState(() => _pendingReferral = null),
                       ),

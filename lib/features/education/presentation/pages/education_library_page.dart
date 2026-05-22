@@ -26,7 +26,9 @@ class EducationLibraryPage extends StatelessWidget {
               style: theme.textTheme.bodyLarge,
             ),
             const SizedBox(height: 16),
-            for (final a in EducationLibrary.articles)
+            // Research Review v2 Item 1: filter by enabled flag so individual
+            // articles can be hidden without a code push during Phase A.
+            for (final a in EducationLibrary.articles.where((a) => a.enabled))
               _ArticleCard(
                 article: a,
                 onTap: () => Navigator.of(context).push(

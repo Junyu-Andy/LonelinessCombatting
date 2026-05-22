@@ -3,12 +3,13 @@ import 'package:app_demo/core/safety/distress_detector.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeClient implements LlmClient {
-  _FakeClient(this.canned);
+  _FakeClient(this.canned, {this.fakeHash});
   final String canned;
+  final String? fakeHash;
   int calls = 0;
 
   @override
-  Future<String> complete({
+  Future<LlmRawResponse> complete({
     required String moduleId,
     String? systemPrompt,
     String? promptKey,
@@ -17,9 +18,11 @@ class _FakeClient implements LlmClient {
     String? contextSuffix,
     required List<LlmTurn> history,
     required String userInput,
+    bool regenerate = false,
+    Map<String, dynamic>? agentContextSnapshot,
   }) async {
     calls++;
-    return canned;
+    return LlmRawResponse(text: canned, systemPromptHash: fakeHash);
   }
 }
 
@@ -83,6 +86,35 @@ void main() {
       );
       expect(r.outputFlag.level, DistressLevel.moderate);
       expect(r.hasEscalation, true);
+    });
+
+    test('B.2: systemPromptHash is propagated from CF response to metadata',
+        () async {
+      const expectedHash = 'abc123hash';
+      final fake = _FakeClient('好的。', fakeHash: expectedHash);
+      final gw = LlmGateway(client: fake);
+      final r = await gw.send(
+        moduleId: 'm3_reminiscence',
+        promptKey: 'siu_yan_v1',
+        history: const [],
+        userInput: '你好。',
+      );
+      expect(r.metadata.systemPromptHash, expectedHash);
+      expect(r.metadata.promptKey, 'siu_yan_v1');
+    });
+
+    test('B.2: metadata has null hash when short-circuited on acute input',
+        () async {
+      final fake = _FakeClient('should not appear');
+      final gw = LlmGateway(client: fake);
+      final r = await gw.send(
+        moduleId: 'm3',
+        systemPrompt: 'sys',
+        history: const [],
+        userInput: '我想死。',
+      );
+      expect(r.shortCircuited, true);
+      expect(r.metadata.systemPromptHash, isNull);
     });
   });
 }

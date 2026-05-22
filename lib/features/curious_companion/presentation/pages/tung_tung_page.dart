@@ -26,6 +26,10 @@ import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
+import '../../../brief_pr/data/brief_pr_gate.dart';
+import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../onboarding/data/interest_labels.dart';
+import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/search_repository.dart';
 
 class TungTungPage extends StatefulWidget {
@@ -48,6 +52,8 @@ class _TungTungPageState extends State<TungTungPage> {
 
   final _inputCtrl = TextEditingController();
   final List<_Turn> _turns = [];
+  final DateTime _sessionStartedAt = DateTime.now();
+  bool _briefPrSurfaced = false;
   bool _busy = false;
   SearchRepository? _searchRepo;
 
@@ -84,26 +90,57 @@ class _TungTungPageState extends State<TungTungPage> {
     // grounded mode (M8 hand-off) opens differently.
     if (!_openerSeeded) {
       _openerSeeded = true;
-      final isEn = Localizations.localeOf(context).languageCode == 'en';
-      final profile = AppSettingsScope.read(context).profile;
-      final interests = profile?.interests ?? const <String>[];
-      final highlight = interests.isNotEmpty ? interests.first : null;
-      String opener;
-      if (widget.articleContext != null) {
-        opener = isEn
-            ? 'I read the piece you opened. Ask me anything about it.'
-            : '我睇完你揀嘅嗰篇。有咩想問都得。';
-      } else if (highlight != null) {
-        opener = isEn
+      _seedOpener();
+    }
+  }
+
+  Future<void> _seedOpener() async {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final profile = AppSettingsScope.read(context).profile;
+
+    // Article-Q&A mode (M8 "問下呢篇") has its own dedicated opener
+    // flow; never substitute the cached personalised greeting there.
+    if (widget.articleContext != null) {
+      final opener = isEn
+          ? 'I read the piece you opened. Ask me anything about it.'
+          : '我睇完你揀嘅嗰篇。有咩想問都得。';
+      setState(() => _turns.add(_Turn.bot(opener)));
+      return;
+    }
+
+    // Try the cached personalised greeting warmed by TodayPage.  This
+    // references the user's interests / last session topic rather
+    // than the generic boilerplate below.
+    if (profile != null) {
+      try {
+        final core = CoreServicesScope.of(context);
+        final cached = await core.agentGreeting.readCachedGreeting(
+          uid: profile.uid,
+          agentId: AgentRegistry.tungTungId,
+          isEn: isEn,
+        );
+        if (!mounted) return;
+        if (cached != null && cached.isNotEmpty) {
+          setState(() => _turns.add(_Turn.bot(cached)));
+          return;
+        }
+      } catch (_) {
+        // fall through to hardcoded opener
+      }
+    }
+
+    final interests = profile?.interests ?? const <String>[];
+    final highlight = interests.isNotEmpty ? interests.first : null;
+    final opener = highlight != null
+        ? (isEn
             ? 'Hi — you mentioned $highlight when we first met. '
                 'Anything you want to chat about today?'
-            : '你好啊。你之前提過「$highlight」。今日想傾啲咩？';
-      } else {
-        opener = isEn
+            : '你好啊。你之前提過「$highlight」。今日想傾啲咩？')
+        : (isEn
             ? 'Hi — what have you been wondering about lately?'
-            : '你好啊。最近有冇咩想知或者想傾嘅嘢？';
-      }
-      _turns.add(_Turn.bot(opener));
+            : '你好啊。最近有冇咩想知或者想傾嘅嘢？');
+    if (mounted) {
+      setState(() => _turns.add(_Turn.bot(opener)));
     }
   }
 
@@ -167,10 +204,19 @@ class _TungTungPageState extends State<TungTungPage> {
       suffix.writeln(persona!.contextSuffix);
       suffix.writeln();
     }
-    if (profile != null && profile.interests.isNotEmpty) {
+    // Interests are ONLY injected for free-form chitchat — never when
+    // Tung Tung is grounded in an article ("問下呢篇" flow) or running
+    // a web search.  In those modes the user wants help with the
+    // specific topic, not a hobby suggestion.
+    final inChitchatMode =
+        widget.articleContext == null && _searches.isEmpty;
+    if (inChitchatMode &&
+        profile != null &&
+        profile.interests.isNotEmpty) {
       suffix.writeln(isEn
-          ? '[Interests captured at onboarding]'
-          : '[onboarding 時話過嘅興趣]');
+          ? '[Interests captured at onboarding — only reference if the '
+              'user opens a chitchat thread; do NOT push them]'
+          : '[onboarding 時話過嘅興趣 — 只有用戶主動講開閒聊先可以引用，唔好硬推]');
       for (final i in profile.interests.take(10)) {
         suffix.writeln('- $i');
       }
@@ -202,6 +248,11 @@ class _TungTungPageState extends State<TungTungPage> {
           suffix.writeln('- ${r.title}: ${r.snippet}');
         }
       }
+      suffix.writeln();
+    }
+    if (profile?.avoidTopics?.isNotEmpty == true) {
+      suffix.writeln(
+          '⛔ 用戶要求唔好提起呢啲話題（就算唔小心都唔好）：${profile!.avoidTopics}');
       suffix.writeln();
     }
 
@@ -296,7 +347,12 @@ class _TungTungPageState extends State<TungTungPage> {
 
     return FirstIntroOverlay(
       agentId: AgentRegistry.tungTungId,
-      child: Scaffold(
+      child: PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (didPop, _) async {
+          if (didPop) await _maybeSurfaceBriefPr();
+        },
+        child: Scaffold(
         appBar: AppBar(
           title: Row(
             children: [
@@ -319,8 +375,24 @@ class _TungTungPageState extends State<TungTungPage> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                   children: [
-                    for (final t in _turns) _TurnBubble(turn: t),
+                    for (int i = 0; i < _turns.length; i++) ...[
+                      _TurnBubble(turn: _turns[i]),
+                      if (!_turns[i].fromUser && !_turns[i].isSystem)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ThumbsFeedback(
+                            agentId: 'tung_tung',
+                            moduleId: 'tung_tung_chat',
+                            turnKey: 'turn_$i',
+                          ),
+                        ),
+                    ],
+                    // Interest chips only surface in pure chitchat mode.
+                    // In the article-Q&A flow ("問下呢篇") the user is
+                    // here for the article — surfacing hobbies would
+                    // derail them.
                     if (!_turns.any((t) => t.fromUser) &&
+                        widget.articleContext == null &&
                         profile != null &&
                         profile.interests.isNotEmpty)
                       _InterestChips(
@@ -364,6 +436,37 @@ class _TungTungPageState extends State<TungTungPage> {
               ),
             ],
           ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  Future<void> _maybeSurfaceBriefPr() async {
+    if (_briefPrSurfaced) return;
+    _briefPrSurfaced = true;
+    final profile = AppSettingsScope.read(context).profile;
+    if (profile == null) return;
+    final exchangeCount = _turns.where((t) => t.fromUser).length;
+    final gate = BriefPrGate();
+    final shouldShow = await gate.shouldSurfaceBriefPr(
+      uid: profile.uid,
+      agentId: 'tung_tung',
+      sessionStartedAt: _sessionStartedAt,
+      exchangeCount: exchangeCount,
+    );
+    if (!shouldShow || !mounted) return;
+    final anchor = await gate.isAnchorPromptFor(
+      uid: profile.uid,
+      agentId: 'tung_tung',
+    );
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BriefPrPage(
+          agentId: 'tung_tung',
+          agentDisplayName: '通通',
+          isAnchorPrompt: anchor,
         ),
       ),
     );
@@ -415,6 +518,8 @@ class _InterestChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: Wrap(
@@ -423,8 +528,20 @@ class _InterestChips extends StatelessWidget {
         children: [
           for (final i in interests)
             ActionChip(
-              label: Text(i),
+              label: Text(
+                InterestLabels.label(i, isEn),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
               onPressed: () => onTap(i),
+              backgroundColor: theme.colorScheme.surface,
+              side: BorderSide(
+                color: theme.colorScheme.outline,
+                width: 1,
+              ),
             ),
         ],
       ),

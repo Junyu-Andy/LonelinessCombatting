@@ -1,10 +1,37 @@
 import 'package:flutter/material.dart';
 
+/// Global theme tokens for the warm-restyle pass.
+///
+/// Font assets to be bundled in `assets/fonts/` and registered in
+/// `pubspec.yaml` under `flutter.fonts:` (families: `NotoSerifHK` for
+/// headlines/titles/display; `NotoSansHK` for body/label). Until the
+/// font files ship, Flutter falls back to system fonts — the `fontFamily`
+/// strings below are harmless when assets are missing.
 class AppTheme {
-  static const Color _seed = Color(0xFF1D4ED8);
-  static const Color _ink = Color(0xFF0F172A);
-  static const Color _inkMuted = Color(0xFF334155);
-  static const Color _surface = Color(0xFFF8FAFC);
+  // Warm terracotta seed.
+  static const Color _seed = Color(0xFFC2703F);
+  // Warm ink primary text.
+  static const Color _ink = Color(0xFF3A3330);
+  // Warm grey secondary text.
+  static const Color _inkMuted = Color(0xFF8A7D72);
+  // Warm off-white background.
+  static const Color _surface = Color(0xFFF7F5F1);
+  // Lighter, warm outline.
+  static const Color _outline = Color(0xFFE7E0D8);
+
+  /// Soft, warm-toned card shadow (≈ rgba(150,120,95,0.08)).
+  static const BoxShadow softCardShadow = BoxShadow(
+    color: Color(0x14967860),
+    blurRadius: 12,
+    offset: Offset(0, 3),
+  );
+
+  /// Subtle top shadow used by the bottom navigation bar.
+  static const BoxShadow navTopShadow = BoxShadow(
+    color: Color(0x0D967860), // rgba(150,120,95,0.05)
+    blurRadius: 8,
+    offset: Offset(0, -2),
+  );
 
   static ThemeData get light => _build(highContrast: false);
 
@@ -16,7 +43,7 @@ class AppTheme {
     final Color surface = highContrast ? Colors.white : _surface;
     final Color cardColor = Colors.white;
     final Color primary = highContrast ? Colors.black : _seed;
-    final Color outline = highContrast ? Colors.black : const Color(0xFFCBD5E1);
+    final Color outline = highContrast ? Colors.black : _outline;
 
     final baseScheme = ColorScheme.fromSeed(
       seedColor: _seed,
@@ -31,15 +58,26 @@ class AppTheme {
       outlineVariant: outline,
     );
 
+    const String serifFamily = 'NotoSerifHK';
+    const String sansFamily = 'NotoSansHK';
+
     final baseTextTheme = ThemeData.light().textTheme;
     final textTheme = baseTextTheme
         .copyWith(
+          displayLarge: baseTextTheme.displayLarge?.copyWith(
+            fontFamily: serifFamily,
+          ),
+          displayMedium: baseTextTheme.displayMedium?.copyWith(
+            fontFamily: serifFamily,
+          ),
           displaySmall: baseTextTheme.displaySmall?.copyWith(
+            fontFamily: serifFamily,
             fontSize: 36,
             fontWeight: FontWeight.w700,
             height: 1.2,
           ),
           headlineLarge: baseTextTheme.headlineLarge?.copyWith(
+            fontFamily: serifFamily,
             fontSize: 32,
             fontWeight: FontWeight.w700,
             // P4-polish: bumped to 1.4 — multi-line Chinese headlines
@@ -47,45 +85,73 @@ class AppTheme {
             height: 1.4,
           ),
           headlineMedium: baseTextTheme.headlineMedium?.copyWith(
+            fontFamily: serifFamily,
             fontSize: 28,
             fontWeight: FontWeight.w700,
             height: 1.4,
           ),
           headlineSmall: baseTextTheme.headlineSmall?.copyWith(
+            fontFamily: serifFamily,
             fontSize: 24,
             fontWeight: FontWeight.w600,
             height: 1.4,
           ),
           titleLarge: baseTextTheme.titleLarge?.copyWith(
+            fontFamily: serifFamily,
             fontSize: 22,
             fontWeight: FontWeight.w600,
             height: 1.35,
           ),
           titleMedium: baseTextTheme.titleMedium?.copyWith(
+            fontFamily: serifFamily,
             fontSize: 20,
             fontWeight: FontWeight.w600,
             height: 1.35,
           ),
+          titleSmall: baseTextTheme.titleSmall?.copyWith(
+            fontFamily: serifFamily,
+          ),
           bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+            fontFamily: sansFamily,
             fontSize: 20,
             height: 1.55,
           ),
           bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+            fontFamily: sansFamily,
             fontSize: 18,
             height: 1.55,
           ),
           bodySmall: baseTextTheme.bodySmall?.copyWith(
+            fontFamily: sansFamily,
             fontSize: 16,
             height: 1.5,
           ),
           labelLarge: baseTextTheme.labelLarge?.copyWith(
+            fontFamily: sansFamily,
             fontSize: 20,
             fontWeight: FontWeight.w600,
+          ),
+          labelMedium: baseTextTheme.labelMedium?.copyWith(
+            fontFamily: sansFamily,
+          ),
+          labelSmall: baseTextTheme.labelSmall?.copyWith(
+            fontFamily: sansFamily,
           ),
         )
         .apply(bodyColor: ink, displayColor: ink);
 
     final borderWidth = highContrast ? 2.0 : 1.0;
+
+    // High contrast retains the original 2px black border, no shadow.
+    // Normal mode drops the border and relies on the soft warm shadow
+    // (applied at the widget level via `softCardShadow` since CardTheme
+    // does not natively support custom shadow lists).
+    final cardShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(22),
+      side: highContrast
+          ? BorderSide(color: outline, width: borderWidth)
+          : BorderSide.none,
+    );
 
     return ThemeData(
       useMaterial3: true,
@@ -105,14 +171,12 @@ class AppTheme {
         iconTheme: IconThemeData(size: 32, color: ink),
       ),
       cardTheme: CardThemeData(
-        elevation: 0,
+        elevation: highContrast ? 0 : 2,
         margin: EdgeInsets.zero,
         color: cardColor,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: outline, width: borderWidth),
-        ),
+        shadowColor: const Color(0x14967860),
+        shape: cardShape,
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
@@ -184,11 +248,16 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         height: 88,
         backgroundColor: cardColor,
-        indicatorColor: highContrast ? primary : colorScheme.primaryContainer,
+        // Selected indicator is the warm terracotta primary in both modes
+        // so the active tab reads clearly against the warm off-white bg.
+        indicatorColor: highContrast
+            ? primary
+            : _seed.withValues(alpha: 0.18),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return TextStyle(
+            fontFamily: sansFamily,
             fontSize: 15,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             color: selected ? primary : inkMuted,

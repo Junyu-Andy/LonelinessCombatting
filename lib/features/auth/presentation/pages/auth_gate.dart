@@ -19,10 +19,15 @@ class AuthGate extends StatefulWidget {
   final AuthService authService;
   final AnalyticsService analytics;
 
+  /// Called whenever the signed-in uid changes (sign-in, sign-out, token
+  /// rotation). Used by [MyApp] to wire FCM token registration.
+  final Future<void> Function(String? uid)? onAuthUidChanged;
+
   const AuthGate({
     super.key,
     required this.authService,
     required this.analytics,
+    this.onAuthUidChanged,
   });
 
   @override
@@ -59,6 +64,9 @@ class _AuthGateState extends State<AuthGate> {
             final previous = _lastUid;
             _lastUid = profile?.uid;
             await widget.analytics.setUser(profile?.uid);
+            // B.3 — propagate arm code so every subsequent event carries it.
+            widget.analytics.setEnvironment(arm: profile?.arm?.code);
+            await widget.onAuthUidChanged?.call(profile?.uid);
             if (profile != null && previous == null) {
               await widget.analytics.logAuth('signed_in');
             } else if (profile == null && previous != null) {

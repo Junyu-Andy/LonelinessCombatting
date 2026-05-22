@@ -245,6 +245,8 @@ try again in the afternoon." No extra encouragement or suggestions.
       final reminders = FirestoreReminderQueue(available: auth.available);
       await reminders.schedule(
         uid: profile.uid,
+        // B.10 — pass profile so 今日休息 can suppress same-day reminders.
+        profile: profile,
         request: ReminderRequest(
           kind: 'm7_followup',
           fireAt: DateTime.now().add(const Duration(hours: 24)),

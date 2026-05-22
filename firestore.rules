@@ -7,19 +7,25 @@ rules_version = '2';
 // the per-user scope. Server-side admin reads happen via service accounts
 // which bypass these rules.
 //
-// Collections this app uses (existing + Sprint 1 additions):
+// Collections this app uses (Sprint 1 additions marked *new*):
 //   users/{uid}                                  -> profile (incl. arm, consent,
 //                                                   close_contacts, interests,
 //                                                   firstIntroSeen, per-agent
-//                                                   transcript flags)
+//                                                   transcript flags,
+//                                                   *new* strataCell)
 //   users/{uid}/events/{eventId}                 -> analytics events
 //   users/{uid}/memory/{moduleId}/entries/{id}   -> legacy module summaries
 //   users/{uid}/action_plans/{id}                -> M7 plans
-//   users/{uid}/thought_records/{id}             -> legacy M4 records
+//   users/{uid}/thought_records/{id}             -> legacy M4 records (read-only after Sprint 1)
+//   users/{uid}/thought_exercise/entries/{id}    -> *new* B.4 expanded TE entries
 //   users/{uid}/m3_reminiscence/...              -> M3 sessions
 //   users/{uid}/agent_contexts/{agent_id}        -> per-agent context (Dev Req §4.2)
 //   users/{uid}/shared_context/current           -> cross-agent shared state
-//   meta/arm_counter                             -> A/B balance counter
+//   users/{uid}/fcm_tokens/{deviceId}            -> *new* B.12 FCM push tokens
+//   meta/arm_counter                             -> *new* 4-cell A/B balance counter
+//   safety_events/{eventId}                      -> *new* B.7 distress events (client-write, admin-read)
+//   safety_event_dedup/{dedupKey}                -> *new* B.7 dedup sentinel (admin-write only)
+//   pi_alerts/{alertId}                          -> *new* B.7 acute alert queue (admin-write only)
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -35,43 +41,127 @@ service cloud.firestore {
     // ============================================================
     // The owner reads/writes anything under their own user doc.
     // ============================================================
-    // The {document=**} wildcard matches the profile doc and every
-    // subcollection / sub-subcollection underneath it (events, memory,
-    // action_plans, thought_records, m3_reminiscence, agent_contexts,
-    // shared_context). The per-agent isolation specified in Dev Req §4.3
-    // is enforced at the service layer (each Service addresses only its
-    // own namespace) and audited via parity tests; per-field write
-    // restrictions are out of scope for these client-facing rules
-    // because the threat model is "the owner is the only writer of
-    // their own data", not "different parts of the owner's client are
-    // mutually distrustful".
     match /users/{uid}/{document=**} {
       allow read, write: if isOwner(uid);
     }
 
     // ============================================================
-    // RCT arm balance counter.
+    // B.7 safety_events — client can create its own events only.
+    // No client reads, no updates, no deletes.  The onCreate Cloud
+    // Function trigger runs as a service account (bypasses rules)
+    // and patches the doc with dedup_key.
+    // ============================================================
+    match /safety_events/{eventId} {
+      allow create: if isAuthed()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasAll(['uid', 'source', 'textHash', 'level'])
+        && request.resource.data.level in ['none', 'low', 'moderate', 'acute'];
+      // Reads + updates come only from service accounts.
+      allow read, update, delete: if false;
+    }
+
+    // ============================================================
+    // B.7 dedup sentinels and PI alert queue — admin-write only.
+    // Clients must not read or write these collections.
+    // ============================================================
+    match /safety_event_dedup/{dedupKey} {
+      allow read, write: if false;
+    }
+    match /pi_alerts/{alertId} {
+      allow read, write: if false;
+    }
+
+    // ============================================================
+    // B.5 Thought-Exercise audit queue — admin-only.  Written by the
+    // onThoughtExerciseCreated CF; read by the researcher dashboard
+    // via a service account (Sprint 3 B.13).
+    // ============================================================
+    match /te_audit_queue/{auditId} {
+      allow read, write: if false;
+    }
+
+    // ============================================================
+    // C.1 Weekly loneliness probe queue — admin-write only.  The
+    // weekly cron writes per-user pending probes; client reads its
+    // own pending probe under users/{uid}/... (handled by the
+    // wildcard owner rule above).  The top-level mirror is admin-only.
+    // ============================================================
+    match /pending_loneliness_probes/{uid} {
+      allow read, write: if false;
+    }
+
+    // ============================================================
+    // C.4 Blinded export keys — PI service account only.  Working
+    // analysts must NEVER read this collection or blinding fails.
+    // ============================================================
+    match /export_blind_keys/{dateKey} {
+      allow read, write: if false;
+    }
+
+    // ============================================================
+    // C.2 stratified RCT arm-balance counter (Sprint 1.4).
+    //
+    // Schema: { cell_0: {aCount, bCount}, cell_1: ..., cell_2: ...,
+    //           cell_3: ..., updatedAt }
+    //
+    // Invariant per cell: each individual cell's (aCount, bCount)
+    // may each increment by at most 1 per write, and neither may
+    // decrease.  Exactly one cell must change; the other three must
+    // be untouched.
+    //
+    // This is the highest-concurrency write surface in the system
+    // (concurrent signups); keep the rule tight.
     // ============================================================
     match /meta/arm_counter {
       allow read: if isAuthed();
 
-      function priorA() {
-        return resource == null ? 0 : (resource.data.aCount == null ? 0 : resource.data.aCount);
+      function cellPrior(cell) {
+        return resource == null ? {aCount: 0, bCount: 0}
+             : (resource.data[cell] == null ? {aCount: 0, bCount: 0}
+                : resource.data[cell]);
       }
-      function priorB() {
-        return resource == null ? 0 : (resource.data.bCount == null ? 0 : resource.data.bCount);
+      function cellNext(cell) {
+        return request.resource.data[cell] == null
+             ? {aCount: 0, bCount: 0}
+             : request.resource.data[cell];
       }
-      function nextA() {
-        return request.resource.data.aCount;
+      // A valid cell transition: one of (aCount+1, bCount same) or
+      // (aCount same, bCount+1).  Neither count may decrease.
+      function validIncrement(cell) {
+        let prior = cellPrior(cell);
+        let next = cellNext(cell);
+        let priorA = prior.aCount == null ? 0 : prior.aCount;
+        let priorB = prior.bCount == null ? 0 : prior.bCount;
+        let nextA = next.aCount == null ? 0 : next.aCount;
+        let nextB = next.bCount == null ? 0 : next.bCount;
+        return (nextA == priorA + 1 && nextB == priorB)
+            || (nextA == priorA     && nextB == priorB + 1);
       }
-      function nextB() {
-        return request.resource.data.bCount;
+      // An unchanged cell: both counts stay the same.
+      function cellUnchanged(cell) {
+        let prior = cellPrior(cell);
+        let next = cellNext(cell);
+        let priorA = prior.aCount == null ? 0 : prior.aCount;
+        let priorB = prior.bCount == null ? 0 : prior.bCount;
+        let nextA = next.aCount == null ? 0 : next.aCount;
+        let nextB = next.bCount == null ? 0 : next.bCount;
+        return nextA == priorA && nextB == priorB;
       }
 
       allow create, update: if isAuthed()
         && (
-             (nextA() == priorA() + 1 && nextB() == priorB())
-          || (nextB() == priorB() + 1 && nextA() == priorA())
+          // Exactly cell_0 increments, others unchanged.
+          (validIncrement('cell_0') && cellUnchanged('cell_1')
+            && cellUnchanged('cell_2') && cellUnchanged('cell_3'))
+          // Exactly cell_1 increments.
+          || (cellUnchanged('cell_0') && validIncrement('cell_1')
+            && cellUnchanged('cell_2') && cellUnchanged('cell_3'))
+          // Exactly cell_2 increments.
+          || (cellUnchanged('cell_0') && cellUnchanged('cell_1')
+            && validIncrement('cell_2') && cellUnchanged('cell_3'))
+          // Exactly cell_3 increments.
+          || (cellUnchanged('cell_0') && cellUnchanged('cell_1')
+            && cellUnchanged('cell_2') && validIncrement('cell_3'))
         );
     }
 
