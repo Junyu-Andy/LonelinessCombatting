@@ -2,22 +2,22 @@ import 'package:app_demo/core/safety/safety_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-Widget _wrap(Widget child) => MaterialApp(
-      builder: (_, _) => SafetyOverlay(child: child),
-      home: const SizedBox.shrink(),
-    );
-
 void main() {
-  group('SafetyOverlay + SafetyOverlaySuppressor', () {
-    testWidgets('pill is visible by default', (tester) async {
+  group('SafetyOverlay', () {
+    testWidgets('pill is hidden globally', (tester) async {
+      // The persistent "搵人傾" pill was removed on product feedback;
+      // distress routing still surfaces a safety sheet on detection.
       await tester.pumpWidget(MaterialApp(
         home: SafetyOverlay(child: const Scaffold(body: SizedBox())),
       ));
       await tester.pump();
-      expect(find.text('搵人傾'), findsOneWidget);
+      expect(find.text('搵人傾'), findsNothing);
     });
 
-    testWidgets('suppressor hides the pill while mounted', (tester) async {
+    testWidgets('suppressor is a safe no-op', (tester) async {
+      // SafetyOverlaySuppressor stays in the tree for callers that
+      // already wrap themselves; with the pill gone it simply does
+      // nothing visible and must not throw.
       await tester.pumpWidget(MaterialApp(
         home: SafetyOverlay(
           child: const Scaffold(
@@ -25,10 +25,10 @@ void main() {
           ),
         ),
       ));
-      // One frame for postFrameCallback to fire.
       await tester.pump();
       await tester.pump();
       expect(find.text('搵人傾'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }
