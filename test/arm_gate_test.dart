@@ -41,7 +41,12 @@ void main() {
         ),
       ));
       expect(find.text('B-branch'), findsOneWidget);
-    });
+    },
+      // Phase A: Arm.of (arm_scope.dart) hard-returns Arm A for every user,
+      // so the Arm B / guest-fallback branch is unreachable until Phase B
+      // randomisation is restored. Skip until then.
+      skip: true,
+    );
 
     testWidgets('falls back to armB when arm is missing (guest mode)',
         (tester) async {
@@ -54,7 +59,12 @@ void main() {
         ),
       ));
       expect(find.text('B-branch'), findsOneWidget);
-    });
+    },
+      // Phase A: Arm.of (arm_scope.dart) hard-returns Arm A for every user,
+      // so the Arm B / guest-fallback branch is unreachable until Phase B
+      // randomisation is restored. Skip until then.
+      skip: true,
+    );
 
     testWidgets('falls back to armB when no profile signed in',
         (tester) async {
@@ -67,6 +77,11 @@ void main() {
         ),
       ));
       expect(find.text('B-branch'), findsOneWidget);
-    });
+    },
+      // Phase A: Arm.of (arm_scope.dart) hard-returns Arm A for every user,
+      // so the Arm B / guest-fallback branch is unreachable until Phase B
+      // randomisation is restored. Skip until then.
+      skip: true,
+    );
   });
 }

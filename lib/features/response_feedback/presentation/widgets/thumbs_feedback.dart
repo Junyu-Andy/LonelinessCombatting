@@ -120,7 +120,6 @@ class _ThumbsFeedbackState extends State<ThumbsFeedback> {
       // with the chip / text colours and read as white-on-white on
       // some devices.
       backgroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
       barrierColor: const Color(0x66000000),
       builder: (ctx) => const _ReasonSheet(),
     );

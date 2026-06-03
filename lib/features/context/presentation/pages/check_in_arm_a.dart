@@ -672,7 +672,6 @@ class _CheckInArmAState extends State<CheckInArmA> {
       isScrollControlled: true,
       showDragHandle: true,
       backgroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
       barrierColor: const Color(0x66000000),
       builder: (sheetCtx) {
         var localFace = _face;
