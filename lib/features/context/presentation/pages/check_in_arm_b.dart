@@ -44,7 +44,7 @@ class _CheckInArmBState extends State<CheckInArmB> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(isEn ? 'Today\'s Check-in' : '今日 Check-in')),
+      appBar: AppBar(title: Text(isEn ? 'Siu Yan' : '小欣')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),

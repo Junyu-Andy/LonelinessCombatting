@@ -6,18 +6,16 @@ import '../core_services_scope.dart';
 import 'distress_detector.dart';
 import 'distress_state.dart';
 
-/// Always-on-top "Talk to someone now" pill. Stacked above every route via
-/// MaterialApp's `builder` so it survives full-screen pushes. The label
-/// and colour are driven by [DistressState] so modules that detect
-/// escalation can paint the pill stronger without owning the widget.
+/// Always-on-top "Talk to someone now" pill — currently hidden on
+/// product feedback (the floating red pill read as unclear and
+/// cluttered the home).  Distress routing still surfaces a safety
+/// bottom sheet whenever the deterministic detector flags a user
+/// turn, so the safety net is intact; only the persistent affordance
+/// is gone.
 ///
-/// Suppression: pages that *are* the crisis surface (or that haven't
-/// agreed to consent yet) can hide the pill by wrapping themselves in
-/// [SafetyOverlaySuppressor]. The overlay maintains a depth counter so
-/// nested suppressors compose cleanly.
-///
-/// Spec §Safety controls: "Persistent 'Talk to someone now' button on
-/// every screen".
+/// The widget stays in place — including the [SafetyOverlaySuppressor]
+/// depth counter — so existing callers compile and so re-enabling the
+/// pill is a one-line change in [build].
 class SafetyOverlay extends StatefulWidget {
   final Widget child;
   const SafetyOverlay({super.key, required this.child});
@@ -46,17 +44,9 @@ class SafetyOverlayState extends State<SafetyOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        widget.child,
-        if (_suppressionDepth == 0)
-          const Positioned(
-            right: 12,
-            bottom: 90,
-            child: _SafetyPill(),
-          ),
-      ],
-    );
+    // Pill is hidden globally — see class doc.  Keep the Stack so the
+    // tree shape is unchanged for tests / suppressor counters.
+    return Stack(children: [widget.child]);
   }
 }
 
@@ -94,6 +84,7 @@ class _SafetyOverlaySuppressorState extends State<SafetyOverlaySuppressor> {
   Widget build(BuildContext context) => widget.child;
 }
 
+// ignore: unused_element
 class _SafetyPill extends StatefulWidget {
   const _SafetyPill();
 

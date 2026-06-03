@@ -1,18 +1,18 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/arm/arm_scope.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../context/presentation/pages/check_in_arm_a.dart';
+import '../../data/mood_recorder.dart';
 
-/// Top-of-Today greeting band, warm-restyle pass.
+/// Top-of-Today greeting band (Home Layout Spec §1–2).
 ///
-/// Warm gradient by time-of-day, deep-brown text (not white), bottom-only
-/// rounded corners. Hosts an inline "today mood" row that lets the user
-/// pick one of three emoji shortcuts; tapping any shortcut saves the
-/// mood for today and opens the Siu Yan check-in (Arm A) with that
-/// value pre-selected. The inline row hides itself once today's mood
-/// has been recorded.
+/// Warm gradient by time-of-day, deep-brown text, bottom-only rounded
+/// corners.  Embeds the 5-face mood pad directly in the hero per
+/// Home Layout Spec §2 — always visible, one-tap, supports multiple
+/// entries per day (first = `is_primary`, rest = `supplementary`).
 class GreetingHero extends StatefulWidget {
   const GreetingHero({super.key});
 
@@ -21,66 +21,113 @@ class GreetingHero extends StatefulWidget {
 }
 
 class _GreetingHeroState extends State<GreetingHero> {
-  // null = unknown / loading, false = not submitted, true = submitted today.
-  bool? _moodSubmittedToday;
-
-  String _todayKey() {
-    final now = DateTime.now();
-    final y = now.year.toString().padLeft(4, '0');
-    final m = now.month.toString().padLeft(2, '0');
-    final d = now.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
-  }
+  final _recorder = MoodRecorder();
+  int? _selectedMood;
+  bool _hasPrimaryToday = false;
+  bool _busy = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_moodSubmittedToday == null) {
-      _checkSubmitted();
-    }
+    _loadTodayMood();
   }
 
-  Future<void> _checkSubmitted() async {
+  Future<void> _loadTodayMood() async {
     final profile = AppSettingsScope.read(context).profile;
-    if (profile == null) {
-      if (mounted) setState(() => _moodSubmittedToday = false);
-      return;
-    }
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(profile.uid)
-          .collection('daily_mood')
-          .doc(_todayKey())
-          .get();
-      if (mounted) setState(() => _moodSubmittedToday = doc.exists);
-    } catch (_) {
-      if (mounted) setState(() => _moodSubmittedToday = false);
-    }
+    if (profile == null) return;
+    final entry = await _recorder.latestForDate(
+      uid: profile.uid,
+      dateIso: MoodRecorder.dateIsoFor(DateTime.now()),
+    );
+    if (!mounted || entry == null) return;
+    setState(() {
+      _selectedMood = entry.mood;
+      _hasPrimaryToday = true;
+    });
   }
 
-  Future<void> _saveAndOpen(int value) async {
+  Future<void> _onPick(int value, bool isEn) async {
+    if (_busy) return;
     final profile = AppSettingsScope.read(context).profile;
+    final isArmA = Arm.isA(context);
+    setState(() {
+      _selectedMood = value;
+      _busy = true;
+    });
     if (profile != null) {
       try {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(profile.uid)
-            .collection('daily_mood')
-            .doc(_todayKey())
-            .set({
-          'value': value,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
+        await _recorder.record(
+          uid: profile.uid,
+          mood: value,
+          arm: isArmA ? 'A' : 'B',
+          sourceSurface: 'home_hero',
+        );
       } catch (_) {
-        // Graceful degradation: guest mode / offline.
+        // Guest mode / offline — UI state already updated optimistically.
       }
     }
     if (!mounted) return;
-    setState(() => _moodSubmittedToday = true);
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CheckInArmA(initialMoodValue: value),
+    final wasSupplementary = _hasPrimaryToday;
+    setState(() {
+      _hasPrimaryToday = true;
+      _busy = false;
+    });
+    _showRecordedToast(isEn);
+    // Sprint logging: mood is now a stream of entries — the first-of-
+    // day still feeds the existing daily_mood_submitted analytics event
+    // so existing dashboards stay accurate; supplementary entries get
+    // their own variant to avoid double-counting.
+    final analytics = AnalyticsScope.of(context);
+    if (wasSupplementary) {
+      // Reuse the existing skip event family for now — a dedicated
+      // supplementary event can be added without breaking the wire.
+      analytics.logEvent('daily_mood_supplementary', {
+        'mood': value,
+        'source_surface': 'home_hero',
+      });
+    } else {
+      analytics.logDailyMoodSubmitted(mood: value);
+    }
+    if (isArmA && !wasSupplementary && mounted) {
+      _showSiuYanCta(isEn, value);
+    }
+  }
+
+  void _showRecordedToast(bool isEn) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(isEn ? 'Noted ☺︎' : '記低咗 ☺︎'),
+        duration: const Duration(milliseconds: 1500),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showSiuYanCta(bool isEn, int moodValue) {
+    // Arm A only: nudge to expand a few sentences with Siu Yan.  Lives
+    // inside the SnackBar action so it never blocks the home surface.
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          isEn
+              ? 'Want to share a bit more with Siu Yan?'
+              : '想同小欣講多兩句？',
+        ),
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: isEn ? 'Open' : '好',
+          onPressed: () {
+            if (!mounted) return;
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => CheckInArmA(initialMoodValue: moodValue),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -96,7 +143,6 @@ class _GreetingHeroState extends State<GreetingHero> {
 
     final hour = now.hour;
     final String greetingBase;
-    // Research Review v2 Item 7: 4-branch greeting schedule.
     if (hour >= 5 && hour < 11) {
       greetingBase = l10n.greetingMorning;
     } else if (hour >= 11 && hour < 18) {
@@ -107,7 +153,6 @@ class _GreetingHeroState extends State<GreetingHero> {
       greetingBase = l10n.greetingNight;
     }
 
-    // Warm gradient palette by time-of-day.
     final List<Color> gradient;
     if (hour >= 5 && hour < 11) {
       gradient = const [Color(0xFFF0DCC4), Color(0xFFEBCDB8)];
@@ -133,7 +178,7 @@ class _GreetingHeroState extends State<GreetingHero> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 36, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 36, 24, 26),
       decoration: BoxDecoration(
         borderRadius:
             const BorderRadius.vertical(bottom: Radius.circular(34)),
@@ -160,100 +205,111 @@ class _GreetingHeroState extends State<GreetingHero> {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            // Research Review v2 Item 3: tagline in l10n for trademark swap.
-            l10n.greetingTagline,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: secondaryInk,
-              height: 1.35,
-            ),
+          const SizedBox(height: 16),
+          _MoodPad(
+            isEn: isEn,
+            selectedMood: _selectedMood,
+            onPick: (v) => _onPick(v, isEn),
+            primaryInk: primaryInk,
+            secondaryInk: secondaryInk,
           ),
-          if (_moodSubmittedToday == false) ...[
-            const SizedBox(height: 18),
-            _InlineMoodRow(
-              isEn: isEn,
-              primaryInk: primaryInk,
-              secondaryInk: secondaryInk,
-              onPick: _saveAndOpen,
-            ),
-          ],
         ],
       ),
     );
   }
 }
 
-class _InlineMoodRow extends StatelessWidget {
+class _MoodPad extends StatelessWidget {
   final bool isEn;
+  final int? selectedMood;
+  final void Function(int) onPick;
   final Color primaryInk;
   final Color secondaryInk;
-  final void Function(int value) onPick;
 
-  const _InlineMoodRow({
+  const _MoodPad({
     required this.isEn,
+    required this.selectedMood,
+    required this.onPick,
     required this.primaryInk,
     required this.secondaryInk,
-    required this.onPick,
   });
+
+  static const _faces = <int, String>{
+    1: '😔',
+    2: '🙁',
+    3: '😐',
+    4: '🙂',
+    5: '😊',
+  };
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: const Color.fromRGBO(255, 255, 255, 0.6),
+        color: const Color.fromRGBO(255, 255, 255, 0.62),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.mood, color: primaryInk, size: 26),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              isEn
-                  ? "How's today? Tap one to tell me"
-                  : '今日感覺點？撳一撳話我知',
-              style: TextStyle(
-                fontSize: 14,
-                color: primaryInk,
-                fontWeight: FontWeight.w500,
-                height: 1.3,
-              ),
+          Text(
+            isEn
+                ? "How are you today? (you can log again anytime)"
+                : '今日感覺點？（隨時可以再記）',
+            style: TextStyle(
+              fontSize: 13,
+              color: const Color(0xFF6E5642),
+              fontWeight: FontWeight.w500,
+              height: 1.3,
             ),
           ),
-          const SizedBox(width: 8),
-          _EmojiChip(emoji: '🙁', onTap: () => onPick(2)),
-          const SizedBox(width: 6),
-          _EmojiChip(emoji: '😐', onTap: () => onPick(3)),
-          const SizedBox(width: 6),
-          _EmojiChip(emoji: '🙂', onTap: () => onPick(4)),
+          const SizedBox(height: 9),
+          Row(
+            children: [
+              for (final entry in _faces.entries)
+                Expanded(
+                  child: _FaceTap(
+                    emoji: entry.value,
+                    selected: selectedMood == entry.key,
+                    onTap: () => onPick(entry.key),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _EmojiChip extends StatelessWidget {
+class _FaceTap extends StatelessWidget {
   final String emoji;
+  final bool selected;
   final VoidCallback onTap;
 
-  const _EmojiChip({required this.emoji, required this.onTap});
+  const _FaceTap({
+    required this.emoji,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.7),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: SizedBox(
-          width: 38,
-          height: 38,
-          child: Center(
-            child: Text(emoji, style: const TextStyle(fontSize: 22)),
-          ),
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? const Color.fromRGBO(194, 112, 63, 0.18)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Text(emoji, style: const TextStyle(fontSize: 28)),
         ),
       ),
     );

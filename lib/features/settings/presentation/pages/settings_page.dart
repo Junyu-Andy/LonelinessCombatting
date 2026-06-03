@@ -6,18 +6,12 @@ import '../../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
-import '../../../../core/agents/agent_registry.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import '../../../personalization/presentation/pages/personalization_page.dart';
-import '../../../ppr/presentation/pages/ppr_weekly_page.dart';
 import '../../../progress/presentation/pages/progress_page.dart';
 import '../../../my_story/presentation/pages/my_story_page.dart';
-import '../../../researcher_dashboard/presentation/pages/researcher_dashboard_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
-import '../../../weekly_pr/data/weekly_pr_trigger.dart';
-import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
-import '../../../../core/arm/arm_scope.dart';
 import 'faq_page.dart';
 import 'privacy_policy_page.dart';
 
@@ -101,37 +95,9 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          _NavTileCard(
-            icon: Icons.rate_review_outlined,
-            title: isEn ? 'Weekly companion review' : '每週夥伴評估',
-            subtitle: isEn
-                ? '12 short items per companion used this week'
-                : '回想下你呢個禮拜同夥伴傾偈嘅感受',
-            onTap: () async {
-              final profile = settings.profile;
-              if (profile == null) return;
-              final trigger = WeeklyPrTrigger();
-              final agents = await trigger.agentsUsedThisWeek(profile.uid);
-              if (!context.mounted) return;
-              if (agents.isEmpty) {
-                final armCode = Arm.of(context)?.code ?? 'B';
-                await trigger.writeNoReferent(profile.uid, armCode);
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('呢個禮拜冇用過任何 companion。'),
-                  ),
-                );
-                return;
-              }
-              await Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => WeeklyPrPage(agents: agents),
-                ),
-              );
-            },
-          ),
+          // Weekly companion review entry deferred per product —
+          // re-add the _NavTileCard here when the weekly PR instrument
+          // is ready to ship.
           const SizedBox(height: 10),
           // 人生回顧 — index into the 4-week Ah Jan/Ah Bak curriculum +
           // story threads.  The reminiscence sessions themselves live
@@ -305,40 +271,9 @@ class _SettingsPageState extends State<SettingsPage> {
               label: Text(isEn ? 'Privacy Policy' : '私隱政策'),
             ),
           ),
-          const SizedBox(height: 28),
-          _SectionHeader(
-            icon: Icons.science_outlined,
-            title: isEn ? 'Research' : '研究',
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const PprWeeklyPage(
-                    agentId: AgentRegistry.ahJanAhBakId,
-                  ),
-                ),
-              ),
-              icon: const Icon(Icons.checklist_rounded, size: 26),
-              label: Text(isEn ? 'Weekly feedback (PPR)' : '每週回饋（PPR）'),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ResearcherDashboardPage(),
-                ),
-              ),
-              icon: const Icon(Icons.dashboard_customize_outlined, size: 26),
-              label:
-                  Text(isEn ? 'Researcher dashboard' : '研究員儀錶板'),
-            ),
-          ),
+          // Research section deferred per product — weekly PPR and the
+          // researcher dashboard return here when those instruments are
+          // ready to expose to participants again.
         ],
       ),
       ),

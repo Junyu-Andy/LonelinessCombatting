@@ -1,55 +1,38 @@
 import 'package:flutter/material.dart';
 
-/// Six-face mood picker (spec §M2 Arm B step 1). Used by the rule-based
-/// arm, but the affordance is small enough that it's safe to reuse in
-/// Arm A as the optional structured tail.
+/// Five-face mood picker — kept in lock-step with the home hero pad so
+/// the onboarding pick, the hero pick and the post-chat "完成" sheet
+/// all speak the same language (1=好差 … 5=好好).
 enum MoodFace {
   veryLow,
   low,
   neutral,
-  ok,
   good,
   great;
 
-  /// 1..6 numeric value for analytics. Mapped to the 1..5 mood column
-  /// used elsewhere via [numericScore].
+  /// 1..5 numeric value used everywhere — analytics, [MoodRecorder],
+  /// the Siu Yan opener.  No second mapping needed.
   int get rank => index + 1;
 
-  /// Compress 6-face → 1..5 so it slots into the existing analytics
-  /// schema without breaking the dashboard.
-  int get numericScore {
-    switch (this) {
-      case MoodFace.veryLow:
-        return 1;
-      case MoodFace.low:
-        return 2;
-      case MoodFace.neutral:
-        return 3;
-      case MoodFace.ok:
-        return 3;
-      case MoodFace.good:
-        return 4;
-      case MoodFace.great:
-        return 5;
-    }
-  }
+  /// Same as [rank] — kept for callers that still ask for
+  /// `numericScore`.  Removing the alias would churn analytics call
+  /// sites for no behaviour change.
+  int get numericScore => rank;
 
   String emoji() => switch (this) {
-        MoodFace.veryLow => '😣',
-        MoodFace.low => '😔',
+        MoodFace.veryLow => '😔',
+        MoodFace.low => '🙁',
         MoodFace.neutral => '😐',
-        MoodFace.ok => '🙂',
-        MoodFace.good => '😊',
-        MoodFace.great => '😄',
+        MoodFace.good => '🙂',
+        MoodFace.great => '😊',
       };
 
   String label(bool isEn) => switch (this) {
-        MoodFace.veryLow => isEn ? 'Very low' : '好辛苦',
-        MoodFace.low => isEn ? 'Low' : '唔多好',
-        MoodFace.neutral => isEn ? 'Neutral' : '一般',
-        MoodFace.ok => isEn ? 'OK' : '可以',
+        MoodFace.veryLow => isEn ? 'Very bad' : '好差',
+        MoodFace.low => isEn ? 'Bad' : '差',
+        MoodFace.neutral => isEn ? 'So-so' : '麻麻地',
         MoodFace.good => isEn ? 'Good' : '幾好',
-        MoodFace.great => isEn ? 'Great' : '好開心',
+        MoodFace.great => isEn ? 'Great' : '好好',
       };
 }
 

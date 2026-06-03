@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -12,6 +14,7 @@ import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/memory/cross_module_memory.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
+import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
@@ -20,16 +23,17 @@ import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../../reflective_dialogue/data/negative_cognition_detector.dart';
 import '../../../thought_exercise/presentation/naming_thought_card.dart';
 import '../../../thought_exercise/presentation/thought_exercise_page.dart';
+import '../../../today/data/mood_recorder.dart';
 import 'check_in_shared.dart';
 
 /// M2 — hybrid check-in (Arm A). Free-text or voice opener, LLM produces
 /// a brief empathetic reflection + at most one adaptive follow-up. The
 /// six-face mood picker is shown as an optional structured tail.
 class CheckInArmA extends StatefulWidget {
-  /// Optional mood face the user just picked on the home `DailyMoodCard`.
-  /// When set, Siu Yan's opener references it instead of the generic
-  /// "你今日點？" so the handoff doesn't feel like the agent forgot.
-  /// 1=好差, 2=差, 3=麻麻地, 4=幾好, 5=好好.
+  /// Optional mood face the user just picked on the home hero mood
+  /// pad.  When set, Siu Yan's opener references it instead of the
+  /// generic "你今日點？" so the handoff doesn't feel like the agent
+  /// forgot.  1=好差, 2=差, 3=麻麻地, 4=幾好, 5=好好.
   final int? initialMoodValue;
 
   const CheckInArmA({super.key, this.initialMoodValue});
@@ -69,6 +73,17 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// initState because Localizations.of needs the inherited context.
   bool _openerSeeded = false;
 
+  /// Mood value (1..5) used to phrase the opener.  Resolved from (in
+  /// priority order) the explicit `initialMoodValue`, today's
+  /// `daily_mood` doc, or the most recent `daily_mood` doc.  Null
+  /// means we have no mood history and fall back to a generic opener.
+  int? _resolvedMoodValue;
+
+  /// True iff `_resolvedMoodValue` came from today's record — controls
+  /// whether the opener phrases it as "you said today …" or "last time
+  /// you said …".
+  bool _resolvedMoodIsToday = true;
+
   /// Active cross-referral suggestion (Sprint 5). Cleared on dismiss
   /// or after the user accepts the handoff.
   SurfacedReferral? _pendingReferral;
@@ -90,50 +105,122 @@ class _CheckInArmAState extends State<CheckInArmA> {
     if (!_openerSeeded) {
       _openerSeeded = true;
       final isEn = Localizations.localeOf(context).languageCode == 'en';
-      _turns.add(_Turn.bot(_openingLine(isEn)));
-      // If the user came in from DailyMoodCard with a picked face, sync
-      // the bottom-sheet face state so "完成" doesn't re-ask for mood.
       if (widget.initialMoodValue != null) {
+        // Came in straight from the home mood pad — use the face the
+        // user just tapped and seed synchronously so the chat reads as
+        // immediate.
+        _resolvedMoodValue = widget.initialMoodValue;
+        _resolvedMoodIsToday = true;
         _face = _faceFromValue(widget.initialMoodValue!);
         _facePicked = true;
+        _turns.add(_Turn.bot(_openingLine(isEn)));
+      } else {
+        // Entered via the agent tile — look up today's mood first; if
+        // none, fall back to the most recent record so Siu Yan can at
+        // least say "上次你話麻麻地".
+        unawaited(_resolveMoodAndSeedOpener(isEn));
       }
     }
   }
 
+  Future<void> _resolveMoodAndSeedOpener(bool isEn) async {
+    final profile = AppSettingsScope.read(context).profile;
+    int? moodValue;
+    bool fromToday = true;
+    if (profile != null) {
+      final recorder = MoodRecorder();
+      final today = await recorder.latestForDate(
+        uid: profile.uid,
+        dateIso: MoodRecorder.dateIsoFor(DateTime.now()),
+      );
+      if (today != null) {
+        moodValue = today.mood;
+        fromToday = true;
+      } else {
+        final recent = await recorder.mostRecent(uid: profile.uid);
+        if (recent != null) {
+          moodValue = recent.mood;
+          fromToday = false;
+        }
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _resolvedMoodValue = moodValue;
+      _resolvedMoodIsToday = fromToday;
+      if (moodValue != null && fromToday) {
+        // Pre-fill the end-of-session face so "完成" doesn't re-ask for
+        // a mood the user already logged today.
+        _face = _faceFromValue(moodValue);
+        _facePicked = true;
+      }
+      _turns.add(_Turn.bot(_openingLine(isEn)));
+    });
+  }
+
   String _openingLine(bool isEn) {
-    final mood = widget.initialMoodValue;
+    final mood = _resolvedMoodValue;
     if (mood == null) {
       return isEn
           ? 'Hi — how are you today? Write a few words or speak whenever you\'re ready.'
           : '你好啊。你今日點？寫幾句、或者用咪都得。';
     }
-    // Mood-aware opener — references the face the user just tapped on the
-    // home card so Siu Yan doesn't ask the same question over again.
-    if (isEn) {
+    if (_resolvedMoodIsToday) {
+      if (isEn) {
+        switch (mood) {
+          case 1:
+            return 'I saw you marked today as quite hard. I\'m here — take your time, what\'s weighing on you?';
+          case 2:
+            return 'You said today doesn\'t feel great. Want to tell me a bit more about what\'s going on?';
+          case 3:
+            return 'So-so today. Want to share what\'s on your mind, big or small?';
+          case 4:
+            return 'You said today feels okay. What\'s been the best part so far?';
+          case 5:
+            return 'You said today\'s been good! Tell me what made it nice.';
+        }
+      }
       switch (mood) {
         case 1:
-          return 'I saw you marked today as quite hard. I\'m here — take your time, what\'s weighing on you?';
+          return '見到你話今日好差。我喺度，慢慢講，係咩事令你咁辛苦呀？';
         case 2:
-          return 'You said today doesn\'t feel great. Want to tell me a bit more about what\'s going on?';
+          return '你話今日差咗，係邊方面唔舒服呀？同我講多少少。';
         case 3:
-          return 'So-so today. Want to share what\'s on your mind, big or small?';
+          return '麻麻地嘅一日，腦海入面有咩想講，無論大小都得。';
         case 4:
-          return 'You said today feels okay. What\'s been the best part so far?';
+          return '你話今日幾好。咁今日最好嘅一刻係咩呢？';
         case 5:
-          return 'You said today\'s been good! Tell me what made it nice.';
+          return '你話今日好好喎！同我講下係咩令你咁開心？';
       }
-    }
-    switch (mood) {
-      case 1:
-        return '見到你話今日好差。我喺度，慢慢講，係咩事令你咁辛苦呀？';
-      case 2:
-        return '你話今日差咗，係邊方面唔舒服呀？同我講多少少。';
-      case 3:
-        return '麻麻地嘅一日，腦海入面有咩想講，無論大小都得。';
-      case 4:
-        return '你話今日幾好。咁今日最好嘅一刻係咩呢？';
-      case 5:
-        return '你話今日好好喎！同我講下係咩令你咁開心？';
+    } else {
+      // Most-recent (non-today) mood — phrase as "last time you said …
+      // how about today?" so the opener still asks for fresh input.
+      if (isEn) {
+        switch (mood) {
+          case 1:
+            return 'Last time you marked things as quite hard. How are you doing today?';
+          case 2:
+            return 'Last time felt bad. How\'s today — any different?';
+          case 3:
+            return 'Last time was so-so. What about today?';
+          case 4:
+            return 'Last time felt okay. How\'s today going?';
+          case 5:
+            return 'Last time was good! How\'s today shaping up?';
+        }
+      }
+      switch (mood) {
+        case 1:
+          return '上次你話好辛苦。今日點呀？同我講少少。';
+        case 2:
+          return '上次你話差咗少少。今日好啲未呀？';
+        case 3:
+          return '上次麻麻地。今日有冇好啲？';
+        case 4:
+          return '上次你話幾好。今日呢？';
+        case 5:
+          return '上次你話好好。今日仲係咁好嗎？';
+      }
     }
     return isEn
         ? 'Hi — what\'s on your mind today?'
@@ -464,7 +551,6 @@ class _CheckInArmAState extends State<CheckInArmA> {
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final theme = Theme.of(context);
 
     final userTurnCount = _turns.where((t) => t.fromUser).length;
     final canEnd = userTurnCount >= 1 && !_saved;
@@ -472,7 +558,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
       agentId: AgentRegistry.siuYanId,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(isEn ? 'Today\'s Check-in' : '今日 Check-in'),
+          title: Text(isEn ? 'Siu Yan' : '小欣'),
           actions: [
             TextButton(
               onPressed: canEnd ? () => _openMoodSheet(isEn) : null,
@@ -551,11 +637,13 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// of the chat list which read as visual clutter throughout the
   /// session.
   Future<void> _openMoodSheet(bool isEn) async {
-    final theme = Theme.of(context);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      barrierColor: const Color(0x66000000),
       builder: (sheetCtx) {
         var localFace = _face;
         var localPicked = _facePicked;
@@ -577,7 +665,12 @@ class _CheckInArmAState extends State<CheckInArmA> {
                     isEn
                         ? 'How would you describe your mood today?'
                         : '你今日心情，揀一個你覺得最似嘅樣？',
-                    style: theme.textTheme.titleLarge,
+                    style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF3A3330),
+                      height: 1.35,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   MoodFacePicker(
@@ -673,8 +766,10 @@ class _TurnBubble extends StatelessWidget {
           color: color,
           borderRadius: BorderRadius.circular(18),
         ),
-        child: Text(turn.text,
-            style: TextStyle(fontSize: 17, height: 1.4, color: fg)),
+        child: RichChatText(
+          text: turn.text,
+          style: TextStyle(fontSize: 17, height: 1.4, color: fg),
+        ),
       ),
     );
   }
