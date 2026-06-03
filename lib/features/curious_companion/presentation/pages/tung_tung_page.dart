@@ -13,10 +13,13 @@
 /// already aware of which article the user wants to discuss.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agent_context/agent_context_service.dart';
+import '../../../../core/agent_context/rolling_summary_compiler.dart';
 import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
@@ -269,8 +272,10 @@ class _TungTungPageState extends State<TungTungPage> {
       contextSuffix: suffix.toString().trim().isEmpty
           ? null
           : suffix.toString().trim(),
+      agentContextSnapshot: persona?.agentContextSnapshot,
       history: history,
       userInput: text,
+      uid: profile?.uid,
     );
 
     if (profile != null &&
@@ -448,6 +453,18 @@ class _TungTungPageState extends State<TungTungPage> {
     _briefPrSurfaced = true;
     final profile = AppSettingsScope.read(context).profile;
     if (profile == null) return;
+
+    // §1C — fold this Tung Tung session into the rolling summary and clear
+    // the verbatim buffer on exit. Fire-and-forget (context-free service).
+    final core = CoreServicesScope.of(context);
+    unawaited(RollingSummaryCompiler(
+      agentContext: core.agentContext,
+      llm: core.llm,
+    ).compileAtSessionEnd(
+      uid: profile.uid,
+      agentId: AgentRegistry.tungTungId,
+    ));
+
     final exchangeCount = _turns.where((t) => t.fromUser).length;
     final gate = BriefPrGate();
     final shouldShow = await gate.shouldSurfaceBriefPr(

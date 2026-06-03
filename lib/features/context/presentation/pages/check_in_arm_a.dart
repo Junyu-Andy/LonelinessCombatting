@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agent_context/agent_context_service.dart';
+import '../../../../core/agent_context/rolling_summary_compiler.dart';
+import '../../../../core/agent_context/shared_context_service.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/core_services_scope.dart';
@@ -327,8 +329,10 @@ class _CheckInArmAState extends State<CheckInArmA> {
       agentId: persona?.agent.id ?? AgentRegistry.siuYanId,
       systemPrompt: persona == null ? _fallbackPersonaPrompt : null,
       contextSuffix: contextSuffix.isEmpty ? null : contextSuffix,
+      agentContextSnapshot: persona?.agentContextSnapshot,
       history: history,
       userInput: text,
+      uid: profile?.uid,
     );
 
     // Append the user's turn to Siu Yan's short-term buffer so
@@ -509,6 +513,32 @@ class _CheckInArmAState extends State<CheckInArmA> {
           if (callback != null) 'cross_callback:${callback.sourceFamily}',
         ],
       );
+    }
+
+    // §1C — update the shared recent-mood snippet (no LLM; straight from the
+    // mood the user just logged) so other agents can reference it gently.
+    if (profile != null && _facePicked) {
+      await core.sharedContext.updateRecentMood(
+        uid: profile.uid,
+        mood: SharedMoodSummary(
+          summary: '最近一次心情評分：${_face.numericScore}/5。',
+          asOf: DateTime.now(),
+        ),
+      );
+    }
+
+    // §1C — fold this session into Siu Yan's rolling summary and clear the
+    // verbatim buffer. Fire-and-forget (context-free) so the save stays
+    // snappy; no-ops in guest mode / when transcript retention is off.
+    if (profile != null) {
+      final compiler = RollingSummaryCompiler(
+        agentContext: core.agentContext,
+        llm: core.llm,
+      );
+      unawaited(compiler.compileAtSessionEnd(
+        uid: profile.uid,
+        agentId: AgentRegistry.siuYanId,
+      ));
     }
     _analytics?.logCheckIn(
       mood: _face.numericScore,

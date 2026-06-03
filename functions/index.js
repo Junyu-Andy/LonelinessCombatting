@@ -150,6 +150,33 @@ function computePromptHash(resolvedPrompt) {
 }
 
 // ---------------------------------------------------------------------------
+// Sprint 1.B — per-agent decoding temperature (Demo Sprint Plan §1B).
+//
+// Each companion gets a distinct sampling temperature so the three voices
+// feel meaningfully different (arm-A reproducibility: the value is a pure
+// function of agentId, written into the request the analyst can replay):
+//   • 阿珍／阿伯 (ah_jan_ah_bak) 0.5 — steady, grounded reminiscence peer.
+//   • 小欣      (siu_yan)       0.7 — warm daily check-in confidante.
+//   • 通通      (tung_tung)     0.85 — lively, curious companion.
+// Anything else (referral judgement, unknown agent) keeps the 0.7 default.
+// These are STARTING values to be micro-tuned in agent_prompt_bench.py.
+// ---------------------------------------------------------------------------
+const _AGENT_TEMPERATURE = {
+  ah_jan_ah_bak: 0.5,
+  siu_yan: 0.7,
+  tung_tung: 0.85,
+};
+const _DEFAULT_TEMPERATURE = 0.7;
+
+function temperatureFor(agentId) {
+  if (agentId && Object.prototype.hasOwnProperty.call(
+      _AGENT_TEMPERATURE, agentId)) {
+    return _AGENT_TEMPERATURE[agentId];
+  }
+  return _DEFAULT_TEMPERATURE;
+}
+
+// ---------------------------------------------------------------------------
 // proxyDeepSeek — main LLM entry point. Now supports promptKey resolution
 // in addition to the legacy systemPrompt path.
 //   payload.promptKey       — resolves prompt file in functions/prompts/
@@ -229,7 +256,7 @@ exports.proxyDeepSeek = onCall(
           // more headroom; per-turn caps via the system prompt remain
           // the policy lever for "1-2 sentence" agents.
           max_tokens: 800,
-          temperature: 0.7,
+          temperature: temperatureFor(agentId),
           top_p: 0.95,
         }),
       },

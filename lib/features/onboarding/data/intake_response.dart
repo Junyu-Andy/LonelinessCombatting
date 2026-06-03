@@ -1,6 +1,6 @@
 /// Intake questionnaire response model.
 ///
-/// Stored at `users/{uid}/onboarding_intake/v1`.
+/// Stored at `users/{uid}/onboarding/intake` (see IntakeRepository).
 /// Covers 6 parts of the structured onboarding intake.
 
 /// A person the user identified during intake (important contacts or
