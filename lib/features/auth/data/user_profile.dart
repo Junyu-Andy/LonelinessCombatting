@@ -234,6 +234,11 @@ class UserProfile {
   /// Preferred chat times from intake Part 6.
   final List<String>? preferredTimes;
 
+  /// T4 — internal dogfooding account. Tester acute distress events are
+  /// still recorded but never page the PI (see onSafetyEventCreated), and
+  /// these accounts are excluded from research data downstream.
+  final bool isTester;
+
   const UserProfile({
     required this.uid,
     required this.email,
@@ -259,6 +264,7 @@ class UserProfile {
     this.hasCompletedIntake = false,
     this.inputMode,
     this.preferredTimes,
+    this.isTester = false,
   });
 
   /// B.10 — true when the activation timestamp is for the current local day.
@@ -291,6 +297,7 @@ class UserProfile {
     bool? hasCompletedIntake,
     String? inputMode,
     List<String>? preferredTimes,
+    bool? isTester,
   }) {
     return UserProfile(
       uid: uid,
@@ -319,6 +326,7 @@ class UserProfile {
       hasCompletedIntake: hasCompletedIntake ?? this.hasCompletedIntake,
       inputMode: inputMode ?? this.inputMode,
       preferredTimes: preferredTimes ?? this.preferredTimes,
+      isTester: isTester ?? this.isTester,
     );
   }
 
@@ -353,6 +361,7 @@ class UserProfile {
         'hasCompletedIntake': hasCompletedIntake,
         'inputMode': inputMode,
         'preferredTimes': preferredTimes,
+        'isTester': isTester,
       };
 
   factory UserProfile.fromMap(String uid, Map<String, dynamic> map) {
@@ -431,6 +440,7 @@ class UserProfile {
       hasCompletedIntake: (map['hasCompletedIntake'] as bool?) ?? false,
       inputMode: map['inputMode'] as String?,
       preferredTimes: (map['preferredTimes'] as List?)?.whereType<String>().toList(),
+      isTester: (map['isTester'] as bool?) ?? false,
     );
   }
 }

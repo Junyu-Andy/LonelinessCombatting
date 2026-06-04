@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+ runtime notification permission. The FCM "doorbell"
+         (T2) requests this at runtime via FirebaseMessaging.requestPermission. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
         android:label="app_demo"
