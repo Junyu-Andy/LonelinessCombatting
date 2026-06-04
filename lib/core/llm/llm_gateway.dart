@@ -107,6 +107,7 @@ class LlmGateway {
       );
     }
 
+    final sw = Stopwatch()..start();
     final raw = await _client.complete(
       moduleId: moduleId,
       systemPrompt: systemPrompt,
@@ -119,6 +120,8 @@ class LlmGateway {
       regenerate: regenerate,
       agentContextSnapshot: agentContextSnapshot,
     );
+    sw.stop();
+    final latencyMs = sw.elapsedMilliseconds;
 
     final outputFlag = _detector.analyze(raw.text);
     final filtered = _postFilter(raw.text);
@@ -147,6 +150,7 @@ class LlmGateway {
         moduleId: moduleId,
         systemPromptHash: raw.systemPromptHash,
         raw: raw.llmFlags,
+        latencyMs: latencyMs,
       );
       // ignore unawaited — fire-and-forget so latency stays on the UI path.
       _featuresRepo!.write(

@@ -362,7 +362,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
     setState(() {
       _busy = false;
       if (response.text.isNotEmpty) {
-        _turns.add(_Turn.bot(response.text));
+        _turns.add(_Turn.bot(response.text,
+            promptHash: response.metadata.systemPromptHash));
       } else {
         // No API key configured — keep the flow moving with a scripted
         // acknowledgement so the screen isn't dead.
@@ -538,6 +539,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
       unawaited(compiler.compileAtSessionEnd(
         uid: profile.uid,
         agentId: AgentRegistry.siuYanId,
+        retentionOn:
+            profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId),
       ));
     }
     _analytics?.logCheckIn(
@@ -617,6 +620,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
                             agentId: 'siu_yan',
                             moduleId: 'm2_check_in',
                             turnKey: 'turn_$i',
+                            promptHash: _turns[i].promptHash,
                           ),
                         ),
                     ],
@@ -760,9 +764,11 @@ class _Turn {
   final bool fromUser;
   final bool isSystem;
   final String text;
-  const _Turn._(this.fromUser, this.isSystem, this.text);
+  final String? promptHash;
+  const _Turn._(this.fromUser, this.isSystem, this.text, {this.promptHash});
   factory _Turn.user(String t) => _Turn._(true, false, t);
-  factory _Turn.bot(String t) => _Turn._(false, false, t);
+  factory _Turn.bot(String t, {String? promptHash}) =>
+      _Turn._(false, false, t, promptHash: promptHash);
   factory _Turn.system(String t) => _Turn._(false, true, t);
 }
 

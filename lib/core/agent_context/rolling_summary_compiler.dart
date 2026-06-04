@@ -42,15 +42,28 @@ class RollingSummaryCompiler {
   /// Fold the current session for ([uid], [agentId]) into the rolling
   /// summary and clear the short-term buffer. Safe to call unconditionally
   /// at session end — it no-ops when there's nothing to fold.
+  ///
+  /// [retentionOn] is the per-agent transcript-retention consent; pass it so
+  /// the T5 fold-status can distinguish "consent off" from "empty session".
   Future<void> compileAtSessionEnd({
     required String uid,
     required String agentId,
+    bool retentionOn = true,
   }) async {
+    // T5 — record the outcome so it's visible in the console.
+    if (!retentionOn) {
+      await agentContext.writeFoldStatus(
+        uid: uid, agentId: agentId, status: 'skipped_consent_off');
+      return;
+    }
+
     final snapshot = await agentContext.read(uid: uid, agentId: agentId);
     final buffer = snapshot.shortTermBuffer;
     if (buffer.isEmpty) {
-      // Nothing retained this session (guest mode or retention OFF) — keep
-      // the prior summary untouched.
+      // Retention is on but nothing was buffered (e.g. opened the room but
+      // didn't talk). Keep the prior summary untouched.
+      await agentContext.writeFoldStatus(
+        uid: uid, agentId: agentId, status: 'skipped_empty');
       return;
     }
 
@@ -65,26 +78,44 @@ class RollingSummaryCompiler {
       ..writeln('[今次對話]')
       ..write(transcript);
 
-    final response = await llm.send(
-      moduleId: 'rolling_summary_fold',
-      systemPrompt: _foldSystemPrompt,
-      agentId: agentId,
-      history: const [],
-      userInput: userInput.toString(),
-      uid: uid,
-    );
-
-    // Only overwrite on a real, non-short-circuited result. On failure we
-    // keep the prior summary (non-destructive) but still clear the buffer so
-    // the next session starts clean rather than re-folding stale turns.
-    final folded = response.text.trim();
-    if (!response.shortCircuited && folded.isNotEmpty) {
-      await agentContext.writeRollingSummary(
-        uid: uid,
+    String status;
+    String? error;
+    try {
+      final response = await llm.send(
+        moduleId: 'rolling_summary_fold',
+        systemPrompt: _foldSystemPrompt,
         agentId: agentId,
-        summary: _truncate(folded),
+        history: const [],
+        userInput: userInput.toString(),
+        uid: uid,
       );
+
+      final folded = response.text.trim();
+      if (response.shortCircuited) {
+        // Distress short-circuit on the transcript — guardrail suppressed
+        // the fold. Prior summary preserved.
+        status = 'suppressed_distress';
+      } else if (folded.isEmpty) {
+        // LLM returned nothing (no API key, timeout, upstream error).
+        status = 'failed';
+        error = 'empty_llm_response';
+      } else {
+        await agentContext.writeRollingSummary(
+          uid: uid,
+          agentId: agentId,
+          summary: _truncate(folded),
+        );
+        status = 'ok';
+      }
+    } catch (e) {
+      status = 'failed';
+      error = e.toString();
     }
+
+    await agentContext.writeFoldStatus(
+      uid: uid, agentId: agentId, status: status, error: error);
+    // Clear the buffer regardless: non-destructive to the summary, and stops
+    // a failed fold from re-folding stale turns next session.
     await agentContext.discardShortTermBuffer(uid: uid, agentId: agentId);
   }
 

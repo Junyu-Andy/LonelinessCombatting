@@ -296,6 +296,26 @@ class AgentContextService {
     );
   }
 
+  /// T5 — record the outcome of the session-end rolling-summary fold so it's
+  /// observable in the Firestore console. [status] is one of:
+  ///   ok | failed | suppressed_distress | skipped_consent_off | skipped_empty
+  Future<void> writeFoldStatus({
+    required String uid,
+    required String agentId,
+    required String status,
+    String? error,
+  }) async {
+    if (!available) return;
+    await _ref(uid, agentId).set(
+      {
+        'lastFoldAt': FieldValue.serverTimestamp(),
+        'lastFoldStatus': status,
+        'lastFoldError': error,
+      },
+      SetOptions(merge: true),
+    );
+  }
+
   /// Drop the short-term buffer (end-of-session, retention OFF).
   /// Named entities, rolling summary, and theme threads survive — only
   /// verbatim turn text is purged.

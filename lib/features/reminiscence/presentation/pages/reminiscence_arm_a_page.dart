@@ -521,6 +521,8 @@ clay-pot rice stand..."
       ).compileAtSessionEnd(
         uid: profile.uid,
         agentId: AgentRegistry.ahJanAhBakId,
+        retentionOn:
+            profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
       ));
     }
     if (!mounted) return;

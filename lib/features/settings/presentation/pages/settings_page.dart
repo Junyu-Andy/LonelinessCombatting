@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
+import '../../data/tester_tools.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
@@ -274,8 +276,73 @@ class _SettingsPageState extends State<SettingsPage> {
           // Research section deferred per product — weekly PPR and the
           // researcher dashboard return here when those instruments are
           // ready to expose to participants again.
+
+          // T6 — tester tools. Hidden from real participants: shown only in
+          // debug builds or when this account is flagged isTester.
+          if (kDebugMode || (settings.profile?.isTester ?? false)) ...[
+            const SizedBox(height: 28),
+            _SectionHeader(
+              icon: Icons.bug_report_outlined,
+              title: isEn ? 'Tester tools' : '測試員工具',
+            ),
+            const SizedBox(height: 14),
+            _SwitchTileCard(
+              icon: Icons.science_outlined,
+              title: isEn ? 'Tester account' : '測試員帳號',
+              subtitle: isEn
+                  ? 'Excludes this account from research data; acute alerts '
+                      'are logged but the PI is not emailed.'
+                  : '呢個帳號唔計入研究數據；acute 事件會記錄但唔會 email PI。',
+              value: settings.profile?.isTester ?? false,
+              onChanged: (value) async {
+                final profile = settings.profile;
+                if (profile == null) return;
+                final auth = AuthServiceScope.of(context);
+                final updated = profile.copyWith(isTester: value);
+                await auth.updateProfile(updated);
+                settings.profile = updated;
+              },
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _resetMyData(isEn),
+                icon: const Icon(Icons.restart_alt_rounded, size: 26),
+                label: Text(isEn ? 'Reset my data' : '重置我嘅資料'),
+              ),
+            ),
+          ],
         ],
       ),
+      ),
+    );
+  }
+
+  Future<void> _resetMyData(bool isEn) async {
+    final settings = AppSettingsScope.read(context);
+    final auth = AuthServiceScope.of(context);
+    final profile = settings.profile;
+    if (profile == null) return;
+    final confirmed = await showAppConfirm(
+      context: context,
+      title: isEn ? 'Reset my data?' : '重置我嘅資料？',
+      message: isEn
+          ? 'Deletes this account\'s agent memory, mood log, and rolling '
+              'summaries so you can re-walk onboarding. Cannot be undone.'
+          : '會刪除呢個帳號嘅 agent 記憶、心情記錄同滾動摘要，等你可以由頭再行一次。'
+              '刪咗冇得返。',
+      confirmLabel: isEn ? 'Reset' : '重置',
+    );
+    if (!confirmed || !mounted) return;
+    final tools = TesterTools(available: auth.available);
+    final count = await tools.resetMyData(profile.uid);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(isEn
+            ? 'Reset done — $count document(s) deleted.'
+            : '已重置 — 刪咗 $count 份記錄。'),
       ),
     );
   }

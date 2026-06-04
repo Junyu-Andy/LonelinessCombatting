@@ -308,7 +308,8 @@ class _TungTungPageState extends State<TungTungPage> {
             : '我未諗到點答 —— 講多少少好嗎？');
     setState(() {
       _busy = false;
-      _turns.add(_Turn.bot(replyText));
+      _turns.add(_Turn.bot(replyText,
+          promptHash: response.metadata.systemPromptHash));
     });
 
     if (profile != null &&
@@ -390,6 +391,7 @@ class _TungTungPageState extends State<TungTungPage> {
                             agentId: 'tung_tung',
                             moduleId: 'tung_tung_chat',
                             turnKey: 'turn_$i',
+                            promptHash: _turns[i].promptHash,
                           ),
                         ),
                     ],
@@ -463,6 +465,8 @@ class _TungTungPageState extends State<TungTungPage> {
     ).compileAtSessionEnd(
       uid: profile.uid,
       agentId: AgentRegistry.tungTungId,
+      retentionOn:
+          profile.consent.transcriptRetentionFor(AgentRegistry.tungTungId),
     ));
 
     final exchangeCount = _turns.where((t) => t.fromUser).length;
@@ -875,8 +879,10 @@ class _Turn {
   final bool fromUser;
   final bool isSystem;
   final String text;
-  const _Turn._(this.fromUser, this.isSystem, this.text);
+  final String? promptHash;
+  const _Turn._(this.fromUser, this.isSystem, this.text, {this.promptHash});
   factory _Turn.user(String t) => _Turn._(true, false, t);
-  factory _Turn.bot(String t) => _Turn._(false, false, t);
+  factory _Turn.bot(String t, {String? promptHash}) =>
+      _Turn._(false, false, t, promptHash: promptHash);
   factory _Turn.system(String t) => _Turn._(false, true, t);
 }
