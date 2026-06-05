@@ -20,12 +20,18 @@ class ThumbsFeedback extends StatefulWidget {
   /// supersede earlier feedback when re-rated.
   final String? turnKey;
 
+  /// T7 — the resolved system-prompt hash for the turn being rated, so a
+  /// 👎 can be tied back to the exact prompt that produced it. Null when
+  /// the surface doesn't track it.
+  final String? promptHash;
+
   const ThumbsFeedback({
     super.key,
     required this.agentId,
     required this.moduleId,
     this.turnRef,
     this.turnKey,
+    this.promptHash,
   });
 
   @override
@@ -89,6 +95,29 @@ class _ThumbsFeedbackState extends State<ThumbsFeedback> {
             .collection('response_feedback')
             .add(fb.toFirestore());
       } catch (_) {}
+
+      // T7 — mirror 👎 to a tester-facing collection tagged with the prompt
+      // hash + timestamp so dogfooders' complaints map back to the exact
+      // turn/prompt. Only down-votes (the actionable signal) are mirrored.
+      if (rating == 'down') {
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(profile.uid)
+              .collection('tester_feedback')
+              .add({
+            'agentId': widget.agentId,
+            'moduleId': widget.moduleId,
+            'promptHash': widget.promptHash,
+            'turnRef': turnRef,
+            'arm': arm,
+            'reasons': reasons ?? const <String>[],
+            'otherText': otherText,
+            'unintentionalDismiss': unintentionalDismiss,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+        } catch (_) {}
+      }
     }
     if (mounted) {
       await AnalyticsScope.of(context).logResponseFeedbackSubmitted(
@@ -120,7 +149,6 @@ class _ThumbsFeedbackState extends State<ThumbsFeedback> {
       // with the chip / text colours and read as white-on-white on
       // some devices.
       backgroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
       barrierColor: const Color(0x66000000),
       builder: (ctx) => const _ReasonSheet(),
     );

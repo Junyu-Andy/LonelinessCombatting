@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agent_context/agent_context_service.dart';
+import '../../../../core/agent_context/rolling_summary_compiler.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/core_services_scope.dart';
@@ -350,8 +353,10 @@ clay-pot rice stand..."
               : _systemPromptZh(themeTitle))
           : null,
       contextSuffix: contextSuffix.isEmpty ? null : contextSuffix,
+      agentContextSnapshot: persona?.agentContextSnapshot,
       history: history,
       userInput: text,
+      uid: profile?.uid,
     );
 
     // Mirror the user turn into Ah Jan / Ah Bak's agent-context buffer
@@ -506,6 +511,19 @@ clay-pot rice stand..."
         endSummaryEdited: useOriginal ? original : edited,
         userEdited: userEdited,
       );
+
+      // §1C — fold this reminiscence session into Ah Jan / Ah Bak's rolling
+      // summary and clear the verbatim buffer. Fire-and-forget.
+      final core = CoreServicesScope.of(context);
+      unawaited(RollingSummaryCompiler(
+        agentContext: core.agentContext,
+        llm: core.llm,
+      ).compileAtSessionEnd(
+        uid: profile.uid,
+        agentId: AgentRegistry.ahJanAhBakId,
+        retentionOn:
+            profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
+      ));
     }
     if (!mounted) return;
     setState(() => _saved = true);

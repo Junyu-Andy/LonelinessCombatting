@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agent_context/agent_context_service.dart';
+import '../../../../core/agent_context/rolling_summary_compiler.dart';
+import '../../../../core/agent_context/shared_context_service.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/core_services_scope.dart';
@@ -327,8 +329,10 @@ class _CheckInArmAState extends State<CheckInArmA> {
       agentId: persona?.agent.id ?? AgentRegistry.siuYanId,
       systemPrompt: persona == null ? _fallbackPersonaPrompt : null,
       contextSuffix: contextSuffix.isEmpty ? null : contextSuffix,
+      agentContextSnapshot: persona?.agentContextSnapshot,
       history: history,
       userInput: text,
+      uid: profile?.uid,
     );
 
     // Append the user's turn to Siu Yan's short-term buffer so
@@ -358,7 +362,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
     setState(() {
       _busy = false;
       if (response.text.isNotEmpty) {
-        _turns.add(_Turn.bot(response.text));
+        _turns.add(_Turn.bot(response.text,
+            promptHash: response.metadata.systemPromptHash));
       } else {
         // No API key configured — keep the flow moving with a scripted
         // acknowledgement so the screen isn't dead.
@@ -510,6 +515,34 @@ class _CheckInArmAState extends State<CheckInArmA> {
         ],
       );
     }
+
+    // §1C — update the shared recent-mood snippet (no LLM; straight from the
+    // mood the user just logged) so other agents can reference it gently.
+    if (profile != null && _facePicked) {
+      await core.sharedContext.updateRecentMood(
+        uid: profile.uid,
+        mood: SharedMoodSummary(
+          summary: '最近一次心情評分：${_face.numericScore}/5。',
+          asOf: DateTime.now(),
+        ),
+      );
+    }
+
+    // §1C — fold this session into Siu Yan's rolling summary and clear the
+    // verbatim buffer. Fire-and-forget (context-free) so the save stays
+    // snappy; no-ops in guest mode / when transcript retention is off.
+    if (profile != null) {
+      final compiler = RollingSummaryCompiler(
+        agentContext: core.agentContext,
+        llm: core.llm,
+      );
+      unawaited(compiler.compileAtSessionEnd(
+        uid: profile.uid,
+        agentId: AgentRegistry.siuYanId,
+        retentionOn:
+            profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId),
+      ));
+    }
     _analytics?.logCheckIn(
       mood: _face.numericScore,
       loneliness: 3,
@@ -587,6 +620,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
                             agentId: 'siu_yan',
                             moduleId: 'm2_check_in',
                             turnKey: 'turn_$i',
+                            promptHash: _turns[i].promptHash,
                           ),
                         ),
                     ],
@@ -642,7 +676,6 @@ class _CheckInArmAState extends State<CheckInArmA> {
       isScrollControlled: true,
       showDragHandle: true,
       backgroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
       barrierColor: const Color(0x66000000),
       builder: (sheetCtx) {
         var localFace = _face;
@@ -731,9 +764,11 @@ class _Turn {
   final bool fromUser;
   final bool isSystem;
   final String text;
-  const _Turn._(this.fromUser, this.isSystem, this.text);
+  final String? promptHash;
+  const _Turn._(this.fromUser, this.isSystem, this.text, {this.promptHash});
   factory _Turn.user(String t) => _Turn._(true, false, t);
-  factory _Turn.bot(String t) => _Turn._(false, false, t);
+  factory _Turn.bot(String t, {String? promptHash}) =>
+      _Turn._(false, false, t, promptHash: promptHash);
   factory _Turn.system(String t) => _Turn._(false, true, t);
 }
 

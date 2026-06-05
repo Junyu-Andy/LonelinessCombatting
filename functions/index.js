@@ -150,6 +150,33 @@ function computePromptHash(resolvedPrompt) {
 }
 
 // ---------------------------------------------------------------------------
+// Sprint 1.B — per-agent decoding temperature (Demo Sprint Plan §1B).
+//
+// Each companion gets a distinct sampling temperature so the three voices
+// feel meaningfully different (arm-A reproducibility: the value is a pure
+// function of agentId, written into the request the analyst can replay):
+//   • 阿珍／阿伯 (ah_jan_ah_bak) 0.5 — steady, grounded reminiscence peer.
+//   • 小欣      (siu_yan)       0.7 — warm daily check-in confidante.
+//   • 通通      (tung_tung)     0.85 — lively, curious companion.
+// Anything else (referral judgement, unknown agent) keeps the 0.7 default.
+// These are STARTING values to be micro-tuned in agent_prompt_bench.py.
+// ---------------------------------------------------------------------------
+const _AGENT_TEMPERATURE = {
+  ah_jan_ah_bak: 0.5,
+  siu_yan: 0.7,
+  tung_tung: 0.85,
+};
+const _DEFAULT_TEMPERATURE = 0.7;
+
+function temperatureFor(agentId) {
+  if (agentId && Object.prototype.hasOwnProperty.call(
+      _AGENT_TEMPERATURE, agentId)) {
+    return _AGENT_TEMPERATURE[agentId];
+  }
+  return _DEFAULT_TEMPERATURE;
+}
+
+// ---------------------------------------------------------------------------
 // proxyDeepSeek — main LLM entry point. Now supports promptKey resolution
 // in addition to the legacy systemPrompt path.
 //   payload.promptKey       — resolves prompt file in functions/prompts/
@@ -229,7 +256,7 @@ exports.proxyDeepSeek = onCall(
           // more headroom; per-turn caps via the system prompt remain
           // the policy lever for "1-2 sentence" agents.
           max_tokens: 800,
-          temperature: 0.7,
+          temperature: temperatureFor(agentId),
           top_p: 0.95,
         }),
       },
@@ -595,6 +622,19 @@ exports.onSafetyEventCreated = onDocumentCreated(
     // Only acute events page PI immediately.
     if (level !== "acute") return;
 
+    // T4 — tester suppression. During Day-6 adversarial testing 4–5
+    // colleagues deliberately type distress phrases; without this the PI
+    // mailbox would be flooded. Tester acute events are STILL recorded
+    // (safety_events + a tagged pi_alert for the audit trail) but never
+    // trigger the PI email. The flag lives on the user doc.
+    let isTester = false;
+    try {
+      const userSnap = await db.collection("users").doc(uid).get();
+      isTester = userSnap.exists && userSnap.data().isTester === true;
+    } catch (err) {
+      console.error("isTester lookup failed:", err.message);
+    }
+
     const agentId = data.agentId || "unknown";
     const alertPayload = {
       uid,
@@ -602,12 +642,19 @@ exports.onSafetyEventCreated = onDocumentCreated(
       level,
       agentId,
       dedupKey,
+      isTester,
       eventPath: snap.ref.path,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     // Always write to pi_alerts — PI dashboard reads from here (Sprint 3).
+    // Tester rows are tagged so the dashboard can filter them out.
     await db.collection("pi_alerts").add(alertPayload);
+
+    if (isTester) {
+      console.log(`tester acute event ${snap.ref.path}: PI email suppressed`);
+      return;
+    }
 
     // Email PI if SMTP secrets are configured.
     let smtpHost = "";
@@ -976,5 +1023,72 @@ exports.blindedDataExport = onSchedule(
     }
     await Promise.all(writes);
     console.log(`blindedDataExport: wrote ${writes.length} files for ${dateKey}`);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// T2 — FCM "doorbell" reminders (Dev TestWeek).
+//
+// Design: the notification is ONLY a doorbell. Tapping it opens the app; the
+// in-app `PendingPromptsBanner` owns all routing. No deep links in v1.
+//
+// Delivery is to the broadcast topic "all" (FcmService subscribes every
+// signed-in device), so no per-token fan-out is needed. iOS/APNs is out of
+// scope (T10 / Phase A).
+//
+// Frequency contract: ≤1/day. The daily mood reminder runs Mon–Sat 19:00
+// HKT; Sunday's single push is the weekly-survey reminder at 20:00 HKT
+// (when the Weekly PR banner is live), so the two never collide.
+//
+// Copy is gentle Cantonese, "想答先答" — never nagging, never guilt-tripping.
+// ---------------------------------------------------------------------------
+
+async function sendDoorbell(title, body, analyticsLabel) {
+  // No explicit channelId: a missing channel suppresses the notification on
+  // Android 8+. Relying on the firebase_messaging plugin's default channel
+  // is the foolproof v1 doorbell. data.kind is for client-side analytics.
+  const message = {
+    topic: "all",
+    notification: {title, body},
+    android: {priority: "normal"},
+    data: {kind: analyticsLabel},
+  };
+  try {
+    const id = await admin.messaging().send(message);
+    console.log(`doorbell sent (${analyticsLabel}): ${id}`);
+  } catch (err) {
+    console.error(`doorbell send failed (${analyticsLabel}):`, err.message);
+  }
+}
+
+exports.dailyMoodReminder = onSchedule(
+  {
+    schedule: "0 19 * * 1-6", // Mon–Sat 19:00 (Sunday handled by weekly)
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    retryCount: 0,
+  },
+  async (_event) => {
+    await sendDoorbell(
+      "陪住",
+      "今日過得點？得閒入嚟同我哋講兩句，想講先講，唔講都冇所謂。",
+      "daily_mood_reminder",
+    );
+  },
+);
+
+exports.weeklySurveyReminder = onSchedule(
+  {
+    schedule: "0 20 * * 0", // Sunday 20:00, when the Weekly PR banner is live
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    retryCount: 0,
+  },
+  async (_event) => {
+    await sendDoorbell(
+      "陪住",
+      "今個禮拜過得點？得閒入嚟答幾條，想答先答，唔想都冇問題。",
+      "weekly_survey_reminder",
+    );
   },
 );

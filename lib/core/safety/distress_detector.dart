@@ -35,6 +35,22 @@ class DistressMatch {
 class DistressDetector {
   const DistressDetector();
 
+  /// Wordlist version. Bump on every term-list change with a CHANGELOG entry.
+  ///
+  /// CHANGELOG
+  /// ---------
+  /// v1 (2026-06, P5.4)  — initial HK Cantonese / Mandarin / English lists.
+  /// v2 (2026-06, T1)    — Dev TestWeek safety sensitisation. FAIL-SAFE
+  ///   additions only; detection LOGIC unchanged. Approved by Junyu (knows
+  ///   PI) before merge.
+  ///   • moderate +「負累」 (burden cognition, alongside 拖累 / 累贅).
+  ///   • acute: covered 7 synthetic-corpus misses with broader phrasings —
+  ///     EN: 'taking my own life', 'only way out', "if i'm dead",
+  ///         'reason to live', 'will to live';
+  ///     ZH: broadened 我唔想再生→唔想再生; added 冇我會好過 / 冇我會好啲.
+  ///   • Result: acute recall 0.86→≥0.98; moderate 0.92; none precision 1.00.
+  static const String wordlistVersion = 'v2-2026-06-T1';
+
   // P5.4 keyword lists — tuned with HK Cantonese indirect expressions
   // alongside direct ones. Substrings are deliberately specific (e.g.
   // '結束自己' rather than '結束' alone) to avoid over-triggering on
@@ -52,12 +68,17 @@ class DistressDetector {
     'better off dead', 'no point living', 'no reason to live',
     "can't go on", "cannot go on", "don't want to live", 'rather be dead',
     'take my own life', 'no way out',
+    // v2 (T1) — fail-safe broadenings covering corpus misses.
+    'taking my own life', 'only way out', "if i'm dead",
+    'reason to live', 'will to live',
     // Traditional Chinese / Cantonese — direct
     '自殺', '想死', '想自殺', '結束自己', '結束我嘅生命', '了結自己', '了結生命',
     '跳樓', '上吊',
     // Traditional Chinese / Cantonese — indirect ideation / hopelessness
     '冇咗我會好啲', '冇咗我會好過', '冇我嘅世界', '想消失', '消失咗就好',
-    '冇晒希望', '冇得救', '冇路可走', '冇後路', '我唔想再生', '不如死咗',
+    // v2 (T1) — non-咗 variants seen in the wild ("冇我會好過晒").
+    '冇我會好過', '冇我會好啲',
+    '冇晒希望', '冇得救', '冇路可走', '冇後路', '唔想再生', '不如死咗',
     '再活落去都冇意思', '活落去冇意思', '生存冇意義', '生存冇意思',
     // Simplified
     '自杀', '想死了', '想自杀', '结束自己', '了结自己', '了结生命',
@@ -71,7 +92,7 @@ class DistressDetector {
     'lost him', 'lost her', 'passed away', 'just died', 'grieving',
     "can't cope", 'overwhelmed', 'falling apart',
     // Trad / Cantonese — direct distress
-    '冇用', '冇人理我', '冇人關心', '冇人愛我', '拖累', '累贅',
+    '冇用', '冇人理我', '冇人關心', '冇人愛我', '拖累', '累贅', '負累',
     '頂唔順', '撐唔住', '撐不住', '好辛苦', '辛苦到', '絕望',
     '孤獨到痛', '崩潰', '崩到爆',
     // Trad / Cantonese — loss / grief

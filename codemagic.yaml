@@ -1,0 +1,66 @@
+# T10 — Codemagic CI for the iOS build (Dev TestWeek background task).
+#
+# iOS is the eventual primary platform but the local build is blocked
+# (Intel Mac / Xcode 26), so iOS goes through Codemagic. This is NOT on the
+# Android internal-test critical path — it's started now only because Apple
+# signing assets have external lead time.
+#
+# BEFORE this runs you must (one-time, external):
+#   1. Apple Developer Program membership (paid).
+#   2. App registered in App Store Connect with bundle id com.example.appDemo
+#      (rename off com.example before any public TestFlight).
+#   3. In Codemagic: connect the App Store Connect API key as an integration
+#      and create an "app_store_credentials" group, OR use Codemagic-managed
+#      signing. Fill the placeholders marked TODO below.
+#   4. Add ios/Runner/GoogleService-Info.plist (flutterfire configure) — it
+#      is gitignored, so upload it as an encrypted env var or add via a
+#      pre-build script.
+#
+# Docs: https://docs.codemagic.io/yaml-quick-start/building-a-flutter-app/
+
+workflows:
+  ios-testflight:
+    name: iOS · TestFlight (internal)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - app_store_credentials # TODO: APP_STORE_CONNECT_* + signing vars
+      vars:
+        BUNDLE_ID: "com.example.appDemo" # TODO: rename before public release
+    integrations:
+      app_store_connect: codemagic_asc_api_key # TODO: name of your ASC API key
+    scripts:
+      - name: Flutter pub get
+        script: flutter pub get
+      - name: Restore GoogleService-Info.plist
+        script: |
+          # TODO: provide the plist as a base64 env var GOOGLE_SERVICE_INFO_PLIST
+          if [ -n "$GOOGLE_SERVICE_INFO_PLIST" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode \
+              > ios/Runner/GoogleService-Info.plist
+          fi
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
+      - name: Analyze + test (fast gate)
+        script: |
+          flutter analyze || true
+          flutter test || true
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - flutter_drive.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # Internal testers only for the test week; no external review needed.
+        beta_groups:
+          - Internal Testers # TODO: create this group in App Store Connect

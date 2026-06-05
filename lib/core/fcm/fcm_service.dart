@@ -26,6 +26,12 @@ class FcmService {
 
   final bool available;
 
+  /// Broadcast topic every signed-in device subscribes to. The T2
+  /// scheduled "doorbell" functions (daily mood / weekly survey reminders)
+  /// and Junyu's ad-hoc Firebase Console nudges all target this topic, so
+  /// no per-device token fan-out is needed for v1.
+  static const String broadcastTopic = 'all';
+
   String? _currentUid;
   String? _installationId;
 
@@ -56,6 +62,18 @@ class FcmService {
       await _storeToken(uid, token);
     }
 
+    // T2 — subscribe to the broadcast topic so the scheduled doorbell
+    // functions reach this device. Best-effort: topic subscription needs
+    // network + granted permission; failure just means no pushes, never a
+    // crash. (No-op on web where topic messaging is unsupported.)
+    if (!kIsWeb) {
+      try {
+        await messaging.subscribeToTopic(broadcastTopic);
+      } catch (e) {
+        if (kDebugMode) debugPrint('[fcm] subscribe topic failed: $e');
+      }
+    }
+
     // Keep the stored token current across rotations.
     messaging.onTokenRefresh.listen((newToken) async {
       _installationId = _shortId(newToken);
@@ -68,6 +86,13 @@ class FcmService {
   /// Remove this device's token on sign-out so pushes stop.
   Future<void> deregister() async {
     if (!available || _currentUid == null || _installationId == null) return;
+    if (!kIsWeb) {
+      try {
+        await FirebaseMessaging.instance.unsubscribeFromTopic(broadcastTopic);
+      } catch (e) {
+        if (kDebugMode) debugPrint('[fcm] unsubscribe topic failed: $e');
+      }
+    }
     try {
       await FirebaseFirestore.instance
           .collection('users')

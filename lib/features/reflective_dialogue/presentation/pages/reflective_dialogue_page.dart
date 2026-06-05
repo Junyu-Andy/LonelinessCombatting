@@ -11,10 +11,13 @@
 /// gateway path as the reminiscence surface.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agent_context/agent_context_service.dart';
+import '../../../../core/agent_context/rolling_summary_compiler.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/core_services_scope.dart';
@@ -166,6 +169,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       variantName: persona?.variantName,
       systemPrompt: persona == null ? _fallbackPersonaPrompt : null,
       contextSuffix: rdContextSuffix.isEmpty ? null : rdContextSuffix,
+      agentContextSnapshot: persona?.agentContextSnapshot,
       history: history,
       userInput: text,
       uid: profile?.uid,
@@ -207,6 +211,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
         replyText,
         key: turnKey,
         sourceUserInput: text,
+        promptHash: response.metadata.systemPromptHash,
       ));
     });
 
@@ -333,6 +338,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
         variantName: persona?.variantName,
         systemPrompt: persona == null ? _fallbackPersonaPrompt : null,
         contextSuffix: persona?.contextSuffix,
+        agentContextSnapshot: persona?.agentContextSnapshot,
         history: history,
         userInput: source,
         uid: profile?.uid,
@@ -349,6 +355,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
           newText,
           key: newKey,
           sourceUserInput: source,
+          promptHash: response.metadata.systemPromptHash,
         ));
       });
       await analytics.logRepairCompleted(
@@ -420,6 +427,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
                             agentId: 'ah_jan_ah_bak',
                             moduleId: 'reflective_dialogue',
                             turnKey: _turns[i].key ?? 'turn_$i',
+                            promptHash: _turns[i].promptHash,
                           ),
                         ),
                     ],
@@ -465,6 +473,20 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     _briefPrSurfaced = true;
     final profile = AppSettingsScope.read(context).profile;
     if (profile == null) return;
+
+    // §1C — fold this session into Ah Jan / Ah Bak's rolling summary and
+    // clear the verbatim buffer on exit. Fire-and-forget (context-free).
+    final core = CoreServicesScope.of(context);
+    unawaited(RollingSummaryCompiler(
+      agentContext: core.agentContext,
+      llm: core.llm,
+    ).compileAtSessionEnd(
+      uid: profile.uid,
+      agentId: AgentRegistry.ahJanAhBakId,
+      retentionOn:
+          profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
+    ));
+
     final exchangeCount = _turns.where((t) => t.fromUser).length;
     final gate = BriefPrGate();
     final shouldShow = await gate.shouldSurfaceBriefPr(
@@ -510,16 +532,24 @@ class _Turn {
   /// For assistant turns: true once the user has tapped 唔啱意思 on it.
   final bool repaired;
 
+  /// T7 — resolved system-prompt hash for this assistant turn.
+  final String? promptHash;
+
   const _Turn._(this.fromUser, this.isSystem, this.text,
-      {this.key, this.sourceUserInput, this.repaired = false});
+      {this.key, this.sourceUserInput, this.repaired = false, this.promptHash});
 
   factory _Turn.user(String t) => _Turn._(true, false, t);
-  factory _Turn.bot(String t, {String? key, String? sourceUserInput}) =>
-      _Turn._(false, false, t, key: key, sourceUserInput: sourceUserInput);
+  factory _Turn.bot(String t,
+          {String? key, String? sourceUserInput, String? promptHash}) =>
+      _Turn._(false, false, t,
+          key: key, sourceUserInput: sourceUserInput, promptHash: promptHash);
   factory _Turn.system(String t) => _Turn._(false, true, t);
 
   _Turn markRepaired() => _Turn._(fromUser, isSystem, text,
-      key: key, sourceUserInput: sourceUserInput, repaired: true);
+      key: key,
+      sourceUserInput: sourceUserInput,
+      repaired: true,
+      promptHash: promptHash);
 }
 
 class _TurnBubble extends StatelessWidget {

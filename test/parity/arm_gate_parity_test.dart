@@ -1,4 +1,5 @@
 import 'package:app_demo/core/arm/arm_scope.dart';
+import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -20,9 +21,9 @@ void main() {
         await tester.pumpWidget(
           wrapWithArm(
             arm: ArmAssignment.a,
-            child: const ArmGate(
-              armA: _DummyArmBody(label: 'A'),
-              armB: _DummyArmBody(label: 'B'),
+            child: ArmGate(
+              armA: (_) => const _DummyArmBody(label: 'A'),
+              armB: (_) => const _DummyArmBody(label: 'B'),
             ),
           ),
         );
@@ -38,9 +39,9 @@ void main() {
         await tester.pumpWidget(
           wrapWithArm(
             arm: ArmAssignment.b,
-            child: const ArmGate(
-              armA: _DummyArmBody(label: 'A'),
-              armB: _DummyArmBody(label: 'B'),
+            child: ArmGate(
+              armA: (_) => const _DummyArmBody(label: 'A'),
+              armB: (_) => const _DummyArmBody(label: 'B'),
             ),
           ),
         );
@@ -48,6 +49,11 @@ void main() {
         expect(find.text('B'), findsOneWidget);
         expect(find.text('A'), findsNothing);
       },
+      // Phase A forces every user to Arm A via the deliberate stub in
+      // `Arm.of` (arm_scope.dart). While that stub is live the ArmB branch
+      // is unreachable, so this assertion can't hold. Remove the skip when
+      // randomisation is restored for Phase B.
+      skip: true,
     );
 
     testWidgets(

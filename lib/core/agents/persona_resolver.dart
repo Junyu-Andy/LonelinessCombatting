@@ -10,7 +10,9 @@
 library;
 
 import '../../features/auth/data/user_profile.dart';
+import '../../features/onboarding/data/intake_repository.dart';
 import '../agent_context/agent_context_service.dart';
+import '../agent_context/intake_memory_seeder.dart';
 import '../agent_context/shared_context_service.dart';
 import 'agent_registry.dart';
 
@@ -20,11 +22,18 @@ class PersonaContext {
   final String? variantName;
   final String? contextSuffix;
 
+  /// B.1 — structured snapshot of this agent's memory, passed to the CF so
+  /// the mechanism-of-change flag detector can spot cross-session memory
+  /// callbacks. Shape mirrors what `functions/llm_flags.js` reads:
+  /// `{ rollingSummary: String, namedEntities: { name: {...} } }`.
+  final Map<String, dynamic>? agentContextSnapshot;
+
   const PersonaContext({
     required this.agent,
     required this.promptKey,
     this.variantName,
     this.contextSuffix,
+    this.agentContextSnapshot,
   });
 }
 
@@ -32,10 +41,16 @@ class PersonaResolver {
   PersonaResolver({
     required this.agentContext,
     required this.sharedContext,
+    this.intakeRepo,
   });
 
   final AgentContextService agentContext;
   final SharedContextService sharedContext;
+
+  /// Optional — when provided, the very first conversation with each agent
+  /// is seeded from the onboarding intake (Demo Sprint Plan §1D). Null in
+  /// unit tests that don't exercise seeding.
+  final IntakeRepository? intakeRepo;
 
   /// Build the persona payload for a module's next LLM call.
   ///
@@ -65,13 +80,39 @@ class PersonaResolver {
       agentId: agentId,
     );
 
+    var summaryText = snapshot.rollingSummary.trim();
+
+    // §1D — lazy intake seeding. The first time the summary is empty we seed
+    // it from onboarding so the opening conversation already feels
+    // personalised, then persist it so this only happens once.
+    if (summaryText.isEmpty && intakeRepo != null) {
+      final intake = await intakeRepo!.load(profile.uid);
+      final seed = IntakeMemorySeeder.seedFor(
+        agentId: agentId,
+        intake: intake,
+        interests: profile.interests,
+      );
+      if (seed != null && seed.trim().isNotEmpty) {
+        summaryText = seed.trim();
+        await agentContext.writeRollingSummary(
+          uid: profile.uid,
+          agentId: agentId,
+          summary: summaryText,
+        );
+      }
+    }
+
     final lines = <String>[];
 
-    if (snapshot.rollingSummary.trim().isNotEmpty) {
-      lines.add('[Rolling summary]');
-      lines.add(snapshot.rollingSummary.trim());
-      lines.add('');
-    }
+    // Appendix A anti-fabrication guardrail — ALWAYS injected so the agent
+    // never pretends to remember when there is nothing real to recall.
+    lines.add('[過往摘要]');
+    lines.add(summaryText.isEmpty
+        ? '（暫時未有，今次係第一次同佢傾偈）'
+        : summaryText);
+    lines.add('[注意] 只可以引用上面真實寫咗嘅嘢；上面空嘅就當第一次傾，'
+        '唔好扮記得任何嘢。');
+    lines.add('');
 
     if (snapshot.namedEntities.isNotEmpty) {
       final entries = snapshot.namedEntities.entries.toList()
@@ -104,11 +145,22 @@ class PersonaResolver {
 
     final suffix = lines.isEmpty ? null : lines.join('\n').trim();
 
+    // Structured snapshot for the CF flag detector (memory_callback).
+    final snapshotMap = <String, dynamic>{
+      'rollingSummary': summaryText,
+      if (snapshot.namedEntities.isNotEmpty)
+        'namedEntities': {
+          for (final e in snapshot.namedEntities.entries)
+            e.key: e.value.toMap(),
+        },
+    };
+
     return PersonaContext(
       agent: agent,
       promptKey: agent.systemPromptKey,
       variantName: variantName,
       contextSuffix: suffix,
+      agentContextSnapshot: snapshotMap,
     );
   }
 

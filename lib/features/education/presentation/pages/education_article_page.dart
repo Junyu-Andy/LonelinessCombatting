@@ -104,11 +104,13 @@ Here is the article:
     if (!mounted) return;
     setState(() {
       _busy = false;
-      _turns.add(_Turn.bot(response.text.isNotEmpty
-          ? response.text
-          : (isEn
-              ? 'Good question. Let me re-read it…'
-              : '好問題，等我再睇下…')));
+      _turns.add(_Turn.bot(
+          response.text.isNotEmpty
+              ? response.text
+              : (isEn
+                  ? 'Good question. Let me re-read it…'
+                  : '好問題，等我再睇下…'),
+          promptHash: response.metadata.systemPromptHash));
     });
     final escalation = response.inputFlag.level.index >=
             response.outputFlag.level.index
@@ -188,6 +190,7 @@ Here is the article:
                             moduleId:
                                 'm8_education_${widget.article.id}',
                             turnKey: 'turn_$i',
+                            promptHash: _turns[i].promptHash,
                           ),
                         ),
                     ],
@@ -222,9 +225,11 @@ Here is the article:
 class _Turn {
   final bool fromUser;
   final String text;
-  const _Turn._(this.fromUser, this.text);
+  final String? promptHash;
+  const _Turn._(this.fromUser, this.text, {this.promptHash});
   factory _Turn.user(String t) => _Turn._(true, t);
-  factory _Turn.bot(String t) => _Turn._(false, t);
+  factory _Turn.bot(String t, {String? promptHash}) =>
+      _Turn._(false, t, promptHash: promptHash);
 }
 
 class _Bubble extends StatelessWidget {

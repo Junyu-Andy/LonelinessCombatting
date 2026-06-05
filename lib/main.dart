@@ -22,6 +22,7 @@ import 'core/safety/safety_event_writer.dart';
 import 'features/analytics/data/analytics_service.dart';
 import 'features/auth/data/auth_service.dart';
 import 'features/llm_features/data/llm_turn_features.dart';
+import 'features/onboarding/data/intake_repository.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -73,6 +74,7 @@ Future<void> main() async {
   final personaResolver = PersonaResolver(
     agentContext: agentContext,
     sharedContext: sharedContext,
+    intakeRepo: IntakeRepository(),
   );
   final analytics = AnalyticsService(firebaseReady: firebaseReady);
   // Wire per-layer cross-referral telemetry into analytics so Phase A

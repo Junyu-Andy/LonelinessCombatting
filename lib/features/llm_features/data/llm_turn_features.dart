@@ -35,6 +35,10 @@ class LlmTurnFeatures {
   /// Used by analysts to filter out flags computed by an earlier version.
   final int detectorVersion;
 
+  /// T8 — end-to-end gateway round-trip latency for this turn, in ms.
+  /// Null when not measured (e.g. legacy callers).
+  final int? latencyMs;
+
   final DateTime createdAt;
 
   const LlmTurnFeatures({
@@ -44,6 +48,7 @@ class LlmTurnFeatures {
     this.systemPromptHash,
     required this.flags,
     required this.detectorVersion,
+    this.latencyMs,
     required this.createdAt,
   });
 
@@ -54,6 +59,7 @@ class LlmTurnFeatures {
     required String moduleId,
     String? systemPromptHash,
     required Map<String, dynamic> raw,
+    int? latencyMs,
   }) {
     final flags = <String, bool>{};
     int version = 1;
@@ -70,6 +76,7 @@ class LlmTurnFeatures {
       systemPromptHash: systemPromptHash,
       flags: flags,
       detectorVersion: version,
+      latencyMs: latencyMs,
       createdAt: DateTime.now(),
     );
   }
@@ -80,6 +87,7 @@ class LlmTurnFeatures {
         'systemPromptHash': systemPromptHash,
         'flags': flags,
         'detectorVersion': detectorVersion,
+        'latencyMs': latencyMs,
         'createdAt': createdAt.toIso8601String(),
       };
 }
