@@ -31,12 +31,6 @@ import 'package:speech_to_text/speech_to_text.dart';
 /// dictate; transcription must still succeed.  If you ever hear the
 /// engine "phone home" on the network, treat it as a protocol violation
 /// and stop recording immediately.
-class _OnDeviceUnavailableException implements Exception {
-  const _OnDeviceUnavailableException();
-  @override
-  String toString() =>
-      'On-device speech recognition unavailable on this device.';
-}
 class VoiceInputButton extends StatefulWidget {
   /// Called as new text arrives. The button replaces the *last
   /// recognised chunk* on each callback — the caller should treat this
@@ -99,7 +93,11 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   }
 
   Future<void> _toggle() async {
-    if (!_available || _initialising) return;
+    if (_initialising) return;
+    if (!_available) {
+      _showUnavailableHint();
+      return;
+    }
     if (_listening) {
       await _stt.stop();
       if (mounted) setState(() => _listening = false);
@@ -133,13 +131,40 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
     } catch (e) {
       // Device doesn't have an offline language pack — fail closed.
       // Do NOT silently fall back to cloud recognition: HREC says audio
-      // must never leave the device.
+      // must never leave the device.  Tell the user how to fix it instead
+      // of leaving a dead button.
       if (kDebugMode) {
         debugPrint('[voice] on-device STT unavailable: $e');
       }
       if (mounted) setState(() => _listening = false);
-      throw const _OnDeviceUnavailableException();
+      _showUnavailableHint();
     }
+  }
+
+  /// Shown when voice can't run — usually no offline language pack, or the
+  /// mic / speech permission was denied. Tells the user exactly where to go.
+  void _showUnavailableHint() {
+    if (!mounted) return;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final isIos = defaultTargetPlatform == TargetPlatform.iOS;
+    final where = isIos
+        ? (isEn
+            ? 'Settings → General → Keyboard → turn on Dictation, and download '
+                'the Chinese / Cantonese language'
+            : '設定 → 一般 → 鍵盤 → 開啟「聽寫」，並下載中文／粵語語言')
+        : (isEn
+            ? 'Settings → System → Languages & input → Voice input → Offline '
+                'speech recognition → download Chinese / Cantonese'
+            : '設定 → 系統 → 語言及輸入 → 語音輸入 → 離線語音識別 → 下載中文／粵語');
+    final msg = isEn
+        ? "Voice input isn't ready on this phone (no offline speech pack, or "
+            'mic permission is off). To use it: $where, and allow the '
+            'microphone.'
+        : '呢部機未準備好聲音輸入（未裝離線語音包，或者未開咪權限）。'
+            '想用就：$where，並允許使用麥克風。';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 7)),
+    );
   }
 
   @override
@@ -165,12 +190,16 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
               ? 'Voice input unavailable on this device'
               : '呢部機冇得用聲音輸入'),
       child: IconButton(
-        onPressed: _available ? _toggle : null,
+        // Stay tappable even when unavailable so a tap can explain WHY
+        // (missing language pack / permission) instead of being a dead icon.
+        onPressed: _initialising ? null : _toggle,
         icon: Icon(
           _listening ? Icons.stop_circle_rounded : Icons.mic_none_rounded,
           color: _listening
               ? theme.colorScheme.error
-              : theme.colorScheme.primary,
+              : _available
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant,
           size: 28,
         ),
       ),
