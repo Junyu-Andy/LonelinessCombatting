@@ -1,10 +1,12 @@
 /// W2/W4 Agent Differentiation assessment page.
 ///
 /// Multi-part tab form:
-///   Part A: usage frequency matrix (3 agents × 4 frequency levels)
-///   Part B: personality trait rating matrix (5 traits × 3 agents, 1-5)
-///   Part C: scenario preference (W4 only, 5 scenarios × 4-option radio)
-///   Part D: free-text response
+///   Part A: usage frequency matrix (3 agents × 4 frequency bands)
+///   Part B: personality trait rating matrix (4 traits × 3 agents, 1-5)
+///   Part C: scenario preference (W4 only, 5 scenarios × 4-option single-select)
+///   Part D: free-text response (+ voice input)
+///
+/// Aligned to Agent_Differentiation_Assessment_Final_v1.0 (2026-06).
 ///
 /// Stores result at `users/{uid}/agent_diff/{auto-id}` with
 /// `timepoint: "week2"|"week4"` field (Sprint 1 spec).
@@ -13,6 +15,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/voice/voice_input_button.dart';
 import '../../data/agent_diff_response.dart';
 
 class AgentDiffPage extends StatefulWidget {
@@ -160,8 +163,8 @@ class _PartAView extends StatelessWidget {
 
   const _PartAView({required this.usageFreq, required this.onChanged});
 
-  static const _freqLabelsZh = ['完全冇用', '少少', '定期', '好頻繁'];
-  static const _freqLabelsEn = ['Not at all', 'A little', 'Regularly', 'Very often'];
+  static const _freqLabelsZh = ['完全冇', '少過一次', '一至兩次', '三次或以上'];
+  static const _freqLabelsEn = ['Not at all', '<1×/wk', '1–2×/wk', '3+×/wk'];
 
   @override
   Widget build(BuildContext context) {
@@ -175,8 +178,9 @@ class _PartAView extends StatelessWidget {
         children: [
           Text(
             isEn
-                ? 'In the last month, how often did you use each companion?'
-                : '上個月你用咗以下夥伴幾多次？',
+                ? 'In a typical week over the past 2 weeks, how often did you '
+                    'talk with each companion?'
+                : '喺過去兩個星期，正常一個禮拜入面，你大約同每個夥伴傾過幾多次？',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -299,8 +303,10 @@ class _PartBView extends StatelessWidget {
         children: [
           Text(
             isEn
-                ? "Please rate each companion's personality (1 = not at all, 5 = very much)"
-                : '請為每個夥伴嘅性格評分（1=完全唔符合，5=非常符合）',
+                ? 'For each statement, rate how much it describes each '
+                    'companion (1 = not at all, 5 = very much).'
+                : '下面每一句說話，話我哋知佢有幾形容到每個夥伴。'
+                    '（1=完全唔似，5=好似）',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -309,7 +315,10 @@ class _PartBView extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           ...AgentDiffTraits.all.map((traitId) {
-            final label = AgentDiffTraits.labels[traitId] ?? traitId;
+            final label = (isEn
+                    ? AgentDiffTraits.labelsEn[traitId]
+                    : AgentDiffTraits.labels[traitId]) ??
+                traitId;
             return Padding(
               padding: const EdgeInsets.only(bottom: 24),
               child: Column(
@@ -412,7 +421,7 @@ class _PartCView extends StatelessWidget {
     AgentDiffAgents.siuYan: '小欣',
     AgentDiffAgents.ahJanAhBak: '阿珍／阿伯',
     AgentDiffAgents.tungTung: '通通',
-    'any': '都係',
+    'any': '邊個都得／冇所謂',
   };
 
   static const _agentOptionLabelsEn = {
@@ -434,8 +443,9 @@ class _PartCView extends StatelessWidget {
         children: [
           Text(
             isEn
-                ? 'In these situations, which companion would you choose?'
-                : '以下情況你會選擇邊個夥伴？',
+                ? 'If you wanted to do the following things, which companion '
+                    'would you go to first?'
+                : '如果你想做下面呢啲嘢，你會首先搵邊個夥伴？',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -444,7 +454,10 @@ class _PartCView extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           ...AgentDiffScenarios.all.map((scenarioId) {
-            final label = AgentDiffScenarios.labels[scenarioId] ?? scenarioId;
+            final label = (isEn
+                    ? AgentDiffScenarios.labelsEn[scenarioId]
+                    : AgentDiffScenarios.labels[scenarioId]) ??
+                scenarioId;
             final selected = function[scenarioId];
             return Padding(
               padding: const EdgeInsets.only(bottom: 20),
@@ -552,7 +565,24 @@ class _PartDView extends StatelessWidget {
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          if (!saved)
+            Row(
+              children: [
+                VoiceInputButton(
+                  prefix: () => controller.text,
+                  onText: (t) => controller.text = t,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isEn ? 'or speak' : '或者用講嘅',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          const SizedBox(height: 8),
           TextField(
             controller: controller,
             maxLines: 8,
