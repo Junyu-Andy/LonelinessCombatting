@@ -15,14 +15,17 @@ class PendingPrompts {
   final bool weeklyPr;
   final bool agentDiffW2;
   final bool agentDiffW4;
-  final List<WeeklyPrAgentUsage> weeklyPrAgents;
+
+  /// C2 — the single companion the Weekly PR is anchored to (most-used this
+  /// week). Null when Weekly PR isn't due / no companion was used.
+  final WeeklyPrAgentUsage? weeklyPrAgent;
 
   const PendingPrompts({
     required this.pgic,
     required this.weeklyPr,
     required this.agentDiffW2,
     required this.agentDiffW4,
-    required this.weeklyPrAgents,
+    required this.weeklyPrAgent,
   });
 
   bool get any => pgic || weeklyPr || agentDiffW2 || agentDiffW4;
@@ -48,15 +51,16 @@ class PendingPromptsService {
 
     bool pgic = false;
     bool weeklyPr = false;
-    List<WeeklyPrAgentUsage> agents = const [];
+    WeeklyPrAgentUsage? chosenAgent;
 
     if (isSundayEvening) {
       pgic = await _noPgicThisWeek(uid);
       final weekIso = WeeklyPrResponse.currentWeekIso();
       final hasWeekly = await _weeklyTrigger.hasSubmittedThisWeek(uid, weekIso);
       if (!hasWeekly) {
-        agents = await _weeklyTrigger.agentsUsedThisWeek(uid);
-        weeklyPr = agents.isNotEmpty;
+        // C2 — anchor the Weekly PR to a single companion (most-used).
+        chosenAgent = await _weeklyTrigger.mostUsedAgentThisWeek(uid);
+        weeklyPr = chosenAgent != null;
       }
     }
 
@@ -78,7 +82,7 @@ class PendingPromptsService {
       weeklyPr: weeklyPr,
       agentDiffW2: agentDiffW2,
       agentDiffW4: agentDiffW4,
-      weeklyPrAgents: agents,
+      weeklyPrAgent: chosenAgent,
     );
   }
 

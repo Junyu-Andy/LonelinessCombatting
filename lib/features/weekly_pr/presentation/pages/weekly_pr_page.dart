@@ -1,10 +1,13 @@
-/// Weekly PR page (Sprint 1 §4).
+/// Weekly PR page (Sprint 1 §4 + change C2, 2026-06).
 ///
-/// Sequences through each agent the user used this week (descending
-/// session count). For each agent, presents 12 items in a randomised
-/// order with 「問題 X / 12」 progress and a 7-point Likert.
+/// C2: the Weekly PR is now anchored to a SINGLE companion — the one the
+/// participant used most that week (chosen upstream by
+/// WeeklyPrTrigger.mostUsedAgentThisWeek). The old per-companion loop is
+/// removed (one weekly PR per participant-week; cross-agent comparison is
+/// carried by the Agent Differentiation Assessment instead).
 ///
-/// Stores one doc per agent per week to `users/{uid}/weekly_pr/{auto}`.
+/// Presents 12 items in randomised order with 「問題 X / 12」 progress and a
+/// 7-point Likert. Stores one doc per week to `users/{uid}/weekly_pr/{auto}`.
 
 import 'dart:math';
 
@@ -18,16 +21,16 @@ import '../../data/weekly_pr_response.dart';
 import '../../data/weekly_pr_trigger.dart';
 
 class WeeklyPrPage extends StatefulWidget {
-  final List<WeeklyPrAgentUsage> agents;
+  /// The single most-used companion this week (C2).
+  final WeeklyPrAgentUsage agent;
 
-  const WeeklyPrPage({super.key, required this.agents});
+  const WeeklyPrPage({super.key, required this.agent});
 
   @override
   State<WeeklyPrPage> createState() => _WeeklyPrPageState();
 }
 
 class _WeeklyPrPageState extends State<WeeklyPrPage> {
-  int _agentIndex = 0;
   int _itemIndex = 0;
   late List<({String id, String text})> _items;
   final Map<String, int> _ratings = {};
@@ -47,7 +50,7 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
     return base;
   }
 
-  WeeklyPrAgentUsage get _currentAgent => widget.agents[_agentIndex];
+  WeeklyPrAgentUsage get _currentAgent => widget.agent;
 
   Future<void> _persist(String status) async {
     final profile = AppSettingsScope.read(context).profile;
@@ -86,19 +89,9 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
     }
   }
 
-  Future<void> _nextAgentOrFinish() async {
-    if (_agentIndex + 1 >= widget.agents.length) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      return;
-    }
-    setState(() {
-      _agentIndex += 1;
-      _itemIndex = 0;
-      _ratings.clear();
-      _items = _shuffledItems();
-      _promptedAt = DateTime.now();
-    });
+  Future<void> _finish() async {
+    if (!mounted) return;
+    Navigator.of(context).pop();
   }
 
   Future<void> _onRate(int value) async {
@@ -111,38 +104,23 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
     setState(() => _saving = true);
     await _persist('completed');
     setState(() => _saving = false);
-    await _nextAgentOrFinish();
+    await _finish();
   }
 
   Future<void> _skipAgent() async {
     setState(() => _saving = true);
     await _persist('skipped');
     setState(() => _saving = false);
-    await _nextAgentOrFinish();
+    await _finish();
   }
 
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
-    if (widget.agents.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: Text(isEn ? 'Weekly companion check-in' : '每週夥伴評估')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              isEn ? 'You have not used any companion this week.' : '呢個禮拜冇用過任何 companion。',
-              style: const TextStyle(fontSize: 18),
-            ),
-          ),
-        ),
-      );
-    }
     final agent = _currentAgent;
     final item = _items[_itemIndex];
     final text = WeeklyPrItems.render(item.text, agent.displayName);
-    final isLastAgent = _agentIndex + 1 == widget.agents.length;
     final labelsEn = const {
       1: '1 — Strongly disagree',
       2: '2 — Disagree',
@@ -169,14 +147,6 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
           children: [
-            Text(
-              'Companion ${_agentIndex + 1} / ${widget.agents.length}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 4),
             Text(
               isEn
                   ? 'Think back on your conversations with ${agent.displayName} this past week:'
@@ -243,9 +213,7 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
               child: TextButton(
                 onPressed: _saving ? null : _skipAgent,
                 child: Text(
-                  isLastAgent
-                      ? (isEn ? 'Skip this companion' : '跳過呢個夥伴')
-                      : (isEn ? 'Skip this companion' : '跳過呢個夥伴'),
+                  isEn ? 'Skip this companion' : '跳過呢個夥伴',
                   style: const TextStyle(fontSize: 15),
                 ),
               ),
