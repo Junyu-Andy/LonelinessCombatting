@@ -60,9 +60,12 @@ class _ContinueChatCardState extends State<ContinueChatCard> {
         final chapter = isEn
             ? 'Chapter ${theme.weekIndex} · ${theme.titleEn}'
             : '第 ${theme.weekIndex} 章 · ${theme.titleZh}';
+        final name = AgentRegistry.ahJanAhBakName(
+            profile?.ahJanAhBakVariant,
+            isEn: isEn);
         pick = _Suggestion(
           agentId: AgentRegistry.ahJanAhBakId,
-          headline: isEn ? 'Pick up with Ah Jan' : '同阿珍講舊時',
+          headline: isEn ? 'Pick up with $name' : '同$name講舊時',
           chapter: chapter,
         );
       }

@@ -15,6 +15,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/weekly_pr_response.dart';
@@ -119,8 +120,15 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     final agent = _currentAgent;
+    // Resolve Ah Jan / Ah Bak to the user's chosen gender variant so a 阿伯
+    // user never sees 阿珍 (others keep their own name).
+    final displayName = agent.agentId == AgentRegistry.ahJanAhBakId
+        ? AgentRegistry.ahJanAhBakName(
+            AppSettingsScope.read(context).profile?.ahJanAhBakVariant,
+            isEn: isEn)
+        : agent.displayName;
     final item = _items[_itemIndex];
-    final text = WeeklyPrItems.render(item.text, agent.displayName);
+    final text = WeeklyPrItems.render(item.text, displayName);
     final labelsEn = const {
       1: '1 — Strongly disagree',
       2: '2 — Disagree',
@@ -149,8 +157,8 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
           children: [
             Text(
               isEn
-                  ? 'Think back on your conversations with ${agent.displayName} this past week:'
-                  : '回想過去呢一個禮拜你同 ${agent.displayName} 嘅對話：',
+                  ? 'Think back on your conversations with $displayName this past week:'
+                  : '回想過去呢一個禮拜你同 $displayName 嘅對話：',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
