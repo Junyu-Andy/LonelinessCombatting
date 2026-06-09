@@ -1,8 +1,12 @@
 /// Brief PR (Perceived Partner Responsiveness) modal page.
 ///
-/// Sprint 1 §3 — 4 vertical sliders 0–100, no numeric label visible
-/// beside thumb, all start centred at 50. Submit enabled once all 4
-/// sliders touched. Skip suppressed for anchor prompt.
+/// Sprint 1 §3 + scale change C1 (2026-06): 4 items, each a 1–7 DISCRETE
+/// labelled scale (was a 0–100 continuous slider). No continuous track, no
+/// pre-selected default — the participant must actively tap a number 1–7.
+/// Endpoints + midpoint are labelled and the numbers are visible. Submit is
+/// blocked until all four items are answered (or the battery is skipped).
+/// Skip is suppressed for the anchor prompt. Values are stored RAW (S4 is
+/// not reverse-scored here).
 
 import 'dart:async';
 
@@ -33,12 +37,12 @@ class BriefPrPage extends StatefulWidget {
 }
 
 class _BriefPrPageState extends State<BriefPrPage> {
-  double _understanding = 50;
-  double _validation = 50;
-  double _caring = 50;
-  double _insensitivity = 50;
+  // null = not yet answered (no pre-selected default, per spec §4).
+  int? _understanding;
+  int? _validation;
+  int? _caring;
+  int? _insensitivity;
 
-  final Set<int> _touched = {};
   late final DateTime _promptedAt;
   bool _skipVisible = false;
   bool _saving = false;
@@ -61,7 +65,12 @@ class _BriefPrPageState extends State<BriefPrPage> {
     super.dispose();
   }
 
-  bool get _canSubmit => _touched.length >= 4 && !_saving;
+  bool get _canSubmit =>
+      _understanding != null &&
+      _validation != null &&
+      _caring != null &&
+      _insensitivity != null &&
+      !_saving;
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
@@ -72,10 +81,10 @@ class _BriefPrPageState extends State<BriefPrPage> {
       agentId: widget.agentId,
       agentDisplayName: widget.agentDisplayName,
       sessionRef: widget.sessionRef,
-      understanding: _understanding.round(),
-      validation: _validation.round(),
-      caring: _caring.round(),
-      insensitivity: _insensitivity.round(),
+      understanding: _understanding,
+      validation: _validation,
+      caring: _caring,
+      insensitivity: _insensitivity,
       isAnchorPrompt: widget.isAnchorPrompt,
       status: 'completed',
       promptedAt: _promptedAt,
@@ -149,6 +158,13 @@ class _BriefPrPageState extends State<BriefPrPage> {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     final name = widget.agentDisplayName;
+    // Endpoint + midpoint anchors. Kept generic so they fit the existing
+    // Sprint 1 stems verbatim; the coupled wording proposed in the C1 ticket
+    // (完全唔〔明白/認同/關心〕 · 一半半 · 非常〔…〕) is pending PI / cognitive
+    // interview sign-off (protocol §6.4) before it can replace these.
+    final posLeft = isEn ? 'Not at all' : '完全唔係咁';
+    final posMid = isEn ? 'Halfway' : '一半半';
+    final posRight = isEn ? 'Very much' : '完全係咁';
     return Scaffold(
       appBar: AppBar(
         title: Text(isEn ? 'A quick check-in' : '一啲簡短回饋'),
@@ -168,59 +184,54 @@ class _BriefPrPageState extends State<BriefPrPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              isEn ? 'Slide to the position that best matches how you felt.' : '揀一個位置最似你嘅感受。',
+              isEn
+                  ? 'Tap the number (1–7) that best matches how you felt.'
+                  : '撳一個數字（1–7），最似你嘅感受。',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontSize: 16,
               ),
             ),
             const SizedBox(height: 24),
-            _SliderRow(
+            _LikertRow(
               label: isEn ? '$name understood me.' : '$name 明白我。',
-              leftAnchor: isEn ? 'Not at all' : '完全唔係咁',
-              rightAnchor: isEn ? 'Very much' : '完全係咁',
+              leftAnchor: posLeft,
+              midAnchor: posMid,
+              rightAnchor: posRight,
               value: _understanding,
-              onChanged: (v) => setState(() {
-                _understanding = v;
-                _touched.add(0);
-              }),
+              onChanged: (v) => setState(() => _understanding = v),
             ),
             const SizedBox(height: 28),
-            _SliderRow(
+            _LikertRow(
               label: isEn ? '$name respected me.' : '$name 尊重我。',
-              leftAnchor: isEn ? 'Not at all' : '完全唔係咁',
-              rightAnchor: isEn ? 'Very much' : '完全係咁',
+              leftAnchor: posLeft,
+              midAnchor: posMid,
+              rightAnchor: posRight,
               value: _validation,
-              onChanged: (v) => setState(() {
-                _validation = v;
-                _touched.add(1);
-              }),
+              onChanged: (v) => setState(() => _validation = v),
             ),
             const SizedBox(height: 28),
-            _SliderRow(
+            _LikertRow(
               label: isEn ? '$name cared about me.' : '$name 關心我。',
-              leftAnchor: isEn ? 'Not at all' : '完全唔係咁',
-              rightAnchor: isEn ? 'Very much' : '完全係咁',
+              leftAnchor: posLeft,
+              midAnchor: posMid,
+              rightAnchor: posRight,
               value: _caring,
-              onChanged: (v) => setState(() {
-                _caring = v;
-                _touched.add(2);
-              }),
+              onChanged: (v) => setState(() => _caring = v),
             ),
             const SizedBox(height: 32),
             Divider(color: theme.colorScheme.outlineVariant, thickness: 1),
             const SizedBox(height: 24),
-            _SliderRow(
+            _LikertRow(
               label: isEn
                   ? '$name\'s response seemed to miss the point or feel indifferent.'
                   : '$name 嘅回應好似搞錯重點，或者唔在乎。',
+              // S4 is negatively worded; anchors run none → very much.
               leftAnchor: isEn ? 'Not at all' : '完全唔係咁',
+              midAnchor: isEn ? 'A little' : '有少少',
               rightAnchor: isEn ? 'Very much' : '好係咁',
               value: _insensitivity,
-              onChanged: (v) => setState(() {
-                _insensitivity = v;
-                _touched.add(3);
-              }),
+              onChanged: (v) => setState(() => _insensitivity = v),
             ),
             const SizedBox(height: 36),
             SizedBox(
@@ -258,16 +269,20 @@ class _BriefPrPageState extends State<BriefPrPage> {
   }
 }
 
-class _SliderRow extends StatelessWidget {
+/// One Brief-PR item: a stem followed by a 1–7 discrete control with the
+/// numbers shown and endpoint/midpoint labels beneath. No default selection.
+class _LikertRow extends StatelessWidget {
   final String label;
   final String leftAnchor;
+  final String midAnchor;
   final String rightAnchor;
-  final double value;
-  final ValueChanged<double> onChanged;
+  final int? value;
+  final ValueChanged<int> onChanged;
 
-  const _SliderRow({
+  const _LikertRow({
     required this.label,
     required this.leftAnchor,
+    required this.midAnchor,
     required this.rightAnchor,
     required this.value,
     required this.onChanged,
@@ -287,42 +302,104 @@ class _SliderRow extends StatelessWidget {
             height: 1.4,
           ),
         ),
-        const SizedBox(height: 8),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            showValueIndicator: ShowValueIndicator.never,
-            trackHeight: 8,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 14),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
-          ),
-          child: Slider(
-            value: value,
-            min: 0,
-            max: 100,
-            onChanged: onChanged,
-          ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            for (var n = 1; n <= 7; n++) ...[
+              Expanded(
+                child: _NumberStop(
+                  number: n,
+                  selected: value == n,
+                  onTap: () => onChanged(n),
+                ),
+              ),
+              if (n < 7) const SizedBox(width: 6),
+            ],
+          ],
         ),
+        const SizedBox(height: 6),
         Row(
           children: [
             Expanded(
               child: Text(
                 leftAnchor,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 14,
+                  fontSize: 13,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
-            Text(
-              rightAnchor,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontSize: 14,
-                color: theme.colorScheme.onSurfaceVariant,
+            Expanded(
+              child: Text(
+                midAnchor,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 13,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                rightAnchor,
+                textAlign: TextAlign.right,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 13,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],
         ),
       ],
+    );
+  }
+}
+
+class _NumberStop extends StatelessWidget {
+  final int number;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _NumberStop({
+    required this.number,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: selected ? theme.colorScheme.primary : theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          height: 52,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline,
+              width: selected ? 2 : 1.4,
+            ),
+          ),
+          child: Text(
+            '$number',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: selected
+                  ? theme.colorScheme.onPrimary
+                  : theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

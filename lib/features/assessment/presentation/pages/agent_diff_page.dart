@@ -1,10 +1,12 @@
 /// W2/W4 Agent Differentiation assessment page.
 ///
 /// Multi-part tab form:
-///   Part A: usage frequency matrix (3 agents × 4 frequency levels)
-///   Part B: personality trait rating matrix (5 traits × 3 agents, 1-5)
-///   Part C: scenario preference (W4 only, 5 scenarios × 4-option radio)
-///   Part D: free-text response
+///   Part A: usage frequency matrix (3 agents × 4 frequency bands)
+///   Part B: personality trait rating matrix (4 traits × 3 agents, 1-5)
+///   Part C: scenario preference (W4 only, 5 scenarios × 4-option single-select)
+///   Part D: free-text response (+ voice input)
+///
+/// Aligned to Agent_Differentiation_Assessment_Final_v1.0 (2026-06).
 ///
 /// Stores result at `users/{uid}/agent_diff/{auto-id}` with
 /// `timepoint: "week2"|"week4"` field (Sprint 1 spec).
@@ -13,6 +15,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/voice/voice_input_button.dart';
 import '../../data/agent_diff_response.dart';
 
 class AgentDiffPage extends StatefulWidget {
@@ -97,10 +101,24 @@ class _AgentDiffPageState extends State<AgentDiffPage>
     });
   }
 
+  /// Short agent labels, with Ah Jan / Ah Bak resolved to the user's chosen
+  /// gender variant so a participant who picked 阿伯 never sees 阿珍.
+  Map<String, String> _agentLabels(bool isEn) {
+    final variant =
+        AppSettingsScope.read(context).profile?.ahJanAhBakVariant;
+    return {
+      AgentDiffAgents.siuYan: isEn ? 'Siu Yan' : '小欣',
+      AgentDiffAgents.ahJanAhBak:
+          AgentRegistry.ahJanAhBakName(variant, isEn: isEn),
+      AgentDiffAgents.tungTung: isEn ? 'Tung Tung' : '通通',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final agentLabels = _agentLabels(isEn);
     final tabs = [
       Tab(text: isEn ? 'A How often' : 'A 使用頻率'),
       Tab(text: isEn ? 'B Personality' : 'B 性格印象'),
@@ -124,17 +142,20 @@ class _AgentDiffPageState extends State<AgentDiffPage>
         children: [
           _PartAView(
             usageFreq: _usageFreq,
+            agentLabels: agentLabels,
             onChanged: (agentId, freq) =>
                 setState(() => _usageFreq[agentId] = freq),
           ),
           _PartBView(
             personality: _personality,
+            agentLabels: agentLabels,
             onChanged: (traitId, agentId, rating) =>
                 setState(() => _personality[traitId]![agentId] = rating),
           ),
           if (_isW4)
             _PartCView(
               function: _function,
+              agentLabels: agentLabels,
               onChanged: (scenarioId, agentId) =>
                   setState(() => _function[scenarioId] = agentId),
             ),
@@ -156,12 +177,17 @@ class _AgentDiffPageState extends State<AgentDiffPage>
 
 class _PartAView extends StatelessWidget {
   final Map<String, int> usageFreq;
+  final Map<String, String> agentLabels;
   final void Function(String agentId, int freq) onChanged;
 
-  const _PartAView({required this.usageFreq, required this.onChanged});
+  const _PartAView({
+    required this.usageFreq,
+    required this.agentLabels,
+    required this.onChanged,
+  });
 
-  static const _freqLabelsZh = ['完全冇用', '少少', '定期', '好頻繁'];
-  static const _freqLabelsEn = ['Not at all', 'A little', 'Regularly', 'Very often'];
+  static const _freqLabelsZh = ['完全冇', '少過一次', '一至兩次', '三次或以上'];
+  static const _freqLabelsEn = ['Not at all', '<1×/wk', '1–2×/wk', '3+×/wk'];
 
   @override
   Widget build(BuildContext context) {
@@ -175,8 +201,9 @@ class _PartAView extends StatelessWidget {
         children: [
           Text(
             isEn
-                ? 'In the last month, how often did you use each companion?'
-                : '上個月你用咗以下夥伴幾多次？',
+                ? 'In a typical week over the past 2 weeks, how often did you '
+                    'talk with each companion?'
+                : '喺過去兩個星期，正常一個禮拜入面，你大約同每個夥伴傾過幾多次？',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -221,7 +248,7 @@ class _PartAView extends StatelessWidget {
               ),
               ...AgentDiffAgents.all.asMap().entries.map((e) {
                 final agentId = e.value;
-                final label = AgentDiffAgents.labels[agentId] ?? agentId;
+                final label = agentLabels[agentId] ?? agentId;
                 final selected = usageFreq[agentId] ?? 0;
                 return TableRow(
                   children: [
@@ -284,9 +311,14 @@ class _PartAView extends StatelessWidget {
 
 class _PartBView extends StatelessWidget {
   final Map<String, Map<String, int>> personality;
+  final Map<String, String> agentLabels;
   final void Function(String traitId, String agentId, int rating) onChanged;
 
-  const _PartBView({required this.personality, required this.onChanged});
+  const _PartBView({
+    required this.personality,
+    required this.agentLabels,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -299,8 +331,10 @@ class _PartBView extends StatelessWidget {
         children: [
           Text(
             isEn
-                ? "Please rate each companion's personality (1 = not at all, 5 = very much)"
-                : '請為每個夥伴嘅性格評分（1=完全唔符合，5=非常符合）',
+                ? 'For each statement, rate how much it describes each '
+                    'companion (1 = not at all, 5 = very much).'
+                : '下面每一句說話，話我哋知佢有幾形容到每個夥伴。'
+                    '（1=完全唔似，5=好似）',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -308,81 +342,40 @@ class _PartBView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
+          // One trait per block; the 3 companions are stacked VERTICALLY,
+          // each on its own full-width row of 5 large buttons — this removes
+          // the cramped 3×5 horizontal matrix that overlapped on phones.
           ...AgentDiffTraits.all.map((traitId) {
-            final label = AgentDiffTraits.labels[traitId] ?? traitId;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 24),
+            final label = (isEn
+                    ? AgentDiffTraits.labelsEn[traitId]
+                    : AgentDiffTraits.labels[traitId]) ??
+                traitId;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 18),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest
+                    .withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(14),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     label,
                     style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w600),
+                        fontSize: 18, fontWeight: FontWeight.w700, height: 1.3),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: AgentDiffAgents.all.map((agentId) {
-                      final agentLabel =
-                          AgentDiffAgents.labels[agentId] ?? agentId;
-                      final selected = personality[traitId]?[agentId] ?? 0;
-                      return Expanded(
-                        child: Column(
-                          children: [
-                            Text(agentLabel,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 13)),
-                            const SizedBox(height: 6),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(5, (i) {
-                                final rating = i + 1;
-                                final isSelected = selected == rating;
-                                return GestureDetector(
-                                  onTap: () =>
-                                      onChanged(traitId, agentId, rating),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(3),
-                                    child: AnimatedContainer(
-                                      duration:
-                                          const Duration(milliseconds: 120),
-                                      width: 26,
-                                      height: 26,
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? theme.colorScheme.primary
-                                            : Colors.transparent,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? theme.colorScheme.primary
-                                              : theme.colorScheme.outline,
-                                          width: 1.5,
-                                        ),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          '$rating',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: isSelected
-                                                ? Colors.white
-                                                : theme
-                                                    .colorScheme.onSurface,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                  const SizedBox(height: 14),
+                  for (final agentId in AgentDiffAgents.all) ...[
+                    _AgentRatingRow(
+                      agentLabel: agentLabels[agentId] ?? agentId,
+                      selected: personality[traitId]?[agentId] ?? 0,
+                      onRate: (rating) => onChanged(traitId, agentId, rating),
+                    ),
+                    if (agentId != AgentDiffAgents.all.last)
+                      const SizedBox(height: 10),
+                  ],
                 ],
               ),
             );
@@ -393,40 +386,107 @@ class _PartBView extends StatelessWidget {
   }
 }
 
+/// One companion's 1–5 rating for a single trait: name on the left, five
+/// full-width number buttons filling the rest of the row (no overlap).
+class _AgentRatingRow extends StatelessWidget {
+  final String agentLabel;
+  final int selected;
+  final ValueChanged<int> onRate;
+
+  const _AgentRatingRow({
+    required this.agentLabel,
+    required this.selected,
+    required this.onRate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 76,
+          child: Text(
+            agentLabel,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Row(
+            children: [
+              for (var rating = 1; rating <= 5; rating++) ...[
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => onRate(rating),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: selected == rating
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: selected == rating
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outline,
+                          width: selected == rating ? 2 : 1.2,
+                        ),
+                      ),
+                      child: Text(
+                        '$rating',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: selected == rating
+                              ? theme.colorScheme.onPrimary
+                              : theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (rating < 5) const SizedBox(width: 6),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Part C: scenario preference (W4 only)
 // ---------------------------------------------------------------------------
 
 class _PartCView extends StatelessWidget {
   final Map<String, String> function;
+  final Map<String, String> agentLabels;
   final void Function(String scenarioId, String agentId) onChanged;
 
-  const _PartCView({required this.function, required this.onChanged});
+  const _PartCView({
+    required this.function,
+    required this.agentLabels,
+    required this.onChanged,
+  });
 
   static const _agentOptions = [
     ...AgentDiffAgents.all,
     'any',
   ];
 
-  static const _agentOptionLabelsZh = {
-    AgentDiffAgents.siuYan: '小欣',
-    AgentDiffAgents.ahJanAhBak: '阿珍／阿伯',
-    AgentDiffAgents.tungTung: '通通',
-    'any': '都係',
-  };
-
-  static const _agentOptionLabelsEn = {
-    AgentDiffAgents.siuYan: 'Siu Yan',
-    AgentDiffAgents.ahJanAhBak: 'Ah Jan / Ah Bak',
-    AgentDiffAgents.tungTung: 'Tung Tung',
-    'any': 'Any of them',
-  };
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final agentOptionLabels = isEn ? _agentOptionLabelsEn : _agentOptionLabelsZh;
+    final agentOptionLabels = {
+      ...agentLabels,
+      'any': isEn ? 'Any of them' : '邊個都得／冇所謂',
+    };
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -434,8 +494,9 @@ class _PartCView extends StatelessWidget {
         children: [
           Text(
             isEn
-                ? 'In these situations, which companion would you choose?'
-                : '以下情況你會選擇邊個夥伴？',
+                ? 'If you wanted to do the following things, which companion '
+                    'would you go to first?'
+                : '如果你想做下面呢啲嘢，你會首先搵邊個夥伴？',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               fontSize: 18,
@@ -444,7 +505,10 @@ class _PartCView extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           ...AgentDiffScenarios.all.map((scenarioId) {
-            final label = AgentDiffScenarios.labels[scenarioId] ?? scenarioId;
+            final label = (isEn
+                    ? AgentDiffScenarios.labelsEn[scenarioId]
+                    : AgentDiffScenarios.labels[scenarioId]) ??
+                scenarioId;
             final selected = function[scenarioId];
             return Padding(
               padding: const EdgeInsets.only(bottom: 20),
@@ -552,7 +616,24 @@ class _PartDView extends StatelessWidget {
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          if (!saved)
+            Row(
+              children: [
+                VoiceInputButton(
+                  prefix: () => controller.text,
+                  onText: (t) => controller.text = t,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isEn ? 'or speak' : '或者用講嘅',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          const SizedBox(height: 8),
           TextField(
             controller: controller,
             maxLines: 8,

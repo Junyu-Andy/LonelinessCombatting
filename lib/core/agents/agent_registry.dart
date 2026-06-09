@@ -118,7 +118,6 @@ class AgentDefinition {
   });
 
   bool get hasGenderVariants => variants.length > 1;
-
   /// Resolve the display variant for the given selection. Falls back
   /// to the first variant for agents without gender alternatives, and
   /// to the feminine variant when an Ah Jan / Ah Bak selection has
@@ -259,4 +258,14 @@ class AgentRegistry {
   }
 
   static AgentIntroText? introTextFor(String key) => _firstIntroTexts[key];
+
+  /// Ah Jan / Ah Bak display name resolved for the user's chosen gender
+  /// variant (阿珍 feminine / 阿伯 masculine). Use this everywhere the
+  /// reminiscence companion is named to the participant so a user who chose
+  /// 阿伯 never sees 阿珍. Falls back to 阿珍 only when no choice is set.
+  static String ahJanAhBakName(AgentGenderVariant? variant,
+      {bool isEn = false}) {
+    final v = byId(ahJanAhBakId).resolveVariant(variant);
+    return isEn ? v.displayNameEn : v.displayNameZh;
+  }
 }

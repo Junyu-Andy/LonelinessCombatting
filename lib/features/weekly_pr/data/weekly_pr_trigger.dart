@@ -9,10 +9,16 @@ class WeeklyPrAgentUsage {
   final String agentId;
   final String displayName;
   final int sessionCount;
+
+  /// Earliest session-start this week for this agent — the deterministic
+  /// tie-break when two agents have the same session count (C2).
+  final DateTime firstUseAt;
+
   const WeeklyPrAgentUsage({
     required this.agentId,
     required this.displayName,
     required this.sessionCount,
+    required this.firstUseAt,
   });
 }
 
@@ -36,9 +42,10 @@ class WeeklyPrTrigger {
     'm5_reflective_session_start',
   };
 
-  /// Returns agents used in the last 7 days, sorted by descending
-  /// session count. Counts any analytics event whose name is in
-  /// [_sessionStartEvents] or which carries an `agentId` field.
+  /// Returns agents used in the last 7 days, sorted by descending session
+  /// count then earliest first-use (the C2 deterministic tie-break). Counts
+  /// any analytics event whose name is in [_sessionStartEvents] or which
+  /// carries an `agentId` field.
   Future<List<WeeklyPrAgentUsage>> agentsUsedThisWeek(String uid) async {
     try {
       final since = DateTime.now().subtract(const Duration(days: 7));
@@ -49,6 +56,7 @@ class WeeklyPrTrigger {
           .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
           .get();
       final counts = <String, int>{};
+      final firstUse = <String, DateTime>{};
       for (final doc in snap.docs) {
         final data = doc.data();
         final name = data['name'] as String?;
@@ -76,19 +84,39 @@ class WeeklyPrTrigger {
           continue;
         }
         counts.update(agentId, (v) => v + 1, ifAbsent: () => 1);
+        final ts = data['timestamp'];
+        final when = ts is Timestamp ? ts.toDate() : DateTime.now();
+        firstUse.update(
+          agentId,
+          (cur) => when.isBefore(cur) ? when : cur,
+          ifAbsent: () => when,
+        );
       }
       final list = counts.entries
           .map((e) => WeeklyPrAgentUsage(
                 agentId: e.key,
                 displayName: _displayNames[e.key] ?? e.key,
                 sessionCount: e.value,
+                firstUseAt: firstUse[e.key] ?? DateTime.now(),
               ))
           .toList();
-      list.sort((a, b) => b.sessionCount.compareTo(a.sessionCount));
+      list.sort((a, b) {
+        final byCount = b.sessionCount.compareTo(a.sessionCount);
+        if (byCount != 0) return byCount;
+        return a.firstUseAt.compareTo(b.firstUseAt); // earlier first-use wins
+      });
       return list;
     } catch (_) {
       return const [];
     }
+  }
+
+  /// C2 — the single companion the Weekly PR is anchored to: the one used
+  /// most this week (deterministic tie-break = earliest first-use). Null
+  /// when no companion was used.
+  Future<WeeklyPrAgentUsage?> mostUsedAgentThisWeek(String uid) async {
+    final list = await agentsUsedThisWeek(uid);
+    return list.isEmpty ? null : list.first;
   }
 
   /// Returns true iff a weekly_pr doc with this weekIso already exists.

@@ -1,14 +1,25 @@
 /// Brief Perceived Partner Responsiveness (PR) data model.
 ///
 /// Sprint 1 §3 — captured at the end of a substantive (≥180s, ≥3 exchanges)
-/// agent session. Four 0–100 sliders measure perceived understanding,
-/// validation, caring and (reverse-coded) insensitivity.
+/// agent session. Four 1–7 discrete, labelled ratings measure perceived
+/// understanding, validation, caring and (negatively-worded) insensitivity.
+///
+/// Scale change C1 (2026-06): switched from a 0–100 continuous slider to a
+/// 1–7 discrete labelled scale (gerontology default; re-aligns with the
+/// Reis PPRS / Crasta PRI Likert metric). Values are stored RAW — S4
+/// (insensitivity) is NOT reverse-scored at write time; the analysis
+/// pipeline applies 8 − x. `schemaVersion` distinguishes old 0–100 records
+/// (absent / 1) from new 1–7 records (2).
 ///
 /// Stored at `users/{uid}/brief_pr/{auto-id}`.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BriefPrResponse {
+  /// Document schema version. 1 (or absent) = legacy 0–100 sliders;
+  /// 2 = 1–7 discrete scale (C1).
+  static const int currentSchemaVersion = 2;
+
   /// 'siu_yan' | 'ah_jan_ah_bak' | 'tung_tung'
   final String agentId;
 
@@ -18,7 +29,8 @@ class BriefPrResponse {
   /// Optional Firestore path of the session this PR is anchored to.
   final String? sessionRef;
 
-  /// Slider values 0–100. Null if user skipped the prompt entirely.
+  /// Discrete responses 1–7 (raw; S4 not reverse-scored). Null when the
+  /// participant skipped the whole battery.
   final int? understanding;
   final int? validation;
   final int? caring;
@@ -53,6 +65,7 @@ class BriefPrResponse {
   });
 
   Map<String, dynamic> toFirestore() => {
+        'schemaVersion': currentSchemaVersion,
         'agentId': agentId,
         'agentDisplayName': agentDisplayName,
         'sessionRef': sessionRef,

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/agents/agent_registry.dart';
 import '../../../my_story/data/my_story_progress.dart';
 import '../../data/mood_recorder.dart';
 
@@ -111,11 +112,14 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
           : '記錄 ${r.moodDays} 次心情',
     ));
     if (r.reminWeek != null) {
+      final variant =
+          AppSettingsScope.read(context).profile?.ahJanAhBakVariant;
+      final name = AgentRegistry.ahJanAhBakName(variant, isEn: isEn);
       parts.add(_dot());
       parts.add(_chip(
         text: isEn
-            ? 'Ah Jan · Ch.${r.reminWeek}'
-            : '阿珍講到第 ${r.reminWeek} 章',
+            ? '$name · Ch.${r.reminWeek}'
+            : '$name講到第 ${r.reminWeek} 章',
       ));
     }
 

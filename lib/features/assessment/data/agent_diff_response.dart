@@ -114,39 +114,61 @@ class AgentDiffAgents {
 }
 
 /// Personality trait IDs used in Part B.
+///
+/// Aligned to Agent_Differentiation_Assessment_Final_v1.0 — exactly 4
+/// traits. The design note intentionally excludes "remembers what I told
+/// before" (shared memory store — non-differentiating) and "helps me think
+/// differently" (Thought-Exercise-specific); an earlier `empathetic` trait
+/// was also dropped to match the final 4-trait instrument.
 class AgentDiffTraits {
   static const warm = 'warm';
   static const sameAge = 'same_age';
   static const curious = 'curious';
   static const nonJudgmental = 'non_judgmental';
-  static const empathetic = 'empathetic';
 
-  static const all = [warm, sameAge, curious, nonJudgmental, empathetic];
+  static const all = [warm, sameAge, curious, nonJudgmental];
 
   static const labels = {
-    warm: '溫暖關心人',
+    warm: '溫暖、關心人',
     sameAge: '似自己同年紀嘅人',
-    curious: '好奇鍾意問我嘢',
+    curious: '好奇，鍾意問我嘢',
     nonJudgmental: '聽我講而唔評判我',
-    empathetic: '感受到我嘅心情',
+  };
+
+  static const labelsEn = {
+    warm: 'Warm and caring',
+    sameAge: 'Feels like someone my own age',
+    curious: 'Curious — asks me questions',
+    nonJudgmental: 'Listens without judging me',
   };
 }
 
 /// Scenario IDs used in Part C (W4 only).
+///
+/// Aligned to Agent_Differentiation_Assessment_Final_v1.0 — exactly 5
+/// scenarios (single-select among the 3 agents + "邊個都得／冇所謂").
 class AgentDiffScenarios {
-  static const dailyChat = 'daily_chat';
-  static const feelingSad = 'feeling_sad';
+  static const dayRecap = 'day_recap';
   static const memories = 'memories';
   static const learnNew = 'learn_new';
-  static const planContact = 'plan_contact';
+  static const feelingDown = 'feeling_down';
+  static const smallTalk = 'small_talk';
 
-  static const all = [dailyChat, feelingSad, memories, learnNew, planContact];
+  static const all = [dayRecap, memories, learnNew, feelingDown, smallTalk];
 
   static const labels = {
-    dailyChat: '想傾下日常瑣事',
-    feelingSad: '心情唔好想傾下',
-    memories: '想分享人生回憶',
-    learnNew: '想學下新嘢或者查嘢',
-    planContact: '想計劃同人聯絡',
+    dayRecap: '講下今日點過',
+    memories: '講下舊時嘅回憶、人生經歷',
+    learnNew: '學啲新嘢',
+    feelingDown: '心情唔好嘅時候',
+    smallTalk: '日常閒聊',
+  };
+
+  static const labelsEn = {
+    dayRecap: 'Talk about how my day went',
+    memories: 'Share old memories / life experiences',
+    learnNew: 'Learn something new',
+    feelingDown: "When I'm feeling down",
+    smallTalk: 'Everyday small talk',
   };
 }
