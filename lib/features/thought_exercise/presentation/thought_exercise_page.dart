@@ -53,8 +53,11 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
   final _reasonCtrl = TextEditingController();
   final _alternativeCtrl = TextEditingController();
 
-  String _emoji = '😐';
-  double _intensityBefore = 5;
+  // B14 — no prefilled default.  A pre-selected midpoint emoji / midpoint
+  // intensity biases responses through anchoring + satisficing, so both
+  // start empty and the user must actively choose before continuing.
+  String? _emoji;
+  double? _intensityBefore;
   double? _intensityAfter;
 
   bool _showingExit = false;
@@ -98,6 +101,8 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
 
   bool get _isComplete =>
       _situationCtrl.text.trim().isNotEmpty &&
+      _emoji != null &&
+      _intensityBefore != null &&
       _thoughtCtrl.text.trim().isNotEmpty &&
       _reasonCtrl.text.trim().isNotEmpty;
   // Field 5 (anotherWayToLook) is allowed to be blank per spec.
@@ -113,8 +118,8 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
     final repo = ThoughtExerciseRepository(available: auth.available);
     final entry = ThoughtExerciseEntry(
       situation: _situationCtrl.text.trim(),
-      emotionEmoji: _emoji,
-      intensityBefore: _intensityBefore.round(),
+      emotionEmoji: _emoji!,
+      intensityBefore: _intensityBefore!.round(),
       thought: _thoughtCtrl.text.trim(),
       oneReasonTrue: _reasonCtrl.text.trim(),
       anotherWayToLook: _alternativeCtrl.text.trim(),
@@ -139,7 +144,9 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
     setState(() {
       _saving = false;
       _showingExit = true;
-      _intensityAfter = _intensityBefore; // start at before; user re-rates
+      // B14 — leave the "after" rating empty so it isn't anchored to the
+      // "before" value; the user must actively re-rate.
+      _intensityAfter = null;
     });
   }
 
@@ -243,14 +250,15 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
               onChanged: (e) => setState(() => _emoji = e),
             ),
             const SizedBox(height: 8),
-            Text(isEn ? 'Intensity (1–10)' : '強度（1–10）',
-                style: theme.textTheme.bodyMedium),
-            Slider(
+            Text(
+              _intensityBefore == null
+                  ? (isEn ? 'Intensity (1–10) — drag to choose'
+                      : '強度（1–10）— 拖去揀')
+                  : (isEn ? 'Intensity (1–10)' : '強度（1–10）'),
+              style: theme.textTheme.bodyMedium,
+            ),
+            _IntensitySlider(
               value: _intensityBefore,
-              min: 1,
-              max: 10,
-              divisions: 9,
-              label: _intensityBefore.round().toString(),
               onChanged: (v) => setState(() => _intensityBefore = v),
             ),
             const SizedBox(height: 8),
@@ -305,7 +313,6 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
 
   Widget _buildExitView(bool isEn) {
     final theme = Theme.of(context);
-    final after = _intensityAfter ?? _intensityBefore;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
@@ -325,31 +332,34 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
             children: [
               _BeforeAfterTile(
                 label: isEn ? 'Before' : '之前',
-                emoji: _emoji,
-                value: _intensityBefore.round(),
+                emoji: _emoji ?? '',
+                value: _intensityBefore?.round(),
               ),
               const Icon(Icons.arrow_forward, size: 28),
               _BeforeAfterTile(
                 label: isEn ? 'Now' : '依家',
-                emoji: _emoji, // emoji not re-selected, only intensity
-                value: after.round(),
+                emoji: _emoji ?? '', // emoji not re-selected, only intensity
+                value: _intensityAfter?.round(),
               ),
             ],
           ),
           const SizedBox(height: 24),
-          Text(isEn ? 'Intensity now (1–10)' : '依家強度（1–10）',
-              style: theme.textTheme.bodyMedium),
-          Slider(
-            value: after,
-            min: 1,
-            max: 10,
-            divisions: 9,
-            label: after.round().toString(),
+          Text(
+            _intensityAfter == null
+                ? (isEn ? 'Intensity now (1–10) — drag to choose'
+                    : '依家強度（1–10）— 拖去揀')
+                : (isEn ? 'Intensity now (1–10)' : '依家強度（1–10）'),
+            style: theme.textTheme.bodyMedium,
+          ),
+          _IntensitySlider(
+            value: _intensityAfter,
             onChanged: (v) => setState(() => _intensityAfter = v),
           ),
           const Spacer(),
           FilledButton(
-            onPressed: _saving ? null : _saveExitAndClose,
+            onPressed: _saving || _intensityAfter == null
+                ? null
+                : _saveExitAndClose,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Text(isEn ? 'Done' : '完成',
@@ -374,8 +384,38 @@ class _Label extends StatelessWidget {
   }
 }
 
+class _IntensitySlider extends StatelessWidget {
+  final double? value;
+  final ValueChanged<double> onChanged;
+  const _IntensitySlider({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = value != null;
+    final slider = Slider(
+      value: value ?? 1,
+      min: 1,
+      max: 10,
+      divisions: 9,
+      label: selected ? value!.round().toString() : null,
+      onChanged: onChanged,
+    );
+    if (selected) return slider;
+    // B14 — until the user picks a value, hide the thumb so there is no
+    // prefilled midpoint to anchor on. The track still responds to a tap
+    // or drag, which sets the value and reveals the thumb.
+    return SliderTheme(
+      data: SliderTheme.of(context).copyWith(
+        thumbShape: SliderComponentShape.noThumb,
+        overlayShape: SliderComponentShape.noOverlay,
+      ),
+      child: slider,
+    );
+  }
+}
+
 class _EmojiRow extends StatelessWidget {
-  final String value;
+  final String? value;
   final List<String> choices;
   final ValueChanged<String> onChanged;
   const _EmojiRow({
@@ -413,7 +453,7 @@ class _EmojiRow extends StatelessWidget {
 class _BeforeAfterTile extends StatelessWidget {
   final String label;
   final String emoji;
-  final int value;
+  final int? value;
   const _BeforeAfterTile({
     required this.label,
     required this.emoji,
@@ -428,7 +468,7 @@ class _BeforeAfterTile extends StatelessWidget {
         const SizedBox(height: 8),
         Text(emoji, style: const TextStyle(fontSize: 40)),
         const SizedBox(height: 4),
-        Text('$value', style: theme.textTheme.headlineSmall),
+        Text(value?.toString() ?? '—', style: theme.textTheme.headlineSmall),
       ],
     );
   }

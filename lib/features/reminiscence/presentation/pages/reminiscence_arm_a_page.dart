@@ -136,6 +136,7 @@ clay-pot rice stand..."
 ''';
 
   final _inputCtrl = TextEditingController();
+  final _voice = VoiceInputController();
   final _summaryCtrl = TextEditingController();
   final List<_Turn> _turns = [];
   bool _busy = false;
@@ -674,6 +675,7 @@ clay-pot rice stand..."
             ),
             _Composer(
               controller: _inputCtrl,
+              voice: _voice,
               busy: _busy || _generatingOpener,
               onSend: _send,
             ),
@@ -845,10 +847,12 @@ class _PriorWeeksHint extends StatelessWidget {
 
 class _Composer extends StatelessWidget {
   final TextEditingController controller;
+  final VoiceInputController voice;
   final bool busy;
   final VoidCallback onSend;
   const _Composer({
     required this.controller,
+    required this.voice,
     required this.busy,
     required this.onSend,
   });
@@ -867,6 +871,7 @@ class _Composer extends StatelessWidget {
         child: Row(
           children: [
             VoiceInputButton(
+              controller: voice,
               prefix: () => controller.text,
               onText: (t) => controller.text = t,
             ),
@@ -885,7 +890,13 @@ class _Composer extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             IconButton.filled(
-              onPressed: busy ? null : onSend,
+              onPressed: busy
+                  ? null
+                  : () async {
+                      // B03 — stop dictation before snapshot + clear.
+                      await voice.stopForSend();
+                      onSend();
+                    },
               icon: const Icon(Icons.arrow_upward_rounded),
               iconSize: 28,
             ),

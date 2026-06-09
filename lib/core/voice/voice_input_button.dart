@@ -2,6 +2,29 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+/// Handle a host page holds so it can stop in-progress dictation at a
+/// precise moment — specifically right before it snapshots the input and
+/// sends a message (B03).  Without this, the recogniser keeps running
+/// after send: its session-cumulative results ("abc" → "abc de") get
+/// written back into the just-cleared field, polluting the next message.
+///
+/// Bind one controller to one [VoiceInputButton]; calling [stopForSend]
+/// when idle is a safe no-op.
+class VoiceInputController {
+  _VoiceInputButtonState? _state;
+
+  void _bind(_VoiceInputButtonState state) => _state = state;
+  void _unbind(_VoiceInputButtonState state) {
+    if (identical(_state, state)) _state = null;
+  }
+
+  /// Cancel any active dictation and discard pending recognition so no
+  /// late callback can repopulate the input after it's been cleared.
+  Future<void> stopForSend() async {
+    await _state?._stopForSend();
+  }
+}
+
 /// Thin wrapper around [SpeechToText] so any free-text input field can
 /// gain voice dictation without each page redoing the boilerplate.
 ///
@@ -41,7 +64,16 @@ class VoiceInputButton extends StatefulWidget {
   /// caller keep typed-and-dictated content intact.
   final String Function()? prefix;
 
-  const VoiceInputButton({super.key, required this.onText, this.prefix});
+  /// When non-null, lets the host page stop dictation right before it
+  /// sends (B03).
+  final VoiceInputController? controller;
+
+  const VoiceInputButton({
+    super.key,
+    required this.onText,
+    this.prefix,
+    this.controller,
+  });
 
   @override
   State<VoiceInputButton> createState() => _VoiceInputButtonState();
@@ -53,10 +85,15 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   bool _initialising = true;
   bool _listening = false;
   String _bufferStart = '';
+  // Set true by [_stopForSend] so a recognition callback that lands after
+  // the user hit send can't write stale text back into the cleared field.
+  // Reset when a fresh dictation starts.
+  bool _suppressResults = false;
 
   @override
   void initState() {
     super.initState();
+    widget.controller?._bind(this);
     _init();
   }
 
@@ -104,6 +141,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
       return;
     }
     _bufferStart = widget.prefix?.call() ?? '';
+    _suppressResults = false;
     setState(() => _listening = true);
     final localeId = await _pickLocale();
 
@@ -116,6 +154,9 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
       await _stt.listen(
         localeId: localeId,
         onResult: (result) {
+          // Dropped once the user has hit send (B03) — a trailing partial
+          // must not overwrite the freshly cleared field.
+          if (_suppressResults) return;
           final spoken = result.recognizedWords;
           final glue = _bufferStart.isEmpty ? '' : ' ';
           widget.onText('$_bufferStart$glue$spoken');
@@ -139,6 +180,25 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
       if (mounted) setState(() => _listening = false);
       _showUnavailableHint();
     }
+  }
+
+  /// B03 — called by [VoiceInputController.stopForSend] right before the
+  /// host page snapshots the input and sends.  Cancels (not just stops)
+  /// the recogniser so pending results are discarded, suppresses any
+  /// straggler callback, and resets the buffer so the next dictation
+  /// starts clean instead of appending to the sent text.
+  Future<void> _stopForSend() async {
+    _suppressResults = true;
+    if (_listening || _stt.isListening) {
+      try {
+        await _stt.cancel();
+      } catch (_) {
+        // Best-effort: even if cancel throws, _suppressResults already
+        // guards against late callbacks.
+      }
+    }
+    _bufferStart = '';
+    if (mounted && _listening) setState(() => _listening = false);
   }
 
   /// Shown when voice can't run — usually no offline language pack, or the
@@ -208,6 +268,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
 
   @override
   void dispose() {
+    widget.controller?._unbind(this);
     _stt.stop();
     super.dispose();
   }

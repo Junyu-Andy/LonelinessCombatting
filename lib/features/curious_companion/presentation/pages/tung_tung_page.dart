@@ -55,6 +55,7 @@ class _TungTungPageState extends State<TungTungPage> {
 ''';
 
   final _inputCtrl = TextEditingController();
+  final _voice = VoiceInputController();
   final List<_Turn> _turns = [];
   final DateTime _sessionStartedAt = DateTime.now();
   bool _briefPrSurfaced = false;
@@ -436,6 +437,7 @@ class _TungTungPageState extends State<TungTungPage> {
               ),
               _Composer(
                 controller: _inputCtrl,
+                voice: _voice,
                 busy: _busy,
                 accent: agent.accentColor,
                 searchArmed: _searchArmed,
@@ -742,6 +744,7 @@ class _ArticleContextBanner extends StatelessWidget {
 
 class _Composer extends StatelessWidget {
   final TextEditingController controller;
+  final VoiceInputController voice;
   final bool busy;
   final Color accent;
   final bool searchArmed;
@@ -750,6 +753,7 @@ class _Composer extends StatelessWidget {
 
   const _Composer({
     required this.controller,
+    required this.voice,
     required this.busy,
     required this.accent,
     required this.searchArmed,
@@ -797,6 +801,7 @@ class _Composer extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 VoiceInputButton(
+                  controller: voice,
                   prefix: () => controller.text,
                   onText: (t) => controller.text = t,
                 ),
@@ -817,7 +822,14 @@ class _Composer extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 IconButton.filled(
-                  onPressed: busy ? null : () => onSend(),
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          // B03 — stop dictation before the page snapshots
+                          // and clears the field.
+                          await voice.stopForSend();
+                          await onSend();
+                        },
                   icon: const Icon(Icons.arrow_upward_rounded),
                   iconSize: 28,
                 ),

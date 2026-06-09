@@ -134,6 +134,17 @@ class AuthService {
     return true;
   }
 
+  /// B06 — turn 今日休息 back off the same day.  Clears the activation
+  /// timestamp so [UserProfile.isQuietToday] returns false and reminders
+  /// resume.  No-op when Firebase is unavailable (guest mode).
+  Future<void> deactivateQuietToday(UserProfile profile) async {
+    if (!available) return;
+    await _db.collection('users').doc(profile.uid).set(
+      {'quietTodayActivatedAt': FieldValue.delete()},
+      SetOptions(merge: true),
+    );
+  }
+
   Future<UserProfile> _loadOrCreateProfile(User user) async {
     final ref = _db.collection('users').doc(user.uid);
 

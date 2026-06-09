@@ -204,9 +204,10 @@ class _SettingsPageState extends State<SettingsPage> {
             onChanged: (value) => setState(() => _voiceReadback = value),
           ),
           const SizedBox(height: 14),
-          // B.10 — 今日休息 dignified pause.  Idempotent: toggling back off
-          // is intentionally not supported once activated; the flag clears
-          // at midnight local time (see UserProfile.isQuietToday).
+          // B.10 — 今日休息 dignified pause.  Defaults off; the flag also
+          // clears automatically at midnight local time (see
+          // UserProfile.isQuietToday).  B06 — it can now be toggled back
+          // off the same day instead of being locked on until midnight.
           _SwitchTileCard(
             icon: Icons.bedtime_outlined,
             title: isEn ? 'Rest today' : '今日休息',
@@ -216,16 +217,21 @@ class _SettingsPageState extends State<SettingsPage> {
             value: settings.profile?.isQuietToday ?? false,
             onChanged: (value) async {
               final profile = settings.profile;
-              if (profile == null || !value) return;
+              if (profile == null) return;
               final auth = AuthServiceScope.of(context);
-              final activated = await auth.activateQuietToday(profile);
-              if (activated) {
-                settings.profile = profile.copyWith(
-                  quietTodayActivatedAt: DateTime.now(),
-                );
-                if (context.mounted) {
-                  await AnalyticsScope.of(context).logQuietTodayActivated();
+              if (value) {
+                final activated = await auth.activateQuietToday(profile);
+                if (activated) {
+                  settings.profile = profile.copyWith(
+                    quietTodayActivatedAt: DateTime.now(),
+                  );
+                  if (context.mounted) {
+                    await AnalyticsScope.of(context).logQuietTodayActivated();
+                  }
                 }
+              } else {
+                await auth.deactivateQuietToday(profile);
+                settings.profile = profile.copyWith(clearQuietToday: true);
               }
             },
           ),

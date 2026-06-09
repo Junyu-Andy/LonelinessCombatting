@@ -291,6 +291,7 @@ class UserProfile {
     int? strataCell,
     Map<String, DateTime>? firstPprSeenByAgent,
     DateTime? quietTodayActivatedAt,
+    bool clearQuietToday = false,
     bool? weeklyProbeEnabled,
     Map<String, DateTime>? firstIntroSeen,
     String? avoidTopics,
@@ -318,8 +319,9 @@ class UserProfile {
       interests: interests ?? this.interests,
       strataCell: strataCell ?? this.strataCell,
       firstPprSeenByAgent: firstPprSeenByAgent ?? this.firstPprSeenByAgent,
-      quietTodayActivatedAt:
-          quietTodayActivatedAt ?? this.quietTodayActivatedAt,
+      quietTodayActivatedAt: clearQuietToday
+          ? null
+          : (quietTodayActivatedAt ?? this.quietTodayActivatedAt),
       weeklyProbeEnabled: weeklyProbeEnabled ?? this.weeklyProbeEnabled,
       firstIntroSeen: firstIntroSeen ?? this.firstIntroSeen,
       avoidTopics: avoidTopics ?? this.avoidTopics,
