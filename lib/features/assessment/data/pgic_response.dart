@@ -43,10 +43,28 @@ class PgicResponse {
   }
 
   /// ISO week number for a given date (1-53).
+  ///
+  /// Handles the year boundaries the naive formula got wrong: early
+  /// January days that belong to the previous ISO year returned week 0,
+  /// and late December days in 52-week years returned 53 — both would
+  /// have stored an unjoinable week key had the study spanned New Year.
   static int isoWeekFor(DateTime date) {
-    // ISO 8601 week: week containing Thursday of the year.
     final dayOfYear = date.difference(DateTime(date.year, 1, 1)).inDays + 1;
     final wday = date.weekday; // 1=Mon … 7=Sun
-    return ((dayOfYear - wday + 10) / 7).floor();
+    final week = (dayOfYear - wday + 10) ~/ 7;
+    if (week < 1) return _weeksInIsoYear(date.year - 1);
+    if (week > _weeksInIsoYear(date.year)) return 1;
+    return week;
+  }
+
+  /// 53 iff the year starts on Thursday, or is a leap year starting on
+  /// Wednesday (ISO 8601); otherwise 52.
+  static int _weeksInIsoYear(int year) {
+    final jan1 = DateTime(year, 1, 1).weekday;
+    final isLeap =
+        (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    final has53 = jan1 == DateTime.thursday ||
+        (isLeap && jan1 == DateTime.wednesday);
+    return has53 ? 53 : 52;
   }
 }

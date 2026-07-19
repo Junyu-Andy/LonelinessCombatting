@@ -72,13 +72,23 @@ class LlmGateway {
     /// (Arm B should not call the gateway at all per design, but this guard
     /// keeps the schema clean if a misroute happens.)
     String? armCode,
+    /// System-internal calls (e.g. the session-end rolling-summary fold)
+    /// pass true: their "input" is a transcript whose every turn was
+    /// already distress-scanned live when the user typed it, so scanning
+    /// again (a) wrote a duplicate, mislabelled safety event minutes
+    /// after the real one and (b) short-circuited the fold on any acute
+    /// term, discarding that session's memory.  Never set this for
+    /// live user input.
+    bool skipSafetyScan = false,
   }) async {
     assert(
       systemPrompt != null || promptKey != null,
       'LlmGateway.send requires either systemPrompt or promptKey',
     );
 
-    final inputFlag = _detector.analyze(userInput);
+    final inputFlag = skipSafetyScan
+        ? const DistressMatch(DistressLevel.none)
+        : _detector.analyze(userInput);
 
     if (inputFlag.isEscalation) {
       // Fire-and-forget on purpose: offline, a Firestore write future
@@ -131,7 +141,9 @@ class LlmGateway {
     sw.stop();
     final latencyMs = sw.elapsedMilliseconds;
 
-    final outputFlag = _detector.analyze(raw.text);
+    final outputFlag = skipSafetyScan
+        ? const DistressMatch(DistressLevel.none)
+        : _detector.analyze(raw.text);
     final filtered = _postFilter(raw.text);
 
     if (outputFlag.isEscalation) {

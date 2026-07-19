@@ -50,6 +50,21 @@ class RollingSummaryCompiler {
     required String agentId,
     bool retentionOn = true,
   }) async {
+    // Callers fire-and-forget this — a Firestore read/write failure in
+    // here must never surface as an unhandled async exception.
+    try {
+      await _compile(uid: uid, agentId: agentId, retentionOn: retentionOn);
+    } catch (_) {
+      // Best-effort: prior summary is untouched; the buffer (if any)
+      // simply re-folds at the next session end.
+    }
+  }
+
+  Future<void> _compile({
+    required String uid,
+    required String agentId,
+    required bool retentionOn,
+  }) async {
     // T5 — record the outcome so it's visible in the console.
     if (!retentionOn) {
       await agentContext.writeFoldStatus(
@@ -88,6 +103,11 @@ class RollingSummaryCompiler {
         history: const [],
         userInput: userInput.toString(),
         uid: uid,
+        // Every turn in this transcript was already distress-scanned live;
+        // re-scanning here double-fired safety alerts (grief vocabulary is
+        // routine for this population) and an acute term anywhere in the
+        // session short-circuited the fold, losing that session's memory.
+        skipSafetyScan: true,
       );
 
       final folded = response.text.trim();

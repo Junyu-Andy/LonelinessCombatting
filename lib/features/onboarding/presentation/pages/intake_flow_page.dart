@@ -994,6 +994,9 @@ class _AddPersonButton extends StatelessWidget {
         ],
       ),
     );
+    nameCtrl.dispose();
+    relCtrl.dispose();
+    extraCtrl.dispose();
     if (result != null) onAdd(result);
   }
 }

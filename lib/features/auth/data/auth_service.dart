@@ -150,14 +150,16 @@ class AuthService {
 
     // createUserWithEmailAndPassword fires authStateChanges before signUp()
     // has had a chance to write the profile doc (with the user-provided
-    // displayName) to Firestore. Without a short retry, we'd race ahead and
+    // displayName) to Firestore. Without a retry, we'd race ahead and
     // auto-create a fallback profile whose displayName is the email prefix
     // — and that wrong name would then stick in the UI for the whole
-    // session. Poll for the doc up to ~1.5s before falling back.
+    // session. Poll for the doc up to ~5s before falling back — signUp's
+    // arm transaction + two writes routinely exceed the old 1.5s window
+    // on slow connections.
     var doc = await ref.get();
-    if (!doc.exists && (user.displayName == null || user.displayName!.isEmpty)) {
-      for (var i = 0; i < 5 && !doc.exists; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!doc.exists) {
+      for (var i = 0; i < 10 && !doc.exists; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
         doc = await ref.get();
       }
     }
@@ -178,13 +180,16 @@ class AuthService {
       }
       return existing;
     }
-    final result = await _armAssigner.assign(_db);
+    // Fallback profile WITHOUT an arm assignment.  If we're racing
+    // signUp(), its own write (which carries the properly assigned arm)
+    // lands moments later and overwrites this doc; assigning here too
+    // double-incremented the meta/arm_counter and skewed stratification
+    // bookkeeping.  If no signUp write ever lands (genuinely missing
+    // doc), the arm==null backfill branch above assigns on next load.
     final profile = UserProfile(
       uid: user.uid,
       email: user.email ?? '',
       displayName: user.displayName ?? (user.email ?? '用戶').split('@').first,
-      arm: result.arm,
-      strataCell: result.cell,
       createdAt: DateTime.now(),
       lastLoginAt: DateTime.now(),
     );

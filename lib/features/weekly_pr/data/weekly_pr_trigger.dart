@@ -42,13 +42,19 @@ class WeeklyPrTrigger {
     'm5_reflective_session_start',
   };
 
-  /// Returns agents used in the last 7 days, sorted by descending session
-  /// count then earliest first-use (the C2 deterministic tie-break). Counts
-  /// any analytics event whose name is in [_sessionStartEvents] or which
-  /// carries an `agentId` field.
+  /// Returns agents used in the current ISO week (Monday 00:00 → now),
+  /// sorted by descending session count then earliest first-use (the C2
+  /// deterministic tie-break). Counts any analytics event whose name is
+  /// in [_sessionStartEvents] or which carries an `agentId` field.
+  ///
+  /// ISO-week window ON PURPOSE: the submit-dedup is per ISO week, so a
+  /// rolling now−7d window let last Sunday's already-surveyed sessions
+  /// flip which agent this Sunday's Weekly PR anchors to.
   Future<List<WeeklyPrAgentUsage>> agentsUsedThisWeek(String uid) async {
     try {
-      final since = DateTime.now().subtract(const Duration(days: 7));
+      final now = DateTime.now();
+      final since = DateTime(now.year, now.month, now.day)
+          .subtract(Duration(days: now.weekday - 1));
       final snap = await _db
           .collection('users')
           .doc(uid)

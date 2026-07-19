@@ -102,7 +102,10 @@ class PendingPromptsService {
           .get();
       return snap.docs.isEmpty;
     } catch (_) {
-      return true;
+      // Fail closed (= "already answered"): a transient read error must
+      // not re-prompt a participant who already completed the PGIC.
+      // The banner simply retries on the next home rebuild.
+      return false;
     }
   }
 
@@ -117,7 +120,9 @@ class PendingPromptsService {
           .get();
       return snap.docs.isNotEmpty;
     } catch (_) {
-      return false;
+      // Fail closed (= "exists"): don't re-prompt on read errors; the
+      // next successful rebuild surfaces the banner if genuinely due.
+      return true;
     }
   }
 }
