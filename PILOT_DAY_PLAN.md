@@ -13,6 +13,10 @@
 - [ ] `flutter test` — 全绿。
 - [ ] `firebase deploy --only firestore`（rules + 新加的 indexes）
 - [ ] `firebase deploy --only functions`（tester 抑制 / T1 词表 / 通知，全指着这个）
+- [ ] **Bundle ID 三方一致性检查（B01 强嫌疑）**：`ios/Runner/GoogleService-Info.plist`
+  的 `BUNDLE_ID` / Firebase Console iOS app 的 bundle id / Xcode 的
+  `PRODUCT_BUNDLE_IDENTIFIER`（当前是占位符 `com.example.appDemo`！）三者必须一致。
+  不一致 → iOS 端 Firebase 鉴权/写库静默失败，正是"真机发不出收不到"的现象。
 - [ ] Firebase Console → App Check：
   - iOS app 是否已配 **DeviceCheck** 私钥？
   - `proxyDeepSeek` 的 enforcement 状态？
