@@ -35,18 +35,25 @@ class AdherenceCheck {
 
   Future<DateTime?> _lastCheckInAt(String uid) async {
     if (!available) return null;
+    // Single-field query + client-side max ON PURPOSE: where+orderBy on
+    // different fields needs a composite index that is not deployed
+    // (no firestore.indexes.json), which made this throw and silently
+    // killed the missed-check-in banner.  Check-in events stay few per
+    // participant, so scanning them client-side is fine.
     final snap = await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .collection('events')
         .where('name', isEqualTo: 'check_in_submitted')
-        .orderBy('timestamp', descending: true)
-        .limit(1)
         .get();
-    if (snap.docs.isEmpty) return null;
-    final raw = snap.docs.first.data()['timestamp'];
-    if (raw is Timestamp) return raw.toDate();
-    if (raw is String) return DateTime.tryParse(raw);
-    return null;
+    DateTime? latest;
+    for (final d in snap.docs) {
+      final raw = d.data()['timestamp'];
+      final t = raw is Timestamp
+          ? raw.toDate()
+          : (raw is String ? DateTime.tryParse(raw) : null);
+      if (t != null && (latest == null || t.isAfter(latest))) latest = t;
+    }
+    return latest;
   }
 }

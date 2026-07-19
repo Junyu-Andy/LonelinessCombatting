@@ -15,6 +15,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -155,7 +156,20 @@ class _TungTungPageState extends State<TungTungPage> {
     super.dispose();
   }
 
+  /// Wrapper so ANY throw inside the send pipeline (persona resolve,
+  /// appendTurn transaction, search — all of which can fail offline)
+  /// can't strand `_busy = true` and permanently dead the composer.
   Future<void> _send() async {
+    try {
+      await _sendInner();
+    } catch (e) {
+      if (kDebugMode) debugPrint('[tung_tung] send failed: $e');
+    } finally {
+      if (mounted && _busy) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _sendInner() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
     final isFirstTurn = _turns.isEmpty;
@@ -457,6 +471,12 @@ class _TungTungPageState extends State<TungTungPage> {
     _briefPrSurfaced = true;
     final profile = AppSettingsScope.read(context).profile;
     if (profile == null) return;
+    // Capture the navigator NOW: this runs from PopScope after the route
+    // has already popped, so once the gate queries outlast the pop
+    // animation this State is disposed — bailing on !mounted meant the
+    // Brief PR silently never fired from this surface.  The root
+    // navigator outlives the popped route.
+    final nav = Navigator.of(context);
 
     // §1C — fold this Tung Tung session into the rolling summary and clear
     // the verbatim buffer on exit. Fire-and-forget (context-free service).
@@ -479,13 +499,12 @@ class _TungTungPageState extends State<TungTungPage> {
       sessionStartedAt: _sessionStartedAt,
       exchangeCount: exchangeCount,
     );
-    if (!shouldShow || !mounted) return;
+    if (!shouldShow) return;
     final anchor = await gate.isAnchorPromptFor(
       uid: profile.uid,
       agentId: 'tung_tung',
     );
-    if (!mounted) return;
-    await Navigator.of(context).push(
+    await nav.push(
       MaterialPageRoute<void>(
         builder: (_) => BriefPrPage(
           agentId: 'tung_tung',

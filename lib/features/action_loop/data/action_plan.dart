@@ -132,13 +132,19 @@ class ActionPlanRepository {
 
   /// Plans without an `outcome` yet, ordered by `createdAt` ascending so
   /// the oldest awaiting follow-up is shown first.
+  ///
+  /// Filters `outcome == null` client-side ON PURPOSE: the original
+  /// where+orderBy pair needs a composite index that is not deployed
+  /// (no firestore.indexes.json), which made this stream error out and
+  /// every pending-plan surface silently render nothing.  Per-user
+  /// plans are few, so the client-side filter is free and index-proof.
   Stream<List<ActionPlan>> pending(String uid) {
     if (!available) return const Stream.empty();
     return _ref(uid)
-        .where('outcome', isNull: true)
         .orderBy('createdAt')
         .snapshots()
         .map((s) => s.docs
+            .where((d) => d.data()['outcome'] == null)
             .map((d) => ActionPlan.fromMap(d.id, d.data()))
             .toList());
   }

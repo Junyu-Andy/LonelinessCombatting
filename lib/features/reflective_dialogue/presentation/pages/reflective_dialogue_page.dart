@@ -13,6 +13,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -126,7 +127,20 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     super.dispose();
   }
 
+  /// Wrapper so ANY throw inside the send pipeline can't strand
+  /// `_busy = true` and permanently dead the composer (offline persona
+  /// resolve / appendTurn transactions throw).
   Future<void> _send() async {
+    try {
+      await _sendInner();
+    } catch (e) {
+      if (kDebugMode) debugPrint('[reflective] send failed: $e');
+    } finally {
+      if (mounted && _busy) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _sendInner() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
     final isFirstTurn = _turns.isEmpty;
@@ -314,6 +328,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       agentId: AgentRegistry.ahJanAhBakId,
       moduleId: 'reflective_dialogue',
     );
+    if (!mounted) return;
 
     // Mark the original turn as repaired so we don't show the button again.
     setState(() {
@@ -350,6 +365,9 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
           ? response.text.trim()
           : _repairTemplates[0][isEn ? 1 : 0];
       final newKey = 'turn_${DateTime.now().microsecondsSinceEpoch}_r';
+      // User can back out of the page during the multi-second regenerate;
+      // setState on the disposed State would crash in release.
+      if (!mounted) return;
       setState(() {
         _busy = false;
         _turns.add(_Turn.bot(
@@ -475,6 +493,14 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     _briefPrSurfaced = true;
     final profile = AppSettingsScope.read(context).profile;
     if (profile == null) return;
+    // Capture the navigator NOW: this runs from PopScope after the route
+    // has already popped, so by the time the two gate queries below
+    // resolve (longer than the ~300ms pop animation), this State is
+    // disposed and `mounted` is false.  Bailing on !mounted here meant
+    // the Brief PR — a primary outcome measure — silently never fired
+    // from this surface.  The root navigator outlives the popped route,
+    // so pushing through the captured handle is safe.
+    final nav = Navigator.of(context);
 
     // §1C — fold this session into Ah Jan / Ah Bak's rolling summary and
     // clear the verbatim buffer on exit. Fire-and-forget (context-free).
@@ -497,16 +523,15 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       sessionStartedAt: _sessionStartedAt,
       exchangeCount: exchangeCount,
     );
-    if (!shouldShow || !mounted) return;
+    if (!shouldShow) return;
     final anchor = await gate.isAnchorPromptFor(
       uid: profile.uid,
       agentId: 'ah_jan_ah_bak',
     );
-    if (!mounted) return;
     // Resolve gender variant display name.
     final agent = AgentRegistry.byId(AgentRegistry.ahJanAhBakId);
     final variant = agent.resolveVariant(profile.ahJanAhBakVariant);
-    await Navigator.of(context).push(
+    await nav.push(
       MaterialPageRoute<void>(
         builder: (_) => BriefPrPage(
           agentId: 'ah_jan_ah_bak',

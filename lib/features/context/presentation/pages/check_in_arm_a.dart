@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -262,7 +263,19 @@ class _CheckInArmAState extends State<CheckInArmA> {
     super.dispose();
   }
 
+  /// Wrapper so ANY throw inside the send pipeline can't strand
+  /// `_busy = true` and permanently dead the composer.
   Future<void> _send() async {
+    try {
+      await _sendInner();
+    } catch (e) {
+      if (kDebugMode) debugPrint('[check_in_a] send failed: $e');
+    } finally {
+      if (mounted && _busy) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _sendInner() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
     // The opening bot bubble is seeded in didChangeDependencies, so
@@ -403,6 +416,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
     if (escalation.level != DistressLevel.none) {
       await core.distressRouter.route(escalation, context: context);
     }
+    if (!mounted) return;
 
     // Phase A spec §2.6 — Siu Yan's Thought Exercise offer.  We surface
     // the naming card iff (a) negative cognition matched on this turn,
@@ -514,17 +528,25 @@ class _CheckInArmAState extends State<CheckInArmA> {
           .map((t) => t.text)
           .join('\n');
       final callback = _crossModuleCallbackUsedThisSession;
-      await core.memory.writeSummary(
-        uid: profile.uid,
-        moduleId: 'm2_check_in',
-        summary: summary,
-        armCode: 'A',
-        hasTranscriptConsent: profile.consent.transcriptRetention,
-        tags: [
-          if (_facePicked) 'mood:${_face.name}',
-          if (callback != null) 'cross_callback:${callback.sourceFamily}',
-        ],
-      );
+      // Fire-and-forget: offline, Firestore write futures wait for
+      // server ack — awaiting them froze the mood sheet's save button
+      // forever.  The SDK queues the writes and syncs later.
+      unawaited(() async {
+        try {
+          await core.memory.writeSummary(
+            uid: profile.uid,
+            moduleId: 'm2_check_in',
+            summary: summary,
+            armCode: 'A',
+            hasTranscriptConsent: profile.consent.transcriptRetention,
+            tags: [
+              if (_facePicked) 'mood:${_face.name}',
+              if (callback != null)
+                'cross_callback:${callback.sourceFamily}',
+            ],
+          );
+        } catch (_) {}
+      }());
     }
 
     // B04 — flow the end-of-session mood into daily_mood so the home
@@ -534,29 +556,37 @@ class _CheckInArmAState extends State<CheckInArmA> {
     if (profile != null &&
         _facePicked &&
         _face.numericScore != _moodValueAlreadyInDailyMood) {
-      try {
-        await MoodRecorder().record(
-          uid: profile.uid,
-          mood: _face.numericScore,
-          arm: 'A',
-          sourceSurface: 'check_in_a',
-        );
-        _moodValueAlreadyInDailyMood = _face.numericScore;
-      } catch (_) {
-        // Offline — the analytics event below still captures the value.
-      }
+      final moodToRecord = _face.numericScore;
+      _moodValueAlreadyInDailyMood = moodToRecord;
+      unawaited(() async {
+        try {
+          await MoodRecorder().record(
+            uid: profile.uid,
+            mood: moodToRecord,
+            arm: 'A',
+            sourceSurface: 'check_in_a',
+          );
+        } catch (_) {
+          // The analytics event below still captures the value.
+        }
+      }());
     }
 
     // §1C — update the shared recent-mood snippet (no LLM; straight from the
     // mood the user just logged) so other agents can reference it gently.
     if (profile != null && _facePicked) {
-      await core.sharedContext.updateRecentMood(
-        uid: profile.uid,
-        mood: SharedMoodSummary(
-          summary: '最近一次心情評分：${_face.numericScore}/5。',
-          asOf: DateTime.now(),
-        ),
-      );
+      final moodScore = _face.numericScore;
+      unawaited(() async {
+        try {
+          await core.sharedContext.updateRecentMood(
+            uid: profile.uid,
+            mood: SharedMoodSummary(
+              summary: '最近一次心情評分：$moodScore/5。',
+              asOf: DateTime.now(),
+            ),
+          );
+        } catch (_) {}
+      }());
     }
 
     // §1C — fold this session into Siu Yan's rolling summary and clear the
@@ -739,7 +769,9 @@ class _CheckInArmAState extends State<CheckInArmA> {
                   ),
                   const SizedBox(height: 16),
                   MoodFacePicker(
-                    value: localFace,
+                    // B14 — show no pre-selected face until the user has
+                    // actually picked one (today's logged mood counts).
+                    value: localPicked ? localFace : null,
                     onChanged: (v) => setSheet(() {
                       localFace = v;
                       localPicked = true;

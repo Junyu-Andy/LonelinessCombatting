@@ -144,20 +144,27 @@ class AnalyticsService {
 
   Future<void> _persist(Map<String, dynamic> event) async {
     if (!firebaseReady || _uid == null) return;
-    try {
-      await _db
-          .collection('users')
-          .doc(_uid)
-          .collection('events')
-          .add({
-        ...event,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[analytics] persist failed: $e');
+    // Fire-and-forget ON PURPOSE: offline, a Firestore add() future only
+    // completes on server ack, so awaiting it here made every `await
+    // analytics.logX(...)` call site (weekly PR, PPR, check-in …) hang
+    // indefinitely on flaky connections.  The SDK queues the write
+    // locally and syncs later; telemetry must never block UI.
+    unawaited(() async {
+      try {
+        await _db
+            .collection('users')
+            .doc(_uid)
+            .collection('events')
+            .add({
+          ...event,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[analytics] persist failed: $e');
+        }
       }
-    }
+    }());
   }
 
   // Convenience helpers — each call site stays short and readable.
@@ -189,7 +196,11 @@ class AnalyticsService {
       'socialEnergy': socialEnergy,
     };
     await logEvent('check_in_submitted', params);
-    await logEvent('m2_check_in_submitted', params);
+    // m2_* is arm-required (debug assert) — guest mode has no arm, and
+    // the recap it feeds is invisible to guests anyway, so skip it there.
+    if (_arm != null) {
+      await logEvent('m2_check_in_submitted', params);
+    }
   }
 
   Future<void> logSocialLogEntry({

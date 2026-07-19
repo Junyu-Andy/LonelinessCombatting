@@ -16,6 +16,8 @@
 ///   6: Part 6 — Input mode + preferred times
 ///   7: Done confirmation
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -90,7 +92,13 @@ class _IntakeFlowPageState extends State<IntakeFlowPage> {
   Future<void> _saveAndContinue(int completedPart) async {
     final profile = AppSettingsScope.read(context).profile;
     if (profile != null) {
-      await _repo.markPartDone(profile.uid, completedPart);
+      // Fire-and-forget: offline, the write waits for server ack —
+      // awaiting it made 儲存並繼續 do nothing on flaky connections.
+      unawaited(() async {
+        try {
+          await _repo.markPartDone(profile.uid, completedPart);
+        } catch (_) {}
+      }());
     }
     _goToPage(_currentPage + 1);
   }
@@ -139,24 +147,31 @@ class _IntakeFlowPageState extends State<IntakeFlowPage> {
         completedParts: {1, 2, 3, 4, 5, 6},
         allCompleted: true,
       );
-      await _repo.save(profile.uid, response);
-
-      // Update profile with key fields
+      // In-memory profile first so onboarding completes immediately;
+      // both Firestore writes go fire-and-forget because offline they
+      // wait for server ack and froze the final 完成 button forever.
+      // The SDK queues them and syncs when the connection returns.
       final auth = AuthServiceScope.of(context);
-      await auth.updateProfile(profile.copyWith(
-        hasCompletedIntake: true,
-        avoidTopics: response.avoidTopics,
-        inputMode: response.inputMode,
-        preferredTimes: response.preferredTimes,
-      ));
       final settings = AppSettingsScope.read(context);
-      settings.profile = profile.copyWith(
+      final updated = profile.copyWith(
         hasCompletedIntake: true,
         avoidTopics: response.avoidTopics,
         inputMode: response.inputMode,
         preferredTimes: response.preferredTimes,
       );
+      settings.profile = updated;
+      unawaited(() async {
+        try {
+          await _repo.save(profile.uid, response);
+        } catch (_) {}
+      }());
+      unawaited(() async {
+        try {
+          await auth.updateProfile(updated);
+        } catch (_) {}
+      }());
     }
+    if (!mounted) return;
     setState(() => _saving = false);
     widget.onComplete();
   }

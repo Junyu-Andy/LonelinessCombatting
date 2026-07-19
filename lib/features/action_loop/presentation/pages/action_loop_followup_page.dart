@@ -60,6 +60,7 @@ counts. Do not suggest other modules or new plans.
     if (_outcome == null) return;
     // B03 — stop dictation before reading the note text.
     await _voice.stopForSend();
+    if (!mounted) return;
     final profile = AppSettingsScope.read(context).profile;
     final auth = AuthServiceScope.of(context);
     final core = CoreServicesScope.of(context);

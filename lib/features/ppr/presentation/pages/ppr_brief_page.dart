@@ -5,10 +5,13 @@
 /// the experience is still acute. 5-point Likert.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/brief_ppr_controller.dart';
 import '../../data/ppr_scale.dart';
@@ -56,6 +59,28 @@ class _PprBriefPageState extends State<PprBriefPage> {
     });
   }
 
+  /// Marks first-seen both in Firestore AND on the in-memory profile.
+  /// The Firestore write alone was not enough: profileChanges() only
+  /// emits on sign-in/out, so within one app run the stale in-memory
+  /// `firstPprSeenByAgent` kept re-triggering the non-dismissable
+  /// mandatory modal after every session.
+  void _markSeenEverywhere(UserProfile profile, bool available) {
+    final pprController = BriefPprController(available: available);
+    unawaited(() async {
+      try {
+        await pprController.markSeen(
+            uid: profile.uid, agentId: widget.agentId);
+      } catch (_) {}
+    }());
+    final settings = AppSettingsScope.read(context);
+    settings.profile = profile.copyWith(
+      firstPprSeenByAgent: {
+        ...profile.firstPprSeenByAgent,
+        widget.agentId: DateTime.now(),
+      },
+    );
+  }
+
   Future<void> _save() async {
     final profile = AppSettingsScope.read(context).profile;
     final auth = AuthServiceScope.of(context);
@@ -64,24 +89,27 @@ class _PprBriefPageState extends State<PprBriefPage> {
       return;
     }
     setState(() => _saving = true);
+    // Fire-and-forget: offline, these Firestore writes wait for server
+    // ack — awaiting them locked participants inside the mandatory modal
+    // (canPop: false, Submit disabled) with no way out.  The SDK queues
+    // the writes and syncs later.
     final repo = PprResponseRepository(available: auth.available);
-    await repo.submit(
-      profile.uid,
-      PprResponse(
-        agentId: widget.agentId,
-        form: 'brief_after_session:${widget.sessionTag}',
-        items: Map.from(_responses),
-        submittedAt: DateTime.now(),
-      ),
-    );
-    // B.6 — mark first-seen for this agent so subsequent prompts are
-    // skippable.  Safe to call repeatedly — Firestore set/merge is idempotent.
-    final pprController = BriefPprController(available: auth.available);
-    await pprController.markSeen(uid: profile.uid, agentId: widget.agentId);
-    if (mounted) {
-      await AnalyticsScope.of(context)
-          .logPprBriefSubmitted(agentId: widget.agentId);
-    }
+    unawaited(() async {
+      try {
+        await repo.submit(
+          profile.uid,
+          PprResponse(
+            agentId: widget.agentId,
+            form: 'brief_after_session:${widget.sessionTag}',
+            items: Map.from(_responses),
+            submittedAt: DateTime.now(),
+          ),
+        );
+      } catch (_) {}
+    }());
+    _markSeenEverywhere(profile, auth.available);
+    await AnalyticsScope.of(context)
+        .logPprBriefSubmitted(agentId: widget.agentId);
     if (!mounted) return;
     setState(() {
       _saving = false;
@@ -98,13 +126,10 @@ class _PprBriefPageState extends State<PprBriefPage> {
     // Even on skip, mark the first-seen flag so the user isn't trapped in
     // the mandatory modal forever — they had to see it once.
     if (profile != null) {
-      final pprController = BriefPprController(available: auth.available);
-      await pprController.markSeen(uid: profile.uid, agentId: widget.agentId);
+      _markSeenEverywhere(profile, auth.available);
     }
-    if (mounted) {
-      await AnalyticsScope.of(context)
-          .logPprBriefSkipped(agentId: widget.agentId);
-    }
+    await AnalyticsScope.of(context)
+        .logPprBriefSkipped(agentId: widget.agentId);
     if (!mounted) return;
     Navigator.of(context).pop();
   }

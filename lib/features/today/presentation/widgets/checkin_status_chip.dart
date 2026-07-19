@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -26,16 +28,37 @@ class _CheckInStatusChipState extends State<CheckInStatusChip> {
   bool? _doneToday;
   bool _loaded = false;
 
+  /// While the check-in is still pending, poll every 30 s so a check-in
+  /// completed through OTHER entry points (agent tile, missed-check-in
+  /// banner, home-hero CTA) flips this chip without an app restart —
+  /// TodayPage's children are const, so nothing rebuilds us otherwise.
+  /// Stops as soon as the day reads "done" (done stays done all day).
+  Timer? _poll;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_loaded) {
       _loaded = true;
       _load();
+      _poll = Timer.periodic(const Duration(seconds: 30), (_) {
+        if (_doneToday == true) {
+          _poll?.cancel();
+          return;
+        }
+        _load();
+      });
     }
   }
 
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
   Future<void> _load() async {
+    if (!mounted) return;
     final profile = AppSettingsScope.read(context).profile;
     final auth = AuthServiceScope.of(context);
     if (profile == null) return;

@@ -125,6 +125,7 @@ try again in the afternoon." No extra encouragement or suggestions.
   Future<void> _advance() async {
     // B03 — stop dictation before snapshotting the step's text.
     await _voice.stopForSend();
+    if (!mounted) return;
     final value = _ctrl.text.trim();
     if (value.isEmpty) return;
     setState(() {

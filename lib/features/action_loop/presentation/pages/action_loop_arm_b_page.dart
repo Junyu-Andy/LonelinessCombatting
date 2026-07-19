@@ -63,6 +63,7 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
   Future<void> _save() async {
     // B03 — stop dictation before reading the plan text.
     await _voice.stopForSend();
+    if (!mounted) return;
     final profile = AppSettingsScope.read(context).profile;
     final auth = AuthServiceScope.of(context);
     setState(() => _busy = true);

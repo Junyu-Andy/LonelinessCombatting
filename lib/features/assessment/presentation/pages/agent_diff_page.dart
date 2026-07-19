@@ -73,6 +73,7 @@ class _AgentDiffPageState extends State<AgentDiffPage>
     if (_saving || _saved) return;
     // B03 — stop dictation before reading the free-text response.
     await _voice.stopForSend();
+    if (!mounted) return;
     setState(() => _saving = true);
     final profile = AppSettingsScope.read(context).profile;
     if (profile != null) {

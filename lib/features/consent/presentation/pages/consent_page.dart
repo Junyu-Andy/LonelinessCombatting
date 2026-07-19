@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -97,13 +99,18 @@ class _ConsentPageState extends State<ConsentPage> {
         acceptedAt: DateTime.now(),
       ),
     );
-    try {
-      await auth.updateProfile(updated);
-    } on AuthUnavailableException {
-      // Guest mode — keep state in memory only.
-    }
-    if (!mounted) return;
+    // In-memory first so the consent gate opens immediately; the
+    // Firestore write syncs in the background.  Offline, updateProfile's
+    // set() waits for server ack — awaiting it froze this Continue
+    // button forever (the SDK still queues + syncs the queued write).
     settings.profile = updated;
+    unawaited(() async {
+      try {
+        await auth.updateProfile(updated);
+      } on AuthUnavailableException {
+        // Guest mode — keep state in memory only.
+      } catch (_) {}
+    }());
   }
 }
 

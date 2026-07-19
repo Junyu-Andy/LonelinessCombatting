@@ -81,14 +81,22 @@ class LlmGateway {
     final inputFlag = _detector.analyze(userInput);
 
     if (inputFlag.isEscalation) {
-      await _safetyWriter?.maybeWrite(
-        uid: uid ?? '',
-        source: SafetySource.gatewayInput,
-        match: inputFlag,
-        inputText: userInput,
-        agentId: agentId,
-        sessionId: sessionId,
-      );
+      // Fire-and-forget on purpose: offline, a Firestore write future
+      // waits for server ack, and awaiting it here would let a dropped
+      // connection stand between an acutely distressed user and the
+      // crisis surface.  The SDK queues the event locally and syncs it
+      // when the network returns; the UI routing below must never wait.
+      final w = _safetyWriter;
+      if (w != null) {
+        unawaited(w.maybeWrite(
+          uid: uid ?? '',
+          source: SafetySource.gatewayInput,
+          match: inputFlag,
+          inputText: userInput,
+          agentId: agentId,
+          sessionId: sessionId,
+        ));
+      }
     }
 
     // Acute distress: short-circuit. The module is responsible for showing
@@ -127,14 +135,18 @@ class LlmGateway {
     final filtered = _postFilter(raw.text);
 
     if (outputFlag.isEscalation) {
-      await _safetyWriter?.maybeWrite(
-        uid: uid ?? '',
-        source: SafetySource.gatewayOutput,
-        match: outputFlag,
-        inputText: raw.text,
-        agentId: agentId,
-        sessionId: sessionId,
-      );
+      // Same non-blocking rationale as the input-side write above.
+      final w = _safetyWriter;
+      if (w != null) {
+        unawaited(w.maybeWrite(
+          uid: uid ?? '',
+          source: SafetySource.gatewayOutput,
+          match: outputFlag,
+          inputText: raw.text,
+          agentId: agentId,
+          sessionId: sessionId,
+        ));
+      }
     }
 
     // B.1 — persist features for Arm A successful turns.  Arm B turns

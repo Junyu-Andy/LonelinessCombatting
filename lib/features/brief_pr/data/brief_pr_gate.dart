@@ -27,17 +27,27 @@ class BriefPrGate {
     if (exchangeCount < 3) return false;
 
     try {
+      // Single-field query + client-side date filter ON PURPOSE: the
+      // original equality+range query needs a composite index that is
+      // not deployed anywhere (no firestore.indexes.json), so it threw
+      // failed-precondition and the catch below turned the "once per
+      // day" gate into "every session".  Per-user brief_pr stays tiny,
+      // so filtering client-side is free and index-proof.
       final startOfToday = DateTime(now.year, now.month, now.day);
       final snap = await _db
           .collection('users')
           .doc(uid)
           .collection('brief_pr')
           .where('agentId', isEqualTo: agentId)
-          .where('promptedAt',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfToday))
-          .limit(1)
           .get();
-      return snap.docs.isEmpty;
+      final alreadyToday = snap.docs.any((d) {
+        final raw = d.data()['promptedAt'];
+        final t = raw is Timestamp
+            ? raw.toDate()
+            : (raw is String ? DateTime.tryParse(raw) : null);
+        return t != null && !t.isBefore(startOfToday);
+      });
+      return !alreadyToday;
     } catch (_) {
       // Firebase unavailable (guest mode) — surface anyway so dev/demo
       // flow can be walked. Production data won't be lost because the

@@ -9,6 +9,7 @@
 /// Presents 12 items in randomised order with 「問題 X / 12」 progress and a
 /// 7-point Likert. Stores one doc per week to `users/{uid}/weekly_pr/{auto}`.
 
+import 'dart:async';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -68,13 +69,18 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
       arm: armCode,
     );
     if (profile != null) {
-      try {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(profile.uid)
-            .collection('weekly_pr')
-            .add(resp.toFirestore());
-      } catch (_) {}
+      // Fire-and-forget: offline, add() waits for server ack — awaiting
+      // it froze the questionnaire on a permanent spinner.  The SDK
+      // queues the write and syncs when the connection returns.
+      unawaited(() async {
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(profile.uid)
+              .collection('weekly_pr')
+              .add(resp.toFirestore());
+        } catch (_) {}
+      }());
     }
     if (!mounted) return;
     if (status == 'completed') {

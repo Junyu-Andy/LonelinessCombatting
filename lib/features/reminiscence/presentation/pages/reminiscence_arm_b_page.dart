@@ -46,6 +46,7 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
   Future<void> _save() async {
     // B03 — stop dictation before reading the memory text.
     await _voice.stopForSend();
+    if (!mounted) return;
     final body = _textCtrl.text.trim();
     if (body.isEmpty) return;
     final profile = AppSettingsScope.read(context).profile;

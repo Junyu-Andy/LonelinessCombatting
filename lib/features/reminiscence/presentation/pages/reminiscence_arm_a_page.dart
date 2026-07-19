@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -294,7 +295,19 @@ clay-pot rice stand..."
     super.dispose();
   }
 
+  /// Wrapper so ANY throw inside the send pipeline can't strand
+  /// `_busy = true` and permanently dead the composer.
   Future<void> _send() async {
+    try {
+      await _sendInner();
+    } catch (e) {
+      if (kDebugMode) debugPrint('[reminiscence] send failed: $e');
+    } finally {
+      if (mounted && _busy) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _sendInner() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
     final userTurnIndex = _turns.length;
@@ -389,7 +402,11 @@ clay-pot rice stand..."
         turns: [
           M3Turn(fromAssistant: false, text: text, timestamp: now),
         ],
-        hasTranscriptConsent: profile.consent.transcriptRetention,
+        // Per-agent consent (user_profile.dart mandates transcriptRetentionFor
+        // for new code) — the legacy global flag ignored a per-agent opt-out
+        // made in Settings → Privacy, which is a consent violation.
+        hasTranscriptConsent: profile.consent
+            .transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
       );
       if (response.inputFlag.level != DistressLevel.none) {
         await store.recordDistressFlag(
@@ -445,7 +462,11 @@ clay-pot rice stand..."
             timestamp: DateTime.now(),
           ),
         ],
-        hasTranscriptConsent: profile.consent.transcriptRetention,
+        // Per-agent consent (user_profile.dart mandates transcriptRetentionFor
+        // for new code) — the legacy global flag ignored a per-agent opt-out
+        // made in Settings → Privacy, which is a consent violation.
+        hasTranscriptConsent: profile.consent
+            .transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
       );
       if (profile.consent
           .transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
@@ -499,6 +520,9 @@ clay-pot rice stand..."
   Future<void> _saveSummary({required bool useOriginal}) async {
     final profile = AppSettingsScope.read(context).profile;
     final auth = AuthServiceScope.of(context);
+    // Resolved before the awaits below — looking it up afterwards runs
+    // an ancestor lookup on a possibly-deactivated element.
+    final core = CoreServicesScope.of(context);
     final original = _endSummaryOriginal ?? _summaryCtrl.text;
     final edited = _summaryCtrl.text.trim();
     final userEdited = !useOriginal && edited != original.trim();
@@ -515,7 +539,6 @@ clay-pot rice stand..."
 
       // §1C — fold this reminiscence session into Ah Jan / Ah Bak's rolling
       // summary and clear the verbatim buffer. Fire-and-forget.
-      final core = CoreServicesScope.of(context);
       unawaited(RollingSummaryCompiler(
         agentContext: core.agentContext,
         llm: core.llm,

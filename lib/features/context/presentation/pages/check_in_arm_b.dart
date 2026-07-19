@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -28,7 +30,6 @@ class _CheckInArmBState extends State<CheckInArmB> {
   int? _significantEventAnswer;
   final _noteCtrl = TextEditingController();
   bool _saved = false;
-  bool _saving = false;
   AnalyticsService? _analytics;
 
   @override
@@ -122,7 +123,6 @@ class _CheckInArmBState extends State<CheckInArmB> {
                       _talkedAnswer != null &&
                       _socialDayAnswer != null &&
                       _significantEventAnswer != null &&
-                      !_saving &&
                       !_saved
                   ? _save
                   : null,
@@ -145,58 +145,37 @@ class _CheckInArmBState extends State<CheckInArmB> {
     );
   }
 
-  Future<void> _save() async {
+  void _save() {
     final face = _face;
     if (face == null) return;
     final note = _noteCtrl.text.trim();
     final distress = CoreServicesScope.of(context).distress.analyze(note);
     final profile = AppSettingsScope.read(context).profile;
-    setState(() => _saving = true);
 
     // B04 — before this fix Arm B only fired an analytics event; the
     // answers themselves were never persisted (= lost research data).
     // Now: (1) structured responses → users/{uid}/check_in_responses,
     // (2) mood → users/{uid}/daily_mood via MoodRecorder so the home
     // hero + weekly recap reflect the check-in, (3) analytics events.
+    //
+    // All writes are fire-and-forget on purpose: offline, Firestore
+    // futures don't fail — they wait for server ack — so awaiting them
+    // would hang the Save button forever.  The SDK queues the writes
+    // locally and syncs when the connection returns.
     if (profile != null) {
-      final now = DateTime.now();
-      try {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(profile.uid)
-            .collection('check_in_responses')
-            .add({
-          'arm': 'B',
-          'mood': face.numericScore,
-          'talked': _talkedAnswer,
-          'social_day': _socialDayAnswer,
-          'significant_event': _significantEventAnswer,
-          'note': note,
-          'date_iso': MoodRecorder.dateIsoFor(now),
-          'created_at': FieldValue.serverTimestamp(),
-        });
-      } catch (_) {
-        // Offline — analytics buffer still captures the event below.
-      }
-      try {
-        await MoodRecorder().record(
-          uid: profile.uid,
-          mood: face.numericScore,
-          arm: 'B',
-          sourceSurface: 'check_in_b',
-        );
-      } catch (_) {}
+      unawaited(_persistResponses(profile.uid, face, note));
+      unawaited(_recordMood(profile.uid, face));
     }
-
-    await _analytics?.logCheckIn(
-      mood: face.numericScore,
-      // Loneliness + social energy aren't directly captured in Arm B;
-      // we proxy them from the social-day rating so the analytics
-      // dashboard keeps a comparable column across arms.
-      loneliness: _socialDayAnswer == null ? 3 : (5 - (_socialDayAnswer ?? 2)),
-      socialEnergy: (_socialDayAnswer ?? 2) + 1,
-    );
-    if (!mounted) return;
+    unawaited(_analytics?.logCheckIn(
+          mood: face.numericScore,
+          // Loneliness + social energy aren't directly captured in Arm B;
+          // we proxy them from the social-day rating so the analytics
+          // dashboard keeps a comparable column across arms.
+          loneliness:
+              _socialDayAnswer == null ? 3 : (5 - (_socialDayAnswer ?? 2)),
+          socialEnergy: (_socialDayAnswer ?? 2) + 1,
+        ) ??
+        Future<void>.value());
     if (distress.isEscalation && profile != null) {
       // Arm B safety surface — direct, no LLM in the loop.
       showDialog<void>(
@@ -204,10 +183,40 @@ class _CheckInArmBState extends State<CheckInArmB> {
         builder: (_) => _SafetyEscalationDialog(level: distress.level.name),
       );
     }
-    setState(() {
-      _saving = false;
-      _saved = true;
-    });
+    setState(() => _saved = true);
+  }
+
+  Future<void> _persistResponses(
+      String uid, MoodFace face, String note) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('check_in_responses')
+          .add({
+        'arm': 'B',
+        'mood': face.numericScore,
+        'talked': _talkedAnswer,
+        'social_day': _socialDayAnswer,
+        'significant_event': _significantEventAnswer,
+        'note': note,
+        'date_iso': MoodRecorder.dateIsoFor(DateTime.now()),
+        'created_at': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Permission/format errors — analytics still captured the event.
+    }
+  }
+
+  Future<void> _recordMood(String uid, MoodFace face) async {
+    try {
+      await MoodRecorder().record(
+        uid: uid,
+        mood: face.numericScore,
+        arm: 'B',
+        sourceSurface: 'check_in_b',
+      );
+    } catch (_) {}
   }
 }
 
