@@ -9,6 +9,7 @@ import '../../../adherence/presentation/widgets/missed_checkin_banner.dart';
 import '../../../crisis/presentation/widgets/safety_footer_card.dart';
 import '../widgets/active_plan_banner.dart';
 import '../widgets/agent_tile_row.dart';
+import '../widgets/checkin_status_chip.dart';
 import '../widgets/continue_chat_card.dart';
 import '../widgets/facts_recap_row.dart';
 import '../widgets/greeting_hero.dart';
@@ -72,6 +73,8 @@ class _TodayPageState extends State<TodayPage> {
         padding: EdgeInsets.zero,
         children: const [
           GreetingHero(),
+          // B05 — always-visible "did today's check-in happen?" status.
+          CheckInStatusChip(),
           ContinueChatCard(),
           // Compliance banners — each hides itself when nothing is due,
           // so the happy path matches the spec's seven-item layout but

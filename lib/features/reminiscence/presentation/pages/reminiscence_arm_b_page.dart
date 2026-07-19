@@ -33,6 +33,7 @@ class ReminiscenceArmBPage extends StatefulWidget {
 
 class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
   final _textCtrl = TextEditingController();
+  final _voice = VoiceInputController();
   bool _busy = false;
   bool _saved = false;
 
@@ -43,6 +44,8 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
   }
 
   Future<void> _save() async {
+    // B03 — stop dictation before reading the memory text.
+    await _voice.stopForSend();
     final body = _textCtrl.text.trim();
     if (body.isEmpty) return;
     final profile = AppSettingsScope.read(context).profile;
@@ -111,6 +114,7 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
               Align(
                 alignment: Alignment.centerRight,
                 child: VoiceInputButton(
+                  controller: _voice,
                   prefix: () => _textCtrl.text,
                   onText: (t) => _textCtrl.text = t,
                 ),

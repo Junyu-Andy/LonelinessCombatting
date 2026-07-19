@@ -60,6 +60,7 @@ try again in the afternoon." No extra encouragement or suggestions.
 ''';
 
   final _ctrl = TextEditingController();
+  final _voice = VoiceInputController();
   _Step _step = _Step.action;
   String _action = '';
   String _whenText = '';
@@ -122,6 +123,8 @@ try again in the afternoon." No extra encouragement or suggestions.
   }
 
   Future<void> _advance() async {
+    // B03 — stop dictation before snapshotting the step's text.
+    await _voice.stopForSend();
     final value = _ctrl.text.trim();
     if (value.isEmpty) return;
     setState(() {
@@ -353,6 +356,7 @@ try again in the afternoon." No extra encouragement or suggestions.
                     ),
                     const SizedBox(width: 8),
                     VoiceInputButton(
+                      controller: _voice,
                       prefix: () => _ctrl.text,
                       onText: (t) => _ctrl.text = t,
                     ),

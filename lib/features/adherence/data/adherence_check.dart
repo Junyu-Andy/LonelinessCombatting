@@ -16,6 +16,24 @@ class AdherenceCheck {
   /// they've never checked in or Firebase is unavailable. The banner
   /// surfaces when this is >= [bannerThresholdDays].
   Future<int?> daysSinceLastCheckIn(String uid) async {
+    final when = await _lastCheckInAt(uid);
+    if (when == null) return null;
+    return DateTime.now().difference(when).inDays;
+  }
+
+  /// B05 — true when the user completed a check-in on the current local
+  /// calendar day.  Uses a calendar compare (not a 24h window) so a
+  /// check-in at 23:00 yesterday doesn't read as "done today" at 10:00.
+  Future<bool> hasCheckedInToday(String uid) async {
+    final when = await _lastCheckInAt(uid);
+    if (when == null) return false;
+    final now = DateTime.now();
+    return when.year == now.year &&
+        when.month == now.month &&
+        when.day == now.day;
+  }
+
+  Future<DateTime?> _lastCheckInAt(String uid) async {
     if (!available) return null;
     final snap = await FirebaseFirestore.instance
         .collection('users')
@@ -27,13 +45,8 @@ class AdherenceCheck {
         .get();
     if (snap.docs.isEmpty) return null;
     final raw = snap.docs.first.data()['timestamp'];
-    DateTime? when;
-    if (raw is Timestamp) {
-      when = raw.toDate();
-    } else if (raw is String) {
-      when = DateTime.tryParse(raw);
-    }
-    if (when == null) return null;
-    return DateTime.now().difference(when).inDays;
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is String) return DateTime.tryParse(raw);
+    return null;
   }
 }

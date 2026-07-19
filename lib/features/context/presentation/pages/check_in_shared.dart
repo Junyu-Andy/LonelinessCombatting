@@ -37,7 +37,10 @@ enum MoodFace {
 }
 
 class MoodFacePicker extends StatelessWidget {
-  final MoodFace value;
+  /// Null = nothing selected yet.  B14-aligned: measurement surfaces
+  /// must not pre-select a midpoint face, so callers may start empty
+  /// and require an active pick.
+  final MoodFace? value;
   final ValueChanged<MoodFace> onChanged;
   const MoodFacePicker(
       {super.key, required this.value, required this.onChanged});

@@ -64,6 +64,13 @@ class _CheckInArmAState extends State<CheckInArmA> {
   bool _saved = false;
   AnalyticsService? _analytics;
 
+  /// B04 — mood value (1..5) that is already stored in `daily_mood` for
+  /// today (via the home pad or an earlier session).  At save time we
+  /// only write a new `daily_mood` entry when the face the user ends
+  /// with differs from this, so the check-in flows into the day summary
+  /// without double-recording the home-pad pick.
+  int? _moodValueAlreadyInDailyMood;
+
   /// Set on the *first* user turn if the cross-module callback budget
   /// resolved a candidate. We surface this in the system prompt and
   /// record it on save so we can audit how often M2 actually wove M3
@@ -116,6 +123,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
         _resolvedMoodIsToday = true;
         _face = _faceFromValue(widget.initialMoodValue!);
         _facePicked = true;
+        // The home pad recorded this pick to daily_mood already.
+        _moodValueAlreadyInDailyMood = widget.initialMoodValue;
         _turns.add(_Turn.bot(_openingLine(isEn)));
       } else {
         // Entered via the agent tile — look up today's mood first; if
@@ -156,6 +165,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
         // a mood the user already logged today.
         _face = _faceFromValue(moodValue);
         _facePicked = true;
+        _moodValueAlreadyInDailyMood = moodValue;
       }
       _turns.add(_Turn.bot(_openingLine(isEn)));
     });
@@ -515,6 +525,26 @@ class _CheckInArmAState extends State<CheckInArmA> {
           if (callback != null) 'cross_callback:${callback.sourceFamily}',
         ],
       );
+    }
+
+    // B04 — flow the end-of-session mood into daily_mood so the home
+    // hero + weekly recap reflect the check-in.  Skipped when the same
+    // value is already recorded for today (home-pad pick), so we don't
+    // double-write; a *changed* face becomes a supplementary entry.
+    if (profile != null &&
+        _facePicked &&
+        _face.numericScore != _moodValueAlreadyInDailyMood) {
+      try {
+        await MoodRecorder().record(
+          uid: profile.uid,
+          mood: _face.numericScore,
+          arm: 'A',
+          sourceSurface: 'check_in_a',
+        );
+        _moodValueAlreadyInDailyMood = _face.numericScore;
+      } catch (_) {
+        // Offline — the analytics event below still captures the value.
+      }
     }
 
     // §1C — update the shared recent-mood snippet (no LLM; straight from the

@@ -5,6 +5,7 @@ import '../../../../core/arm/arm_scope.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../context/presentation/pages/check_in_arm_a.dart';
+import '../../../context/presentation/pages/check_in_shared.dart';
 import '../../data/mood_recorder.dart';
 
 /// Top-of-Today greeting band (Home Layout Spec §1–2).
@@ -234,14 +235,6 @@ class _MoodPad extends StatelessWidget {
     required this.secondaryInk,
   });
 
-  static const _faces = <int, String>{
-    1: '😔',
-    2: '🙁',
-    3: '😐',
-    4: '🙂',
-    5: '😊',
-  };
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -265,14 +258,18 @@ class _MoodPad extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 9),
+          // B13 — faces enlarged + text labels for elderly legibility.
+          // MoodFace keeps emoji/label wording lock-step with the
+          // check-in picker so the two surfaces read identically.
           Row(
             children: [
-              for (final entry in _faces.entries)
+              for (final face in MoodFace.values)
                 Expanded(
                   child: _FaceTap(
-                    emoji: entry.value,
-                    selected: selectedMood == entry.key,
-                    onTap: () => onPick(entry.key),
+                    emoji: face.emoji(),
+                    label: face.label(isEn),
+                    selected: selectedMood == face.rank,
+                    onTap: () => onPick(face.rank),
                   ),
                 ),
             ],
@@ -285,31 +282,58 @@ class _MoodPad extends StatelessWidget {
 
 class _FaceTap extends StatelessWidget {
   final String emoji;
+  final String label;
   final bool selected;
   final VoidCallback onTap;
 
   const _FaceTap({
     required this.emoji,
+    required this.label,
     required this.selected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        decoration: BoxDecoration(
-          color: selected
-              ? const Color.fromRGBO(194, 112, 63, 0.18)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: Text(emoji, style: const TextStyle(fontSize: 28)),
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color.fromRGBO(194, 112, 63, 0.18)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 34)),
+              const SizedBox(height: 2),
+              // FittedBox so 麻麻地 / xLarge font scale never overflow
+              // the 1/5-width column on small phones.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.2,
+                    color: const Color(0xFF5A4334),
+                    fontWeight:
+                        selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

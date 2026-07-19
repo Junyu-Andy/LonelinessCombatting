@@ -49,6 +49,7 @@ class _AgentDiffPageState extends State<AgentDiffPage>
 
   // Part D
   final _freeResponseCtrl = TextEditingController();
+  final _voice = VoiceInputController();
 
   bool _saving = false;
   bool _saved = false;
@@ -70,6 +71,8 @@ class _AgentDiffPageState extends State<AgentDiffPage>
 
   Future<void> _submit() async {
     if (_saving || _saved) return;
+    // B03 — stop dictation before reading the free-text response.
+    await _voice.stopForSend();
     setState(() => _saving = true);
     final profile = AppSettingsScope.read(context).profile;
     if (profile != null) {
@@ -161,6 +164,7 @@ class _AgentDiffPageState extends State<AgentDiffPage>
             ),
           _PartDView(
             controller: _freeResponseCtrl,
+            voice: _voice,
             saved: _saved,
             saving: _saving,
             onSubmit: _submit,
@@ -578,12 +582,14 @@ class _PartCView extends StatelessWidget {
 
 class _PartDView extends StatelessWidget {
   final TextEditingController controller;
+  final VoiceInputController voice;
   final bool saved;
   final bool saving;
   final VoidCallback onSubmit;
 
   const _PartDView({
     required this.controller,
+    required this.voice,
     required this.saved,
     required this.saving,
     required this.onSubmit,
@@ -621,6 +627,7 @@ class _PartDView extends StatelessWidget {
             Row(
               children: [
                 VoiceInputButton(
+                  controller: voice,
                   prefix: () => controller.text,
                   onText: (t) => controller.text = t,
                 ),

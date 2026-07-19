@@ -32,6 +32,7 @@ class ActionLoopArmBPage extends StatefulWidget {
 
 class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
   final _actionCtrl = TextEditingController();
+  final _voice = VoiceInputController();
   String? _timeOfDay;
   String? _place;
   String? _contact;
@@ -60,6 +61,8 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
       _fallback != null;
 
   Future<void> _save() async {
+    // B03 — stop dictation before reading the plan text.
+    await _voice.stopForSend();
     final profile = AppSettingsScope.read(context).profile;
     final auth = AuthServiceScope.of(context);
     setState(() => _busy = true);
@@ -158,6 +161,7 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
                 ),
                 const SizedBox(width: 8),
                 VoiceInputButton(
+                  controller: _voice,
                   prefix: () => _actionCtrl.text,
                   onText: (t) {
                     _actionCtrl.text = t;

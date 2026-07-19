@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -5,6 +6,7 @@ import '../../../../core/core_services_scope.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../today/data/mood_recorder.dart';
 import 'check_in_shared.dart';
 
 /// M2 — rule-based check-in. No LLM. Six-face mood, three fixed
@@ -18,12 +20,15 @@ class CheckInArmB extends StatefulWidget {
 }
 
 class _CheckInArmBState extends State<CheckInArmB> {
-  MoodFace _face = MoodFace.neutral;
+  // B14-aligned: no pre-selected face — a prefilled neutral midpoint
+  // anchors the mood measurement, so the user must actively pick one.
+  MoodFace? _face;
   int? _talkedAnswer;
   int? _socialDayAnswer;
   int? _significantEventAnswer;
   final _noteCtrl = TextEditingController();
   bool _saved = false;
+  bool _saving = false;
   AnalyticsService? _analytics;
 
   @override
@@ -113,9 +118,12 @@ class _CheckInArmBState extends State<CheckInArmB> {
             AppButton.primary(
               label: isEn ? 'Save check-in' : '儲存今日 Check-in',
               icon: Icons.check_rounded,
-              onPressed: _talkedAnswer != null &&
+              onPressed: _face != null &&
+                      _talkedAnswer != null &&
                       _socialDayAnswer != null &&
-                      _significantEventAnswer != null
+                      _significantEventAnswer != null &&
+                      !_saving &&
+                      !_saved
                   ? _save
                   : null,
             ),
@@ -137,18 +145,58 @@ class _CheckInArmBState extends State<CheckInArmB> {
     );
   }
 
-  void _save() {
+  Future<void> _save() async {
+    final face = _face;
+    if (face == null) return;
     final note = _noteCtrl.text.trim();
     final distress = CoreServicesScope.of(context).distress.analyze(note);
     final profile = AppSettingsScope.read(context).profile;
-    _analytics?.logCheckIn(
-      mood: _face.numericScore,
+    setState(() => _saving = true);
+
+    // B04 — before this fix Arm B only fired an analytics event; the
+    // answers themselves were never persisted (= lost research data).
+    // Now: (1) structured responses → users/{uid}/check_in_responses,
+    // (2) mood → users/{uid}/daily_mood via MoodRecorder so the home
+    // hero + weekly recap reflect the check-in, (3) analytics events.
+    if (profile != null) {
+      final now = DateTime.now();
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(profile.uid)
+            .collection('check_in_responses')
+            .add({
+          'arm': 'B',
+          'mood': face.numericScore,
+          'talked': _talkedAnswer,
+          'social_day': _socialDayAnswer,
+          'significant_event': _significantEventAnswer,
+          'note': note,
+          'date_iso': MoodRecorder.dateIsoFor(now),
+          'created_at': FieldValue.serverTimestamp(),
+        });
+      } catch (_) {
+        // Offline — analytics buffer still captures the event below.
+      }
+      try {
+        await MoodRecorder().record(
+          uid: profile.uid,
+          mood: face.numericScore,
+          arm: 'B',
+          sourceSurface: 'check_in_b',
+        );
+      } catch (_) {}
+    }
+
+    await _analytics?.logCheckIn(
+      mood: face.numericScore,
       // Loneliness + social energy aren't directly captured in Arm B;
       // we proxy them from the social-day rating so the analytics
       // dashboard keeps a comparable column across arms.
       loneliness: _socialDayAnswer == null ? 3 : (5 - (_socialDayAnswer ?? 2)),
       socialEnergy: (_socialDayAnswer ?? 2) + 1,
     );
+    if (!mounted) return;
     if (distress.isEscalation && profile != null) {
       // Arm B safety surface — direct, no LLM in the loop.
       showDialog<void>(
@@ -156,7 +204,10 @@ class _CheckInArmBState extends State<CheckInArmB> {
         builder: (_) => _SafetyEscalationDialog(level: distress.level.name),
       );
     }
-    setState(() => _saved = true);
+    setState(() {
+      _saving = false;
+      _saved = true;
+    });
   }
 }
 

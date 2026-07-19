@@ -45,6 +45,7 @@ counts. Do not suggest other modules or new plans.
 
   FollowUpOutcome? _outcome;
   final _noteCtrl = TextEditingController();
+  final _voice = VoiceInputController();
   String? _llmReply;
   bool _busy = false;
   bool _saved = false;
@@ -57,6 +58,8 @@ counts. Do not suggest other modules or new plans.
 
   Future<void> _save() async {
     if (_outcome == null) return;
+    // B03 — stop dictation before reading the note text.
+    await _voice.stopForSend();
     final profile = AppSettingsScope.read(context).profile;
     final auth = AuthServiceScope.of(context);
     final core = CoreServicesScope.of(context);
@@ -202,6 +205,7 @@ counts. Do not suggest other modules or new plans.
                 ),
                 const SizedBox(width: 8),
                 VoiceInputButton(
+                  controller: _voice,
                   prefix: () => _noteCtrl.text,
                   onText: (t) => _noteCtrl.text = t,
                 ),

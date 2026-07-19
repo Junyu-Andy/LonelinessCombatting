@@ -171,16 +171,26 @@ class AnalyticsService {
         'durationSeconds': durationSeconds,
       });
 
+  /// B04 — a completed check-in emits BOTH event names:
+  ///   - `check_in_submitted` (legacy): read by the missed-check-in
+  ///     banner / adherence check, and keeps old dashboards intact.
+  ///   - `m2_check_in_submitted` (canonical, arm-tagged): read by the
+  ///     home weekly recap.  Before this fix the recap counted only the
+  ///     m2_* name while check-in pages only wrote the legacy name, so
+  ///     finished check-ins never showed up in the day/week summary.
   Future<void> logCheckIn({
     required int mood,
     required int loneliness,
     required int socialEnergy,
-  }) =>
-      logEvent('check_in_submitted', {
-        'mood': mood,
-        'loneliness': loneliness,
-        'socialEnergy': socialEnergy,
-      });
+  }) async {
+    final params = {
+      'mood': mood,
+      'loneliness': loneliness,
+      'socialEnergy': socialEnergy,
+    };
+    await logEvent('check_in_submitted', params);
+    await logEvent('m2_check_in_submitted', params);
+  }
 
   Future<void> logSocialLogEntry({
     required bool hasPerson,
