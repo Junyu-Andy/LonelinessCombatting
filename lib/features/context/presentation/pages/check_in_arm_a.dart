@@ -39,7 +39,16 @@ class CheckInArmA extends StatefulWidget {
   /// forgot.  1=好差, 2=差, 3=麻麻地, 4=幾好, 5=好好.
   final int? initialMoodValue;
 
-  const CheckInArmA({super.key, this.initialMoodValue});
+  /// The mood the user had *before* [initialMoodValue] on the same day,
+  /// when this check-in was launched from the home "your mood changed"
+  /// prompt. Lets Siu Yan's opener name the change (better / worse).
+  final int? previousMoodValue;
+
+  const CheckInArmA({
+    super.key,
+    this.initialMoodValue,
+    this.previousMoodValue,
+  });
 
   @override
   State<CheckInArmA> createState() => _CheckInArmAState();
@@ -136,7 +145,12 @@ class _CheckInArmAState extends State<CheckInArmA> {
         _moodValueAlreadyInDailyMood = widget.initialMoodValue;
         _resolvingMood = false;
         _moodGateResolved = true;
-        _turns.add(_Turn.bot(_openingLine(isEn)));
+        final prev = widget.previousMoodValue;
+        _turns.add(_Turn.bot(
+          (prev != null && prev != widget.initialMoodValue)
+              ? _moodChangeOpener(isEn, prev, widget.initialMoodValue!)
+              : _openingLine(isEn),
+        ));
       } else {
         // Entered via the agent tile — look up today's mood first; if
         // none, fall back to the most recent record so Siu Yan can at
@@ -287,6 +301,24 @@ class _CheckInArmAState extends State<CheckInArmA> {
     return isEn
         ? 'Hi — what\'s on your mind today?'
         : '你好啊。你今日點？';
+  }
+
+  /// Opener when the user just changed their mood on the home pad —
+  /// names the shift (better / worse) using the last and current faces.
+  String _moodChangeOpener(bool isEn, int from, int to) {
+    final fromLabel = _faceFromValue(from).label(isEn);
+    final toLabel = _faceFromValue(to).label(isEn);
+    final better = to > from;
+    if (isEn) {
+      return better
+          ? 'Earlier you felt "$fromLabel", and now "$toLabel" — glad to hear. '
+              'What changed?'
+          : 'Earlier you felt "$fromLabel", and now "$toLabel". Want to tell '
+              'me what happened?';
+    }
+    return better
+        ? '你頭先話「$fromLabel」，而家「$toLabel」咗喎，係咩令你好啲咗？'
+        : '你頭先話「$fromLabel」，而家變咗「$toLabel」。發生咗咩事？同我講下。';
   }
 
   MoodFace _faceFromValue(int v) {

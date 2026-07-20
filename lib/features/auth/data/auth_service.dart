@@ -46,10 +46,30 @@ class AuthService {
     required String password,
   }) async {
     _ensureAvailable();
-    final credential = await _auth.signInWithEmailAndPassword(
-      email: email.trim(),
-      password: password,
-    );
+    final UserCredential credential;
+    try {
+      credential = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      // With Firebase email-enumeration protection OFF, we can tell an
+      // unregistered email apart from a wrong password by asking which
+      // sign-in methods the email has. (If enumeration protection is on,
+      // fetch returns [] for everything and we fall back to the original.)
+      if (e.code == 'invalid-credential' ||
+          e.code == 'wrong-password' ||
+          e.code == 'user-not-found') {
+        List<String> methods;
+        try {
+          methods = await _auth.fetchSignInMethodsForEmail(email.trim());
+        } catch (_) {
+          rethrow; // couldn't check — surface the original merged error
+        }
+        throw AuthCredentialException(emailRegistered: methods.isNotEmpty);
+      }
+      rethrow;
+    }
     final user = credential.user!;
     final profile = await _loadOrCreateProfile(user);
     await _db.collection('users').doc(user.uid).set(
@@ -214,6 +234,14 @@ class AuthUnavailableException implements Exception {
       'Firebase is not configured. Run `flutterfire configure` — see SETUP_FIREBASE.md.';
 }
 
+/// Thrown by [AuthService.signIn] when a credential fails and we could
+/// determine which side was wrong. [emailRegistered] true = the email
+/// exists so the password was wrong; false = the email isn't registered.
+class AuthCredentialException implements Exception {
+  final bool emailRegistered;
+  AuthCredentialException({required this.emailRegistered});
+}
+
 /// Maps raw [FirebaseAuthException] codes to friendly Cantonese strings.
 String describeAuthError(Object error, {bool isEn = false}) {
   if (error is AuthUnavailableException) {
@@ -221,6 +249,14 @@ String describeAuthError(Object error, {bool isEn = false}) {
         ? 'Firebase is not set up, so sign-in is unavailable. Complete the '
             'steps in SETUP_FIREBASE.md first.'
         : 'Firebase 未設定，暫時登入唔到。請先完成 SETUP_FIREBASE.md 嘅步驟。';
+  }
+  if (error is AuthCredentialException) {
+    if (error.emailRegistered) {
+      return isEn ? 'The password is incorrect.' : '密碼唔啱。';
+    }
+    return isEn
+        ? "This email isn't registered yet. Tap \"Create account\" below."
+        : '呢個電郵仲未註冊。請撳下面「建立帳號」。';
   }
   if (error is FirebaseAuthException) {
     switch (error.code) {

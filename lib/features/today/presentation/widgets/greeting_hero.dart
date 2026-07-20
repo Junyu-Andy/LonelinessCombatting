@@ -101,12 +101,15 @@ class _GreetingHeroState extends State<GreetingHero> {
         // A later pick that actually CHANGED — offer (not force) to tell
         // Siu Yan what happened. Each pick is already its own daily_mood
         // datapoint; this is just an optional conversation entry on top.
-        _showMoodChangedDialog(isEn, value);
+        // Pass the *last* mood (previous) so Siu Yan's opener can name the
+        // change (got better / worse), not the first-of-day value.
+        _showMoodChangedDialog(isEn, previous, value);
       }
     }
   }
 
-  Future<void> _showMoodChangedDialog(bool isEn, int value) async {
+  Future<void> _showMoodChangedDialog(
+      bool isEn, int previous, int value) async {
     final go = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -132,7 +135,10 @@ class _GreetingHeroState extends State<GreetingHero> {
     if (go == true && mounted) {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => CheckInArmA(initialMoodValue: value),
+          builder: (_) => CheckInArmA(
+            initialMoodValue: value,
+            previousMoodValue: previous,
+          ),
         ),
       );
     }
