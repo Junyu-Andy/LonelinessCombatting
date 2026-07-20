@@ -69,6 +69,11 @@ class _TungTungPageState extends State<TungTungPage> {
   /// Cleared after each send so the user must re-arm intentionally.
   bool _searchArmed = false;
 
+  /// Pilot decision: the web search (Brave API, no HK localisation) surfaced
+  /// too much low-quality / non-HK content, so it's disabled for now.  Flip
+  /// to true to bring the "幫我查" affordance back.
+  static const bool _searchEnabled = false;
+
   /// Map of search query → result snippets, accumulated this session.
   /// Tung Tung's next LLM call appends a `[SEARCH_RESULTS]` block
   /// composed from the most recent successful query.
@@ -454,6 +459,7 @@ class _TungTungPageState extends State<TungTungPage> {
                 voice: _voice,
                 busy: _busy,
                 accent: agent.accentColor,
+                searchEnabled: _searchEnabled,
                 searchArmed: _searchArmed,
                 onSend: _send,
                 onToggleSearch: _toggleSearch,
@@ -766,6 +772,7 @@ class _Composer extends StatelessWidget {
   final VoiceInputController voice;
   final bool busy;
   final Color accent;
+  final bool searchEnabled;
   final bool searchArmed;
   final Future<void> Function() onSend;
   final VoidCallback onToggleSearch;
@@ -775,6 +782,7 @@ class _Composer extends StatelessWidget {
     required this.voice,
     required this.busy,
     required this.accent,
+    required this.searchEnabled,
     required this.searchArmed,
     required this.onSend,
     required this.onToggleSearch,
@@ -796,7 +804,7 @@ class _Composer extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (searchArmed)
+            if (searchEnabled && searchArmed)
               Padding(
                 padding: const EdgeInsets.only(left: 4, bottom: 6),
                 child: Text(
@@ -812,13 +820,15 @@ class _Composer extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _SearchToggleButton(
-                  armed: searchArmed,
-                  accent: accent,
-                  enabled: !busy,
-                  onPressed: onToggleSearch,
-                ),
-                const SizedBox(width: 4),
+                if (searchEnabled) ...[
+                  _SearchToggleButton(
+                    armed: searchArmed,
+                    accent: accent,
+                    enabled: !busy,
+                    onPressed: onToggleSearch,
+                  ),
+                  const SizedBox(width: 4),
+                ],
                 VoiceInputButton(
                   controller: voice,
                   prefix: () => controller.text,

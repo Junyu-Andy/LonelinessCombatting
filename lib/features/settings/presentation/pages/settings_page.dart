@@ -14,6 +14,10 @@ import '../../../progress/presentation/pages/progress_page.dart';
 import '../../../my_story/presentation/pages/my_story_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
+import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../ppr/presentation/pages/ppr_brief_page.dart';
+import '../../../weekly_pr/data/weekly_pr_trigger.dart';
+import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
 import 'faq_page.dart';
 import 'privacy_policy_page.dart';
 
@@ -318,6 +322,16 @@ class _SettingsPageState extends State<SettingsPage> {
                 label: Text(isEn ? 'Reset my data' : '重置我嘅資料'),
               ),
             ),
+            const SizedBox(height: 20),
+            // Survey preview (办法二): open each instrument directly, without
+            // meeting its real trigger conditions, so testers can see the
+            // actual UI. Completing one writes to THIS (tester) account.
+            Text(
+              isEn ? 'Preview surveys' : '預覽量表',
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            _SurveyPreviewButtons(isEn: isEn),
           ],
         ],
       ),
@@ -1043,6 +1057,70 @@ class _NavTileCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Tester-only: one tap opens each survey with placeholder context so the
+/// real UI can be reviewed without waiting for its trigger conditions.
+class _SurveyPreviewButtons extends StatelessWidget {
+  final bool isEn;
+  const _SurveyPreviewButtons({required this.isEn});
+
+  void _open(BuildContext context, Widget page) {
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget btn(String label, Widget page) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => _open(context, page),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(label),
+              ),
+            ),
+          ),
+        );
+
+    return Column(
+      children: [
+        btn(
+          isEn ? 'Brief PR (4 sliders)' : 'Brief PR（4 滑桿）',
+          const BriefPrPage(
+            agentId: 'siu_yan',
+            agentDisplayName: '小欣',
+            isAnchorPrompt: true,
+          ),
+        ),
+        btn(
+          isEn ? 'Weekly PR (12 items)' : 'Weekly PR（12 題）',
+          WeeklyPrPage(
+            agent: WeeklyPrAgentUsage(
+              agentId: 'siu_yan',
+              displayName: '小欣',
+              sessionCount: 3,
+              firstUseAt: DateTime.now(),
+            ),
+          ),
+        ),
+        btn('PGIC', const PgicPage()),
+        btn(
+          isEn ? 'PPR brief (after session)' : 'PPR 簡版（session 後）',
+          const PprBriefPage(
+            agentId: 'ah_jan_ah_bak',
+            sessionTag: 'preview',
+          ),
+        ),
+        btn(
+          isEn ? 'Agent Diff (wave 2)' : 'Agent Diff（第 2 波）',
+          const AgentDiffPage(wave: 2),
+        ),
+      ],
     );
   }
 }
