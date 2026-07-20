@@ -49,7 +49,7 @@ class DistressDetector {
   ///         'reason to live', 'will to live';
   ///     ZH: broadened 我唔想再生→唔想再生; added 冇我會好過 / 冇我會好啲.
   ///   • Result: acute recall 0.86→≥0.98; moderate 0.92; none precision 1.00.
-  static const String wordlistVersion = 'v2-2026-06-T1';
+  static const String wordlistVersion = 'v3-2026-07';
 
   // P5.4 keyword lists — tuned with HK Cantonese indirect expressions
   // alongside direct ones. Substrings are deliberately specific (e.g.
@@ -84,6 +84,26 @@ class DistressDetector {
     '自杀', '想死了', '想自杀', '结束自己', '了结自己', '了结生命',
     '没我会更好', '想消失', '消失就好',
     '没有希望', '没得救', '没有出路', '不如死了', '没意思活下去',
+    // v3 (2026-07) — worthlessness (self-anchored to avoid "this is
+    // worthless" false positives) + harm-to-others. Both route to the
+    // acute crisis surface. Fail-safe additions; detection logic
+    // unchanged. Approved by Junyu (knows PI).
+    // Worthlessness — Trad / Cantonese
+    '活著冇價值', '生存冇價值', '我冇價值', '我冇存在價值', '冇存在價值',
+    '我係多餘', '我係廢人', '冇人需要我',
+    // Worthlessness — Simplified
+    '活着没价值', '生存没有价值', '我没有价值', '没有存在价值',
+    '我是多余的', '我是废人', '没人需要我',
+    // Worthlessness — English (self-anchored)
+    "i'm worthless", 'i am worthless', 'i have no worth',
+    'no reason to exist', 'nobody needs me',
+    // Harm-to-others — Trad / Cantonese
+    '想殺人', '想殺死', '殺死佢', '殺咗佢', '想傷害人', '想傷害佢', '想弄死佢',
+    // Harm-to-others — Simplified
+    '想杀人', '想杀死', '杀死他', '想伤害别人', '想弄死他',
+    // Harm-to-others — English
+    'kill someone', 'kill him', 'kill her', 'kill them',
+    'want to hurt someone',
   ];
 
   static const _moderate = <String>[
