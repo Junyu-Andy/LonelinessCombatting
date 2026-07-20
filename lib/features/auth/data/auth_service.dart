@@ -215,31 +215,47 @@ class AuthUnavailableException implements Exception {
 }
 
 /// Maps raw [FirebaseAuthException] codes to friendly Cantonese strings.
-String describeAuthError(Object error) {
+String describeAuthError(Object error, {bool isEn = false}) {
   if (error is AuthUnavailableException) {
-    return 'Firebase 未設定，唔可以登入。請先完成 SETUP_FIREBASE.md 嘅步驟。';
+    return isEn
+        ? 'Firebase is not set up, so sign-in is unavailable. Complete the '
+            'steps in SETUP_FIREBASE.md first.'
+        : 'Firebase 未設定，暫時登入唔到。請先完成 SETUP_FIREBASE.md 嘅步驟。';
   }
   if (error is FirebaseAuthException) {
     switch (error.code) {
       case 'invalid-email':
-        return '電郵格式唔啱。';
+        return isEn
+            ? "That email address doesn't look right."
+            : '電郵格式好似唔啱。';
       case 'user-disabled':
-        return '呢個帳號已經停用。';
+        return isEn ? 'This account has been disabled.' : '呢個帳號已經停用。';
       case 'user-not-found':
-        return '搵唔到呢個帳號。';
       case 'wrong-password':
       case 'invalid-credential':
-        return '密碼唔啱。';
+        // Modern Firebase deliberately merges "no such account" and "wrong
+        // password" into invalid-credential (anti-enumeration), so we can't
+        // truthfully say which one it is — guide the user to both paths.
+        return isEn
+            ? 'Email or password is incorrect. If you don\'t have an account '
+                'yet, tap "Create account" below.'
+            : '電郵或密碼唔啱。如果你仲未註冊，可以撳下面「建立帳號」。';
       case 'email-already-in-use':
-        return '呢個電郵已經註冊過。試吓直接登入。';
+        return isEn
+            ? 'This email is already registered — please sign in instead.'
+            : '呢個電郵已經註冊咗，請直接撳「登入」。';
       case 'weak-password':
-        return '密碼太簡單，請長啲。';
+        return isEn
+            ? 'Password is too simple — please make it longer.'
+            : '密碼太簡單，請長啲。';
       case 'network-request-failed':
-        return '網絡唔穩，請再試。';
+        return isEn
+            ? 'Network is unstable. Please try again.'
+            : '網絡唔穩，請再試。';
     }
   }
   if (kDebugMode) {
-    return '登入失敗：$error';
+    return 'Auth failed: $error';
   }
-  return '登入失敗，請再試。';
+  return isEn ? 'Sign-in failed. Please try again.' : '登入失敗，請再試。';
 }

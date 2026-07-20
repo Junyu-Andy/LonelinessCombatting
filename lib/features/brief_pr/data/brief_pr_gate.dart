@@ -5,6 +5,7 @@
 /// agent per participant).
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class BriefPrGate {
   BriefPrGate({FirebaseFirestore? db}) : _db = db ?? FirebaseFirestore.instance;
@@ -23,6 +24,13 @@ class BriefPrGate {
   }) async {
     final now = DateTime.now();
     final duration = now.difference(sessionStartedAt).inSeconds;
+    // Visibility for testers: this gate is CLIENT-side (no backend
+    // counter) — duration since the chat page opened + count of your
+    // sent turns. Both thresholds must pass.
+    if (kDebugMode) {
+      debugPrint('[BriefPrGate] agent=$agentId  duration=${duration}s '
+          '(need >=180)  turns=$exchangeCount (need >=3)');
+    }
     if (duration < 180) return false;
     if (exchangeCount < 3) return false;
 

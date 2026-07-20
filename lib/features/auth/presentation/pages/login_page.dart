@@ -81,7 +81,9 @@ class _LoginPageState extends State<LoginPage> {
       settings.profile = profile;
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = describeAuthError(e));
+      final isEn =
+          AppSettingsScope.read(context).locale.languageCode == 'en';
+      setState(() => _error = describeAuthError(e, isEn: isEn));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

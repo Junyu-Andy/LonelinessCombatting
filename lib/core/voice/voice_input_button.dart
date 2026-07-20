@@ -98,16 +98,28 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   }
 
   Future<void> _init() async {
-    final ok = await _stt.initialize(
-      onError: (_) {
-        if (mounted) setState(() => _listening = false);
-      },
-      onStatus: (status) {
-        if (status == 'notListening' || status == 'done') {
-          if (mounted) setState(() => _listening = false);
-        }
-      },
-    );
+    // On some Android devices `initialize()` never completes (STT service
+    // slow to bind, or the permission dialog is still up) — without a
+    // timeout the button would spin forever. Cap it and fall back to the
+    // "unavailable, tap to learn why" state instead of an endless spinner.
+    bool ok = false;
+    try {
+      ok = await _stt
+          .initialize(
+            onError: (_) {
+              if (mounted) setState(() => _listening = false);
+            },
+            onStatus: (status) {
+              if (status == 'notListening' || status == 'done') {
+                if (mounted) setState(() => _listening = false);
+              }
+            },
+          )
+          .timeout(const Duration(seconds: 6), onTimeout: () => false);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[voice] initialize failed/timed out: $e');
+      ok = false;
+    }
     if (!mounted) return;
     setState(() {
       _available = ok;
@@ -132,8 +144,16 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   Future<void> _toggle() async {
     if (_initialising) return;
     if (!_available) {
-      _showUnavailableHint();
-      return;
+      // Retry init once — permission may have just been granted after a
+      // slow/timed-out first attempt, so a tap should recover rather than
+      // dead-end on the hint.
+      setState(() => _initialising = true);
+      await _init();
+      if (!mounted) return;
+      if (!_available) {
+        _showUnavailableHint();
+        return;
+      }
     }
     if (_listening) {
       await _stt.stop();
