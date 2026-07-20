@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/safety/safety_overlay.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -256,11 +257,13 @@ class _LoginPageState extends State<LoginPage> {
                     style: theme.textTheme.titleSmall,
                   ),
                 ),
-                const SizedBox(height: 18),
-                _LanguageSwitcher(
-                  currentLocale: settings.locale,
-                  onChanged: (locale) => settings.locale = locale,
-                ),
+                if (AppSettings.englishEnabled) ...[
+                  const SizedBox(height: 18),
+                  _LanguageSwitcher(
+                    currentLocale: settings.locale,
+                    onChanged: (locale) => settings.locale = locale,
+                  ),
+                ],
                 const SizedBox(height: 22),
                 const _HkuBadge(),
               ],

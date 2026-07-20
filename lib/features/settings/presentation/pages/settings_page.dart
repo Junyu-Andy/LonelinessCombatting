@@ -168,20 +168,24 @@ class _SettingsPageState extends State<SettingsPage> {
             value: highContrast,
             onChanged: (value) => settings.highContrast = value,
           ),
-          const SizedBox(height: 28),
-          _SectionHeader(
-            icon: Icons.language_rounded,
-            title: isEn ? 'Language' : '語言',
-          ),
-          const SizedBox(height: 14),
-          _LanguageCard(
-            value: language,
-            onChanged: (value) {
-              settings.locale = value == _AppLanguage.english
-                  ? const Locale('en')
-                  : const Locale('zh');
-            },
-          ),
+          // Language picker hidden while the app is Cantonese-only
+          // (AppSettings.englishEnabled). Re-enable both together.
+          if (AppSettings.englishEnabled) ...[
+            const SizedBox(height: 28),
+            _SectionHeader(
+              icon: Icons.language_rounded,
+              title: isEn ? 'Language' : '語言',
+            ),
+            const SizedBox(height: 14),
+            _LanguageCard(
+              value: language,
+              onChanged: (value) {
+                settings.locale = value == _AppLanguage.english
+                    ? const Locale('en')
+                    : const Locale('zh');
+              },
+            ),
+          ],
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.notifications_none_rounded,

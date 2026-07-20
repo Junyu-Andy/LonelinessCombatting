@@ -38,7 +38,16 @@ class AppSettings extends ChangeNotifier {
   AppFontScale _fontScale;
   UserProfile? _profile;
 
-  Locale get locale => _locale;
+  /// Pilot decision: the English UI doesn't lay out well (long strings
+  /// overflow the elderly-friendly large-type cards), so the app is
+  /// Cantonese-only for now.  Flip to true to bring English back — the
+  /// language pickers in Settings / Login are also gated on this.
+  static const bool englishEnabled = false;
+
+  /// Forced to zh while [englishEnabled] is false, so every `isEn` check
+  /// across the app resolves to Cantonese regardless of any stored or
+  /// profile-supplied preference.
+  Locale get locale => englishEnabled ? _locale : const Locale('zh');
   bool get highContrast => _highContrast;
   AppFontScale get fontScale => _fontScale;
   UserProfile? get profile => _profile;

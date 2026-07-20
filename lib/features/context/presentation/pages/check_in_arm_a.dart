@@ -65,6 +65,14 @@ class _CheckInArmAState extends State<CheckInArmA> {
   bool _saved = false;
   AnalyticsService? _analytics;
 
+  /// Decision A — the check-in asks for today's mood FIRST (a blocking
+  /// gate) when it isn't already known, then opens the conversation; the
+  /// end-of-session sheet no longer re-asks.  A mood already logged today
+  /// (home pad / earlier) skips the gate entirely.
+  bool _resolvingMood = true; // true until we know if today's mood exists
+  bool _moodGateResolved = false;
+  MoodFace? _gateFace; // selection inside the mood gate
+
   /// B04 — mood value (1..5) that is already stored in `daily_mood` for
   /// today (via the home pad or an earlier session).  At save time we
   /// only write a new `daily_mood` entry when the face the user ends
@@ -126,6 +134,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
         _facePicked = true;
         // The home pad recorded this pick to daily_mood already.
         _moodValueAlreadyInDailyMood = widget.initialMoodValue;
+        _resolvingMood = false;
+        _moodGateResolved = true;
         _turns.add(_Turn.bot(_openingLine(isEn)));
       } else {
         // Entered via the agent tile — look up today's mood first; if
@@ -159,15 +169,53 @@ class _CheckInArmAState extends State<CheckInArmA> {
     }
     if (!mounted) return;
     setState(() {
+      _resolvingMood = false;
       _resolvedMoodValue = moodValue;
       _resolvedMoodIsToday = fromToday;
       if (moodValue != null && fromToday) {
-        // Pre-fill the end-of-session face so "完成" doesn't re-ask for
-        // a mood the user already logged today.
+        // Already logged today → skip the gate, straight to conversation.
         _face = _faceFromValue(moodValue);
         _facePicked = true;
         _moodValueAlreadyInDailyMood = moodValue;
+        _moodGateResolved = true;
+        _turns.add(_Turn.bot(_openingLine(isEn)));
+      } else {
+        // Not logged today → show the mood gate first; the opener is
+        // seeded once the user picks (see _onGatePicked).
+        _moodGateResolved = false;
       }
+    });
+  }
+
+  /// Decision A — user picked a face in the mood gate: record it, seed the
+  /// opener referencing today's mood, and reveal the conversation.
+  void _onGatePicked() {
+    final face = _gateFace;
+    if (face == null) return;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final profile = AppSettingsScope.read(context).profile;
+    if (profile != null) {
+      final v = face.numericScore;
+      // Fire-and-forget (offline-safe) so the mood is captured even if the
+      // conversation is abandoned right after.
+      unawaited(() async {
+        try {
+          await MoodRecorder().record(
+            uid: profile.uid,
+            mood: v,
+            arm: 'A',
+            sourceSurface: 'check_in_a_gate',
+          );
+        } catch (_) {}
+      }());
+    }
+    setState(() {
+      _face = face;
+      _facePicked = true;
+      _moodValueAlreadyInDailyMood = face.numericScore;
+      _resolvedMoodValue = face.numericScore;
+      _resolvedMoodIsToday = true;
+      _moodGateResolved = true;
       _turns.add(_Turn.bot(_openingLine(isEn)));
     });
   }
@@ -642,9 +690,64 @@ class _CheckInArmAState extends State<CheckInArmA> {
     );
   }
 
+  /// Decision A — blocking mood gate shown before the conversation when
+  /// today's mood isn't known yet. Nothing is pre-selected (B14).
+  Widget _buildMoodGate(bool isEn) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(isEn ? 'Siu Yan' : '小欣')),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isEn
+                    ? 'First — which face is closest to how you feel today?'
+                    : '首先，揀一個最似你今日心情嘅樣？',
+                style: theme.textTheme.titleLarge?.copyWith(height: 1.4),
+              ),
+              const SizedBox(height: 28),
+              MoodFacePicker(
+                value: _gateFace,
+                onChanged: (v) => setState(() => _gateFace = v),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _gateFace == null ? null : _onGatePicked,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      isEn ? 'Start chatting' : '開始傾偈',
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
+
+    // Decision A: resolve today's mood first, then either force a pick
+    // (gate) or go straight to the conversation.
+    if (_resolvingMood) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (!_moodGateResolved) {
+      return _buildMoodGate(isEn);
+    }
 
     final userTurnCount = _turns.where((t) => t.fromUser).length;
     final canEnd = userTurnCount >= 1 && !_saved;
@@ -655,7 +758,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
           title: Text(isEn ? 'Siu Yan' : '小欣'),
           actions: [
             TextButton(
-              onPressed: canEnd ? () => _openMoodSheet(isEn) : null,
+              onPressed: canEnd ? () => _saveSession() : null,
               child: Text(
                 _saved
                     ? (isEn ? 'Saved' : '已儲存')

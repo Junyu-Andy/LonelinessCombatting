@@ -51,6 +51,9 @@ class _GreetingHeroState extends State<GreetingHero> {
     if (_busy) return;
     final profile = AppSettingsScope.read(context).profile;
     final isArmA = Arm.isA(context);
+    // Captured before the optimistic update so we can tell whether a
+    // *later* pick actually changed the mood (drives the re-pick prompt).
+    final previous = _selectedMood;
     setState(() {
       _selectedMood = value;
       _busy = true;
@@ -89,8 +92,48 @@ class _GreetingHeroState extends State<GreetingHero> {
     } else {
       analytics.logDailyMoodSubmitted(mood: value);
     }
-    if (isArmA && !wasSupplementary && mounted) {
-      _showSiuYanCta(isEn, value);
+    if (isArmA && mounted) {
+      if (!wasSupplementary) {
+        // First pick of the day — gentle nudge to expand with Siu Yan.
+        _showSiuYanCta(isEn, value);
+      } else if (previous != null && previous != value) {
+        // A later pick that actually CHANGED — offer (not force) to tell
+        // Siu Yan what happened. Each pick is already its own daily_mood
+        // datapoint; this is just an optional conversation entry on top.
+        _showMoodChangedDialog(isEn, value);
+      }
+    }
+  }
+
+  Future<void> _showMoodChangedDialog(bool isEn, int value) async {
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isEn ? 'Your mood changed' : '你嘅心情好似唔同咗'),
+        content: Text(
+          isEn
+              ? 'Want to tell Siu Yan what happened?'
+              : '想同小欣講下發生咩事嗎？',
+          style: const TextStyle(fontSize: 16, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(isEn ? 'Not now' : '唔使住'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(isEn ? 'Sure' : '好啊'),
+          ),
+        ],
+      ),
+    );
+    if (go == true && mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CheckInArmA(initialMoodValue: value),
+        ),
+      );
     }
   }
 
