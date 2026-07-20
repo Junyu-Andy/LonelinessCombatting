@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -54,28 +56,27 @@ class _GreetingHeroState extends State<GreetingHero> {
     // Captured before the optimistic update so we can tell whether a
     // *later* pick actually changed the mood (drives the re-pick prompt).
     final previous = _selectedMood;
-    setState(() {
-      _selectedMood = value;
-      _busy = true;
-    });
-    if (profile != null) {
-      try {
-        await _recorder.record(
-          uid: profile.uid,
-          mood: value,
-          arm: isArmA ? 'A' : 'B',
-          sourceSurface: 'home_hero',
-        );
-      } catch (_) {
-        // Guest mode / offline — UI state already updated optimistically.
-      }
-    }
-    if (!mounted) return;
     final wasSupplementary = _hasPrimaryToday;
     setState(() {
+      _selectedMood = value;
       _hasPrimaryToday = true;
-      _busy = false;
     });
+    if (profile != null) {
+      // Fire-and-forget: offline, record()'s add() only completes on
+      // server ack, so awaiting it here locked the pad after one pick
+      // (you couldn't switch 好好 → 好差). The SDK queues the write and
+      // syncs when the connection returns.
+      unawaited(() async {
+        try {
+          await _recorder.record(
+            uid: profile.uid,
+            mood: value,
+            arm: isArmA ? 'A' : 'B',
+            sourceSurface: 'home_hero',
+          );
+        } catch (_) {}
+      }());
+    }
     _showRecordedToast(isEn);
     // Sprint logging: mood is now a stream of entries — the first-of-
     // day still feeds the existing daily_mood_submitted analytics event

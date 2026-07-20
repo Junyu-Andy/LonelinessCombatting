@@ -158,11 +158,15 @@ class _AgentTile extends StatelessWidget {
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(18),
+            // Avatar on the left; name + Talk pill share the top line, and
+            // the description gets the FULL remaining width beneath them so
+            // it wraps to 1–2 lines instead of a squeezed vertical column.
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 84,
-                  height: 84,
+                  width: 68,
+                  height: 68,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: palette.halo,
@@ -172,23 +176,36 @@ class _AgentTile extends StatelessWidget {
                   child: AgentAvatar(
                     agent: agent,
                     selectedVariant: selectedVariant,
-                    size: 72,
+                    size: 58,
                     openProfileOnTap: true,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        displayName,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: theme.colorScheme.onSurface,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              displayName,
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          _TalkPill(
+                            label: isEn ? 'Talk' : '傾偈',
+                            bg: palette.pillBg,
+                            fg: palette.pillFg,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         subtitle,
                         style: theme.textTheme.bodyLarge?.copyWith(
@@ -198,12 +215,6 @@ class _AgentTile extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 10),
-                _TalkPill(
-                  label: isEn ? 'Talk' : '傾偈',
-                  bg: palette.pillBg,
-                  fg: palette.pillFg,
                 ),
               ],
             ),
