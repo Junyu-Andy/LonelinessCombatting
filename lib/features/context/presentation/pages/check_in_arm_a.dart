@@ -694,6 +694,25 @@ class _CheckInArmAState extends State<CheckInArmA> {
     await _maybeSurfaceBriefPr();
   }
 
+  /// The "完成" action: finalise the check-in (save the conversation
+  /// summary + mark today's check-in done), then return home with a
+  /// confirmation — instead of leaving the user stranded on a disabled
+  /// "已儲存" button.
+  Future<void> _endAndClose() async {
+    if (_saved) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    await _saveSession();
+    if (!mounted) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(
+            isEn ? "Today's check-in is done ✓" : '今日 check-in 完成 ✓'),
+      ));
+    Navigator.of(context).maybePop();
+  }
+
   Future<void> _maybeSurfaceBriefPr() async {
     final profile = AppSettingsScope.read(context).profile;
     if (profile == null) return;
@@ -790,11 +809,9 @@ class _CheckInArmAState extends State<CheckInArmA> {
           title: Text(isEn ? 'Siu Yan' : '小欣'),
           actions: [
             TextButton(
-              onPressed: canEnd ? () => _saveSession() : null,
+              onPressed: canEnd ? _endAndClose : null,
               child: Text(
-                _saved
-                    ? (isEn ? 'Saved' : '已儲存')
-                    : (isEn ? 'End' : '完成'),
+                isEn ? 'Done' : '完成',
                 style: const TextStyle(fontSize: 16),
               ),
             ),
