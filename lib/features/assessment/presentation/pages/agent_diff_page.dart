@@ -29,9 +29,9 @@ class AgentDiffPage extends StatefulWidget {
   State<AgentDiffPage> createState() => _AgentDiffPageState();
 }
 
-class _AgentDiffPageState extends State<AgentDiffPage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _AgentDiffPageState extends State<AgentDiffPage> {
+  final PageController _pageController = PageController();
+  int _page = 0;
 
   // Part A: agent → frequency (0-3)
   final Map<String, int> _usageFreq = {
@@ -56,17 +56,32 @@ class _AgentDiffPageState extends State<AgentDiffPage>
 
   bool get _isW4 => widget.wave == 4;
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: _isW4 ? 4 : 3, vsync: this);
-  }
+  // Pages: intro + A + B + (C for W4) + D.
+  int get _pageCount => _isW4 ? 5 : 4;
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _pageController.dispose();
     _freeResponseCtrl.dispose();
     super.dispose();
+  }
+
+  void _next() {
+    if (_page < _pageCount - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _prev() {
+    if (_page > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Future<void> _submit() async {
@@ -123,11 +138,35 @@ class _AgentDiffPageState extends State<AgentDiffPage>
     final theme = Theme.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final agentLabels = _agentLabels(isEn);
-    final tabs = [
-      Tab(text: isEn ? 'A How often' : 'A 使用頻率'),
-      Tab(text: isEn ? 'B Personality' : 'B 性格印象'),
-      if (_isW4) Tab(text: isEn ? 'C Situations' : 'C 情境偏好'),
-      Tab(text: isEn ? 'D Your thoughts' : 'D 你想講'),
+
+    final pages = <Widget>[
+      _IntroView(isEn: isEn),
+      _PartAView(
+        usageFreq: _usageFreq,
+        agentLabels: agentLabels,
+        onChanged: (agentId, freq) =>
+            setState(() => _usageFreq[agentId] = freq),
+      ),
+      _PartBView(
+        personality: _personality,
+        agentLabels: agentLabels,
+        onChanged: (traitId, agentId, rating) =>
+            setState(() => _personality[traitId]![agentId] = rating),
+      ),
+      if (_isW4)
+        _PartCView(
+          function: _function,
+          agentLabels: agentLabels,
+          onChanged: (scenarioId, agentId) =>
+              setState(() => _function[scenarioId] = agentId),
+        ),
+      _PartDView(
+        controller: _freeResponseCtrl,
+        voice: _voice,
+        saved: _saved,
+        saving: _saving,
+        onSubmit: _submit,
+      ),
     ];
 
     return Scaffold(
@@ -135,41 +174,143 @@ class _AgentDiffPageState extends State<AgentDiffPage>
         title: Text(isEn
             ? 'Companion check-in (Week ${widget.wave})'
             : '夥伴評估 (第 ${widget.wave} 週)'),
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: tabs,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  isEn
+                      ? 'Step ${_page + 1} / $_pageCount'
+                      : '第 ${_page + 1} / $_pageCount 步',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                onPageChanged: (i) => setState(() => _page = i),
+                children: pages,
+              ),
+            ),
+            _DiffNavBar(
+              isEn: isEn,
+              showPrev: _page > 0,
+              // Next hidden on the last page (Part D) — it has its own Submit.
+              showNext: _page < _pageCount - 1,
+              onPrev: _prev,
+              onNext: _next,
+            ),
+          ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Intro + paged navigation shell
+// ---------------------------------------------------------------------------
+
+class _IntroView extends StatelessWidget {
+  final bool isEn;
+  const _IntroView({required this.isEn});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _PartAView(
-            usageFreq: _usageFreq,
-            agentLabels: agentLabels,
-            onChanged: (agentId, freq) =>
-                setState(() => _usageFreq[agentId] = freq),
-          ),
-          _PartBView(
-            personality: _personality,
-            agentLabels: agentLabels,
-            onChanged: (traitId, agentId, rating) =>
-                setState(() => _personality[traitId]![agentId] = rating),
-          ),
-          if (_isW4)
-            _PartCView(
-              function: _function,
-              agentLabels: agentLabels,
-              onChanged: (scenarioId, agentId) =>
-                  setState(() => _function[scenarioId] = agentId),
+          Icon(Icons.groups_2_outlined,
+              size: 48, color: theme.colorScheme.primary),
+          const SizedBox(height: 16),
+          Text(
+            isEn ? 'About this check-in' : '關於呢個評估',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
-          _PartDView(
-            controller: _freeResponseCtrl,
-            voice: _voice,
-            saved: _saved,
-            saving: _saving,
-            onSubmit: _submit,
           ),
+          const SizedBox(height: 12),
+          Text(
+            isEn
+                ? 'A few short questions about how you see your three '
+                    'companions — Siu Yan, Ah Jan / Ah Bak, and Tung Tung. '
+                    'There are no right or wrong answers; just go with how you '
+                    'honestly feel. It takes about 3–5 minutes. Tap "Next" to '
+                    'begin.'
+                : '呢度有幾條問題，想了解你點睇三位夥伴 —— 小欣、阿珍／阿伯'
+                    '同通通。冇啱定錯，照你真實嘅感覺答就得。大約 3–5 分鐘。'
+                    '撳「下一頁」開始。',
+            style: theme.textTheme.bodyLarge?.copyWith(height: 1.6),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiffNavBar extends StatelessWidget {
+  final bool isEn;
+  final bool showPrev;
+  final bool showNext;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+
+  const _DiffNavBar({
+    required this.isEn,
+    required this.showPrev,
+    required this.showNext,
+    required this.onPrev,
+    required this.onNext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: theme.dividerColor)),
+      ),
+      child: Row(
+        children: [
+          if (showPrev) ...[
+            Expanded(
+              child: OutlinedButton(
+                onPressed: onPrev,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(isEn ? 'Back' : '上一頁'),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
+          if (showNext)
+            Expanded(
+              child: FilledButton(
+                onPressed: onNext,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(
+                    isEn ? 'Next' : '下一頁',
+                    style: const TextStyle(fontSize: 17),
+                  ),
+                ),
+              ),
+            ),
+          if (!showPrev && !showNext) const Spacer(),
         ],
       ),
     );
