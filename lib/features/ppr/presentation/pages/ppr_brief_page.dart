@@ -10,6 +10,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/survey/likert_scale.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -223,59 +224,12 @@ class _LikertItem extends StatelessWidget {
             style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(5, (i) {
-              final v = i + 1;
-              final selected = value == v;
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: InkWell(
-                    onTap: () => onChanged(v),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? theme.colorScheme.primaryContainer
-                            : theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: selected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.outlineVariant,
-                          width: selected ? 2 : 1,
-                        ),
-                      ),
-                      child: Text(
-                        '$v',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight:
-                              selected ? FontWeight.w800 : FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                isEn ? item.lowEn : item.lowZh,
-                style: theme.textTheme.bodySmall,
-              ),
-              Text(
-                isEn ? item.highEn : item.highZh,
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
+          LikertScale(
+            points: 5,
+            value: value,
+            onChanged: onChanged,
+            lowLabel: isEn ? item.lowEn : item.lowZh,
+            highLabel: isEn ? item.highEn : item.highZh,
           ),
         ],
       ),

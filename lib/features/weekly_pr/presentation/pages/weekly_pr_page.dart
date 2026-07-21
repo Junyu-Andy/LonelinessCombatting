@@ -19,6 +19,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/survey/likert_scale.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/weekly_pr_response.dart';
 import '../../data/weekly_pr_trigger.dart';
@@ -324,7 +325,13 @@ class _WeeklyItemCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          _LikertRow(value: value, onChanged: onChanged, isEn: isEn),
+          LikertScale(
+            points: 7,
+            value: value,
+            onChanged: onChanged,
+            lowLabel: isEn ? 'Disagree' : '唔同意',
+            highLabel: isEn ? 'Agree' : '同意',
+          ),
         ],
       ),
     );
@@ -373,103 +380,6 @@ class _BoldedText extends StatelessWidget {
       remaining = remaining.substring(bestIdx + bestKw.length);
     }
     return Text.rich(TextSpan(children: spans), style: base);
-  }
-}
-
-class _LikertRow extends StatelessWidget {
-  final int? value;
-  final ValueChanged<int> onChanged;
-  final bool isEn;
-
-  const _LikertRow({
-    required this.value,
-    required this.onChanged,
-    required this.isEn,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            for (int n = 1; n <= 7; n++)
-              _LikertDot(
-                n: n,
-                selected: value == n,
-                onTap: () => onChanged(n),
-              ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              isEn ? 'Disagree' : '唔同意',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            Text(
-              isEn ? 'Agree' : '同意',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _LikertDot extends StatelessWidget {
-  final int n;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _LikertDot({
-    required this.n,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkResponse(
-      onTap: onTap,
-      radius: 26,
-      child: Container(
-        width: 38,
-        height: 38,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: selected ? theme.colorScheme.primary : Colors.transparent,
-          border: Border.all(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-            width: 1.6,
-          ),
-        ),
-        child: Text(
-          '$n',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: selected
-                ? theme.colorScheme.onPrimary
-                : theme.colorScheme.onSurface,
-          ),
-        ),
-      ),
-    );
   }
 }
 
