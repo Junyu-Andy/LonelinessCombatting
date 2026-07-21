@@ -115,14 +115,19 @@ service cloud.firestore {
     match /meta/arm_counter {
       allow read: if isAuthed();
 
+      // Map-literal keys MUST be quoted string literals; bare `{aCount: 0}`
+      // made the rules compiler read aCount/bCount as undefined variables
+      // ("Invalid variable name"), so the default-value branch (first-ever
+      // write, or first write into a cell) could evaluate to an error and
+      // silently DENY a legitimate arm-counter increment.
       function cellPrior(cell) {
-        return resource == null ? {aCount: 0, bCount: 0}
-             : (resource.data[cell] == null ? {aCount: 0, bCount: 0}
+        return resource == null ? {'aCount': 0, 'bCount': 0}
+             : (resource.data[cell] == null ? {'aCount': 0, 'bCount': 0}
                 : resource.data[cell]);
       }
       function cellNext(cell) {
         return request.resource.data[cell] == null
-             ? {aCount: 0, bCount: 0}
+             ? {'aCount': 0, 'bCount': 0}
              : request.resource.data[cell];
       }
       // A valid cell transition: one of (aCount+1, bCount same) or
