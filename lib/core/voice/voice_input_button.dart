@@ -90,6 +90,10 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   // Reset when a fresh dictation starts.
   bool _suppressResults = false;
 
+  // false → allow the platform's (usually cloud) recogniser for much
+  // better Cantonese (HREC relaxed). true → strict on-device only.
+  static const bool _onDeviceOnly = false;
+
   @override
   void initState() {
     super.initState();
@@ -165,11 +169,12 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
     setState(() => _listening = true);
     final localeId = await _pickLocale();
 
-    // B.8 — protocol-level on-device lock.  speech_to_text v7 surfaces
-    // this via SpeechListenOptions; older versions used a top-level
-    // onDevice param.  Both forms work because the plugin maps them to
-    // the same native flags (iOS: requiresOnDeviceRecognition;
-    // Android: EXTRA_PREFER_OFFLINE).
+    // Recognition mode. HREC originally required on-device only (audio
+    // never leaves the device), but that made Cantonese unreliable —
+    // Android on-device 粤語 packs are missing on most phones. HREC has
+    // since relaxed, so we allow the platform's (usually cloud) recogniser,
+    // which has far better Cantonese. Flip [_onDeviceOnly] back to true to
+    // reinstate the strict on-device lock.
     try {
       await _stt.listen(
         localeId: localeId,
@@ -184,7 +189,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
         listenFor: const Duration(seconds: 30),
         pauseFor: const Duration(seconds: 4),
         listenOptions: SpeechListenOptions(
-          onDevice: true,
+          onDevice: _onDeviceOnly,
           listenMode: ListenMode.dictation,
           cancelOnError: true,
         ),

@@ -1,13 +1,13 @@
-/// Weekly PR page (Sprint 1 §4 + change C2, 2026-06).
+/// Weekly PR page (Sprint 1 §4 + change C2, 2026-06; redesign 2026-07).
 ///
-/// C2: the Weekly PR is now anchored to a SINGLE companion — the one the
-/// participant used most that week (chosen upstream by
-/// WeeklyPrTrigger.mostUsedAgentThisWeek). The old per-companion loop is
-/// removed (one weekly PR per participant-week; cross-agent comparison is
-/// carried by the Agent Differentiation Assessment instead).
+/// C2: anchored to a SINGLE companion — the one the participant used most
+/// that week (WeeklyPrTrigger.mostUsedAgentThisWeek). One weekly PR per
+/// participant-week; cross-agent comparison lives in Agent Differentiation.
 ///
-/// Presents 12 items in randomised order with 「問題 X / 12」 progress and a
-/// 7-point Likert. Stores one doc per week to `users/{uid}/weekly_pr/{auto}`.
+/// 2026-07 redesign: 12 items paginated 4-per-page (3 pages) instead of one
+/// item per screen; each page carries an agent header (avatar + name +
+/// session count); items use a compact horizontal 1–7 selector with the key
+/// phrase bolded. Stores one doc per week to `users/{uid}/weekly_pr/{auto}`.
 
 import 'dart:async';
 import 'dart:math';
@@ -16,6 +16,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
@@ -33,11 +34,30 @@ class WeeklyPrPage extends StatefulWidget {
 }
 
 class _WeeklyPrPageState extends State<WeeklyPrPage> {
-  int _itemIndex = 0;
+  static const _perPage = 4;
+
+  int _pageIndex = 0;
   late List<({String id, String text})> _items;
   final Map<String, int> _ratings = {};
   late DateTime _promptedAt;
   bool _saving = false;
+
+  /// Key phrase(s) bolded in each item so elderly readers catch the point
+  /// quickly. The agent name is bolded too (added at render time).
+  static const Map<String, List<String>> _keywords = {
+    'u1': ['明白', '感受'],
+    'u2': ['明白', '想法'],
+    'u3': ['聽到'],
+    'v1': ['尊重'],
+    'v2': ['認可'],
+    'v3': ['判斷'],
+    'c1': ['關心'],
+    'c2': ['著想'],
+    'c3': ['舒服'],
+    'i1': ['搞錯重點'],
+    'i2': ['唔在乎'],
+    'i3': ['唔舒服'],
+  };
 
   @override
   void initState() {
@@ -54,6 +74,19 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
 
   WeeklyPrAgentUsage get _currentAgent => widget.agent;
 
+  int get _pageCount => (_items.length + _perPage - 1) ~/ _perPage;
+
+  List<({String id, String text})> get _pageItems {
+    final start = _pageIndex * _perPage;
+    final end = (start + _perPage) > _items.length ? _items.length : start + _perPage;
+    return _items.sublist(start, end);
+  }
+
+  bool get _pageComplete =>
+      _pageItems.every((it) => _ratings.containsKey(it.id));
+
+  bool get _isLastPage => _pageIndex >= _pageCount - 1;
+
   Future<void> _persist(String status) async {
     final profile = AppSettingsScope.read(context).profile;
     final armCode = Arm.of(context)?.code ?? 'B';
@@ -69,9 +102,8 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
       arm: armCode,
     );
     if (profile != null) {
-      // Fire-and-forget: offline, add() waits for server ack — awaiting
-      // it froze the questionnaire on a permanent spinner.  The SDK
-      // queues the write and syncs when the connection returns.
+      // Fire-and-forget: offline, add() waits for server ack — awaiting it
+      // froze the questionnaire on a permanent spinner.
       unawaited(() async {
         try {
           await FirebaseFirestore.instance
@@ -101,22 +133,26 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
     Navigator.of(context).pop();
   }
 
-  Future<void> _onRate(int value) async {
-    final item = _items[_itemIndex];
-    _ratings[item.id] = value;
-    if (_itemIndex + 1 < _items.length) {
-      setState(() => _itemIndex += 1);
+  void _prev() {
+    if (_pageIndex > 0) setState(() => _pageIndex -= 1);
+  }
+
+  Future<void> _next() async {
+    if (!_isLastPage) {
+      setState(() => _pageIndex += 1);
       return;
     }
     setState(() => _saving = true);
     await _persist('completed');
+    if (!mounted) return;
     setState(() => _saving = false);
     await _finish();
   }
 
-  Future<void> _skipAgent() async {
+  Future<void> _skip() async {
     setState(() => _saving = true);
     await _persist('skipped');
+    if (!mounted) return;
     setState(() => _saving = false);
     await _finish();
   }
@@ -126,114 +162,385 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     final agent = _currentAgent;
+    final variant = AppSettingsScope.read(context).profile?.ahJanAhBakVariant;
     // Resolve Ah Jan / Ah Bak to the user's chosen gender variant so a 阿伯
     // user never sees 阿珍 (others keep their own name).
     final displayName = agent.agentId == AgentRegistry.ahJanAhBakId
-        ? AgentRegistry.ahJanAhBakName(
-            AppSettingsScope.read(context).profile?.ahJanAhBakVariant,
-            isEn: isEn)
+        ? AgentRegistry.ahJanAhBakName(variant, isEn: isEn)
         : agent.displayName;
-    final item = _items[_itemIndex];
-    final text = WeeklyPrItems.render(item.text, displayName);
-    final labelsEn = const {
-      1: '1 — Strongly disagree',
-      2: '2 — Disagree',
-      3: '3 — Slightly disagree',
-      4: '4 — Neutral',
-      5: '5 — Slightly agree',
-      6: '6 — Agree',
-      7: '7 — Strongly agree',
-    };
-    final labelsZh = const {
-      1: '1 — 非常唔同意',
-      2: '2 — 唔同意',
-      3: '3 — 少少唔同意',
-      4: '4 — 中間',
-      5: '5 — 少少同意',
-      6: '6 — 同意',
-      7: '7 — 非常同意',
-    };
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isEn ? 'Weekly companion check-in' : '每週夥伴評估'),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                children: [
+                  _AgentHeader(
+                    agent: AgentRegistry.byId(agent.agentId),
+                    variant: variant,
+                    displayName: displayName,
+                    sessionCount: agent.sessionCount,
+                    isEn: isEn,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    isEn
+                        ? 'Page ${_pageIndex + 1} / $_pageCount'
+                        : '第 ${_pageIndex + 1} / $_pageCount 頁',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  for (final it in _pageItems) ...[
+                    _WeeklyItemCard(
+                      text: WeeklyPrItems.render(it.text, displayName),
+                      keywords: [displayName, ...?_keywords[it.id]],
+                      value: _ratings[it.id],
+                      onChanged: (v) => setState(() => _ratings[it.id] = v),
+                      isEn: isEn,
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                ],
+              ),
+            ),
+            _NavBar(
+              isEn: isEn,
+              canPrev: _pageIndex > 0,
+              canNext: _pageComplete && !_saving,
+              isLast: _isLastPage,
+              onPrev: _prev,
+              onNext: _next,
+              onSkip: _saving ? null : _skip,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AgentHeader extends StatelessWidget {
+  final AgentDefinition agent;
+  final AgentGenderVariant? variant;
+  final String displayName;
+  final int sessionCount;
+  final bool isEn;
+
+  const _AgentHeader({
+    required this.agent,
+    required this.variant,
+    required this.displayName,
+    required this.sessionCount,
+    required this.isEn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AgentAvatar(agent: agent, selectedVariant: variant, size: 54),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isEn
+                      ? 'You chatted $sessionCount time${sessionCount == 1 ? '' : 's'} this week. Think back on those chats, then rate the statements below.'
+                      : '呢個禮拜你同佢傾咗 $sessionCount 次。回想吓你哋傾過嘅嘢，再評下面幾句。',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyItemCard extends StatelessWidget {
+  final String text;
+  final List<String> keywords;
+  final int? value;
+  final ValueChanged<int> onChanged;
+  final bool isEn;
+
+  const _WeeklyItemCard({
+    required this.text,
+    required this.keywords,
+    required this.value,
+    required this.onChanged,
+    required this.isEn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _BoldedText(
+            text: text,
+            bold: keywords,
+            base: TextStyle(
+              fontSize: 18,
+              height: 1.5,
+              fontWeight: FontWeight.w500,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _LikertRow(value: value, onChanged: onChanged, isEn: isEn),
+        ],
+      ),
+    );
+  }
+}
+
+/// Renders [text], bolding any occurrence of the strings in [bold]
+/// (earliest-match-first, non-overlapping).
+class _BoldedText extends StatelessWidget {
+  final String text;
+  final List<String> bold;
+  final TextStyle base;
+
+  const _BoldedText({
+    required this.text,
+    required this.bold,
+    required this.base,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final spans = <TextSpan>[];
+    var remaining = text;
+    while (remaining.isNotEmpty) {
+      int bestIdx = -1;
+      String bestKw = '';
+      for (final kw in bold) {
+        if (kw.isEmpty) continue;
+        final idx = remaining.indexOf(kw);
+        if (idx >= 0 && (bestIdx < 0 || idx < bestIdx)) {
+          bestIdx = idx;
+          bestKw = kw;
+        }
+      }
+      if (bestIdx < 0) {
+        spans.add(TextSpan(text: remaining));
+        break;
+      }
+      if (bestIdx > 0) {
+        spans.add(TextSpan(text: remaining.substring(0, bestIdx)));
+      }
+      spans.add(TextSpan(
+        text: bestKw,
+        style: const TextStyle(fontWeight: FontWeight.w900),
+      ));
+      remaining = remaining.substring(bestIdx + bestKw.length);
+    }
+    return Text.rich(TextSpan(children: spans), style: base);
+  }
+}
+
+class _LikertRow extends StatelessWidget {
+  final int? value;
+  final ValueChanged<int> onChanged;
+  final bool isEn;
+
+  const _LikertRow({
+    required this.value,
+    required this.onChanged,
+    required this.isEn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            for (int n = 1; n <= 7; n++)
+              _LikertDot(
+                n: n,
+                selected: value == n,
+                onTap: () => onChanged(n),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              isEn
-                  ? 'Think back on your conversations with $displayName this past week:'
-                  : '回想過去呢一個禮拜你同 $displayName 嘅對話：',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                height: 1.4,
+              isEn ? 'Disagree' : '唔同意',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 8),
             Text(
-              isEn
-                  ? 'Question ${_itemIndex + 1} / ${_items.length}'
-                  : '問題 ${_itemIndex + 1} / ${_items.length}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  text,
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w600,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ...List.generate(7, (i) {
-              final rating = i + 1;
-              final labels = isEn ? labelsEn : labelsZh;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: OutlinedButton(
-                    onPressed: _saving ? null : () => _onRate(rating),
-                    style: OutlinedButton.styleFrom(
-                      textStyle: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      foregroundColor: theme.colorScheme.onSurface,
-                      side: BorderSide(
-                        color: theme.colorScheme.outline,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Text(labels[rating]!),
-                  ),
-                ),
-              );
-            }),
-            const SizedBox(height: 12),
-            Center(
-              child: TextButton(
-                onPressed: _saving ? null : _skipAgent,
-                child: Text(
-                  isEn ? 'Skip this companion' : '跳過呢個夥伴',
-                  style: const TextStyle(fontSize: 15),
-                ),
+              isEn ? 'Agree' : '同意',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ],
         ),
+      ],
+    );
+  }
+}
+
+class _LikertDot extends StatelessWidget {
+  final int n;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _LikertDot({
+    required this.n,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkResponse(
+      onTap: onTap,
+      radius: 26,
+      child: Container(
+        width: 38,
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: selected ? theme.colorScheme.primary : Colors.transparent,
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
+            width: 1.6,
+          ),
+        ),
+        child: Text(
+          '$n',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: selected
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurface,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavBar extends StatelessWidget {
+  final bool isEn;
+  final bool canPrev;
+  final bool canNext;
+  final bool isLast;
+  final VoidCallback onPrev;
+  final Future<void> Function() onNext;
+  final VoidCallback? onSkip;
+
+  const _NavBar({
+    required this.isEn,
+    required this.canPrev,
+    required this.canNext,
+    required this.isLast,
+    required this.onPrev,
+    required this.onNext,
+    required this.onSkip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: theme.dividerColor)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              if (canPrev) ...[
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onPrev,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Text(isEn ? 'Back' : '上一頁'),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: FilledButton(
+                  onPressed: canNext ? () => onNext() : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Text(
+                      isLast
+                          ? (isEn ? 'Submit' : '提交')
+                          : (isEn ? 'Next' : '下一頁'),
+                      style: const TextStyle(fontSize: 17),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          TextButton(
+            onPressed: onSkip,
+            child: Text(
+              isEn ? 'Skip this week' : '今個禮拜跳過',
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+        ],
       ),
     );
   }
