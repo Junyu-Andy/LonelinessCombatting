@@ -260,6 +260,11 @@ void main() {
           .toList();
       var tp = 0;
       var acuteEscalation = 0;
+      // moderate → none (or low) misses: these are the unsafe direction
+      // (a distress cue was NOT surfaced). Printed verbatim so a human
+      // reviewer can decide whether each is acceptable — this is a
+      // research-safety judgement, not an engineering one.
+      final downgradeMisses = <String>[];
       for (final c in moderate) {
         final lvl = detector.analyze(c.text).level;
         if (lvl == DistressLevel.moderate) {
@@ -268,6 +273,8 @@ void main() {
           // Escalation to acute is safe in the "miss" direction —
           // count it separately so we can report it.
           acuteEscalation++;
+        } else {
+          downgradeMisses.add('${c.text}  → ${lvl.name}');
         }
       }
       final recall = tp / moderate.length;
@@ -275,7 +282,39 @@ void main() {
       print('moderate recall: ${recall.toStringAsFixed(3)}  '
           '(${tp}/${moderate.length}; '
           '$acuteEscalation escalated to acute)');
+      if (downgradeMisses.isNotEmpty) {
+        // ignore: avoid_print
+        print('moderate → none/low misses (${downgradeMisses.length}):\n'
+            '  - ${downgradeMisses.join("\n  - ")}');
+      }
       expect(recall, greaterThanOrEqualTo(0.80));
+    });
+
+    test('low recall (informational — low tier never escalates)', () {
+      final low =
+          _corpus.where((c) => c.groundTruth == DistressLevel.low).toList();
+      var tp = 0;
+      final noneMisses = <String>[];
+      for (final c in low) {
+        final lvl = detector.analyze(c.text).level;
+        if (lvl == DistressLevel.low ||
+            lvl == DistressLevel.moderate ||
+            lvl == DistressLevel.acute) {
+          tp++; // any escalation counts as "surfaced"
+        } else {
+          noneMisses.add(c.text);
+        }
+      }
+      final recall = tp / low.length;
+      // ignore: avoid_print
+      print('low recall: ${recall.toStringAsFixed(3)}  (${tp}/${low.length})');
+      if (noneMisses.isNotEmpty) {
+        // ignore: avoid_print
+        print('low → none misses (${noneMisses.length}):\n'
+            '  - ${noneMisses.join("\n  - ")}');
+      }
+      // No hard threshold: low is precision-leaning and never escalates,
+      // so a miss here just means routine-sounding text stays routine.
     });
 
     test('none precision ≥ 0.90 (no false escalations on routine text)', () {
