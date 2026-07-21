@@ -66,7 +66,44 @@ class _AgentDiffPageState extends State<AgentDiffPage> {
     super.dispose();
   }
 
+  /// Whether the given page has all of its required answers.  Part A's 0 =
+  /// "not at all" is a valid answer, and Part D (free text) is optional, so
+  /// only Part B (all 4×3 traits rated ≥1) and Part C (all 5 scenarios
+  /// picked) can be "incomplete".
+  bool _pageComplete(int page) {
+    if (page == 2) {
+      for (final t in AgentDiffTraits.all) {
+        for (final a in AgentDiffAgents.all) {
+          if ((_personality[t]?[a] ?? 0) < 1) return false;
+        }
+      }
+      return true;
+    }
+    if (_isW4 && page == 3) {
+      for (final s in AgentDiffScenarios.all) {
+        if (!_function.containsKey(s)) return false;
+      }
+      return true;
+    }
+    return true;
+  }
+
+  void _showIncompleteHint() {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(isEn
+            ? 'Please answer every item on this page first.'
+            : '呢一頁仲有題未揀，請全部揀咗先。'),
+      ));
+  }
+
   void _next() {
+    if (!_pageComplete(_page)) {
+      _showIncompleteHint();
+      return;
+    }
     if (_page < _pageCount - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 260),
@@ -86,6 +123,15 @@ class _AgentDiffPageState extends State<AgentDiffPage> {
 
   Future<void> _submit() async {
     if (_saving || _saved) return;
+    // Block an empty/partial submit — jump to the first incomplete page and
+    // tell the user, instead of silently saving blanks and showing "Saved".
+    for (var p = 0; p < _pageCount; p++) {
+      if (!_pageComplete(p)) {
+        _pageController.jumpToPage(p);
+        _showIncompleteHint();
+        return;
+      }
+    }
     // B03 — stop dictation before reading the free-text response.
     await _voice.stopForSend();
     if (!mounted) return;
