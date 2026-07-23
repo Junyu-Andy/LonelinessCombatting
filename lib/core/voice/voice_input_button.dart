@@ -96,6 +96,11 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   // better Cantonese (HREC relaxed). true → strict on-device only.
   static const bool _onDeviceOnly = false;
 
+  // Testing aid: flip to true to force the Whisper "hold to talk" path on
+  // ANY device (even one with a working OS recogniser), so the Whisper flow
+  // can be tested on iOS / non-Chinese-ROM phones. Ship as false.
+  static const bool _forceWhisper = false;
+
   @override
   void initState() {
     super.initState();
@@ -272,7 +277,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
     // Android) — fall back to the Whisper "hold to talk" record button
     // instead of a dead mic. iOS / devices with working STT keep the
     // native on-device path above.
-    if (!_available) {
+    if (_forceWhisper || !_available) {
       return WhisperRecordButton(
         onText: widget.onText,
         prefix: widget.prefix,
