@@ -692,7 +692,9 @@ clay-pot rice stand..."
           TextButton(
             onPressed: _busy ? null : _generateSummary,
             child: Text(
-              isEn ? 'End' : '完成',
+              // "story told for today" — distinct from Siu Yan's check-in
+              // completion so the two 完成 semantics stop colliding.
+              isEn ? "That's it for today" : '今日講到呢度',
               style: const TextStyle(fontSize: 16),
             ),
           ),

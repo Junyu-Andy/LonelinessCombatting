@@ -730,48 +730,53 @@ class _CheckInArmAState extends State<CheckInArmA> {
       loneliness: 3,
       socialEnergy: 3,
     );
-    if (!mounted) return;
-    setState(() => _saved = true);
-    await _maybeSurfaceBriefPr();
+    _saved = true;
+    if (mounted) setState(() {});
   }
 
-  /// The "完成" action: finalise the check-in (save the conversation
-  /// summary + mark today's check-in done), then return home with a
-  /// confirmation — instead of leaving the user stranded on a disabled
-  /// "已儲存" button.
-  Future<void> _endAndClose() async {
-    if (_saved) return;
-    final messenger = ScaffoldMessenger.of(context);
+  /// Decision A — leaving the chat IS completing the check-in. Runs from
+  /// PopScope after the route pops: the mood was captured up-front by the
+  /// gate, so once the user has said anything (≥1 turn), exiting finalises
+  /// the check-in automatically (toast confirms) and the chat stays just a
+  /// chat — no 完成 button whose meaning collided with 阿伯's.
+  Future<void> _finalizeOnExit() async {
+    final userTurnCount = _turns.where((t) => t.fromUser).length;
+    if (_saved || userTurnCount < 1) return;
+    // Captured NOW (pop callback, element still live) — everything after
+    // the awaits below must not touch context: the State is disposed once
+    // the pop animation ends.
     final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+    final uid = AppSettingsScope.read(context).profile?.uid;
     await _saveSession();
-    if (!mounted) return;
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
         content: Text(
             isEn ? "Today's check-in is done ✓" : '今日 check-in 完成 ✓'),
       ));
-    Navigator.of(context).maybePop();
+    if (uid == null) return;
+    await _surfaceBriefPr(nav, uid);
   }
 
-  Future<void> _maybeSurfaceBriefPr() async {
-    final profile = AppSettingsScope.read(context).profile;
-    if (profile == null) return;
+  /// Context-free Brief PR surfacing (runs post-pop via the captured
+  /// navigator, same pattern as the Tung Tung / reflective surfaces).
+  Future<void> _surfaceBriefPr(NavigatorState nav, String uid) async {
     final exchangeCount = _turns.where((t) => t.fromUser).length;
     final gate = BriefPrGate();
     final shouldShow = await gate.shouldSurfaceBriefPr(
-      uid: profile.uid,
+      uid: uid,
       agentId: 'siu_yan',
       sessionStartedAt: _sessionStartedAt,
       exchangeCount: exchangeCount,
     );
-    if (!shouldShow || !mounted) return;
+    if (!shouldShow) return;
     final anchor = await gate.isAnchorPromptFor(
-      uid: profile.uid,
+      uid: uid,
       agentId: 'siu_yan',
     );
-    if (!mounted) return;
-    await Navigator.of(context).push(
+    await nav.push(
       MaterialPageRoute<void>(
         builder: (_) => BriefPrPage(
           agentId: 'siu_yan',
@@ -841,22 +846,18 @@ class _CheckInArmAState extends State<CheckInArmA> {
       return _buildMoodGate(isEn);
     }
 
-    final userTurnCount = _turns.where((t) => t.fromUser).length;
-    final canEnd = userTurnCount >= 1 && !_saved;
     return FirstIntroOverlay(
       agentId: AgentRegistry.siuYanId,
-      child: Scaffold(
+      // Decision A — no 完成 button: backing out IS finishing the
+      // check-in (auto-save + toast + Brief PR gate via _finalizeOnExit).
+      child: PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) unawaited(_finalizeOnExit());
+        },
+        child: Scaffold(
         appBar: AppBar(
           title: Text(isEn ? 'Siu Yan' : '小欣'),
-          actions: [
-            TextButton(
-              onPressed: canEnd ? _endAndClose : null,
-              child: Text(
-                isEn ? 'Done' : '完成',
-                style: const TextStyle(fontSize: 16),
-              ),
-            ),
-          ],
         ),
         body: SafeArea(
           child: Column(
@@ -919,104 +920,11 @@ class _CheckInArmAState extends State<CheckInArmA> {
             ],
           ),
         ),
+        ),
       ),
     );
   }
 
-  /// Bottom-sheet mood picker. Surfaces only when the participant
-  /// taps "完成" — earlier iterations anchored the picker at the foot
-  /// of the chat list which read as visual clutter throughout the
-  /// session.
-  Future<void> _openMoodSheet(bool isEn) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      barrierColor: const Color(0x66000000),
-      builder: (sheetCtx) {
-        var localFace = _face;
-        var localPicked = _facePicked;
-        var localBusy = false;
-        return StatefulBuilder(
-          builder: (ctx, setSheet) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 8,
-                bottom: 16 + MediaQuery.of(ctx).viewInsets.bottom,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isEn
-                        ? 'How would you describe your mood today?'
-                        : '你今日心情，揀一個你覺得最似嘅樣？',
-                    style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF3A3330),
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  MoodFacePicker(
-                    // B14 — show no pre-selected face until the user has
-                    // actually picked one (today's logged mood counts).
-                    value: localPicked ? localFace : null,
-                    onChanged: (v) => setSheet(() {
-                      localFace = v;
-                      localPicked = true;
-                    }),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: !localPicked || localBusy
-                          ? null
-                          : () async {
-                              setSheet(() => localBusy = true);
-                              setState(() {
-                                _face = localFace;
-                                _facePicked = true;
-                              });
-                              await _saveSession();
-                              if (!ctx.mounted) return;
-                              Navigator.of(ctx).pop();
-                            },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Text(
-                          isEn ? 'Save check-in' : '儲存今日 Check-in',
-                          style: const TextStyle(fontSize: 18),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Center(
-                    child: TextButton(
-                      onPressed: localBusy
-                          ? null
-                          : () => Navigator.of(ctx).pop(),
-                      child: Text(
-                        isEn ? 'Not yet' : '未準備好',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 }
 
 class _Turn {
