@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyA7c_f9bjOFG2lzhGWT5VfO8YrQr5VUffA</string>
+	<key>GCM_SENDER_ID</key>
+	<string>1036416880071</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>hk.hku.hkuimse.withyouapp</string>
+	<key>PROJECT_ID</key>
+	<string>loneliness-pilot-dev</string>
+	<key>STORAGE_BUCKET</key>
+	<string>loneliness-pilot-dev.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:1036416880071:ios:1e4db1760f64ac52a91de2</string>
+</dict>
+</plist>

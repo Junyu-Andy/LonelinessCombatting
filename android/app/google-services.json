@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1036416880071",
+    "project_id": "loneliness-pilot-dev",
+    "storage_bucket": "loneliness-pilot-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1036416880071:android:9cbe372316414dbba91de2",
+        "android_client_info": {
+          "package_name": "com.example.app_demo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqcUpfq9VXrzR1Y-BcKK3ghTlki__U8nE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
