@@ -103,6 +103,18 @@ Here is the article:
       userInput: text,
     );
     if (!mounted) return;
+    // Transport failure → roll the user bubble back, restore the composer
+    // and show the coded error instead of the "let me re-read" masquerade.
+    if (response.failure != null) {
+      setState(() {
+        _busy = false;
+        final i = _turns.lastIndexWhere((x) => x.fromUser && x.text == text);
+        if (i != -1) _turns.removeAt(i);
+        if (_inputCtrl.text.trim().isEmpty) _inputCtrl.text = text;
+        _turns.add(_Turn.bot(response.failure!.userMessage(isEn)));
+      });
+      return;
+    }
     setState(() {
       _busy = false;
       _turns.add(_Turn.bot(

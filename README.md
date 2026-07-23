@@ -147,6 +147,16 @@ See **[STATUS.md](./STATUS.md)** for full Sprint 1–3 implementation breakdown.
 - **Cloud Functions** — 5-flag LLM tagging, audit triggers, safety-event alerting, nightly Gate 1–9 compute, weekly export (Sunday 02:00 HKT) all stubbed.
 - **App Check enforcement** — `proxyDeepSeek` runs with `enforceAppCheck: false` for dev. Flip before pilot launch.
 - **Researcher dashboard** — page scaffold exists; 12 spec'd views not aggregated.
+- **Mainland-China unreachable (decision deferred, 2026-07)** — the whole
+  backend path (Firebase Auth / Firestore / Cloud Functions
+  `cloudfunctions.net`, FCM) is Google infrastructure and blocked without a
+  VPN in mainland China, so a participant crossing the border loses login,
+  chat and persistence entirely; DeepSeek itself is reachable but the
+  mandatory CF proxy (API key, PII scrub, audit) is not. Supporting mainland
+  use means replacing Auth/Firestore/CF with mainland-reachable equivalents +
+  an HREC data-compliance re-review — only start if the study design requires
+  it. Interim: the FS-02/NET error copy tells users the network can't reach
+  the service.
 
 **Client-side gaps:**
 - **Voice input on intake long-text fields** (Part 3 on-mind, Part 5 avoidTopics) — current `TextField`s use `onChanged` only; needs controller refactor.

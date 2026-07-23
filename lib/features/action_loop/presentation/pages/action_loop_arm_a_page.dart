@@ -210,6 +210,13 @@ try again in the afternoon." No extra encouragement or suggestions.
       _busy = false;
       _summary = response.text.isNotEmpty ? response.text : fallbackSummary;
     });
+    // Transport failure: the assembled plan text above stands in — but
+    // say why the polished summary is missing (coded, screenshot-friendly).
+    if (response.failure != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(response.failure!.userMessage(isEn))),
+      );
+    }
     final escalation = response.inputFlag.level.index >=
             response.outputFlag.level.index
         ? response.inputFlag
@@ -230,35 +237,53 @@ try again in the afternoon." No extra encouragement or suggestions.
     }
     final repo = ActionPlanRepository(available: auth.available);
     setState(() => _busy = true);
-    final planId = await repo.create(
-      profile.uid,
-      ActionPlan(
-        action: _action,
-        whenText: _whenText,
-        whereText: _whereText,
-        whoWith: _whoWith,
-        fallback: _fallback,
-        armCode: 'A',
-        createdAt: DateTime.now(),
-      ),
-    );
+    final String? planId;
+    try {
+      planId = await guardFirestore(
+        () => repo.create(
+          profile.uid,
+          ActionPlan(
+            action: _action,
+            whenText: _whenText,
+            whereText: _whereText,
+            whoWith: _whoWith,
+            fallback: _fallback,
+            armCode: 'A',
+            createdAt: DateTime.now(),
+          ),
+        ),
+      );
+    } on LlmFailureException catch (e) {
+      // Keep the review step up so "save" can be retried; the coded
+      // snackbar tells the user (and us, via screenshot) what failed.
+      if (!mounted) return;
+      final isEn = Localizations.localeOf(context).languageCode == 'en';
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.failure.userMessage(isEn))),
+      );
+      return;
+    }
     if (planId != null) {
       // Queue a follow-up reminder ~24h after the planned time. Concrete
       // delivery is wired in by the device-side scheduler; here we just
-      // record the intent.
+      // record the intent. Non-fatal: the saved plan is the deliverable.
       final reminders = FirestoreReminderQueue(available: auth.available);
-      await reminders.schedule(
-        uid: profile.uid,
-        // B.10 — pass profile so 今日休息 can suppress same-day reminders.
-        profile: profile,
-        request: ReminderRequest(
-          kind: 'm7_followup',
-          fireAt: DateTime.now().add(const Duration(hours: 24)),
-          titleZh: '件事點呀？',
-          titleEn: 'How did it go?',
-          bodyZh: '你之前計劃做：$_action。',
-          bodyEn: 'Your plan: $_action.',
-          linkedDocId: planId,
+      await persistQuietly(
+        'action_loop',
+        () => reminders.schedule(
+          uid: profile.uid,
+          // B.10 — pass profile so 今日休息 can suppress same-day reminders.
+          profile: profile,
+          request: ReminderRequest(
+            kind: 'm7_followup',
+            fireAt: DateTime.now().add(const Duration(hours: 24)),
+            titleZh: '件事點呀？',
+            titleEn: 'How did it go?',
+            bodyZh: '你之前計劃做：$_action。',
+            bodyEn: 'Your plan: $_action.',
+            linkedDocId: planId,
+          ),
         ),
       );
     }

@@ -6,8 +6,10 @@ import 'package:flutter/foundation.dart';
 import '../../features/llm_features/data/llm_turn_features.dart';
 import '../safety/distress_detector.dart';
 import '../safety/safety_event_writer.dart';
+import 'llm_failure.dart';
 import 'turn_metadata.dart';
 
+export 'llm_failure.dart';
 export 'turn_metadata.dart';
 
 /// Unified LLM entry point for every Arm A module. All LLM calls in the app
@@ -29,13 +31,20 @@ class LlmGateway {
     LlmClient? client,
     SafetyEventWriter? safetyWriter,
     LlmTurnFeaturesRepository? featuresRepo,
+    void Function(String event, Map<String, dynamic> params)? telemetry,
   })  : _detector = detector ?? const DistressDetector(),
         _client = client ?? const DeepseekLlmClient(),
         _safetyWriter = safetyWriter,
-        _featuresRepo = featuresRepo;
+        _featuresRepo = featuresRepo,
+        _telemetry = telemetry;
 
   final DistressDetector _detector;
   final LlmClient _client;
+
+  /// Release-visible failure telemetry (wired to AnalyticsService in
+  /// main.dart). Every transport failure logs an `llm_send_failed` event —
+  /// debug prints alone left TestFlight failures completely invisible.
+  final void Function(String event, Map<String, dynamic> params)? _telemetry;
 
   /// Null when Firebase is unavailable (guest mode). Safety events are
   /// silently skipped; detection still runs so the app can short-circuit.
@@ -141,6 +150,27 @@ class LlmGateway {
     sw.stop();
     final latencyMs = sw.elapsedMilliseconds;
 
+    if (raw.failure != null) {
+      _telemetry?.call('llm_send_failed', {
+        'code': raw.failure!.code.code,
+        'moduleId': moduleId,
+        if (agentId != null) 'agentId': agentId,
+        'latencyMs': latencyMs,
+        if (raw.failure!.detail != null) 'detail': raw.failure!.detail,
+      });
+      return LlmResponse(
+        text: '',
+        inputFlag: inputFlag,
+        outputFlag: const DistressMatch(DistressLevel.none),
+        shortCircuited: false,
+        failure: raw.failure,
+        metadata: TurnMetadata(
+          agentId: agentId,
+          sessionId: sessionId,
+        ),
+      );
+    }
+
     final outputFlag = skipSafetyScan
         ? const DistressMatch(DistressLevel.none)
         : _detector.analyze(raw.text);
@@ -214,6 +244,12 @@ class LlmResponse {
   final DistressMatch outputFlag;
   final bool shortCircuited;
 
+  /// Non-null when the transport failed (auth, App Check, timeout,
+  /// upstream error). Distinguishes "the call failed" from "the model
+  /// genuinely returned empty text" — callers show the failure's
+  /// [LlmFailure.userMessage] instead of the scripted fallback ack.
+  final LlmFailure? failure;
+
   /// B.2 — per-turn metadata to be persisted by the caller on the turn doc.
   final TurnMetadata metadata;
 
@@ -228,6 +264,7 @@ class LlmResponse {
     required this.outputFlag,
     required this.shortCircuited,
     required this.metadata,
+    this.failure,
     this.llmFlags = const {},
   });
 
@@ -241,6 +278,10 @@ class LlmRawResponse {
   final String text;
   final String? systemPromptHash;
 
+  /// Non-null when the transport call failed. The gateway propagates it to
+  /// [LlmResponse.failure] and logs telemetry; text is always '' then.
+  final LlmFailure? failure;
+
   /// B.1 — 5-flag mechanism bundle returned by `proxyDeepSeek`.  Keys are
   /// `personalization_specific`, `memory_callback`, `empathic_reflection`,
   /// `open_question`, `adaptive_register`, plus `_version: int`.  Empty map
@@ -250,6 +291,7 @@ class LlmRawResponse {
   const LlmRawResponse({
     required this.text,
     this.systemPromptHash,
+    this.failure,
     this.llmFlags = const {},
   });
 }
@@ -336,6 +378,13 @@ class DeepseekLlmClient implements LlmClient {
       if (kDebugMode) {
         debugPrint('[LlmGateway] unexpected response shape: $data');
       }
+      return LlmRawResponse(
+        text: '',
+        failure: LlmFailure(
+          LlmFailureCode.unknown,
+          'unexpected response shape: ${data.runtimeType}',
+        ),
+      );
     } on FirebaseFunctionsException catch (e, st) {
       // Surface CF errors instead of swallowing them.  Common causes:
       //   - unauthenticated: user not signed in (auth gate broken)
@@ -351,17 +400,27 @@ class DeepseekLlmClient implements LlmClient {
             'code=${e.code} message=${e.message}');
         debugPrintStack(stackTrace: st);
       }
+      return LlmRawResponse(
+        text: '',
+        failure: LlmFailure.fromFunctionsCode(e.code, e.message),
+      );
     } on TimeoutException {
       if (kDebugMode) {
         debugPrint('[LlmGateway] CF call timed out after 50s');
       }
+      return const LlmRawResponse(
+        text: '',
+        failure: LlmFailure(LlmFailureCode.clientTimeout, 'client 50s'),
+      );
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[LlmGateway] unexpected error: $e');
         debugPrintStack(stackTrace: st);
       }
+      return LlmRawResponse(
+        text: '',
+        failure: LlmFailure(LlmFailureCode.unknown, e.toString()),
+      );
     }
-
-    return const LlmRawResponse(text: '');
   }
 }

@@ -93,6 +93,12 @@ Future<void> main() async {
     detector: detector,
     safetyWriter: safetyWriter,
     featuresRepo: llmFeaturesRepo,
+    // Release-visible failure telemetry: every transport failure logs
+    // `llm_send_failed` with its LlmFailureCode so TestFlight incidents
+    // are diagnosable from the analytics collection instead of guesswork.
+    telemetry: (event, params) {
+      analytics.logEvent(event, params);
+    },
   );
   final agentGreeting = AgentGreetingService(
     llmGateway,

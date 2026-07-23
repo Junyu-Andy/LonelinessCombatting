@@ -148,6 +148,10 @@ clay-pot rice stand..."
   String? _pendingOffline;
   StreamSubscription<bool>? _connSub;
 
+  // The user text currently in flight, so a send failure can roll the
+  // bubble back and restore the composer (see _failSend).
+  String? _inFlightText;
+
   bool _busy = false;
   bool _showingSummary = false;
   bool _saved = false;
@@ -299,10 +303,12 @@ clay-pot rice stand..."
     final auth = AuthServiceScope.of(context);
     if (profile == null) return;
     final store = M3SessionStore(available: auth.available);
-    await store.startSession(
-      uid: profile.uid,
-      weekIndex: widget.theme.weekIndex,
-      armCode: 'A',
+    await guardFirestore(
+      () => store.startSession(
+        uid: profile.uid,
+        weekIndex: widget.theme.weekIndex,
+        armCode: 'A',
+      ),
     );
     _sessionStarted = true;
   }
@@ -316,15 +322,37 @@ clay-pot rice stand..."
   }
 
   /// Wrapper so ANY throw inside the send pipeline can't strand
-  /// `_busy = true` and permanently dead the composer.
+  /// `_busy = true` and permanently dead the composer. Classified failures
+  /// surface as a system bubble with an error code.
   Future<void> _send() async {
     try {
       await _sendInner();
+    } on LlmFailureException catch (e) {
+      _failSend(e.failure);
     } catch (e) {
       if (kDebugMode) debugPrint('[reminiscence] send failed: $e');
+      _failSend(LlmFailure(LlmFailureCode.unknown, e.toString()));
     } finally {
       if (mounted && _busy) setState(() => _busy = false);
     }
+  }
+
+  /// Roll the UI back to the pre-send state — in-flight user bubble
+  /// removed, text restored to the composer so one tap resends — and
+  /// surface the failure as a system bubble carrying its error code.
+  void _failSend(LlmFailure f) {
+    if (!mounted) return;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    setState(() {
+      final t = _inFlightText;
+      if (t != null) {
+        final i = _turns.lastIndexWhere((x) => x.fromUser && x.text == t);
+        if (i != -1) _turns.removeAt(i);
+        if (_inputCtrl.text.trim().isEmpty) _inputCtrl.text = t;
+        _inFlightText = null;
+      }
+      _turns.add(_Turn.system(f.userMessage(isEn)));
+    });
   }
 
   Future<void> _sendInner() async {
@@ -353,6 +381,7 @@ clay-pot rice stand..."
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));
+      _inFlightText = text;
       _inputCtrl.clear();
     });
     final core = CoreServicesScope.of(context);
@@ -366,9 +395,11 @@ clay-pot rice stand..."
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
     final themeTitle = isEn ? widget.theme.titleEn : widget.theme.titleZh;
-    final persona = await core.personaResolver.resolve(
-      agentId: AgentRegistry.ahJanAhBakId,
-      profile: profile,
+    final persona = await guardFirestore(
+      () => core.personaResolver.resolve(
+        agentId: AgentRegistry.ahJanAhBakId,
+        profile: profile,
+      ),
     );
     final themeLock = isEn
         ? 'This week\'s theme: "$themeTitle". Stay on this theme. If '
@@ -402,21 +433,32 @@ clay-pot rice stand..."
       uid: profile?.uid,
     );
 
+    // Transport failure → roll back and show the coded error bubble
+    // instead of masquerading as the scripted fallback ack.
+    if (response.failure != null) {
+      throw LlmFailureException(response.failure!);
+    }
+
     // Mirror the user turn into Ah Jan / Ah Bak's agent-context buffer
     // when retention is on. M3SessionStore continues to own the
     // verbatim transcript for life-review review; the buffer here is
     // the short, agent-scoped working memory used by future PersonaResolver
     // reads (M2 callbacks, opener generation).
+    // Non-fatal: a persistence hiccup must not discard the reply we
+    // already have.
     if (profile != null &&
         profile.consent
             .transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
-      await core.agentContext.appendTurn(
-        uid: profile.uid,
-        agentId: AgentRegistry.ahJanAhBakId,
-        turn: AgentContextTurn(
-          fromUser: true,
-          text: text,
-          timestamp: DateTime.now(),
+      await persistQuietly(
+        'reminiscence',
+        () => core.agentContext.appendTurn(
+          uid: profile.uid,
+          agentId: AgentRegistry.ahJanAhBakId,
+          turn: AgentContextTurn(
+            fromUser: true,
+            text: text,
+            timestamp: DateTime.now(),
+          ),
         ),
       );
     }
@@ -425,24 +467,31 @@ clay-pot rice stand..."
     // regardless of how the LLM responded.
     if (profile != null) {
       final now = DateTime.now();
-      await store.appendTurns(
-        uid: profile.uid,
-        weekIndex: widget.theme.weekIndex,
-        turns: [
-          M3Turn(fromAssistant: false, text: text, timestamp: now),
-        ],
-        // Per-agent consent (user_profile.dart mandates transcriptRetentionFor
-        // for new code) — the legacy global flag ignored a per-agent opt-out
-        // made in Settings → Privacy, which is a consent violation.
-        hasTranscriptConsent: profile.consent
-            .transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
-      );
-      if (response.inputFlag.level != DistressLevel.none) {
-        await store.recordDistressFlag(
+      await persistQuietly(
+        'reminiscence',
+        () => store.appendTurns(
           uid: profile.uid,
           weekIndex: widget.theme.weekIndex,
-          turnIndex: userTurnIndex,
-          level: response.inputFlag.level,
+          turns: [
+            M3Turn(fromAssistant: false, text: text, timestamp: now),
+          ],
+          // Per-agent consent (user_profile.dart mandates
+          // transcriptRetentionFor for new code) — the legacy global flag
+          // ignored a per-agent opt-out made in Settings → Privacy, which
+          // is a consent violation.
+          hasTranscriptConsent: profile.consent
+              .transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
+        ),
+      );
+      if (response.inputFlag.level != DistressLevel.none) {
+        await persistQuietly(
+          'reminiscence',
+          () => store.recordDistressFlag(
+            uid: profile.uid,
+            weekIndex: widget.theme.weekIndex,
+            turnIndex: userTurnIndex,
+            level: response.inputFlag.level,
+          ),
         );
       }
     }
@@ -451,6 +500,7 @@ clay-pot rice stand..."
     if (response.shortCircuited) {
       setState(() {
         _busy = false;
+        _inFlightText = null;
         _turns.add(_Turn.system(isEn
             ? 'I\'m glad you trusted me with that. Please call Samaritans '
                 'Hong Kong at 2896 0000 right now.'
@@ -477,35 +527,43 @@ clay-pot rice stand..."
             : '多謝你話畀我聽。想再講多啲都得。');
     setState(() {
       _busy = false;
+      _inFlightText = null;
       _turns.add(_Turn.bot(replyText));
     });
 
     if (profile != null && response.text.isNotEmpty) {
-      await store.appendTurns(
-        uid: profile.uid,
-        weekIndex: widget.theme.weekIndex,
-        turns: [
-          M3Turn(
-            fromAssistant: true,
-            text: replyText,
-            timestamp: DateTime.now(),
-          ),
-        ],
-        // Per-agent consent (user_profile.dart mandates transcriptRetentionFor
-        // for new code) — the legacy global flag ignored a per-agent opt-out
-        // made in Settings → Privacy, which is a consent violation.
-        hasTranscriptConsent: profile.consent
-            .transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
+      await persistQuietly(
+        'reminiscence',
+        () => store.appendTurns(
+          uid: profile.uid,
+          weekIndex: widget.theme.weekIndex,
+          turns: [
+            M3Turn(
+              fromAssistant: true,
+              text: replyText,
+              timestamp: DateTime.now(),
+            ),
+          ],
+          // Per-agent consent (user_profile.dart mandates
+          // transcriptRetentionFor for new code) — the legacy global flag
+          // ignored a per-agent opt-out made in Settings → Privacy, which
+          // is a consent violation.
+          hasTranscriptConsent: profile.consent
+              .transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
+        ),
       );
       if (profile.consent
           .transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
-        await core.agentContext.appendTurn(
-          uid: profile.uid,
-          agentId: AgentRegistry.ahJanAhBakId,
-          turn: AgentContextTurn(
-            fromUser: false,
-            text: replyText,
-            timestamp: DateTime.now(),
+        await persistQuietly(
+          'reminiscence',
+          () => core.agentContext.appendTurn(
+            uid: profile.uid,
+            agentId: AgentRegistry.ahJanAhBakId,
+            turn: AgentContextTurn(
+              fromUser: false,
+              text: replyText,
+              timestamp: DateTime.now(),
+            ),
           ),
         );
       }
@@ -544,6 +602,14 @@ clay-pot rice stand..."
       _endSummaryOriginal = body;
       _summaryCtrl.text = body;
     });
+    // Transport failure: the user's own words above remain a usable,
+    // editable summary — but say why the generated one is missing (as a
+    // snackbar, NOT in the summary text, which gets persisted as data).
+    if (response.failure != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(response.failure!.userMessage(isEn))),
+      );
+    }
   }
 
   Future<void> _saveSummary({required bool useOriginal}) async {
@@ -557,14 +623,27 @@ clay-pot rice stand..."
     final userEdited = !useOriginal && edited != original.trim();
     if (profile != null) {
       final store = M3SessionStore(available: auth.available);
-      await store.finalizeSession(
-        uid: profile.uid,
-        weekIndex: widget.theme.weekIndex,
-        armCode: 'A',
-        endSummaryOriginal: original,
-        endSummaryEdited: useOriginal ? original : edited,
-        userEdited: userEdited,
-      );
+      try {
+        await guardFirestore(
+          () => store.finalizeSession(
+            uid: profile.uid,
+            weekIndex: widget.theme.weekIndex,
+            armCode: 'A',
+            endSummaryOriginal: original,
+            endSummaryEdited: useOriginal ? original : edited,
+            userEdited: userEdited,
+          ),
+        );
+      } on LlmFailureException catch (e) {
+        // Keep the summary screen up so "save" can be retried; the coded
+        // snackbar tells the user (and us, via screenshot) what failed.
+        if (!mounted) return;
+        final isEn = Localizations.localeOf(context).languageCode == 'en';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.failure.userMessage(isEn))),
+        );
+        return;
+      }
 
       // §1C — fold this reminiscence session into Ah Jan / Ah Bak's rolling
       // summary and clear the verbatim buffer. Fire-and-forget.

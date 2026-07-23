@@ -78,6 +78,10 @@ class _CheckInArmAState extends State<CheckInArmA> {
   String? _pendingOffline;
   StreamSubscription<bool>? _connSub;
 
+  // The user text currently in flight, so a send failure can roll the
+  // bubble back and restore the composer (see _failSend).
+  String? _inFlightText;
+
   bool _busy = false;
   MoodFace _face = MoodFace.neutral;
   bool _facePicked = false;
@@ -374,15 +378,37 @@ class _CheckInArmAState extends State<CheckInArmA> {
   }
 
   /// Wrapper so ANY throw inside the send pipeline can't strand
-  /// `_busy = true` and permanently dead the composer.
+  /// `_busy = true` and permanently dead the composer. Classified failures
+  /// surface as a system bubble with an error code instead of vanishing.
   Future<void> _send() async {
     try {
       await _sendInner();
+    } on LlmFailureException catch (e) {
+      _failSend(e.failure);
     } catch (e) {
       if (kDebugMode) debugPrint('[check_in_a] send failed: $e');
+      _failSend(LlmFailure(LlmFailureCode.unknown, e.toString()));
     } finally {
       if (mounted && _busy) setState(() => _busy = false);
     }
+  }
+
+  /// Roll the UI back to the pre-send state — in-flight user bubble
+  /// removed, text restored to the composer so one tap resends — and
+  /// surface the failure as a system bubble carrying its error code.
+  void _failSend(LlmFailure f) {
+    if (!mounted) return;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    setState(() {
+      final t = _inFlightText;
+      if (t != null) {
+        final i = _turns.lastIndexWhere((x) => x.fromUser && x.text == t);
+        if (i != -1) _turns.removeAt(i);
+        if (_inputCtrl.text.trim().isEmpty) _inputCtrl.text = t;
+        _inFlightText = null;
+      }
+      _turns.add(_Turn.system(f.userMessage(isEn)));
+    });
   }
 
   Future<void> _sendInner() async {
@@ -412,6 +438,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));
+      _inFlightText = text;
       _inputCtrl.clear();
     });
     final core = CoreServicesScope.of(context);
@@ -424,24 +451,28 @@ class _CheckInArmAState extends State<CheckInArmA> {
     // first turn resolved so the LLM keeps consistent context.
     if (isFirstTurn && profile != null) {
       final inputFlag = core.distress.analyze(text);
-      _crossModuleCallbackUsedThisSession =
-          await core.crossModuleMemory.getEligibleCallback(
-        uid: profile.uid,
-        forModuleFamily: 'm2',
-        candidateSourceModuleIds: const [
-          'm3_reminiscence_w4',
-          'm3_reminiscence_w3',
-          'm3_reminiscence_w2',
-          'm3_reminiscence_w1',
-        ],
-        currentTurnDistress: inputFlag.level,
+      _crossModuleCallbackUsedThisSession = await guardFirestore(
+        () => core.crossModuleMemory.getEligibleCallback(
+          uid: profile.uid,
+          forModuleFamily: 'm2',
+          candidateSourceModuleIds: const [
+            'm3_reminiscence_w4',
+            'm3_reminiscence_w3',
+            'm3_reminiscence_w2',
+            'm3_reminiscence_w1',
+          ],
+          currentTurnDistress: inputFlag.level,
+        ),
       );
       if (_crossModuleCallbackUsedThisSession != null) {
         // Conservative: mark used even if the LLM ignores the hint.
-        await core.crossModuleMemory.markUsed(
-          uid: profile.uid,
-          forModuleFamily: 'm2',
-          callback: _crossModuleCallbackUsedThisSession!,
+        await persistQuietly(
+          'check_in_a',
+          () => core.crossModuleMemory.markUsed(
+            uid: profile.uid,
+            forModuleFamily: 'm2',
+            callback: _crossModuleCallbackUsedThisSession!,
+          ),
         );
       }
     }
@@ -449,10 +480,12 @@ class _CheckInArmAState extends State<CheckInArmA> {
     // Resolve Siu Yan persona + agent_context suffix. Falls back to a
     // tiny client-side persona prompt if the resolver returns null
     // (e.g. Firebase unavailable during guest mode demo).
-    final persona = await core.personaResolver.resolve(
-      agentId: AgentRegistry.siuYanId,
-      profile: profile,
-      includeSharedMood: true,
+    final persona = await guardFirestore(
+      () => core.personaResolver.resolve(
+        agentId: AgentRegistry.siuYanId,
+        profile: profile,
+        includeSharedMood: true,
+      ),
     );
     final crossModuleInjection = _crossModuleCallbackUsedThisSession
             ?.toSystemPromptInjection(isEn: isEn) ??
@@ -480,18 +513,29 @@ class _CheckInArmAState extends State<CheckInArmA> {
       uid: profile?.uid,
     );
 
+    // Transport failure → roll back and show the coded error bubble
+    // instead of masquerading as a scripted ack.
+    if (response.failure != null) {
+      throw LlmFailureException(response.failure!);
+    }
+
     // Append the user's turn to Siu Yan's short-term buffer so
     // subsequent sessions and cross-agent reads (PersonaResolver) can
     // see it. Honours the per-agent transcript retention flag.
+    // Non-fatal: a persistence hiccup must not discard the reply we
+    // already have.
     if (profile != null &&
         profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId)) {
-      await core.agentContext.appendTurn(
-        uid: profile.uid,
-        agentId: AgentRegistry.siuYanId,
-        turn: AgentContextTurn(
-          fromUser: true,
-          text: text,
-          timestamp: DateTime.now(),
+      await persistQuietly(
+        'check_in_a',
+        () => core.agentContext.appendTurn(
+          uid: profile.uid,
+          agentId: AgentRegistry.siuYanId,
+          turn: AgentContextTurn(
+            fromUser: true,
+            text: text,
+            timestamp: DateTime.now(),
+          ),
         ),
       );
     }
@@ -499,6 +543,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
     if (response.shortCircuited) {
       setState(() {
         _busy = false;
+        _inFlightText = null;
         _turns.add(_Turn.system(_acuteSafetyMessage()));
       });
       await core.distressRouter.route(response.inputFlag, context: context);
@@ -506,6 +551,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
     }
     setState(() {
       _busy = false;
+      _inFlightText = null;
       if (response.text.isNotEmpty) {
         _turns.add(_Turn.bot(response.text,
             promptHash: response.metadata.systemPromptHash));
@@ -520,13 +566,16 @@ class _CheckInArmAState extends State<CheckInArmA> {
     if (profile != null &&
         response.text.isNotEmpty &&
         profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId)) {
-      await core.agentContext.appendTurn(
-        uid: profile.uid,
-        agentId: AgentRegistry.siuYanId,
-        turn: AgentContextTurn(
-          fromUser: false,
-          text: response.text,
-          timestamp: DateTime.now(),
+      await persistQuietly(
+        'check_in_a',
+        () => core.agentContext.appendTurn(
+          uid: profile.uid,
+          agentId: AgentRegistry.siuYanId,
+          turn: AgentContextTurn(
+            fromUser: false,
+            text: response.text,
+            timestamp: DateTime.now(),
+          ),
         ),
       );
     }

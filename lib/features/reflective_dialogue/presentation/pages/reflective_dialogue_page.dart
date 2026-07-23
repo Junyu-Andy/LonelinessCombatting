@@ -21,6 +21,7 @@ import '../../../../core/agent_context/agent_context_service.dart';
 import '../../../../core/agent_context/rolling_summary_compiler.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
+import '../../../../core/agents/persona_resolver.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
 import '../../../../core/connectivity/offline_pending_banner.dart';
 import '../../../../core/core_services_scope.dart';
@@ -63,6 +64,10 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
   final _connectivity = ConnectivityService();
   String? _pendingOffline;
   StreamSubscription<bool>? _connSub;
+
+  // The user text currently in flight, so a send failure can roll the
+  // bubble back and restore the composer (see _failSend).
+  String? _inFlightText;
 
   bool _busy = false;
   bool _briefPrSurfaced = false;
@@ -154,15 +159,37 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
 
   /// Wrapper so ANY throw inside the send pipeline can't strand
   /// `_busy = true` and permanently dead the composer (offline persona
-  /// resolve / appendTurn transactions throw).
+  /// resolve / appendTurn transactions throw). Classified failures
+  /// surface as a system bubble with an error code.
   Future<void> _send() async {
     try {
       await _sendInner();
+    } on LlmFailureException catch (e) {
+      _failSend(e.failure);
     } catch (e) {
       if (kDebugMode) debugPrint('[reflective] send failed: $e');
+      _failSend(LlmFailure(LlmFailureCode.unknown, e.toString()));
     } finally {
       if (mounted && _busy) setState(() => _busy = false);
     }
+  }
+
+  /// Roll the UI back to the pre-send state — in-flight user bubble
+  /// removed, text restored to the composer so one tap resends — and
+  /// surface the failure as a system bubble carrying its error code.
+  void _failSend(LlmFailure f) {
+    if (!mounted) return;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    setState(() {
+      final t = _inFlightText;
+      if (t != null) {
+        final i = _turns.lastIndexWhere((x) => x.fromUser && x.text == t);
+        if (i != -1) _turns.removeAt(i);
+        if (_inputCtrl.text.trim().isEmpty) _inputCtrl.text = t;
+        _inFlightText = null;
+      }
+      _turns.add(_Turn.system(f.userMessage(isEn)));
+    });
   }
 
   Future<void> _sendInner() async {
@@ -188,6 +215,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));
+      _inFlightText = text;
       _inputCtrl.clear();
     });
     final core = CoreServicesScope.of(context);
@@ -195,9 +223,11 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     final isEn = Localizations.localeOf(context).languageCode == 'en';
 
     // Resolve Ah Jan / Ah Bak persona (variant aware).
-    final persona = await core.personaResolver.resolve(
-      agentId: AgentRegistry.ahJanAhBakId,
-      profile: profile,
+    final persona = await guardFirestore(
+      () => core.personaResolver.resolve(
+        agentId: AgentRegistry.ahJanAhBakId,
+        profile: profile,
+      ),
     );
 
     final history = _turns
@@ -225,15 +255,24 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       armCode: profile?.arm?.code,
     );
 
+    // Transport failure → roll back and show the coded error bubble
+    // instead of masquerading as the "I'm listening" fallback.
+    if (response.failure != null) {
+      throw LlmFailureException(response.failure!);
+    }
+
     if (profile != null &&
         profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
-      await core.agentContext.appendTurn(
-        uid: profile.uid,
-        agentId: AgentRegistry.ahJanAhBakId,
-        turn: AgentContextTurn(
-          fromUser: true,
-          text: text,
-          timestamp: DateTime.now(),
+      await persistQuietly(
+        'reflective',
+        () => core.agentContext.appendTurn(
+          uid: profile.uid,
+          agentId: AgentRegistry.ahJanAhBakId,
+          turn: AgentContextTurn(
+            fromUser: true,
+            text: text,
+            timestamp: DateTime.now(),
+          ),
         ),
       );
     }
@@ -242,6 +281,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     if (response.shortCircuited) {
       setState(() {
         _busy = false;
+        _inFlightText = null;
         _turns.add(_Turn.system(_acuteSafetyMessage(isEn)));
       });
       await core.distressRouter.route(response.inputFlag, context: context);
@@ -256,6 +296,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     final turnKey = 'turn_${DateTime.now().microsecondsSinceEpoch}';
     setState(() {
       _busy = false;
+      _inFlightText = null;
       _turns.add(_Turn.bot(
         replyText,
         key: turnKey,
@@ -267,13 +308,16 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     if (profile != null &&
         response.text.trim().isNotEmpty &&
         profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
-      await core.agentContext.appendTurn(
-        uid: profile.uid,
-        agentId: AgentRegistry.ahJanAhBakId,
-        turn: AgentContextTurn(
-          fromUser: false,
-          text: replyText,
-          timestamp: DateTime.now(),
+      await persistQuietly(
+        'reflective',
+        () => core.agentContext.appendTurn(
+          uid: profile.uid,
+          agentId: AgentRegistry.ahJanAhBakId,
+          turn: AgentContextTurn(
+            fromUser: false,
+            text: replyText,
+            timestamp: DateTime.now(),
+          ),
         ),
       );
     }
@@ -372,10 +416,20 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
 
     if (action.isLlmRegenerate) {
       setState(() => _busy = true);
-      final persona = await core.personaResolver.resolve(
-        agentId: AgentRegistry.ahJanAhBakId,
-        profile: profile,
-      );
+      // Persona resolve failure falls back to the client-side persona
+      // prompt — the repair template path below still gives the user
+      // something either way.
+      PersonaContext? persona;
+      try {
+        persona = await guardFirestore(
+          () => core.personaResolver.resolve(
+            agentId: AgentRegistry.ahJanAhBakId,
+            profile: profile,
+          ),
+        );
+      } on LlmFailureException {
+        persona = null;
+      }
       // Build history that excludes the bad turn but keeps prior context.
       final history = _turns
           .where((t) => t.key != key)
@@ -402,6 +456,13 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       // User can back out of the page during the multi-second regenerate;
       // setState on the disposed State would crash in release.
       if (!mounted) return;
+      // Regeneration failed → the template above stands in, but say why
+      // (coded, so a participant screenshot identifies the failure).
+      if (response.failure != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response.failure!.userMessage(isEn))),
+        );
+      }
       setState(() {
         _busy = false;
         _turns.add(_Turn.bot(

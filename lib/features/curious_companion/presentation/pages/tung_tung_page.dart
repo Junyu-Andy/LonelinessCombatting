@@ -67,6 +67,10 @@ class _TungTungPageState extends State<TungTungPage> {
   String? _pendingOffline;
   StreamSubscription<bool>? _connSub;
 
+  // The user text currently in flight, so a send failure can roll the
+  // bubble back and restore the composer (see _failSend).
+  String? _inFlightText;
+
   bool _briefPrSurfaced = false;
   bool _busy = false;
   SearchRepository? _searchRepo;
@@ -184,14 +188,36 @@ class _TungTungPageState extends State<TungTungPage> {
   /// Wrapper so ANY throw inside the send pipeline (persona resolve,
   /// appendTurn transaction, search — all of which can fail offline)
   /// can't strand `_busy = true` and permanently dead the composer.
+  /// Classified failures surface as a system bubble with an error code.
   Future<void> _send() async {
     try {
       await _sendInner();
+    } on LlmFailureException catch (e) {
+      _failSend(e.failure);
     } catch (e) {
       if (kDebugMode) debugPrint('[tung_tung] send failed: $e');
+      _failSend(LlmFailure(LlmFailureCode.unknown, e.toString()));
     } finally {
       if (mounted && _busy) setState(() => _busy = false);
     }
+  }
+
+  /// Roll the UI back to the pre-send state — in-flight user bubble
+  /// removed, text restored to the composer so one tap resends — and
+  /// surface the failure as a system bubble carrying its error code.
+  void _failSend(LlmFailure f) {
+    if (!mounted) return;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    setState(() {
+      final t = _inFlightText;
+      if (t != null) {
+        final i = _turns.lastIndexWhere((x) => x.fromUser && x.text == t);
+        if (i != -1) _turns.removeAt(i);
+        if (_inputCtrl.text.trim().isEmpty) _inputCtrl.text = t;
+        _inFlightText = null;
+      }
+      _turns.add(_Turn.system(f.userMessage(isEn)));
+    });
   }
 
   Future<void> _sendInner() async {
@@ -222,6 +248,7 @@ class _TungTungPageState extends State<TungTungPage> {
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));
+      _inFlightText = text;
       _inputCtrl.clear();
       _searchArmed = false;
     });
@@ -245,9 +272,11 @@ class _TungTungPageState extends State<TungTungPage> {
     final profile = AppSettingsScope.read(context).profile;
     final isEn = Localizations.localeOf(context).languageCode == 'en';
 
-    final persona = await core.personaResolver.resolve(
-      agentId: AgentRegistry.tungTungId,
-      profile: profile,
+    final persona = await guardFirestore(
+      () => core.personaResolver.resolve(
+        agentId: AgentRegistry.tungTungId,
+        profile: profile,
+      ),
     );
 
     // Compose the suffix: persona context + interests list + article
@@ -327,15 +356,24 @@ class _TungTungPageState extends State<TungTungPage> {
       uid: profile?.uid,
     );
 
+    // Transport failure → roll back and show the coded error bubble
+    // instead of masquerading as the "tell me more" fallback.
+    if (response.failure != null) {
+      throw LlmFailureException(response.failure!);
+    }
+
     if (profile != null &&
         profile.consent.transcriptRetentionFor(AgentRegistry.tungTungId)) {
-      await core.agentContext.appendTurn(
-        uid: profile.uid,
-        agentId: AgentRegistry.tungTungId,
-        turn: AgentContextTurn(
-          fromUser: true,
-          text: text,
-          timestamp: DateTime.now(),
+      await persistQuietly(
+        'tung_tung',
+        () => core.agentContext.appendTurn(
+          uid: profile.uid,
+          agentId: AgentRegistry.tungTungId,
+          turn: AgentContextTurn(
+            fromUser: true,
+            text: text,
+            timestamp: DateTime.now(),
+          ),
         ),
       );
     }
@@ -344,6 +382,7 @@ class _TungTungPageState extends State<TungTungPage> {
     if (response.shortCircuited) {
       setState(() {
         _busy = false;
+        _inFlightText = null;
         _turns.add(_Turn.system(_acuteSafetyMessage(isEn)));
       });
       await core.distressRouter.route(response.inputFlag, context: context);
@@ -357,6 +396,7 @@ class _TungTungPageState extends State<TungTungPage> {
             : '我未諗到點答 —— 講多少少好嗎？');
     setState(() {
       _busy = false;
+      _inFlightText = null;
       _turns.add(_Turn.bot(replyText,
           promptHash: response.metadata.systemPromptHash));
     });
@@ -364,13 +404,16 @@ class _TungTungPageState extends State<TungTungPage> {
     if (profile != null &&
         response.text.trim().isNotEmpty &&
         profile.consent.transcriptRetentionFor(AgentRegistry.tungTungId)) {
-      await core.agentContext.appendTurn(
-        uid: profile.uid,
-        agentId: AgentRegistry.tungTungId,
-        turn: AgentContextTurn(
-          fromUser: false,
-          text: replyText,
-          timestamp: DateTime.now(),
+      await persistQuietly(
+        'tung_tung',
+        () => core.agentContext.appendTurn(
+          uid: profile.uid,
+          agentId: AgentRegistry.tungTungId,
+          turn: AgentContextTurn(
+            fromUser: false,
+            text: replyText,
+            timestamp: DateTime.now(),
+          ),
         ),
       );
     }

@@ -69,25 +69,42 @@ counts. Do not suggest other modules or new plans.
 
     if (profile != null && widget.plan.id != null) {
       final repo = ActionPlanRepository(available: auth.available);
-      await repo.updateOutcome(
-        profile.uid,
-        widget.plan.id!,
-        outcome: _outcome!,
-        note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
-      );
+      try {
+        await guardFirestore(
+          () => repo.updateOutcome(
+            profile.uid,
+            widget.plan.id!,
+            outcome: _outcome!,
+            note:
+                _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+          ),
+        );
+      } on LlmFailureException catch (e) {
+        // Keep the form up so "save" can be retried; the coded snackbar
+        // tells the user (and us, via screenshot) what failed.
+        if (!mounted) return;
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.failure.userMessage(isEn))),
+        );
+        return;
+      }
       // Cancel any pending m7_followup reminders linked to this plan so
       // the user doesn't get nudged about something they just resolved.
+      // Non-fatal: the saved outcome above is the deliverable.
       if (auth.available) {
-        final pending = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(profile.uid)
-            .collection('reminders')
-            .where('linkedDocId', isEqualTo: widget.plan.id)
-            .where('delivered', isEqualTo: false)
-            .get();
-        for (final d in pending.docs) {
-          await d.reference.delete();
-        }
+        await persistQuietly('m7_followup', () async {
+          final pending = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(profile.uid)
+              .collection('reminders')
+              .where('linkedDocId', isEqualTo: widget.plan.id)
+              .where('delivered', isEqualTo: false)
+              .get();
+          for (final d in pending.docs) {
+            await d.reference.delete();
+          }
+        });
       }
     }
 
@@ -111,6 +128,13 @@ counts. Do not suggest other modules or new plans.
         _llmReply = response.text.isNotEmpty
             ? response.text
             : (isEn ? 'Thanks for telling me.' : '多謝你話畀我聽。');
+        // Transport failure: the scripted thanks stands in — but say why
+        // (coded, so a participant screenshot identifies the failure).
+        if (response.failure != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(response.failure!.userMessage(isEn))),
+          );
+        }
         final escalation = response.inputFlag.level.index >=
                 response.outputFlag.level.index
             ? response.inputFlag

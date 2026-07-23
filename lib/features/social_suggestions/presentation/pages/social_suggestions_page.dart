@@ -79,17 +79,25 @@ other text.
 
     final memorySnips = <String>[];
     if (profile != null) {
-      final entries = await core.memory.recentAcross(
-        uid: profile.uid,
-        moduleIds: const [
-          'm2_check_in',
-          'm3_reminiscence_w1',
-          'm3_reminiscence_w2',
-          'm3_reminiscence_w3',
-        ],
-        perModule: 1,
-      );
-      memorySnips.addAll(entries.map((e) => '- ${e.summary}'));
+      try {
+        // guardFirestore: don't let an unreachable Firestore hang the
+        // suggestions spinner; degrade to the no-memory prompt instead.
+        final entries = await guardFirestore(
+          () => core.memory.recentAcross(
+            uid: profile.uid,
+            moduleIds: const [
+              'm2_check_in',
+              'm3_reminiscence_w1',
+              'm3_reminiscence_w2',
+              'm3_reminiscence_w3',
+            ],
+            perModule: 1,
+          ),
+        );
+        memorySnips.addAll(entries.map((e) => '- ${e.summary}'));
+      } on LlmFailureException {
+        // Personalisation is best-effort; the static pool still renders.
+      }
     }
     final userInput = memorySnips.isEmpty
         ? (isEn

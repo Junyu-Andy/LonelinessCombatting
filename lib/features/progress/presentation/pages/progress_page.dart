@@ -75,7 +75,10 @@ Output: only the paragraph itself.
     final repo = ProgressRepository(available: auth.available);
     WeeklyProgress data;
     try {
-      data = await repo.load(profile.uid);
+      // guardFirestore: a "fake online" network (interface up, Google
+      // unreachable) would otherwise hang this await and strand the page
+      // on its spinner forever.
+      data = await guardFirestore(() => repo.load(profile.uid));
     } catch (_) {
       // Firestore quota / network blip — show empties instead of
       // crashing the whole page.
