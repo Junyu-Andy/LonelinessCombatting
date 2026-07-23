@@ -11,6 +11,9 @@ const {computeLlmFlags} = require("./llm_flags");
 admin.initializeApp();
 
 const DEEPSEEK_API_KEY = defineSecret("DEEPSEEK_API_KEY");
+// Whisper transcription (voice input on devices with no on-device STT,
+// e.g. Chinese-ROM Android). Set with: firebase functions:secrets:set OPENAI_API_KEY
+const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 const SMTP_HOST = defineSecret("SMTP_HOST");
 const SMTP_USER = defineSecret("SMTP_USER");
 const SMTP_PASS = defineSecret("SMTP_PASS");
@@ -538,6 +541,86 @@ exports.webSearch = onCall(
       }))
       .filter((r) => passesSafetyFilter(`${r.title} ${r.snippet}`));
     return {results: results, unavailable: false};
+  },
+);
+
+// ---------------------------------------------------------------------------
+// transcribeAudio — server-side voice-to-text via OpenAI Whisper.
+//
+// Why: on-device / OS speech recognition is unavailable on many Chinese-ROM
+// Android phones (no android.speech.RecognitionService), so the in-app STT
+// silently fails there. This records audio on the client and transcribes it
+// server-side, independent of any device recogniser, with much better
+// Cantonese quality.
+//
+// Client sends { audioBase64, mimeType, language? }. We forward the audio to
+// Whisper and return { text }. The audio is NOT stored — transcribe and
+// discard. Requires OPENAI_API_KEY secret; returns { unavailable: true,
+// reason } when it isn't set so the client can degrade gracefully.
+// ---------------------------------------------------------------------------
+exports.transcribeAudio = onCall(
+  {
+    secrets: [OPENAI_API_KEY],
+    region: "asia-east2",
+    enforceAppCheck: false,
+    maxInstances: 5,
+    timeoutSeconds: 60,
+    // ~10 MB of base64 audio (a minute of AAC is well under this).
+    memory: "512MiB",
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+
+    let apiKey = "";
+    try {
+      apiKey = OPENAI_API_KEY.value();
+    } catch (err) {
+      apiKey = "";
+    }
+    if (!apiKey) {
+      return {text: "", unavailable: true, reason: "openai_api_key_unset"};
+    }
+
+    const payload = request.data || {};
+    const audioBase64 = payload.audioBase64;
+    const mimeType = payload.mimeType || "audio/m4a";
+    // Whisper language hint is ISO-639-1; Cantonese has no code, so default
+    // to Chinese ("zh") which handles Cantonese audio acceptably. Client may
+    // override.
+    const language = payload.language || "zh";
+
+    if (typeof audioBase64 !== "string" || audioBase64.length === 0) {
+      throw new HttpsError("invalid-argument", "bad payload: audioBase64");
+    }
+
+    const audioBuffer = Buffer.from(audioBase64, "base64");
+    // Node 18+ (functions run on Node 24) provides global FormData/Blob/fetch.
+    const form = new FormData();
+    form.append("file", new Blob([audioBuffer], {type: mimeType}), "audio");
+    form.append("model", "whisper-1");
+    if (language) form.append("language", language);
+
+    const response = await fetch(
+      "https://api.openai.com/v1/audio/transcriptions",
+      {
+        method: "POST",
+        headers: {"Authorization": ["Bearer", apiKey].join(" ")},
+        body: form,
+      },
+    );
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new HttpsError(
+        "internal",
+        `whisper ${response.status}: ${body.slice(0, 300)}`,
+      );
+    }
+
+    const data = await response.json();
+    return {text: (data && data.text) || "", unavailable: false};
   },
 );
 

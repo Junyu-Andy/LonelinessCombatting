@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import 'whisper_record_button.dart';
+
 /// Handle a host page holds so it can stop in-progress dictation at a
 /// precise moment — specifically right before it snapshots the input and
 /// sends a message (B03).  Without this, the recogniser keeps running
@@ -264,6 +266,16 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
           padding: EdgeInsets.all(12),
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
+      );
+    }
+    // No OS speech recogniser on this device (common on Chinese-ROM
+    // Android) — fall back to the Whisper "hold to talk" record button
+    // instead of a dead mic. iOS / devices with working STT keep the
+    // native on-device path above.
+    if (!_available) {
+      return WhisperRecordButton(
+        onText: widget.onText,
+        prefix: widget.prefix,
       );
     }
     return Tooltip(
