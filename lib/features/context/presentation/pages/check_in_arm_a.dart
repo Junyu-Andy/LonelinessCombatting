@@ -9,6 +9,7 @@ import '../../../../core/agent_context/rolling_summary_compiler.dart';
 import '../../../../core/agent_context/shared_context_service.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
+import '../../../../core/connectivity/connectivity_service.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/cross_referral/referral_routing_service.dart';
 import '../../../../core/cross_referral/referral_suggestion_card.dart';
@@ -68,6 +69,14 @@ class _CheckInArmAState extends State<CheckInArmA> {
   final _voice = VoiceInputController();
   final List<_Turn> _turns = [];
   final DateTime _sessionStartedAt = DateTime.now();
+
+  // Offline resend: a message typed while offline is held here (shown as a
+  // banner, not added to the transcript) and auto-sent when connectivity
+  // returns, so nothing is silently lost.
+  final _connectivity = ConnectivityService();
+  String? _pendingOffline;
+  StreamSubscription<bool>? _connSub;
+
   bool _busy = false;
   MoodFace _face = MoodFace.neutral;
   bool _facePicked = false;
@@ -338,9 +347,29 @@ class _CheckInArmAState extends State<CheckInArmA> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // When connectivity returns, auto-send anything queued while offline.
+    _connSub = _connectivity.onStatusChange.listen((online) {
+      if (online && _pendingOffline != null && mounted) _resendPending();
+    });
+  }
+
+  @override
   void dispose() {
+    _connSub?.cancel();
     _inputCtrl.dispose();
     super.dispose();
+  }
+
+  /// Re-send the message queued while offline through the normal path
+  /// (which adds the user turn + calls the LLM), now that we're online.
+  void _resendPending() {
+    final t = _pendingOffline;
+    if (t == null) return;
+    setState(() => _pendingOffline = null);
+    _inputCtrl.text = t;
+    _send();
   }
 
   /// Wrapper so ANY throw inside the send pipeline can't strand
@@ -358,6 +387,17 @@ class _CheckInArmAState extends State<CheckInArmA> {
   Future<void> _sendInner() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
+    // Offline → hold the message (banner) and auto-send on reconnect instead
+    // of firing an LLM call that silently fails with no reply.
+    if (!await _connectivity.isOnline()) {
+      if (!mounted) return;
+      setState(() {
+        _pendingOffline =
+            _pendingOffline == null ? text : '$_pendingOffline\n$text';
+        _inputCtrl.clear();
+      });
+      return;
+    }
     // The opening bot bubble is seeded in didChangeDependencies, so
     // "first turn" here means the first user-authored turn.
     final isFirstTurn = !_turns.any((t) => t.fromUser);
@@ -867,6 +907,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
                   ],
                 ),
               ),
+              if (_pendingOffline != null)
+                _OfflinePendingBanner(text: _pendingOffline!, isEn: isEn),
               _Composer(
                 controller: _inputCtrl,
                 voice: _voice,
@@ -1021,6 +1063,43 @@ class _TurnBubble extends StatelessWidget {
           text: turn.text,
           style: TextStyle(fontSize: 17, height: 1.4, color: fg),
         ),
+      ),
+    );
+  }
+}
+
+/// Banner shown while a message typed offline is waiting to auto-send.
+class _OfflinePendingBanner extends StatelessWidget {
+  final String text;
+  final bool isEn;
+  const _OfflinePendingBanner({required this.text, required this.isEn});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      color: theme.colorScheme.tertiaryContainer,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.schedule_rounded,
+              size: 20, color: theme.colorScheme.onTertiaryContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isEn
+                  ? "You're offline — this will send automatically once you're "
+                      'back online:\n“$text”'
+                  : '你而家離線 —— 上線之後會自動幫你發：\n「$text」',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onTertiaryContainer,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
