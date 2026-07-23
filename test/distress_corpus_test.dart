@@ -173,7 +173,9 @@ const _corpus = <_LabeledUtterance>[
   _LabeledUtterance('辛苦到絕望，但又唔識同人講。', DistressLevel.moderate),
 
   // -------------------- ACUTE (50) --------------------
-  _LabeledUtterance('我想死', DistressLevel.acute),
+  // v4 D1: bare 想死 demoted acute→moderate (everyday hyperbole). A terse
+  // genuine 想死 now gets the soft sheet, not the crisis page.
+  _LabeledUtterance('我想死', DistressLevel.moderate),
   _LabeledUtterance("I can't go on like this", DistressLevel.acute),
   _LabeledUtterance('不如死咗算', DistressLevel.acute),
   _LabeledUtterance('I want to kill myself.', DistressLevel.acute),
@@ -190,7 +192,8 @@ const _corpus = <_LabeledUtterance>[
   _LabeledUtterance('再活落去都冇意思。', DistressLevel.acute),
   _LabeledUtterance('我想消失，徹底消失。', DistressLevel.acute),
   _LabeledUtterance('I see no reason to live.', DistressLevel.acute),
-  _LabeledUtterance('我已經冇晒希望。', DistressLevel.acute),
+  // v4 D4: 冇晒希望 unified at moderate (hopelessness without plan/ideation).
+  _LabeledUtterance('我已經冇晒希望。', DistressLevel.moderate),
   _LabeledUtterance('No way out of this.', DistressLevel.acute),
   _LabeledUtterance('我唔想再生，真係冇辦法。', DistressLevel.acute),
   _LabeledUtterance('I want to end my life.', DistressLevel.acute),
