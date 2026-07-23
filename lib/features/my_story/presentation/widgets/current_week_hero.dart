@@ -21,16 +21,14 @@ class CurrentWeekHero extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius:
             const BorderRadius.vertical(bottom: Radius.circular(32)),
-        gradient: LinearGradient(
+        // Fixed warm gradient + dark-brown ink (same family as the home
+        // hero). The old primary-based gradient turned PURE BLACK in
+        // high-contrast mode (primary == black there), making the whole
+        // hero an unreadable slab.
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.primary,
-            Color.alphaBlend(
-              theme.colorScheme.tertiary.withValues(alpha: 0.55),
-              theme.colorScheme.primary.withValues(alpha: 0.78),
-            ),
-          ],
+          colors: [Color(0xFFE9D6BE), Color(0xFFD6B5B6)],
         ),
       ),
       child: Column(
@@ -43,11 +41,11 @@ class CurrentWeekHero extends StatelessWidget {
                 height: 56,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
+                  color: const Color(0x1F5A4334),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child:
-                    const Icon(Icons.menu_book_outlined, size: 30, color: Colors.white),
+                    const Icon(Icons.menu_book_outlined, size: 30, color: Color(0xFF5A4334)),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -60,14 +58,14 @@ class CurrentWeekHero extends StatelessWidget {
                         progress.totalWeeks,
                       ),
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.85),
+                        color: const Color(0xFF836A55),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       isEn ? current.theme.titleEn : current.theme.titleZh,
                       style: theme.textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
+                        color: const Color(0xFF5A4334),
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -82,8 +80,8 @@ class CurrentWeekHero extends StatelessWidget {
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 10,
-              backgroundColor: Colors.white.withValues(alpha: 0.25),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              backgroundColor: const Color(0x335A4334),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF5A4334)),
             ),
           ),
         ],

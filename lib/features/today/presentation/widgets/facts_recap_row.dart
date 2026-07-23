@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -24,13 +26,25 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
   _Recap? _recap;
   bool _loaded = false;
 
+  /// TodayPage's children are const inside an IndexedStack, so this State
+  /// lives for the whole app session — a load-once latch left the recap
+  /// stale after a check-in. Refresh every 30s (single cheap read batch).
+  Timer? _poll;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_loaded) {
       _loaded = true;
       _load();
+      _poll = Timer.periodic(const Duration(seconds: 30), (_) => _load());
     }
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -128,12 +142,13 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
       ));
     }
 
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       child: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(color: Color(0xFFECE5DB), width: 1),
+            top: BorderSide(color: theme.colorScheme.outlineVariant, width: 1),
           ),
         ),
         child: Padding(
@@ -149,29 +164,47 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
     );
   }
 
-  Widget _label(String text) => Text(
-        text,
-        style: const TextStyle(color: Color(0xFFB0A496), fontSize: 12),
+  // Theme-driven colours (the old hard-coded warm greys ignored
+  // high-contrast mode) + 14pt so the line is legible without shouting.
+  Widget _label(String text) => Builder(
+        builder: (context) => Text(
+          text,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       );
 
-  Widget _dot() => const Text(
-        '·',
-        style: TextStyle(color: Color(0xFFD8CFC3), fontSize: 12),
+  Widget _dot() => Builder(
+        builder: (context) => Text(
+          '·',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.outline,
+            fontSize: 14,
+          ),
+        ),
       );
 
   Widget _chip({IconData? icon, required String text}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (icon != null) ...[
-          Icon(icon, size: 14, color: const Color(0xFF8A7D72)),
-          const SizedBox(width: 4),
-        ],
-        Text(
-          text,
-          style: const TextStyle(color: Color(0xFF8A7D72), fontSize: 12),
-        ),
-      ],
+    return Builder(
+      builder: (context) {
+        final cs = Theme.of(context).colorScheme;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 16, color: cs.onSurfaceVariant),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              text,
+              style: TextStyle(color: cs.onSurface, fontSize: 14),
+            ),
+          ],
+        );
+      },
     );
   }
 }
