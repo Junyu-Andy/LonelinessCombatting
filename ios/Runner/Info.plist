@@ -48,7 +48,7 @@
 	<!-- Voice input (speech_to_text). Buttons silently degrade if either
 	     permission is denied. -->
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app uses the microphone so you can speak into check-ins and life-story sessions instead of typing.</string>
+	<string>本app會用麥克風錄你嘅聲音，並將錄音傳送到伺服器轉換成文字，方便你用講嘅代替打字。錄音轉換完唔會保存。(This app records your voice and sends the audio to a server to convert it to text so you can speak instead of type; the recording is not kept.)</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>This app uses speech recognition to turn what you say into text in check-ins and life-story sessions.</string>
 </dict>

@@ -85,16 +85,15 @@ class _WhisperRecordButtonState extends State<WhisperRecordButton> {
       if (bytes.isEmpty) return;
       final res = await TranscriptionRepository().transcribe(
         audioBase64: base64Encode(bytes),
+        mimeType: 'audio/mp4',
       );
       if (!mounted) return;
-      if (res.text.trim().isNotEmpty) {
+      if (res.transcript.trim().isNotEmpty) {
         final prefix = widget.prefix?.call() ?? '';
         final glue = prefix.isEmpty ? '' : ' ';
-        widget.onText('$prefix$glue${res.text.trim()}');
+        widget.onText('$prefix$glue${res.transcript.trim()}');
       } else {
-        _hint(res.reason == 'openai_api_key_unset'
-            ? _notConfiguredMsg()
-            : _noSpeechMsg());
+        _hint(_noSpeechMsg());
       }
     } catch (e) {
       if (kDebugMode) debugPrint('[whisper] transcribe failed: $e');
@@ -113,9 +112,6 @@ class _WhisperRecordButtonState extends State<WhisperRecordButton> {
   String _permMsg() => _isEn
       ? 'Please allow microphone access to use voice.'
       : '想用聲音輸入，請允許使用麥克風。';
-  String _notConfiguredMsg() => _isEn
-      ? 'Voice transcription is not set up on the server yet.'
-      : '聲音轉文字喺伺服器嗰邊仲未設定好。';
   String _noSpeechMsg() => _isEn
       ? "Didn't catch that — hold the button and speak again."
       : '聽唔到喎 —— 按住個掣再講多次。';

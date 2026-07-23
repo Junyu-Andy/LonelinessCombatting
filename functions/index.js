@@ -11,9 +11,6 @@ const {computeLlmFlags} = require("./llm_flags");
 admin.initializeApp();
 
 const DEEPSEEK_API_KEY = defineSecret("DEEPSEEK_API_KEY");
-// Whisper transcription (voice input on devices with no on-device STT,
-// e.g. Chinese-ROM Android). Set with: firebase functions:secrets:set OPENAI_API_KEY
-const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 const SMTP_HOST = defineSecret("SMTP_HOST");
 const SMTP_USER = defineSecret("SMTP_USER");
 const SMTP_PASS = defineSecret("SMTP_PASS");
@@ -545,27 +542,35 @@ exports.webSearch = onCall(
 );
 
 // ---------------------------------------------------------------------------
-// transcribeAudio — server-side voice-to-text via OpenAI Whisper.
+// transcribeAudio — Cantonese voice-to-text via Google Cloud Speech-to-Text
+// v2 (NOT Whisper: OpenAI is unavailable in HK and rewrites Cantonese into
+// written Mandarin, losing 嘅/唔/咗/佢/冇). Auth is ADC (the Firebase project
+// IS the GCP project) — no API key / secret. Audio arrives base64-inline in
+// the callable; it is NOT stored.
 //
-// Why: on-device / OS speech recognition is unavailable on many Chinese-ROM
-// Android phones (no android.speech.RecognitionService), so the in-app STT
-// silently fails there. This records audio on the client and transcribes it
-// server-side, independent of any device recogniser, with much better
-// Cantonese quality.
+// Two-tier model with auto-fallback (see TASK_stt_vertical_slice):
+//   A: asia-southeast1 / chirp_2  (must set apiEndpoint or v2 hits global)
+//   B: global / long
 //
-// Client sends { audioBase64, mimeType, language? }. We forward the audio to
-// Whisper and return { text }. The audio is NOT stored — transcribe and
-// discard. Requires OPENAI_API_KEY secret; returns { unavailable: true,
-// reason } when it isn't set so the client can degrade gracefully.
+// Request:  { audioBase64, mimeType, languageCode?, model? }
+// Response: { transcript, confidence, model, region, latencyMs }
+// Slice limit: 60s / 10MB sync recognize; larger → error (batch is later).
 // ---------------------------------------------------------------------------
+const STT_TIERS = [
+  {
+    location: "asia-southeast1",
+    model: "chirp_2",
+    apiEndpoint: "asia-southeast1-speech.googleapis.com",
+  },
+  {location: "global", model: "long", apiEndpoint: undefined},
+];
+
 exports.transcribeAudio = onCall(
   {
-    secrets: [OPENAI_API_KEY],
     region: "asia-east2",
     enforceAppCheck: false,
     maxInstances: 5,
-    timeoutSeconds: 60,
-    // ~10 MB of base64 audio (a minute of AAC is well under this).
+    timeoutSeconds: 120,
     memory: "512MiB",
   },
   async (request) => {
@@ -573,54 +578,95 @@ exports.transcribeAudio = onCall(
       throw new HttpsError("unauthenticated", "Sign in required");
     }
 
-    let apiKey = "";
-    try {
-      apiKey = OPENAI_API_KEY.value();
-    } catch (err) {
-      apiKey = "";
-    }
-    if (!apiKey) {
-      return {text: "", unavailable: true, reason: "openai_api_key_unset"};
-    }
-
     const payload = request.data || {};
     const audioBase64 = payload.audioBase64;
-    const mimeType = payload.mimeType || "audio/m4a";
-    // Whisper language hint is ISO-639-1; Cantonese has no code, so default
-    // to Chinese ("zh") which handles Cantonese audio acceptably. Client may
-    // override.
-    const language = payload.language || "zh";
+    const languageCode = payload.languageCode || "yue-Hant-HK";
+    const forcedModel = payload.model || null;
 
     if (typeof audioBase64 !== "string" || audioBase64.length === 0) {
-      throw new HttpsError("invalid-argument", "bad payload: audioBase64");
+      throw new HttpsError("invalid-argument", "audioBase64 required");
     }
 
-    const audioBuffer = Buffer.from(audioBase64, "base64");
-    // Node 18+ (functions run on Node 24) provides global FormData/Blob/fetch.
-    const form = new FormData();
-    form.append("file", new Blob([audioBuffer], {type: mimeType}), "audio");
-    form.append("model", "whisper-1");
-    if (language) form.append("language", language);
-
-    const response = await fetch(
-      "https://api.openai.com/v1/audio/transcriptions",
-      {
-        method: "POST",
-        headers: {"Authorization": ["Bearer", apiKey].join(" ")},
-        body: form,
-      },
-    );
-
-    if (!response.ok) {
-      const body = await response.text();
+    const content = Buffer.from(audioBase64, "base64");
+    if (content.length > 10 * 1024 * 1024) {
       throw new HttpsError(
-        "internal",
-        `whisper ${response.status}: ${body.slice(0, 300)}`,
+        "invalid-argument",
+        "audio too large for sync recognize",
       );
     }
 
-    const data = await response.json();
-    return {text: (data && data.text) || "", unavailable: false};
+    // Lazy require so cold starts of other functions aren't slowed by it.
+    const {SpeechClient} = require("@google-cloud/speech").v2;
+    const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+
+    let lastErr;
+    const tiers = forcedModel ?
+      STT_TIERS.filter((t) => t.model === forcedModel) :
+      STT_TIERS;
+
+    for (const tier of tiers) {
+      const t0 = Date.now();
+      try {
+        const client = new SpeechClient(
+          tier.apiEndpoint ? {apiEndpoint: tier.apiEndpoint} : {},
+        );
+        const [resp] = await client.recognize({
+          recognizer:
+            `projects/${projectId}/locations/${tier.location}/recognizers/_`,
+          config: {
+            autoDecodingConfig: {},
+            languageCodes: [languageCode],
+            model: tier.model,
+            features: {enableAutomaticPunctuation: true},
+          },
+          content,
+        });
+
+        const results = resp.results || [];
+        const transcript = results
+          .map((r) => (r.alternatives && r.alternatives[0] &&
+            r.alternatives[0].transcript) || "")
+          .join("")
+          .trim();
+        const confidence =
+          (results[0] && results[0].alternatives &&
+            results[0].alternatives[0] &&
+            results[0].alternatives[0].confidence) || null;
+        const latencyMs = Date.now() - t0;
+
+        // Best-effort cost/usage log (audio seconds ≈ latency is not the
+        // duration, so we log payload bytes as a proxy for now).
+        try {
+          await admin.firestore().collection("stt_usage").add({
+            uid: request.auth.uid,
+            model: tier.model,
+            region: tier.location,
+            bytes: content.length,
+            latencyMs,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        } catch (logErr) {
+          // non-fatal
+        }
+
+        return {
+          transcript,
+          confidence,
+          model: tier.model,
+          region: tier.location,
+          latencyMs,
+        };
+      } catch (e) {
+        console.warn(
+          `stt tier ${tier.location}/${tier.model} failed: ${e.message}`,
+        );
+        lastErr = e;
+      }
+    }
+    throw new HttpsError(
+      "internal",
+      `all stt tiers failed: ${lastErr && lastErr.message}`,
+    );
   },
 );
 
