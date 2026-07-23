@@ -184,7 +184,10 @@ Output: only the paragraph itself.
                   Text(isEn ? 'Mood (1–5)' : '心情（1-5）',
                       style: theme.textTheme.titleLarge),
                   const SizedBox(height: 8),
-                  _BarChart(values: _data?.moodScores ?? const []),
+                  _BarChart(
+                    values: _data?.moodScores ?? const [],
+                    times: _data?.moodTimes ?? const [],
+                  ),
                   const SizedBox(height: 20),
                   Text(isEn ? 'Counts' : '數量',
                       style: theme.textTheme.titleLarge),
@@ -220,7 +223,25 @@ Output: only the paragraph itself.
 /// dependency for a 7-bar visual.
 class _BarChart extends StatelessWidget {
   final List<int> values;
-  const _BarChart({required this.values});
+
+  /// Submission time per bar (same order as [values]); may be shorter /
+  /// empty, in which case the date label is omitted for that bar.
+  final List<DateTime> times;
+  const _BarChart({required this.values, this.times = const []});
+
+  /// "7/23 上午" style label so the user can tell WHEN each check-in
+  /// happened — the bars alone read as anonymous numbers.
+  String _whenLabel(DateTime t, bool isEn) {
+    final String slot;
+    if (t.hour < 12) {
+      slot = isEn ? 'am' : '上午';
+    } else if (t.hour < 18) {
+      slot = isEn ? 'pm' : '下午';
+    } else {
+      slot = isEn ? 'eve' : '晚上';
+    }
+    return '${t.month}/${t.day}\n$slot';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -236,8 +257,9 @@ class _BarChart extends StatelessWidget {
         ),
       );
     }
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     return Container(
-      height: 180,
+      height: 210,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
@@ -245,7 +267,9 @@ class _BarChart extends StatelessWidget {
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
-        children: values.map((v) {
+        children: values.asMap().entries.map((entry) {
+          final i = entry.key;
+          final v = entry.value;
           final token = AppMoodEncoding.forScore(v, theme.colorScheme);
           return Expanded(
             child: Padding(
@@ -287,6 +311,21 @@ class _BarChart extends StatelessWidget {
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       )),
+                  if (i < times.length) ...[
+                    const SizedBox(height: 2),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _whenLabel(times[i], isEn),
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 11,
+                          height: 1.2,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

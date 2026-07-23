@@ -43,13 +43,22 @@ class LikertScale extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // Each dot gets an equal flexible cell and scales down when the
+            // row is too narrow (e.g. a 10-point scale on a small phone),
+            // so the scale can never overflow horizontally.
             for (int n = 1; n <= points; n++)
-              _Dot(
-                n: n,
-                selected: value == n,
-                onTap: () => onChanged(n),
+              Expanded(
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _Dot(
+                      n: n,
+                      selected: value == n,
+                      onTap: () => onChanged(n),
+                    ),
+                  ),
+                ),
               ),
           ],
         ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -94,6 +96,14 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   // better Cantonese (HREC relaxed). true → strict on-device only.
   static const bool _onDeviceOnly = false;
 
+  // Platform STT sessions can't run unbounded — cap at 60s, warn at 50s,
+  // and if the engine stops on its own tell the user their words were
+  // kept (so a long monologue doesn't silently vanish mid-sentence).
+  static const _listenCap = Duration(seconds: 60);
+  static const _pauseTolerance = Duration(seconds: 8);
+  bool _userStopped = false;
+  Timer? _warnTimer;
+
   @override
   void initState() {
     super.initState();
@@ -115,7 +125,18 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
             },
             onStatus: (status) {
               if (status == 'notListening' || status == 'done') {
+                final wasListening = _listening;
+                _warnTimer?.cancel();
                 if (mounted) setState(() => _listening = false);
+                // The engine stopped ON ITS OWN (time cap / long pause)
+                // while the user was still mid-flow — reassure them that
+                // what they said is already in the field.
+                if (wasListening &&
+                    !_userStopped &&
+                    !_suppressResults &&
+                    mounted) {
+                  _showAutoStoppedNotice();
+                }
               }
             },
           )
@@ -160,12 +181,15 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
       }
     }
     if (_listening) {
+      _userStopped = true;
+      _warnTimer?.cancel();
       await _stt.stop();
       if (mounted) setState(() => _listening = false);
       return;
     }
     _bufferStart = widget.prefix?.call() ?? '';
     _suppressResults = false;
+    _userStopped = false;
     setState(() => _listening = true);
     final localeId = await _pickLocale();
 
@@ -186,14 +210,23 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
           final glue = _bufferStart.isEmpty ? '' : ' ';
           widget.onText('$_bufferStart$glue$spoken');
         },
-        listenFor: const Duration(seconds: 30),
-        pauseFor: const Duration(seconds: 4),
+        // 60s cap (platform limit territory) + 8s pause tolerance —
+        // elders pause between clauses far longer than the default 4s,
+        // which cut them off mid-thought.
+        listenFor: _listenCap,
+        pauseFor: _pauseTolerance,
         listenOptions: SpeechListenOptions(
           onDevice: _onDeviceOnly,
           listenMode: ListenMode.dictation,
           cancelOnError: true,
         ),
       );
+      // Heads-up 10s before the cap so the stop never feels like words
+      // were swallowed.
+      _warnTimer?.cancel();
+      _warnTimer = Timer(const Duration(seconds: 50), () {
+        if (mounted && _listening) _showNearLimitNotice();
+      });
     } catch (e) {
       // Device doesn't have an offline language pack — fail closed.
       // Do NOT silently fall back to cloud recognition: HREC says audio
@@ -214,6 +247,8 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   /// starts clean instead of appending to the sent text.
   Future<void> _stopForSend() async {
     _suppressResults = true;
+    _userStopped = true;
+    _warnTimer?.cancel();
     if (_listening || _stt.isListening) {
       try {
         await _stt.cancel();
@@ -224,6 +259,33 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
     }
     _bufferStart = '';
     if (mounted && _listening) setState(() => _listening = false);
+  }
+
+  void _showNearLimitNotice() {
+    if (!mounted) return;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(isEn
+            ? 'Almost a minute — recording will pause soon.'
+            : '就快夠一分鐘喇，收音就嚟會停一停。'),
+        duration: const Duration(seconds: 4),
+      ));
+  }
+
+  void _showAutoStoppedNotice() {
+    if (!mounted) return;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(isEn
+            ? 'Listening paused — what you said is already in the box. Tap '
+                'the mic to keep going.'
+            : '收音停咗，你講嘅嘢已經寫低咗喺框入面。想繼續講，再撳一下個咪。'),
+        duration: const Duration(seconds: 5),
+      ));
   }
 
   /// Shown when voice can't run — usually no offline language pack, or the
@@ -301,6 +363,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   @override
   void dispose() {
     widget.controller?._unbind(this);
+    _warnTimer?.cancel();
     _stt.stop();
     super.dispose();
   }

@@ -7,6 +7,10 @@ class WeeklyProgress {
   /// first. Always in 1..5.
   final List<int> moodScores;
 
+  /// When each reading in [moodScores] was submitted (same order). May be
+  /// empty for legacy callers/tests — the chart then omits date labels.
+  final List<DateTime> moodTimes;
+
   /// Count of check-ins where a non-zero contact proxy was reported.
   final int contactDays;
 
@@ -22,6 +26,7 @@ class WeeklyProgress {
 
   const WeeklyProgress({
     required this.moodScores,
+    this.moodTimes = const [],
     required this.contactDays,
     required this.plansAuthored,
     required this.plansFollowedUp,
@@ -56,10 +61,18 @@ class ProgressRepository {
     final recentEvents = eventsSnap.docs
         .where((d) => _ts(d.data()['timestamp']).isAfter(since))
         .toList();
-    final moods = recentEvents
+    // (score, submitted-at) pairs, sorted oldest-first so the chart reads
+    // left → right in time (the raw query order is not guaranteed).
+    final moodPairs = recentEvents
         .where((d) => d.data()['name'] == 'check_in_submitted')
-        .map((d) => ((d.data()['params'] as Map?)?['mood'] as int?) ?? 3)
-        .toList();
+        .map((d) => (
+              ((d.data()['params'] as Map?)?['mood'] as int?) ?? 3,
+              _ts(d.data()['timestamp']),
+            ))
+        .toList()
+      ..sort((a, b) => a.$2.compareTo(b.$2));
+    final moods = [for (final p in moodPairs) p.$1];
+    final moodTimes = [for (final p in moodPairs) p.$2];
     final contactDays = recentEvents
         .where((d) =>
             d.data()['name'] == 'social_log_entry' &&
@@ -98,6 +111,7 @@ class ProgressRepository {
 
     return WeeklyProgress(
       moodScores: moods,
+      moodTimes: moodTimes,
       contactDays: contactDays,
       plansAuthored: plans.length,
       plansFollowedUp: followed,

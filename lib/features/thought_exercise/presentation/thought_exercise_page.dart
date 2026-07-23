@@ -13,6 +13,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../app/app_settings_scope.dart';
+import '../../../core/survey/likert_scale.dart';
 import '../../analytics/presentation/analytics_scope.dart';
 import '../../auth/presentation/auth_service_scope.dart';
 import '../data/thought_exercise_entry.dart';
@@ -56,9 +57,11 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
   // B14 — no prefilled default.  A pre-selected midpoint emoji / midpoint
   // intensity biases responses through anchoring + satisficing, so both
   // start empty and the user must actively choose before continuing.
+  // Intensity is a tappable 1–10 scale (was a slider — elders found the
+  // hidden-thumb track undraggable and it had no anchor labels).
   String? _emoji;
-  double? _intensityBefore;
-  double? _intensityAfter;
+  int? _intensityBefore;
+  int? _intensityAfter;
 
   bool _showingExit = false;
   bool _saving = false;
@@ -119,7 +122,7 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
     final entry = ThoughtExerciseEntry(
       situation: _situationCtrl.text.trim(),
       emotionEmoji: _emoji!,
-      intensityBefore: _intensityBefore!.round(),
+      intensityBefore: _intensityBefore!,
       thought: _thoughtCtrl.text.trim(),
       oneReasonTrue: _reasonCtrl.text.trim(),
       anotherWayToLook: _alternativeCtrl.text.trim(),
@@ -162,7 +165,7 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
     await repo.setIntensityAfter(
       uid: profile.uid,
       entryId: _entryId!,
-      intensityAfter: _intensityAfter!.round(),
+      intensityAfter: _intensityAfter!,
     );
     if (!mounted) return;
     Navigator.of(context).pop();
@@ -251,15 +254,18 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
             ),
             const SizedBox(height: 8),
             Text(
-              _intensityBefore == null
-                  ? (isEn ? 'Intensity (1–10) — drag to choose'
-                      : '強度（1–10）— 拖去揀')
-                  : (isEn ? 'Intensity (1–10)' : '強度（1–10）'),
+              isEn
+                  ? 'How strong is the feeling? Tap a number (1–10)'
+                  : '感覺有幾強烈？撳一個數字（1–10）',
               style: theme.textTheme.bodyMedium,
             ),
-            _IntensitySlider(
+            const SizedBox(height: 8),
+            LikertScale(
+              points: 10,
               value: _intensityBefore,
               onChanged: (v) => setState(() => _intensityBefore = v),
+              lowLabel: isEn ? 'Very mild' : '好輕微',
+              highLabel: isEn ? 'Very strong' : '好強烈',
             ),
             const SizedBox(height: 8),
             _Label(text: isEn ? '3. The thought' : '三、嗰個諗法係：'),
@@ -333,27 +339,30 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
               _BeforeAfterTile(
                 label: isEn ? 'Before' : '之前',
                 emoji: _emoji ?? '',
-                value: _intensityBefore?.round(),
+                value: _intensityBefore,
               ),
               const Icon(Icons.arrow_forward, size: 28),
               _BeforeAfterTile(
                 label: isEn ? 'Now' : '依家',
                 emoji: _emoji ?? '', // emoji not re-selected, only intensity
-                value: _intensityAfter?.round(),
+                value: _intensityAfter,
               ),
             ],
           ),
           const SizedBox(height: 24),
           Text(
-            _intensityAfter == null
-                ? (isEn ? 'Intensity now (1–10) — drag to choose'
-                    : '依家強度（1–10）— 拖去揀')
-                : (isEn ? 'Intensity now (1–10)' : '依家強度（1–10）'),
+            isEn
+                ? 'How strong is it now? Tap a number (1–10)'
+                : '依家有幾強烈？撳一個數字（1–10）',
             style: theme.textTheme.bodyMedium,
           ),
-          _IntensitySlider(
+          const SizedBox(height: 8),
+          LikertScale(
+            points: 10,
             value: _intensityAfter,
             onChanged: (v) => setState(() => _intensityAfter = v),
+            lowLabel: isEn ? 'Very mild' : '好輕微',
+            highLabel: isEn ? 'Very strong' : '好強烈',
           ),
           const Spacer(),
           FilledButton(
@@ -384,35 +393,6 @@ class _Label extends StatelessWidget {
   }
 }
 
-class _IntensitySlider extends StatelessWidget {
-  final double? value;
-  final ValueChanged<double> onChanged;
-  const _IntensitySlider({required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = value != null;
-    final slider = Slider(
-      value: value ?? 1,
-      min: 1,
-      max: 10,
-      divisions: 9,
-      label: selected ? value!.round().toString() : null,
-      onChanged: onChanged,
-    );
-    if (selected) return slider;
-    // B14 — until the user picks a value, hide the thumb so there is no
-    // prefilled midpoint to anchor on. The track still responds to a tap
-    // or drag, which sets the value and reveals the thumb.
-    return SliderTheme(
-      data: SliderTheme.of(context).copyWith(
-        thumbShape: SliderComponentShape.noThumb,
-        overlayShape: SliderComponentShape.noOverlay,
-      ),
-      child: slider,
-    );
-  }
-}
 
 class _EmojiRow extends StatelessWidget {
   final String? value;
@@ -423,26 +403,73 @@ class _EmojiRow extends StatelessWidget {
     required this.choices,
     required this.onChanged,
   });
+
+  /// Text label per face so elders don't have to decode the emoji alone.
+  static const _labelsZh = {
+    '😟': '擔心',
+    '😔': '唔開心',
+    '😐': '一般',
+    '🙂': '幾好',
+    '😊': '開心',
+  };
+  static const _labelsEn = {
+    '😟': 'Worried',
+    '😔': 'Sad',
+    '😐': 'So-so',
+    '🙂': 'Okay',
+    '😊': 'Happy',
+  };
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final labels = isEn ? _labelsEn : _labelsZh;
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         for (final e in choices)
-          GestureDetector(
-            onTap: () => onChanged(e),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
+          Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(e),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: value == e
+                        ? theme.colorScheme.primary
+                        : Colors.transparent,
+                    width: 2,
+                  ),
                   color: value == e
-                      ? Theme.of(context).colorScheme.primary
+                      ? theme.colorScheme.primaryContainer
+                          .withValues(alpha: 0.4)
                       : Colors.transparent,
-                  width: 2,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(e, style: const TextStyle(fontSize: 32)),
+                    const SizedBox(height: 2),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        labels[e] ?? '',
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: value == e
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Text(e, style: const TextStyle(fontSize: 32)),
             ),
           ),
       ],
