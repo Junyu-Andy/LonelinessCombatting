@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/survey/likert_scale.dart';
+import '../../../../core/survey/survey_item_card.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../data/agent_diff_response.dart';
 
@@ -543,33 +544,26 @@ class _PartBView extends StatelessWidget {
                     ? AgentDiffTraits.labelsEn[traitId]
                     : AgentDiffTraits.labels[traitId]) ??
                 traitId;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 18),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w700, height: 1.3),
-                  ),
-                  const SizedBox(height: 14),
-                  for (final agentId in AgentDiffAgents.all) ...[
-                    _AgentRatingRow(
-                      agentLabel: agentLabels[agentId] ?? agentId,
-                      selected: personality[traitId]?[agentId] ?? 0,
-                      onRate: (rating) => onChanged(traitId, agentId, rating),
-                    ),
-                    if (agentId != AgentDiffAgents.all.last)
-                      const SizedBox(height: 10),
+            // Shared card so this matches Weekly PR / PPR / Brief PR.
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: SurveyItemCard(
+                title: label,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final agentId in AgentDiffAgents.all) ...[
+                      _AgentRatingRow(
+                        agentLabel: agentLabels[agentId] ?? agentId,
+                        selected: personality[traitId]?[agentId] ?? 0,
+                        onRate: (rating) =>
+                            onChanged(traitId, agentId, rating),
+                      ),
+                      if (agentId != AgentDiffAgents.all.last)
+                        const SizedBox(height: 12),
+                    ],
                   ],
-                ],
+                ),
               ),
             );
           }),
@@ -665,17 +659,10 @@ class _PartCView extends StatelessWidget {
                 scenarioId;
             final selected = function[scenarioId];
             return Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: SurveyItemCard(
+                title: label,
+                child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: _agentOptions.map((agentId) {
@@ -715,8 +702,7 @@ class _PartCView extends StatelessWidget {
                         ),
                       );
                     }).toList(),
-                  ),
-                ],
+                ),
               ),
             );
           }),

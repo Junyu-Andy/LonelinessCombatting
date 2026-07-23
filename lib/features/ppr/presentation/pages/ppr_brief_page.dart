@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/survey/likert_scale.dart';
+import '../../../../core/survey/survey_item_card.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -213,25 +214,18 @@ class _LikertItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            isEn ? item.promptEn : item.promptZh,
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: 10),
-          LikertScale(
-            points: 5,
-            value: value,
-            onChanged: onChanged,
-            lowLabel: isEn ? item.lowEn : item.lowZh,
-            highLabel: isEn ? item.highEn : item.highZh,
-          ),
-        ],
+      padding: const EdgeInsets.only(bottom: 14),
+      // Shared card + scale so PPR matches Weekly PR / Brief PR exactly.
+      child: SurveyItemCard(
+        title: isEn ? item.promptEn : item.promptZh,
+        child: LikertScale(
+          points: 5,
+          value: value,
+          onChanged: onChanged,
+          lowLabel: isEn ? item.lowEn : item.lowZh,
+          highLabel: isEn ? item.highEn : item.highZh,
+        ),
       ),
     );
   }

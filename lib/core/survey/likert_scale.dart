@@ -19,8 +19,11 @@ class LikertScale extends StatelessWidget {
 
   final ValueChanged<int> onChanged;
 
-  /// Anchor labels under the low (1) and high ([points]) ends.
+  /// Anchor labels under the low (1) and high ([points]) ends, plus an
+  /// optional midpoint anchor (used by Brief PR's 1–7 items: 完全唔係咁 ·
+  /// 一半半 · 完全係咁).
   final String? lowLabel;
+  final String? midLabel;
   final String? highLabel;
 
   const LikertScale({
@@ -29,6 +32,7 @@ class LikertScale extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.lowLabel,
+    this.midLabel,
     this.highLabel,
   });
 
@@ -49,12 +53,11 @@ class LikertScale extends StatelessWidget {
               ),
           ],
         ),
-        if (lowLabel != null || highLabel != null) ...[
+        if (lowLabel != null || midLabel != null || highLabel != null) ...[
           const SizedBox(height: 6),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Flexible(
+              Expanded(
                 child: Text(
                   lowLabel ?? '',
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -62,7 +65,17 @@ class LikertScale extends StatelessWidget {
                   ),
                 ),
               ),
-              Flexible(
+              if (midLabel != null)
+                Expanded(
+                  child: Text(
+                    midLabel!,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              Expanded(
                 child: Text(
                   highLabel ?? '',
                   textAlign: TextAlign.right,

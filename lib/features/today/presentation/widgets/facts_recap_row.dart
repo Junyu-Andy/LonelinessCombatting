@@ -79,7 +79,12 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
         referenceDate: now,
         userCreatedAt: profile.createdAt,
       );
-      reminWeek = progress.currentWeekIndex;
+      // Show chapters actually COMPLETED, not the calendar week —
+      // currentWeekIndex advances with account age regardless of
+      // whether any session happened, which read as "已經講到第4章"
+      // to a user who hadn't started. Hidden while 0.
+      final done = progress.completedWeeks.length;
+      reminWeek = done > 0 ? done : null;
     } catch (_) {}
 
     if (!mounted) return;
@@ -118,8 +123,8 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
       parts.add(_dot());
       parts.add(_chip(
         text: isEn
-            ? '$name · Ch.${r.reminWeek}'
-            : '$name講到第 ${r.reminWeek} 章',
+            ? '$name · ${r.reminWeek} ch. done'
+            : '同$name講咗 ${r.reminWeek} 章',
       ));
     }
 

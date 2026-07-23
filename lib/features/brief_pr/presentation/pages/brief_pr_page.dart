@@ -15,6 +15,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/survey/likert_scale.dart';
+import '../../../../core/survey/survey_item_card.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/brief_pr_response.dart';
 
@@ -193,45 +195,57 @@ class _BriefPrPageState extends State<BriefPrPage> {
               ),
             ),
             const SizedBox(height: 24),
-            _LikertRow(
-              label: isEn ? '$name understood me.' : '$name 明白我。',
-              leftAnchor: posLeft,
-              midAnchor: posMid,
-              rightAnchor: posRight,
-              value: _understanding,
-              onChanged: (v) => setState(() => _understanding = v),
+            SurveyItemCard(
+              title: isEn ? '$name understood me.' : '$name 明白我。',
+              child: LikertScale(
+                points: 7,
+                value: _understanding,
+                onChanged: (v) => setState(() => _understanding = v),
+                lowLabel: posLeft,
+                midLabel: posMid,
+                highLabel: posRight,
+              ),
             ),
-            const SizedBox(height: 28),
-            _LikertRow(
-              label: isEn ? '$name respected me.' : '$name 尊重我。',
-              leftAnchor: posLeft,
-              midAnchor: posMid,
-              rightAnchor: posRight,
-              value: _validation,
-              onChanged: (v) => setState(() => _validation = v),
+            const SizedBox(height: 14),
+            SurveyItemCard(
+              title: isEn ? '$name respected me.' : '$name 尊重我。',
+              child: LikertScale(
+                points: 7,
+                value: _validation,
+                onChanged: (v) => setState(() => _validation = v),
+                lowLabel: posLeft,
+                midLabel: posMid,
+                highLabel: posRight,
+              ),
             ),
-            const SizedBox(height: 28),
-            _LikertRow(
-              label: isEn ? '$name cared about me.' : '$name 關心我。',
-              leftAnchor: posLeft,
-              midAnchor: posMid,
-              rightAnchor: posRight,
-              value: _caring,
-              onChanged: (v) => setState(() => _caring = v),
+            const SizedBox(height: 14),
+            SurveyItemCard(
+              title: isEn ? '$name cared about me.' : '$name 關心我。',
+              child: LikertScale(
+                points: 7,
+                value: _caring,
+                onChanged: (v) => setState(() => _caring = v),
+                lowLabel: posLeft,
+                midLabel: posMid,
+                highLabel: posRight,
+              ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
             Divider(color: theme.colorScheme.outlineVariant, thickness: 1),
-            const SizedBox(height: 24),
-            _LikertRow(
-              label: isEn
+            const SizedBox(height: 20),
+            SurveyItemCard(
+              title: isEn
                   ? '$name\'s response seemed to miss the point or feel indifferent.'
                   : '$name 嘅回應好似搞錯重點，或者唔在乎。',
-              // S4 is negatively worded; anchors run none → very much.
-              leftAnchor: isEn ? 'Not at all' : '完全唔係咁',
-              midAnchor: isEn ? 'A little' : '有少少',
-              rightAnchor: isEn ? 'Very much' : '好係咁',
-              value: _insensitivity,
-              onChanged: (v) => setState(() => _insensitivity = v),
+              child: LikertScale(
+                points: 7,
+                value: _insensitivity,
+                onChanged: (v) => setState(() => _insensitivity = v),
+                // S4 is negatively worded; anchors run none → very much.
+                lowLabel: isEn ? 'Not at all' : '完全唔係咁',
+                midLabel: isEn ? 'A little' : '有少少',
+                highLabel: isEn ? 'Very much' : '好係咁',
+              ),
             ),
             const SizedBox(height: 36),
             SizedBox(
@@ -263,141 +277,6 @@ class _BriefPrPageState extends State<BriefPrPage> {
               ),
             ],
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// One Brief-PR item: a stem followed by a 1–7 discrete control with the
-/// numbers shown and endpoint/midpoint labels beneath. No default selection.
-class _LikertRow extends StatelessWidget {
-  final String label;
-  final String leftAnchor;
-  final String midAnchor;
-  final String rightAnchor;
-  final int? value;
-  final ValueChanged<int> onChanged;
-
-  const _LikertRow({
-    required this.label,
-    required this.leftAnchor,
-    required this.midAnchor,
-    required this.rightAnchor,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            for (var n = 1; n <= 7; n++) ...[
-              Expanded(
-                child: _NumberStop(
-                  number: n,
-                  selected: value == n,
-                  onTap: () => onChanged(n),
-                ),
-              ),
-              if (n < 7) const SizedBox(width: 6),
-            ],
-          ],
-        ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                leftAnchor,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 13,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                midAnchor,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 13,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                rightAnchor,
-                textAlign: TextAlign.right,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 13,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _NumberStop extends StatelessWidget {
-  final int number;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _NumberStop({
-    required this.number,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: selected ? theme.colorScheme.primary : theme.colorScheme.surface,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          height: 52,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
-              width: selected ? 2 : 1.4,
-            ),
-          ),
-          child: Text(
-            '$number',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              color: selected
-                  ? theme.colorScheme.onPrimary
-                  : theme.colorScheme.onSurface,
-            ),
-          ),
         ),
       ),
     );
