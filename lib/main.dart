@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'app/app.dart';
 import 'app/app_settings.dart';
 import 'core/agent_context/agent_context_service.dart';
+import 'core/connectivity/connectivity_service.dart';
+import 'core/connectivity/persist_retry_queue.dart';
 import 'core/agent_context/shared_context_service.dart';
 import 'core/agents/persona_resolver.dart';
 import 'core/cross_referral/handoff_executor.dart';
@@ -100,6 +102,20 @@ Future<void> main() async {
       analytics.logEvent(event, params);
     },
   );
+
+  // Persistence-failure wiring (core/llm/llm_failure.dart globals):
+  // failed research-critical writes (agent-context transactions above all)
+  // replay when connectivity returns, and every persist failure logs a
+  // release-visible `persist_failed` analytics event.
+  persistRetryQueue = PersistRetryQueue(
+    onStatusChange: ConnectivityService().onStatusChange,
+    telemetry: (event, params) {
+      analytics.logEvent(event, params);
+    },
+  );
+  persistTelemetry = (event, params) {
+    analytics.logEvent(event, params);
+  };
   final agentGreeting = AgentGreetingService(
     llmGateway,
     agentContext: agentContext,

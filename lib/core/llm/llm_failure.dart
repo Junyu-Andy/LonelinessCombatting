@@ -3,6 +3,18 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
+import '../connectivity/persist_retry_queue.dart';
+
+/// Session-wide wiring for the persistence layer, set once in main.dart.
+/// Free-function `persistQuietly` can't take injected dependencies without
+/// threading them through every chat page, so these two live here.
+///
+/// [persistRetryQueue] — replays failed research-critical writes (see
+/// PersistRetryQueue for scope). [persistTelemetry] — release-visible
+/// `persist_failed` events to AnalyticsService.
+PersistRetryQueue? persistRetryQueue;
+void Function(String event, Map<String, dynamic> params)? persistTelemetry;
+
 /// Structured failure taxonomy for the message-send pipeline.
 ///
 /// Motivation (TestFlight incident, 2026-07): every failure mode — expired
@@ -67,12 +79,13 @@ class LlmFailure {
   String get _zh => switch (code) {
         LlmFailureCode.authExpired => '你嘅登入已經過期，請退出再重新登入一次。',
         LlmFailureCode.appCheckRejected => '暫時連接唔到服務，請通知研究團隊幫你檢查。',
-        LlmFailureCode.clientTimeout => '等咗好耐都未有回覆，可能網絡唔穩定，請試多一次。',
+        LlmFailureCode.clientTimeout => '等咗好耐都未有回覆，可能網絡唔穩定，請試多一次。'
+            '（如果你而家喺內地，要開咗 VPN 先連接到。）',
         LlmFailureCode.serverTimeout => '伺服器回應超時，請過一陣再試。',
         LlmFailureCode.upstreamError => '服務暫時出咗問題，請過一陣再試。',
         LlmFailureCode.firestoreDenied => '你嘅帳戶資料讀取唔到，請通知研究團隊幫你檢查。',
-        LlmFailureCode.firestoreUnavailable =>
-          '網絡好似唔穩定，請檢查網絡之後再試。',
+        LlmFailureCode.firestoreUnavailable => '網絡好似唔穩定，請檢查網絡之後再試。'
+            '（如果你而家喺內地，要開咗 VPN 先連接到。）',
         LlmFailureCode.unknown => '出咗啲問題，請再試一次。如果一直都係咁，請通知研究團隊。',
       };
 
@@ -82,7 +95,8 @@ class LlmFailure {
         LlmFailureCode.appCheckRejected =>
           'The app could not reach the service. Please let the research team know.',
         LlmFailureCode.clientTimeout =>
-          'The reply took too long — the network may be unstable. Please try again.',
+          'The reply took too long — the network may be unstable. Please try '
+              'again. (In mainland China the app can only connect via VPN.)',
         LlmFailureCode.serverTimeout =>
           'The server took too long to respond. Please try again shortly.',
         LlmFailureCode.upstreamError =>
@@ -90,7 +104,8 @@ class LlmFailure {
         LlmFailureCode.firestoreDenied =>
           'Your account data could not be read. Please let the research team know.',
         LlmFailureCode.firestoreUnavailable =>
-          'The network seems unstable. Please check your connection and try again.',
+          'The network seems unstable. Please check your connection and try '
+              'again. (In mainland China the app can only connect via VPN.)',
         LlmFailureCode.unknown =>
           'Something went wrong. Please try again — if it keeps happening, '
               'let the research team know.',
@@ -153,15 +168,46 @@ Future<T> guardFirestore<T>(
 
 /// Guarded, non-fatal persistence for writes whose failure must not kill an
 /// otherwise successful turn (transcript/agent-context writes after the
-/// reply is already available). The op still can't hang the send path —
-/// [guardFirestore]'s timeout applies — but its failure is only logged.
+/// reply is already available). The op can't hang the send path (hard
+/// timeout), every failure is reported to [persistTelemetry], and genuinely
+/// failed ops are handed to [persistRetryQueue] for replay.
+///
+/// Retry policy, per failure mode:
+///  - Guard timeout: the op is still in flight — for plain Firestore writes
+///    the SDK keeps it queued and syncs when the network returns, so
+///    replaying here would double-write. Telemetry only.
+///  - permission-denied: rules rejected this account; a replay can't
+///    succeed. Telemetry only.
+///  - Everything else (unavailable, aborted transaction, unexpected):
+///    definitely not committed → enqueue for replay.
 Future<void> persistQuietly(String tag, Future<void> Function() op) async {
-  try {
-    await guardFirestore(op);
-  } on LlmFailureException catch (e) {
+  void report(LlmFailure f) {
     if (kDebugMode) {
-      debugPrint('[$tag] persist failed: '
-          '${e.failure.code.code} ${e.failure.detail ?? ''}');
+      debugPrint('[$tag] persist failed: ${f.code.code} ${f.detail ?? ''}');
     }
+    persistTelemetry?.call('persist_failed', {
+      'tag': tag,
+      'code': f.code.code,
+      if (f.detail != null) 'detail': f.detail,
+    });
+  }
+
+  try {
+    await op().timeout(kFirestoreGuardTimeout);
+  } on TimeoutException {
+    report(const LlmFailure(
+        LlmFailureCode.firestoreUnavailable, 'guard timeout'));
+  } on FirebaseException catch (e) {
+    final denied = e.code == 'permission-denied';
+    report(LlmFailure(
+      denied
+          ? LlmFailureCode.firestoreDenied
+          : LlmFailureCode.firestoreUnavailable,
+      '${e.plugin}/${e.code}',
+    ));
+    if (!denied) persistRetryQueue?.enqueue(tag, op);
+  } catch (e) {
+    report(LlmFailure(LlmFailureCode.unknown, e.toString()));
+    persistRetryQueue?.enqueue(tag, op);
   }
 }
