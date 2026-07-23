@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/survey/likert_scale.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../data/agent_diff_response.dart';
 
@@ -578,8 +579,9 @@ class _PartBView extends StatelessWidget {
   }
 }
 
-/// One companion's 1–5 rating for a single trait: name on the left, five
-/// full-width number buttons filling the rest of the row (no overlap).
+/// One companion's 1–5 rating for a single trait: name above a shared
+/// [LikertScale] (5 dots), so it matches Weekly PR / PPR. Endpoint labels are
+/// omitted here — the trait block header already states 1=唔似 / 5=好似.
 class _AgentRatingRow extends StatelessWidget {
   final String agentLabel;
   final int selected;
@@ -593,58 +595,18 @@ class _AgentRatingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 76,
-          child: Text(
-            agentLabel,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-          ),
+        Text(
+          agentLabel,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Row(
-            children: [
-              for (var rating = 1; rating <= 5; rating++) ...[
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => onRate(rating),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 120),
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: selected == rating
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: selected == rating
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.outline,
-                          width: selected == rating ? 2 : 1.2,
-                        ),
-                      ),
-                      child: Text(
-                        '$rating',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: selected == rating
-                              ? theme.colorScheme.onPrimary
-                              : theme.colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                if (rating < 5) const SizedBox(width: 6),
-              ],
-            ],
-          ),
+        const SizedBox(height: 6),
+        LikertScale(
+          points: 5,
+          value: selected == 0 ? null : selected,
+          onChanged: onRate,
         ),
       ],
     );
