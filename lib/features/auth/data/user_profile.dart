@@ -239,6 +239,12 @@ class UserProfile {
   /// these accounts are excluded from research data downstream.
   final bool isTester;
 
+  /// Baseline UCLA-LS-V3 total (20–80), entered by the researcher on the
+  /// signup form after the pre-onboarding assessment. Drives Phase B
+  /// stratification (with age) and is kept here so analysis has the
+  /// baseline value. Null when not measured (Phase A tolerated).
+  final int? baselineUclaScore;
+
   const UserProfile({
     required this.uid,
     required this.email,
@@ -265,6 +271,7 @@ class UserProfile {
     this.inputMode,
     this.preferredTimes,
     this.isTester = false,
+    this.baselineUclaScore,
   });
 
   /// B.10 — true when the activation timestamp is for the current local day.
@@ -299,6 +306,7 @@ class UserProfile {
     String? inputMode,
     List<String>? preferredTimes,
     bool? isTester,
+    int? baselineUclaScore,
   }) {
     return UserProfile(
       uid: uid,
@@ -329,6 +337,7 @@ class UserProfile {
       inputMode: inputMode ?? this.inputMode,
       preferredTimes: preferredTimes ?? this.preferredTimes,
       isTester: isTester ?? this.isTester,
+      baselineUclaScore: baselineUclaScore ?? this.baselineUclaScore,
     );
   }
 
@@ -364,6 +373,7 @@ class UserProfile {
         'inputMode': inputMode,
         'preferredTimes': preferredTimes,
         'isTester': isTester,
+        'baselineUclaScore': baselineUclaScore,
       };
 
   factory UserProfile.fromMap(String uid, Map<String, dynamic> map) {
@@ -443,6 +453,7 @@ class UserProfile {
       inputMode: map['inputMode'] as String?,
       preferredTimes: (map['preferredTimes'] as List?)?.whereType<String>().toList(),
       isTester: (map['isTester'] as bool?) ?? false,
+      baselineUclaScore: (map['baselineUclaScore'] as num?)?.toInt(),
     );
   }
 }

@@ -28,6 +28,7 @@ class _LoginPageState extends State<LoginPage> {
   final _contactNameCtrl = TextEditingController();
   final _contactPhoneCtrl = TextEditingController();
   final _ageCtrl = TextEditingController();
+  final _uclaCtrl = TextEditingController();
   bool _isSignUp = false;
   bool _busy = false;
   String? _error;
@@ -40,6 +41,7 @@ class _LoginPageState extends State<LoginPage> {
     _contactNameCtrl.dispose();
     _contactPhoneCtrl.dispose();
     _ageCtrl.dispose();
+    _uclaCtrl.dispose();
     super.dispose();
   }
 
@@ -68,6 +70,7 @@ class _LoginPageState extends State<LoginPage> {
               ? null
               : _contactPhoneCtrl.text.trim(),
           preferredLanguage: settings.locale.languageCode,
+          baselineUclaScore: int.tryParse(_uclaCtrl.text.trim()),
         );
         if (mounted) {
           AnalyticsScope.of(context).logAuth('signed_up');
@@ -217,6 +220,51 @@ class _LoginPageState extends State<LoginPage> {
                       final value = (v ?? '').trim();
                       if (value.isEmpty) return isEn ? 'Please enter a phone number.' : '請填寫聯絡電話。';
                       if (value.length < 6) return isEn ? 'Phone number is too short.' : '電話號碼太短。';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  _SectionLabel(
+                    icon: Icons.science_outlined,
+                    text: isEn
+                        ? 'Researcher use only'
+                        : '研究人員填寫（參加者唔使理）',
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isEn
+                        ? 'Baseline UCLA-LS-V3 total from the pre-onboarding '
+                            'assessment. Drives group stratification; leave '
+                            'blank if not measured.'
+                        : '入組前評估嘅 UCLA 孤獨感量表總分。用嚟做分層分組；'
+                            '未做評估可以留空。',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _uclaCtrl,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: isEn
+                          ? 'Baseline UCLA total (20–80)'
+                          : 'UCLA 基線總分（20–80）',
+                      prefixIcon: const Icon(Icons.assignment_outlined),
+                    ),
+                    validator: (v) {
+                      final text = (v ?? '').trim();
+                      if (text.isEmpty) return null; // optional
+                      final n = int.tryParse(text);
+                      if (n == null) {
+                        return isEn ? 'Please enter a number.' : '請輸入數字。';
+                      }
+                      if (n < 20 || n > 80) {
+                        return isEn
+                            ? 'UCLA total must be 20–80.'
+                            : 'UCLA 總分應該喺 20–80 之間。';
+                      }
                       return null;
                     },
                   ),

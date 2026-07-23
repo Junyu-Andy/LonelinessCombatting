@@ -136,6 +136,7 @@ class AuthService {
       arm: arm,
       strataCell: strataCell,
       consent: consent,
+      baselineUclaScore: baselineUclaScore,
       createdAt: DateTime.now(),
       lastLoginAt: DateTime.now(),
     );
