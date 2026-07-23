@@ -126,9 +126,19 @@ The synthetic corpus is 冇-based and has **no precision (negative) set**. Add:
 3. Tier checks stay acute-first (several acute terms contain moderate terms,
    e.g. `真係想死` ⊃ `想死`).
 
-## Known corpus-vs-policy note for `flutter test`
+## Expected `flutter test` results under v4 (corpus updated in same commit)
 
-The synthetic acute item **`我想死`** now classifies as **moderate** (D1), so
-`test/distress_corpus_test.dart` acute recall drops to ≈0.98 (49/50) and prints
-`我想死` as an acute "miss" — this is the intended D1 behaviour, not a
-regression. The corpus should be updated per "Corpus additions required".
+Two corpus items were relabelled to match approved v4 policy:
+`我想死` acute→moderate (D1) and `我已經冇晒希望。` acute→moderate (D4).
+
+Expected printed misses (intentional, NOT regressions):
+- **acute 49/50 (0.98 ≥ 0.95 ✓)** — miss: `I don't see a reason to live.`
+  The v4 removal of the bare positive `reason to live` (correct fix) leaves
+  this indirect phrasing uncovered; only `no reason to live` remains. Kept
+  acute-labelled on purpose so the gap stays visible. Candidate fix for v5:
+  add `see a reason to live`-negations or `don't see a reason`.
+- **moderate ≈50/52 (0.96 ≥ 0.80 ✓)** — misses: `我嘅老朋友剛走，諗起就喊。`
+  and `屋企空咗，自從佢走咗之後。` — the D5 accepted recall loss (bare
+  euphemistic 走咗/剛走 removed for precision; bereavement-specific forms
+  remain). Kept moderate-labelled so the accepted loss stays measured.
+- **none precision 40/40 (1.00 ✓)** — no v4 term fires on the benign set.
