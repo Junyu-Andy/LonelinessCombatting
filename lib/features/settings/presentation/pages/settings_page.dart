@@ -15,7 +15,6 @@ import '../../../my_story/presentation/pages/my_story_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
-import '../../../dev/stt_test_page.dart';
 import '../../../ppr/presentation/pages/ppr_brief_page.dart';
 import '../../../weekly_pr/data/weekly_pr_trigger.dart';
 import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
@@ -325,17 +324,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 onPressed: () => _resetMyData(isEn),
                 icon: const Icon(Icons.restart_alt_rounded, size: 26),
                 label: Text(isEn ? 'Reset my data' : '重置我嘅資料'),
-              ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const SttTestPage()),
-                ),
-                icon: const Icon(Icons.mic_rounded, size: 26),
-                label: Text(isEn ? 'Cantonese STT test' : '粵語語音測試'),
               ),
             ),
             const SizedBox(height: 20),
