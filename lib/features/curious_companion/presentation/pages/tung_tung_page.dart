@@ -24,6 +24,8 @@ import '../../../../core/agent_context/rolling_summary_compiler.dart';
 import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
+import '../../../../core/connectivity/connectivity_service.dart';
+import '../../../../core/connectivity/offline_pending_banner.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
@@ -59,6 +61,12 @@ class _TungTungPageState extends State<TungTungPage> {
   final _voice = VoiceInputController();
   final List<_Turn> _turns = [];
   final DateTime _sessionStartedAt = DateTime.now();
+
+  // Offline resend (auto-send on reconnect).
+  final _connectivity = ConnectivityService();
+  String? _pendingOffline;
+  StreamSubscription<bool>? _connSub;
+
   bool _briefPrSurfaced = false;
   bool _busy = false;
   SearchRepository? _searchRepo;
@@ -82,6 +90,17 @@ class _TungTungPageState extends State<TungTungPage> {
   @override
   void initState() {
     super.initState();
+    _connSub = _connectivity.onStatusChange.listen((online) {
+      if (online && _pendingOffline != null && mounted) _resendPending();
+    });
+  }
+
+  void _resendPending() {
+    final t = _pendingOffline;
+    if (t == null) return;
+    setState(() => _pendingOffline = null);
+    _inputCtrl.text = t;
+    _send();
   }
 
   bool _openerSeeded = false;
@@ -157,6 +176,7 @@ class _TungTungPageState extends State<TungTungPage> {
 
   @override
   void dispose() {
+    _connSub?.cancel();
     _inputCtrl.dispose();
     super.dispose();
   }
@@ -177,6 +197,15 @@ class _TungTungPageState extends State<TungTungPage> {
   Future<void> _sendInner() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
+    if (!await _connectivity.isOnline()) {
+      if (!mounted) return;
+      setState(() {
+        _pendingOffline =
+            _pendingOffline == null ? text : '$_pendingOffline\n$text';
+        _inputCtrl.clear();
+      });
+      return;
+    }
     final isFirstTurn = _turns.isEmpty;
     if (isFirstTurn) {
       await TranscriptConsentPrompter.maybePrompt(
@@ -454,6 +483,8 @@ class _TungTungPageState extends State<TungTungPage> {
                   ],
                 ),
               ),
+              if (_pendingOffline != null)
+                OfflinePendingBanner(text: _pendingOffline!, isEn: isEn),
               _Composer(
                 controller: _inputCtrl,
                 voice: _voice,

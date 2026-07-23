@@ -10,6 +10,7 @@ import '../../../../core/agent_context/shared_context_service.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
+import '../../../../core/connectivity/offline_pending_banner.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/cross_referral/referral_routing_service.dart';
 import '../../../../core/cross_referral/referral_suggestion_card.dart';
@@ -908,7 +909,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
                 ),
               ),
               if (_pendingOffline != null)
-                _OfflinePendingBanner(text: _pendingOffline!, isEn: isEn),
+                OfflinePendingBanner(text: _pendingOffline!, isEn: isEn),
               _Composer(
                 controller: _inputCtrl,
                 voice: _voice,
@@ -1063,43 +1064,6 @@ class _TurnBubble extends StatelessWidget {
           text: turn.text,
           style: TextStyle(fontSize: 17, height: 1.4, color: fg),
         ),
-      ),
-    );
-  }
-}
-
-/// Banner shown while a message typed offline is waiting to auto-send.
-class _OfflinePendingBanner extends StatelessWidget {
-  final String text;
-  final bool isEn;
-  const _OfflinePendingBanner({required this.text, required this.isEn});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      color: theme.colorScheme.tertiaryContainer,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.schedule_rounded,
-              size: 20, color: theme.colorScheme.onTertiaryContainer),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              isEn
-                  ? "You're offline — this will send automatically once you're "
-                      'back online:\n“$text”'
-                  : '你而家離線 —— 上線之後會自動幫你發：\n「$text」',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onTertiaryContainer,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
