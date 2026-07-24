@@ -120,8 +120,23 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
     try {
       ok = await _stt
           .initialize(
-            onError: (_) {
+            onError: (error) {
+              final wasListening = _listening;
+              _warnTimer?.cancel();
               if (mounted) setState(() => _listening = false);
+              // A network error during (cloud) recognition is the one
+              // failure an elder can't see the cause of — the mic just
+              // stops. Surface it, and reassure that whatever was already
+              // transcribed stays in the field. Other error kinds
+              // (no-match, speech-timeout) are handled by the onStatus
+              // auto-stopped path, so we don't double-notify here.
+              if (wasListening &&
+                  !_userStopped &&
+                  !_suppressResults &&
+                  mounted &&
+                  error.errorMsg.contains('network')) {
+                _showNetworkLostNotice();
+              }
             },
             onStatus: (status) {
               if (status == 'notListening' || status == 'done') {
@@ -284,6 +299,24 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
             ? 'Listening paused — what you said is already in the box. Tap '
                 'the mic to keep going.'
             : '收音停咗，你講嘅嘢已經寫低咗喺框入面。想繼續講，再撳一下個咪。'),
+        duration: const Duration(seconds: 5),
+      ));
+  }
+
+  /// Shown when the recogniser stops because the network dropped mid-way
+  /// (cloud recognition needs a live connection). Reassures the user their
+  /// words so far are kept.
+  void _showNetworkLostNotice() {
+    if (!mounted) return;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(isEn
+            ? 'The network dropped, so voice input stopped. What you already '
+                'said is kept in the box. Try again once you are back online.'
+            : '網絡斷咗，收音停咗。你頭先講嘅嘢已經寫低咗喺框入面。'
+                '等網絡返嚟，再撳個咪試多次。'),
         duration: const Duration(seconds: 5),
       ));
   }
