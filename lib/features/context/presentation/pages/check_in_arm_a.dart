@@ -370,9 +370,23 @@ class _CheckInArmAState extends State<CheckInArmA> {
 
   /// Re-send the message queued while offline through the normal path
   /// (which adds the user turn + calls the LLM), now that we're online.
-  void _resendPending() {
+  Future<void> _resendPending() async {
     final t = _pendingOffline;
     if (t == null) return;
+    // connectivity_plus can emit "online" a beat before checkConnectivity()
+    // settles on iOS (right after airplane mode is turned off). Resending on
+    // that first event, _sendInner's own isOnline() re-check can still read
+    // offline and re-stash the message — stranding it until the next toggle.
+    // Confirm the interface has actually settled online before resending.
+    var online = false;
+    for (var i = 0; i < 6; i++) {
+      if (await _connectivity.isOnline()) {
+        online = true;
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    }
+    if (!online || !mounted || _pendingOffline == null) return;
     setState(() => _pendingOffline = null);
     _inputCtrl.text = t;
     _send();
