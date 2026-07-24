@@ -942,7 +942,10 @@ class _AddPersonButton extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(isEn ? 'Add a person' : '加一個人', style: const TextStyle(fontSize: 18)),
-        content: Column(
+        // Scrollable so three fields + the keyboard at elderly font
+        // scales can't bottom-overflow the dialog.
+        content: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
@@ -974,6 +977,7 @@ class _AddPersonButton extends StatelessWidget {
               style: const TextStyle(fontSize: 17),
             ),
           ],
+          ),
         ),
         actions: [
           TextButton(
@@ -994,9 +998,13 @@ class _AddPersonButton extends StatelessWidget {
         ],
       ),
     );
-    nameCtrl.dispose();
-    relCtrl.dispose();
-    extraCtrl.dispose();
+    // Deliberately NOT disposing the three controllers here: showDialog's
+    // future completes while the dialog's exit animation is still running,
+    // so the TextFields are still listening and disposing now throws
+    // "_dependents.isEmpty is not true". The controllers are method-locals
+    // referenced only by the dialog subtree — once the route is disposed
+    // they're unreachable and GC'd; the leak-lint trade is worth the
+    // stability.
     if (result != null) onAdd(result);
   }
 }

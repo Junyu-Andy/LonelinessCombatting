@@ -31,12 +31,12 @@ class ConsentPage extends StatefulWidget {
 }
 
 class _ConsentPageState extends State<ConsentPage> {
-  bool _functional = false;
   bool _busy = false;
 
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final theme = Theme.of(context);
     return SafetyOverlaySuppressor(
       child: Scaffold(
       appBar: AppBar(
@@ -47,27 +47,57 @@ class _ConsentPageState extends State<ConsentPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
           children: [
-            _BoundaryCard(isEn: isEn),
-            const SizedBox(height: 16),
-            _DataSummaryCard(isEn: isEn),
-            const SizedBox(height: 20),
-            _ConsentTile(
-              required: true,
-              value: _functional,
-              onChanged: (v) => setState(() => _functional = v),
-              title: isEn
-                  ? 'Functional data (required)'
-                  : '基本功能數據（必須）',
-              detail: isEn
-                  ? 'Daily mood scores, completed actions, and reminder '
-                      'times are stored under your account so the app can '
-                      'function.'
-                  : '每日心情分數、已完成的小行動、以及提醒時間，'
-                      '會儲存於您的帳戶之內，以維持應用程式正常運作。',
+            // 2026-07 simplification: the in-app data-consent tiles
+            // (functional data / data summary) duplicated what the signed
+            // HREC consent form already covers, and asked elders to
+            // re-decide something they'd just signed. This page now only
+            // (1) states the research purpose plainly and (2) keeps the
+            // system-boundary disclosure. Consent flags are set on 繼續
+            // (paper consent is the authority; transcript kill-switch
+            // stays in Settings → Privacy).
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.school_outlined,
+                            size: 26, color: theme.colorScheme.primary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            isEn ? 'A research study' : '呢個係一項研究',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      isEn
+                          ? 'This app is part of a University of Hong Kong '
+                              'research study. Your use of the app supports '
+                              'the research you agreed to in the consent '
+                              'form you signed — how your information is '
+                              'used is described there.'
+                          : '呢個 app 係香港大學一項研究嘅一部分。'
+                              '你用 app 嘅過程會用於你喺已簽署嘅同意書入面'
+                              '同意咗嘅研究；資料點樣使用，同意書已經講明。',
+                      style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+                    ),
+                  ],
+                ),
+              ),
             ),
+            const SizedBox(height: 16),
+            _BoundaryCard(isEn: isEn),
             const SizedBox(height: 20),
             FilledButton(
-              onPressed: _functional && !_busy ? _accept : null,
+              onPressed: _busy ? null : _accept,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Text(
@@ -92,7 +122,8 @@ class _ConsentPageState extends State<ConsentPage> {
     setState(() => _busy = true);
     final updated = profile.copyWith(
       consent: ConsentFlags(
-        functionalData: _functional,
+        // Paper HREC consent is the authority; tapping 繼續 records it.
+        functionalData: true,
         // P3.3: transcript retention defaults ON; the user reaches the
         // kill-switch in Settings → Privacy.
         transcriptRetention: true,
@@ -155,31 +186,6 @@ class _BoundaryCard extends StatelessWidget {
   }
 }
 
-/// Concise data-handling summary. The detailed informed-consent for
-/// conversation retention is collected on paper alongside this app
-/// (May-2026 review decision), so the in-app copy names only what
-/// the participant needs to know to use the tool.
-class _DataSummaryCard extends StatelessWidget {
-  final bool isEn;
-  const _DataSummaryCard({required this.isEn});
-
-  @override
-  Widget build(BuildContext context) {
-    return _InfoTile(
-      icon: Icons.lock_outline,
-      title: isEn ? 'Data handling' : '資料處理',
-      detail: isEn
-          ? 'Basic functional data (mood scores, completed actions, '
-              'reminder times) is stored under your account so the app '
-              'can work. Details on conversation retention appear in '
-              'the printed consent form you signed with the research team.'
-          : '基本功能數據（心情分數、已完成的小行動、提醒時間）'
-              '會儲存於您的帳戶之內，以維持應用程式運作。'
-              '有關對話記錄保留嘅詳情，請參閱您同研究團隊簽署嘅紙本知情同意書。',
-    );
-  }
-}
-
 /// Footer pointing the participant to the formal consent form and the
 /// study contact email.
 class _ContactFooter extends StatelessWidget {
@@ -205,101 +211,3 @@ class _ContactFooter extends StatelessWidget {
   }
 }
 
-class _InfoTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String detail;
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    required this.detail,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 28, color: theme.colorScheme.primary),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 6),
-                  Text(
-                    detail,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ConsentTile extends StatelessWidget {
-  final bool required;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  final String title;
-  final String detail;
-
-  const _ConsentTile({
-    required this.required,
-    required this.value,
-    required this.onChanged,
-    required this.title,
-    required this.detail,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () => onChanged(!value),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Switch(
-                value: value,
-                onChanged: onChanged,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 6),
-                    Text(detail,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          height: 1.4,
-                        )),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
