@@ -18,6 +18,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -179,6 +180,25 @@ class _IntakeFlowPageState extends State<IntakeFlowPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Debug-build-only slim bar with a sign-out escape so testers aren't
+      // forced through the full 10-15min intake. Absent in release builds.
+      appBar: !kDebugMode
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              toolbarHeight: 40,
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    final auth = AuthServiceScope.of(context);
+                    final settings = AppSettingsScope.read(context);
+                    await auth.signOut();
+                    settings.profile = null;
+                  },
+                  child: const Text('登出(測試)'),
+                ),
+              ],
+            ),
       body: SafeArea(
         child: PageView(
           controller: _pageController,
