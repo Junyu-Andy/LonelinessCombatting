@@ -19,6 +19,7 @@ library;
 
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -181,6 +182,30 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
       appBar: AppBar(
         title: Text(isEn ? 'Meet the three of us' : '介紹三個夥伴'),
         automaticallyImplyLeading: false,
+        actions: [
+          // Debug-build-only escape hatch: testers running via `flutter run`
+          // can bail out of onboarding without walking the whole flow.
+          // Invisible in release/TestFlight, so participants can't exit.
+          if (kDebugMode)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: TextButton(
+                onPressed: () async {
+                  final auth = AuthServiceScope.of(context);
+                  final settings = AppSettingsScope.read(context);
+                  await auth.signOut();
+                  settings.profile = null;
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: theme.colorScheme.onSurfaceVariant,
+                ),
+                child: const Text('登出', style: TextStyle(fontSize: 12)),
+              ),
+            ),
+        ],
       ),
       body: SafeArea(
         child: Column(

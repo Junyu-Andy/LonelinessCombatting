@@ -18,6 +18,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -179,6 +180,37 @@ class _IntakeFlowPageState extends State<IntakeFlowPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Debug-build-only slim bar with a sign-out escape so testers aren't
+      // forced through the full 10-15min intake. Absent in release builds.
+      appBar: !kDebugMode
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              toolbarHeight: 34,
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: TextButton(
+                    onPressed: () async {
+                      final auth = AuthServiceScope.of(context);
+                      final settings = AppSettingsScope.read(context);
+                      await auth.signOut();
+                      settings.profile = null;
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor:
+                          Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    // Tester-only escape; kept tiny so it never crowds the
+                    // page content on small (iPhone mini/SE) screens.
+                    child: const Text('登出', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+              ],
+            ),
       body: SafeArea(
         child: PageView(
           controller: _pageController,
@@ -942,7 +974,10 @@ class _AddPersonButton extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(isEn ? 'Add a person' : '加一個人', style: const TextStyle(fontSize: 18)),
-        content: Column(
+        // Scrollable so three fields + the keyboard at elderly font
+        // scales can't bottom-overflow the dialog.
+        content: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
@@ -974,6 +1009,7 @@ class _AddPersonButton extends StatelessWidget {
               style: const TextStyle(fontSize: 17),
             ),
           ],
+          ),
         ),
         actions: [
           TextButton(
@@ -994,9 +1030,13 @@ class _AddPersonButton extends StatelessWidget {
         ],
       ),
     );
-    nameCtrl.dispose();
-    relCtrl.dispose();
-    extraCtrl.dispose();
+    // Deliberately NOT disposing the three controllers here: showDialog's
+    // future completes while the dialog's exit animation is still running,
+    // so the TextFields are still listening and disposing now throws
+    // "_dependents.isEmpty is not true". The controllers are method-locals
+    // referenced only by the dialog subtree — once the route is disposed
+    // they're unreachable and GC'd; the leak-lint trade is worth the
+    // stability.
     if (result != null) onAdd(result);
   }
 }

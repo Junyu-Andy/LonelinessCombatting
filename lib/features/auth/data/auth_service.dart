@@ -321,10 +321,36 @@ String describeAuthError(Object error, {bool isEn = false}) {
             ? 'Password is too simple — please make it longer.'
             : '密碼太簡單，請長啲。';
       case 'network-request-failed':
+      case 'unavailable':
+      case 'timeout':
+      case 'deadline-exceeded':
+        // The backend (Firebase / Google Cloud) is unreachable. In most
+        // networks this is transient, but on a restricted network the
+        // server may be unreachable entirely — surface the concrete
+        // recovery steps rather than a vague "try again".
         return isEn
-            ? 'Network is unstable. Please try again.'
-            : '網絡唔穩，請再試。';
+            ? 'Cannot reach the server right now. Please check your '
+                'connection and try again. If it keeps failing, switch '
+                'network (e.g. mobile data), turn on a VPN, or try a '
+                'different network provider.'
+            : '暫時連唔到伺服器。請檢查網絡再試。如果一直都連唔到，'
+                '可以換個網絡（例如轉用流動數據）、開 VPN，'
+                '或者換另一間網絡供應商。';
     }
+  }
+  // Firestore/Cloud errors sometimes arrive as a generic FirebaseException
+  // (not FirebaseAuthException) with a network-ish code — treat the same
+  // reachability codes identically so login never fails silently.
+  if (error is FirebaseException &&
+      const {'unavailable', 'deadline-exceeded', 'timeout'}
+          .contains(error.code)) {
+    return isEn
+        ? 'Cannot reach the server right now. Please check your connection '
+            'and try again. If it keeps failing, switch network (e.g. mobile '
+            'data), turn on a VPN, or try a different network provider.'
+        : '暫時連唔到伺服器。請檢查網絡再試。如果一直都連唔到，'
+            '可以換個網絡（例如轉用流動數據）、開 VPN，'
+            '或者換另一間網絡供應商。';
   }
   if (kDebugMode) {
     return 'Auth failed: $error';

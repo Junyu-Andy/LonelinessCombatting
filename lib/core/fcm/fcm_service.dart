@@ -17,6 +17,8 @@
 /// receive pushes for a signed-out account.
 library;
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -34,6 +36,7 @@ class FcmService {
 
   String? _currentUid;
   String? _installationId;
+  StreamSubscription<String>? _tokenRefreshSub;
 
   /// Initialize FCM for [uid].  Safe to call repeatedly — re-calling with the
   /// same uid is a no-op; calling with a different uid re-registers.
@@ -46,17 +49,29 @@ class FcmService {
     // iOS requires explicit permission; Android 13+ also needs it.
     // We request here without forcing the system prompt — callers should
     // have already shown an in-app explanation before calling initialize.
-    await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-    );
+    try {
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('[fcm] requestPermission failed: $e');
+    }
 
     // Get a stable installation identifier to use as the Firestore doc key.
     // FirebaseMessaging.getToken() returns a device+app-scoped token; we hash
     // it to get a stable short key that survives token rotation.
-    final token = await messaging.getToken();
+    // On iOS builds without APNs configured (e.g. dev provisioning before
+    // the push entitlement is set up) this throws
+    // [firebase_messaging/apns-token-not-set] — push simply stays off.
+    String? token;
+    try {
+      token = await messaging.getToken();
+    } catch (e) {
+      if (kDebugMode) debugPrint('[fcm] getToken failed: $e');
+    }
     if (token != null) {
       _installationId = _shortId(token);
       await _storeToken(uid, token);
@@ -74,8 +89,9 @@ class FcmService {
       }
     }
 
-    // Keep the stored token current across rotations.
-    messaging.onTokenRefresh.listen((newToken) async {
+    // Keep the stored token current across rotations. Guarded so repeated
+    // initialize() calls don't stack duplicate listeners.
+    _tokenRefreshSub ??= messaging.onTokenRefresh.listen((newToken) async {
       _installationId = _shortId(newToken);
       if (_currentUid != null) {
         await _storeToken(_currentUid!, newToken);
