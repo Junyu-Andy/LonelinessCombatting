@@ -187,14 +187,23 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
           // can bail out of onboarding without walking the whole flow.
           // Invisible in release/TestFlight, so participants can't exit.
           if (kDebugMode)
-            TextButton(
-              onPressed: () async {
-                final auth = AuthServiceScope.of(context);
-                final settings = AppSettingsScope.read(context);
-                await auth.signOut();
-                settings.profile = null;
-              },
-              child: const Text('登出(測試)'),
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: TextButton(
+                onPressed: () async {
+                  final auth = AuthServiceScope.of(context);
+                  final settings = AppSettingsScope.read(context);
+                  await auth.signOut();
+                  settings.profile = null;
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: theme.colorScheme.onSurfaceVariant,
+                ),
+                child: const Text('登出', style: TextStyle(fontSize: 12)),
+              ),
             ),
         ],
       ),

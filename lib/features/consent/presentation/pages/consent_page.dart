@@ -68,7 +68,7 @@ class _ConsentPageState extends State<ConsentPage> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            isEn ? 'A research study' : '呢個係一項研究',
+                            isEn ? 'Research use' : '研究用途',
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
@@ -79,14 +79,13 @@ class _ConsentPageState extends State<ConsentPage> {
                     const SizedBox(height: 10),
                     Text(
                       isEn
-                          ? 'This app is part of a University of Hong Kong '
-                              'research study. Your use of the app supports '
-                              'the research you agreed to in the consent '
-                              'form you signed — how your information is '
-                              'used is described there.'
-                          : '呢個 app 係香港大學一項研究嘅一部分。'
-                              '你用 app 嘅過程會用於你喺已簽署嘅同意書入面'
-                              '同意咗嘅研究；資料點樣使用，同意書已經講明。',
+                          ? 'This application forms part of a University of '
+                              'Hong Kong research study, and is not a product '
+                              'for personal use. Your use of the application '
+                              'falls within the scope of this study.'
+                          : '本應用程式屬香港大學一項研究之一部分，'
+                              '並非供個人用途之產品。閣下使用本應用程式之過程，'
+                              '均屬是項研究之範圍。',
                       style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
                     ),
                   ],
@@ -201,10 +200,8 @@ class _ContactFooter extends StatelessWidget {
     );
     return Text(
       isEn
-          ? 'Further details are set out in the Research Informed Consent '
-              'Form. For enquiries, please contact zhaojyxs@connect.hku.hk.'
-          : '詳細內容請參閱《研究知情同意書》。'
-              '如有疑問，請電郵 zhaojyxs@connect.hku.hk。',
+          ? 'Further details are set out in the Informed Consent Form.'
+          : '詳情請參閱《知情同意書》。',
       style: style,
       textAlign: TextAlign.center,
     );

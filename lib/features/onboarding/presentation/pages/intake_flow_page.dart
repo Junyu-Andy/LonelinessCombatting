@@ -186,16 +186,28 @@ class _IntakeFlowPageState extends State<IntakeFlowPage> {
           ? null
           : AppBar(
               automaticallyImplyLeading: false,
-              toolbarHeight: 40,
+              toolbarHeight: 34,
               actions: [
-                TextButton(
-                  onPressed: () async {
-                    final auth = AuthServiceScope.of(context);
-                    final settings = AppSettingsScope.read(context);
-                    await auth.signOut();
-                    settings.profile = null;
-                  },
-                  child: const Text('登出(測試)'),
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: TextButton(
+                    onPressed: () async {
+                      final auth = AuthServiceScope.of(context);
+                      final settings = AppSettingsScope.read(context);
+                      await auth.signOut();
+                      settings.profile = null;
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor:
+                          Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    // Tester-only escape; kept tiny so it never crowds the
+                    // page content on small (iPhone mini/SE) screens.
+                    child: const Text('登出', style: TextStyle(fontSize: 12)),
+                  ),
                 ),
               ],
             ),
