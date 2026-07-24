@@ -27,7 +27,9 @@ class PersonalizationPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.contextTab),
+        title: Text(Localizations.localeOf(context).languageCode == 'en'
+            ? 'My profile'
+            : '個人資料'),
         toolbarHeight: 64,
       ),
       body: SafeArea(

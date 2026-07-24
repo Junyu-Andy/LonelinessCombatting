@@ -101,11 +101,30 @@ class AuthService {
     );
     final user = credential.user!;
     await user.updateDisplayName(displayName);
-    final assignment = await _armAssigner.assign(
-      _db,
-      ageGroup: ageGroup,
-      uclaScore: baselineUclaScore,
-    );
+    // Arm assignment must NEVER block account creation: the assignment
+    // transaction writes meta/arm_counter, and a rules problem there
+    // (e.g. the bare-map-key bug that shipped in the 7/21 rules deploy)
+    // used to make EVERY new registration throw after the Auth user was
+    // already created — leaving an account that could never sign in.
+    // On failure we create the profile with arm=null; the backfill in
+    // _loadOrCreateProfile retries on a later login, and Phase A forces
+    // Arm A in the UI regardless.
+    ArmAssignment? arm;
+    int? strataCell;
+    try {
+      final assignment = await _armAssigner.assign(
+        _db,
+        ageGroup: ageGroup,
+        uclaScore: baselineUclaScore,
+      );
+      arm = assignment.arm;
+      strataCell = assignment.cell;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[auth] arm assignment failed at signup '
+            '(will backfill later): $e');
+      }
+    }
     final profile = UserProfile(
       uid: user.uid,
       email: user.email ?? email.trim(),
@@ -114,9 +133,10 @@ class AuthService {
       emergencyContactName: emergencyContactName,
       emergencyContactPhone: emergencyContactPhone,
       preferredLanguage: preferredLanguage,
-      arm: assignment.arm,
-      strataCell: assignment.cell,
+      arm: arm,
+      strataCell: strataCell,
       consent: consent,
+      baselineUclaScore: baselineUclaScore,
       createdAt: DateTime.now(),
       lastLoginAt: DateTime.now(),
     );
@@ -186,17 +206,28 @@ class AuthService {
 
     if (doc.exists) {
       final existing = UserProfile.fromMap(user.uid, doc.data() ?? {});
-      // Backfill arm for accounts created before randomisation went live.
+      // Backfill arm for accounts created before randomisation went live
+      // (or whose signup-time assignment failed). Best-effort: a broken
+      // arm_counter rule must not lock the user out of sign-in — the
+      // backfill simply retries on the next login.
       if (existing.arm == null) {
-        final result = await _armAssigner.assign(_db,
-            ageGroup: existing.ageGroup);
-        final patched = existing.copyWith(
-            arm: result.arm, strataCell: result.cell);
-        await ref.set({
-          'arm': result.arm.code,
-          'strataCell': result.cell,
-        }, SetOptions(merge: true));
-        return patched;
+        try {
+          final result = await _armAssigner.assign(_db,
+              ageGroup: existing.ageGroup);
+          final patched = existing.copyWith(
+              arm: result.arm, strataCell: result.cell);
+          await ref.set({
+            'arm': result.arm.code,
+            'strataCell': result.cell,
+          }, SetOptions(merge: true));
+          return patched;
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('[auth] arm backfill failed '
+                '(sign-in continues, retries next login): $e');
+          }
+          return existing;
+        }
       }
       return existing;
     }
@@ -254,9 +285,14 @@ String describeAuthError(Object error, {bool isEn = false}) {
     if (error.emailRegistered) {
       return isEn ? 'The password is incorrect.' : '密碼唔啱。';
     }
+    // fetchSignInMethodsForEmail returns [] in modern SDKs even for
+    // registered emails, so an empty result is NOT proof the email is
+    // unregistered — use the honest merged wording instead of wrongly
+    // telling an existing user they never signed up.
     return isEn
-        ? "This email isn't registered yet. Tap \"Create account\" below."
-        : '呢個電郵仲未註冊。請撳下面「建立帳號」。';
+        ? 'Email or password is incorrect. If you don\'t have an account '
+            'yet, tap "Create account" below.'
+        : '電郵或密碼唔啱。如果你仲未註冊，可以撳下面「建立帳號」。';
   }
   if (error is FirebaseAuthException) {
     switch (error.code) {

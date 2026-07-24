@@ -20,6 +20,7 @@ import '../../../../core/memory/cross_module_memory.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
+import '../../../../shared/widgets/composer_send_button.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
@@ -1069,17 +1070,15 @@ class _Composer extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: busy
-                  ? null
-                  : () async {
+            ComposerSendButton(
+                  onPressed: busy
+                      ? null
+                      : () async {
                       // B03 — stop dictation before snapshot + clear.
                       await voice.stopForSend();
                       onSend();
                     },
-              icon: const Icon(Icons.arrow_upward_rounded),
-              iconSize: 28,
-            ),
+                ),
           ],
         ),
       ),

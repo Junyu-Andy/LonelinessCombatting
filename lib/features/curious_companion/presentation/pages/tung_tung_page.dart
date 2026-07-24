@@ -32,6 +32,7 @@ import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
+import '../../../../shared/widgets/composer_send_button.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
@@ -924,7 +925,7 @@ class _Composer extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton.filled(
+                ComposerSendButton(
                   onPressed: busy
                       ? null
                       : () async {
@@ -933,8 +934,6 @@ class _Composer extends StatelessWidget {
                           await voice.stopForSend();
                           await onSend();
                         },
-                  icon: const Icon(Icons.arrow_upward_rounded),
-                  iconSize: 28,
                 ),
               ],
             ),

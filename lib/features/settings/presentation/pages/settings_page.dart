@@ -10,7 +10,6 @@ import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import '../../../personalization/presentation/pages/personalization_page.dart';
-import '../../../progress/presentation/pages/progress_page.dart';
 import '../../../my_story/presentation/pages/my_story_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
@@ -18,8 +17,7 @@ import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
 import '../../../ppr/presentation/pages/ppr_brief_page.dart';
 import '../../../weekly_pr/data/weekly_pr_trigger.dart';
 import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
-import 'faq_page.dart';
-import 'privacy_policy_page.dart';
+import 'support_about_page.dart';
 
 enum _AppLanguage { cantonese, english }
 
@@ -63,19 +61,54 @@ class _SettingsPageState extends State<SettingsPage> {
           //   · 我的紀錄 (Progress)
           //   · 我的資料 (Profile / Personalization)
           //   · 緊急支援 (Emergency support)
+          // 2026-07 IA cleanup: 「關於我」grab-bag split into 個人資料
+          // (who I am) and 反饋／問卷 (research instruments); the weekly
+          // recap tile removed (你嘅一個禮拜 lives behind Today's 進度
+          // shortcut). 人生回顧 stays here TEMPORARILY pending its new
+          // home (likely 搵人傾) — removing it now would orphan M3.
           const SizedBox(height: 24),
           _SectionHeader(
             icon: Icons.person_outline,
-            title: isEn ? 'About me' : '關於我',
+            title: isEn ? 'My profile' : '個人資料',
           ),
           const SizedBox(height: 10),
           _NavTileCard(
-            icon: Icons.bar_chart_outlined,
-            title: l10n.meItemProgress,
-            subtitle: l10n.meItemProgressSubtitle,
+            icon: Icons.account_circle_outlined,
+            title: isEn ? 'My profile' : '個人資料',
+            subtitle: l10n.meItemProfileSubtitle,
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const ProgressPage()),
+              MaterialPageRoute<void>(
+                builder: (_) => const PersonalizationPage(),
+              ),
             ),
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.support_outlined,
+            title: l10n.meItemCrisis,
+            subtitle: l10n.meItemCrisisSubtitle,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const EmergencySupportPage(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavTileCard(
+            icon: Icons.menu_book_outlined,
+            title: isEn ? 'Life-review progress' : '人生回顧',
+            subtitle: isEn
+                ? 'Take your time — skip anything you\'d rather not discuss.'
+                : '慢慢嚟，可以跳過唔想講嘅時期。',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const MyStoryPage()),
+            ),
+          ),
+
+          const SizedBox(height: 28),
+          _SectionHeader(
+            icon: Icons.fact_check_outlined,
+            title: isEn ? 'Feedback & surveys' : '反饋／問卷',
           ),
           const SizedBox(height: 10),
           _NavTileCard(
@@ -98,51 +131,6 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => const AgentDiffPage(wave: 2),
-              ),
-            ),
-          ),
-          // Weekly companion review entry deferred per product —
-          // re-add the _NavTileCard here when the weekly PR instrument
-          // is ready to ship.
-          const SizedBox(height: 10),
-          // 人生回顧 — index into the 4-week Ah Jan/Ah Bak curriculum +
-          // story threads.  The reminiscence sessions themselves live
-          // under 搵人傾 → Ah Jan/Ah Bak; this entry is the read-only
-          // overview (週、主題、past summaries) the IA used to surface
-          // as the standalone "人生點滴" tab before the four-tab restructure.
-          // Research Review v2 Item 6: title swappable — research recommends
-          // "我嘅故事" if this is NOT a full clinical life-review curriculum.
-          // Current: "人生回顧" (formal); alt key: lifeReviewAltTitle = "我嘅故事".
-          // Sub-text added per Item 6 spec.
-          _NavTileCard(
-            icon: Icons.menu_book_outlined,
-            title: isEn ? 'Life-review progress' : '人生回顧',
-            subtitle: isEn
-                ? 'Take your time — skip anything you\'d rather not discuss.'
-                : '慢慢嚟，可以跳過唔想講嘅時期。',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const MyStoryPage()),
-            ),
-          ),
-          const SizedBox(height: 10),
-          _NavTileCard(
-            icon: Icons.account_circle_outlined,
-            title: l10n.meItemProfile,
-            subtitle: l10n.meItemProfileSubtitle,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const PersonalizationPage(),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          _NavTileCard(
-            icon: Icons.support_outlined,
-            title: l10n.meItemCrisis,
-            subtitle: l10n.meItemCrisisSubtitle,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const EmergencySupportPage(),
               ),
             ),
           ),
@@ -256,35 +244,18 @@ class _SettingsPageState extends State<SettingsPage> {
             title: isEn ? 'About & Support' : '關於同支援',
           ),
           const SizedBox(height: 14),
-          _AboutCard(version: '1.0.0 demo', isEn: isEn),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const FaqPage(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.help_outline_rounded, size: 26),
-              label: Text(isEn ? 'FAQ' : '常見問題'),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const PrivacyPolicyPage(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.policy_outlined, size: 26),
-              label: Text(isEn ? 'Privacy Policy' : '私隱政策'),
+          // App info + FAQ + privacy nested one level down so the 自己
+          // tab stops scrolling forever (2026-07 IA cleanup).
+          _NavTileCard(
+            icon: Icons.help_outline_rounded,
+            title: isEn ? 'About, FAQ & privacy' : '關於本App／常見問題／私隱',
+            subtitle: isEn
+                ? 'Version info, common questions, privacy policy'
+                : '版本資料、常見問題、私隱政策',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const SupportAboutPage(version: '1.0.0+3'),
+              ),
             ),
           ),
           // Research section deferred per product — weekly PPR and the
@@ -741,106 +712,6 @@ class _BoundaryCard extends StatelessWidget {
   }
 }
 
-class _AboutCard extends StatelessWidget {
-  final String version;
-  final bool isEn;
-
-  const _AboutCard({required this.version, required this.isEn});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context)!;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.favorite,
-                  size: 26,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  l10n.appTitle,
-                  style: theme.textTheme.titleMedium,
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              isEn
-                  ? 'This demo shows how a simple structure can help older adults gently face loneliness.'
-                  : '呢個 demo 目的係展示點樣用簡單嘅結構，陪長者一齊面對孤獨感。',
-              style: theme.textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF4E5),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF8A1538), width: 1.5),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF8A1538),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Text(
-                      'HKU',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      '由香港大學數據及系統工程學系開發\nHKU Department of Data and Systems Engineering',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF6B0F2A),
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  Icons.verified_outlined,
-                  size: 22,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  isEn ? 'Version: $version' : '版本：$version',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _ProfileCard extends StatelessWidget {
   final UserProfile profile;
