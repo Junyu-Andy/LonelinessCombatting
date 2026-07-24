@@ -76,6 +76,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   String? _lastFcmUid;
   final ScreenDwellObserver _dwellObserver = ScreenDwellObserver();
 
+  // One analytics session per foreground stretch. iOS fires several
+  // lifecycle states per background transition (inactive → hidden →
+  // paused), so without this flag one backgrounding logged 3–4
+  // session_end events.
+  bool _sessionOpen = false;
+  DateTime _sessionStartedAt = DateTime.now();
+
   @override
   void initState() {
     super.initState();
@@ -83,6 +90,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     widget.settings.addListener(_onSettingsChange);
     _onSettingsChange();
     ScreenDwellTracker.instance.bind(widget.analytics);
+    _sessionOpen = true;
+    _sessionStartedAt = DateTime.now();
     widget.analytics.logSessionStart(platform: _currentPlatform());
   }
 
@@ -118,17 +127,29 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        widget.analytics.logSessionStart(platform: _currentPlatform());
+        if (!_sessionOpen) {
+          _sessionOpen = true;
+          _sessionStartedAt = DateTime.now();
+          widget.analytics.logSessionStart(platform: _currentPlatform());
+        }
         break;
       case AppLifecycleState.inactive:
+        // Transient — fires for system dialogs (mic permission, app
+        // switcher peek) without the app actually leaving the
+        // foreground. Not a session boundary.
+        break;
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
         ScreenDwellTracker.instance.backgroundAll();
-        widget.analytics.logSessionEnd(
-          durationSeconds: 0,
-          exitReason: 'background',
-        );
+        if (_sessionOpen) {
+          _sessionOpen = false;
+          widget.analytics.logSessionEnd(
+            durationSeconds:
+                DateTime.now().difference(_sessionStartedAt).inSeconds,
+            exitReason: 'background',
+          );
+        }
         break;
     }
   }
