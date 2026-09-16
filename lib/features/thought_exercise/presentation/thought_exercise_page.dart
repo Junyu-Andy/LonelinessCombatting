@@ -10,6 +10,8 @@
 /// (Phase A Proposal §2.3, Product Overview §5.2).
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../app/app_settings_scope.dart';
@@ -17,6 +19,7 @@ import '../../../core/survey/likert_scale.dart';
 import '../../analytics/presentation/analytics_scope.dart';
 import '../../auth/presentation/auth_service_scope.dart';
 import '../data/thought_exercise_entry.dart';
+import '../../../core/session/chat_session_recorder.dart';
 
 class ThoughtExercisePage extends StatefulWidget {
   /// Pre-fill for Field 3 when launched from Siu Yan's offer pathway.
@@ -168,13 +171,36 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
       intensityAfter: _intensityAfter!,
     );
     if (!mounted) return;
+    // L-1 — te_module_complete (entry saved + exit re-rating done).
+    unawaited(AnalyticsScope.of(context).logEvent(PhaseAEvents.teModuleComplete, {
+      'entryId': _entryId,
+      'entryPathway': widget.agentId != null ? 'siu_yan_offer' : 'me_tile',
+    }));
     Navigator.of(context).pop();
+  }
+
+  bool _openLogged = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_openLogged) return;
+    _openLogged = true;
+    // L-1 — te_module_open with provenance.
+    unawaited(AnalyticsScope.of(context).logEvent(PhaseAEvents.teModuleOpen, {
+      'entryPathway': widget.agentId != null ? 'siu_yan_offer' : 'me_tile',
+      'agentId': widget.agentId,
+      'hasInvitation': widget.agentInvitationText != null,
+    }));
   }
 
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    return Scaffold(
+    // M-7 — tool session: enter = start, leave = end.
+    return ToolSessionScope(
+      toolId: 'thought_exercise',
+      child: Scaffold(
       appBar: AppBar(
         title: Text(_showingExit
             ? (isEn ? 'Before / after' : '前後對照')
@@ -184,6 +210,7 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
         child: _showingExit
             ? _buildExitView(isEn)
             : _buildEntryView(isEn),
+      ),
       ),
     );
   }

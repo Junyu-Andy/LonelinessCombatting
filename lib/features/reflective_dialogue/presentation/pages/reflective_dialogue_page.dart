@@ -31,10 +31,13 @@ import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/repair/repair_button.dart';
 import '../../../../core/repair/turn_repair_controller.dart';
 import '../../../../core/safety/distress_detector.dart';
+import '../../../../core/safety/safety_copy.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
 import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
@@ -107,9 +110,23 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
   String? _personalisedOpener;
   bool _openerLoaded = false;
 
+  /// L-1 / M-7 — agent-session + per-turn log (Phase A baseline).
+  ChatSessionRecorder? _recorder;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_recorder == null) {
+      final profile = AppSettingsScope.read(context).profile;
+      _recorder = ChatSessionRecorder(
+        uid: profile?.uid,
+        agentId: AgentRegistry.ahJanAhBakId,
+        moduleId: 'reflective_dialogue',
+        analytics: AnalyticsScope.of(context),
+        available: AuthServiceScope.of(context).available,
+        onIdleTimeout: _onIdleTimeout,
+      );
+    }
     if (!_openerLoaded) {
       _openerLoaded = true;
       _loadPersonalisedOpener();
@@ -149,8 +166,16 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
   @override
   void dispose() {
     _connSub?.cancel();
+    _recorder?.dispose();
     _inputCtrl.dispose();
     super.dispose();
+  }
+
+  /// M-7 — idle clock closed the session in place; run the Brief PR flow.
+  void _onIdleTimeout() {
+    if (!mounted) return;
+    _briefPrSurfaced = false;
+    unawaited(_maybeSurfaceBriefPr(closeSession: false));
   }
 
   /// Wrapper so ANY throw inside the send pipeline can't strand
@@ -186,6 +211,9 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       );
       if (!mounted) return;
     }
+    final userSentAt = DateTime.now();
+    final (usedVoice, voiceMs) = _voice.takeModality();
+    _recorder?.bumpActivity();
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));
@@ -194,6 +222,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     final core = CoreServicesScope.of(context);
     final profile = AppSettingsScope.read(context).profile;
     final isEn = Localizations.localeOf(context).languageCode == 'en';
+    await _recorder?.ensureStarted();
 
     // Resolve Ah Jan / Ah Bak persona (variant aware).
     final persona = await core.personaResolver.resolve(
@@ -223,6 +252,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       history: history,
       userInput: text,
       uid: profile?.uid,
+      sessionId: _recorder?.sessionId,
       armCode: profile?.arm?.code,
     );
 
@@ -240,21 +270,42 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     }
 
     if (!mounted) return;
+    final modality = usedVoice ? InputModality.voice : InputModality.text;
     if (response.shortCircuited) {
+      // S-2 — acute: template instead of any reply; session ends `crisis`.
       setState(() {
         _busy = false;
-        _turns.add(_Turn.system(_acuteSafetyMessage(isEn)));
+        _turns.add(_Turn.system(
+            SafetyCopy.acuteAck(AgentRegistry.ahJanAhBakId, isEn: isEn)));
       });
+      unawaited(_recorder?.logTurn(TurnRecord(
+        agentId: AgentRegistry.ahJanAhBakId,
+        moduleId: 'reflective_dialogue',
+        userSent: userSentAt,
+        replyShown: DateTime.now(),
+        modality: modality,
+        voiceDurationMs: voiceMs,
+        charCount: text.length,
+        detector: response.inputFlag,
+        shortCircuited: true,
+        ackShown: true,
+        response: response,
+      )));
+      unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
       return;
     }
 
-    final replyText = response.text.trim().isNotEmpty
-        ? response.text.trim()
-        : (isEn
-            ? 'I\'m listening. Tell me more whenever you\'re ready.'
-            : '我喺度聽緊。你準備好嗰陣再講多啲都得。');
+    // S-6 — fallback line from JSON on LLM failure.
+    final replyText = response.isFallback
+        ? SafetyCopy.llmFallback(AgentRegistry.ahJanAhBakId, isEn: isEn)
+        : response.text.trim();
+    final escalation = _higher(response.inputFlag, response.outputFlag);
+    final moderateAck = escalation.interrupts
+        ? SafetyCopy.moderateAck(AgentRegistry.ahJanAhBakId, isEn: isEn)
+        : null;
     final turnKey = 'turn_${DateTime.now().microsecondsSinceEpoch}';
+    final replyShownAt = DateTime.now();
     setState(() {
       _busy = false;
       _turns.add(_Turn.bot(
@@ -263,9 +314,30 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
         sourceUserInput: text,
         promptHash: response.metadata.systemPromptHash,
       ));
+      if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
     });
+    final turnDocId = await _recorder?.logTurn(TurnRecord(
+      agentId: AgentRegistry.ahJanAhBakId,
+      moduleId: 'reflective_dialogue',
+      userSent: userSentAt,
+      replyShown: replyShownAt,
+      modality: modality,
+      voiceDurationMs: voiceMs,
+      charCount: text.length,
+      detector: escalation,
+      shortCircuited: false,
+      ackShown: moderateAck != null,
+      response: response,
+    ));
+    if (mounted && turnDocId != null) {
+      setState(() {
+        final idx = _turns.indexWhere((t) => t.key == turnKey);
+        if (idx >= 0) _turns[idx] = _turns[idx].withTurnDocId(turnDocId);
+      });
+    }
 
     if (profile != null &&
+        !response.isFallback &&
         response.text.trim().isNotEmpty &&
         profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
       await core.agentContext.appendTurn(
@@ -321,26 +393,34 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       );
       if (mounted && surfaced != null) {
         setState(() => _pendingReferral = surfaced);
+        final target = surfaced.match.trigger.targetAgentId;
+        unawaited(_recorder?.updateTurn(turnDocId, {
+          'referral': {'offered': true, 'target': target},
+        }));
+        _recorder?.logEvent(PhaseAEvents.referralOffered, {
+          'turnId': turnDocId,
+          'target': target,
+        });
       }
     }
 
-    final escalation = _higher(response.inputFlag, response.outputFlag);
+    if (!mounted) return;
     if (escalation.level != DistressLevel.none) {
-      await core.distressRouter.route(escalation, context: context);
+      await core.distressRouter.route(
+        escalation,
+        context: context,
+        onModerateSheetShown: () =>
+            _recorder?.logEvent(PhaseAEvents.moderateSheetShown, {
+          'turnId': turnDocId,
+          'matchedTerm': escalation.matchedTerm,
+        }),
+      );
     }
   }
 
   DistressMatch _higher(DistressMatch a, DistressMatch b) {
     return a.level.index >= b.level.index ? a : b;
   }
-
-  // System-voice crisis copy.  Avoids attachment phrasing forbidden
-  // in agent prompts — this message is shown when the LLM is
-  // short-circuited, not Ah Jan/Ah Bak speaking.
-  String _acuteSafetyMessage(bool isEn) => isEn
-      ? "What you've just said is heavy. Please call Samaritans Hong "
-          "Kong now: 2896 0000."
-      : '你頭先講嘅嘢好重。請即刻打撒瑪利亞會 2896 0000。';
 
   /// B.9 — handle a thumbs-down on assistant turn [turn].  First click
   /// re-sends the source input to the LLM with `regenerate: true`; later
@@ -396,7 +476,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
         armCode: profile?.arm?.code,
         regenerate: true,
       );
-      final newText = response.text.trim().isNotEmpty
+      final newText = !response.isFallback && response.text.trim().isNotEmpty
           ? response.text.trim()
           : _repairTemplates[0][isEn ? 1 : 0];
       final newKey = 'turn_${DateTime.now().microsecondsSinceEpoch}_r';
@@ -482,6 +562,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
                             moduleId: 'reflective_dialogue',
                             turnKey: _turns[i].key ?? 'turn_$i',
                             promptHash: _turns[i].promptHash,
+                            turnDocId: _turns[i].turnDocId,
                           ),
                         ),
                     ],
@@ -525,10 +606,14 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     );
   }
 
-  Future<void> _maybeSurfaceBriefPr() async {
+  Future<void> _maybeSurfaceBriefPr({bool closeSession = true}) async {
     if (_briefPrSurfaced) return;
     _briefPrSurfaced = true;
     final profile = AppSettingsScope.read(context).profile;
+    final rec = _recorder;
+    if (closeSession && rec != null && rec.isOpen) {
+      await rec.end(SessionEndReason.userLeft);
+    }
     if (profile == null) return;
     // Capture the navigator NOW: this runs from PopScope after the route
     // has already popped, so by the time the two gate queries below
@@ -552,13 +637,15 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
           profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
     ));
 
-    final exchangeCount = _turns.where((t) => t.fromUser).length;
+    if (rec == null || rec.sessionId == null) return;
+    final sessionId = rec.sessionId;
     final gate = BriefPrGate();
     final shouldShow = await gate.shouldSurfaceBriefPr(
       uid: profile.uid,
       agentId: 'ah_jan_ah_bak',
-      sessionStartedAt: _sessionStartedAt,
-      exchangeCount: exchangeCount,
+      sessionStartedAt: rec.startedAt ?? _sessionStartedAt,
+      exchangeCount: rec.userTurnCount,
+      endReason: rec.endReason,
     );
     if (!shouldShow) return;
     final anchor = await gate.isAnchorPromptFor(
@@ -574,6 +661,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
           agentId: 'ah_jan_ah_bak',
           agentDisplayName: variant.displayNameZh,
           isAnchorPrompt: anchor,
+          sessionId: sessionId,
         ),
       ),
     );
@@ -599,8 +687,15 @@ class _Turn {
   /// T7 — resolved system-prompt hash for this assistant turn.
   final String? promptHash;
 
+  /// L-1 — id of the logged `turns/{turnId}` doc.
+  final String? turnDocId;
+
   const _Turn._(this.fromUser, this.isSystem, this.text,
-      {this.key, this.sourceUserInput, this.repaired = false, this.promptHash});
+      {this.key,
+      this.sourceUserInput,
+      this.repaired = false,
+      this.promptHash,
+      this.turnDocId});
 
   factory _Turn.user(String t) => _Turn._(true, false, t);
   factory _Turn.bot(String t,
@@ -613,7 +708,15 @@ class _Turn {
       key: key,
       sourceUserInput: sourceUserInput,
       repaired: true,
-      promptHash: promptHash);
+      promptHash: promptHash,
+      turnDocId: turnDocId);
+
+  _Turn withTurnDocId(String id) => _Turn._(fromUser, isSystem, text,
+      key: key,
+      sourceUserInput: sourceUserInput,
+      repaired: repaired,
+      promptHash: promptHash,
+      turnDocId: id);
 }
 
 class _TurnBubble extends StatelessWidget {

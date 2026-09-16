@@ -2,11 +2,14 @@
 ///
 /// Sprint 2 §2.
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/response_feedback.dart';
 
@@ -25,6 +28,11 @@ class ThumbsFeedback extends StatefulWidget {
   /// the surface doesn't track it.
   final String? promptHash;
 
+  /// L-1 / M-6 — id of the `users/{uid}/turns/{turnId}` doc this bubble
+  /// belongs to; the thumb + reason are mirrored onto it.  Null when the
+  /// surface does not log turns (e.g. article Q&A).
+  final String? turnDocId;
+
   const ThumbsFeedback({
     super.key,
     required this.agentId,
@@ -32,6 +40,7 @@ class ThumbsFeedback extends StatefulWidget {
     this.turnRef,
     this.turnKey,
     this.promptHash,
+    this.turnDocId,
   });
 
   @override
@@ -87,6 +96,15 @@ class _ThumbsFeedbackState extends State<ThumbsFeedback> {
       unintentionalDismiss: unintentionalDismiss,
     );
     await _supersedePriorIfAny();
+    if (profile != null && widget.turnDocId != null && !unintentionalDismiss) {
+      // M-6 — mirror onto the turn doc (single-select reason).
+      unawaited(ChatSessionRecorder.updateFeedback(
+        uid: profile.uid,
+        turnId: widget.turnDocId!,
+        thumb: rating,
+        reason: (reasons == null || reasons.isEmpty) ? null : reasons.first,
+      ));
+    }
     if (profile != null) {
       try {
         await FirebaseFirestore.instance
@@ -228,7 +246,8 @@ class _ReasonSheet extends StatefulWidget {
 }
 
 class _ReasonSheetState extends State<_ReasonSheet> {
-  final Set<String> _selected = {};
+  /// M-6 — single-select.
+  String? _selected;
   final _otherCtrl = TextEditingController();
 
   @override
@@ -252,7 +271,8 @@ class _ReasonSheetState extends State<_ReasonSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final showOther = _selected.contains(ResponseFeedbackReasons.other);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final showOther = _selected == ResponseFeedbackReasons.other;
     return Padding(
       padding: EdgeInsets.only(
         left: 24,
@@ -263,9 +283,9 @@ class _ReasonSheetState extends State<_ReasonSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '咩位令你覺得唔啱？',
-            style: TextStyle(
+          Text(
+            isEn ? 'What felt off?' : '咩位令你覺得唔啱？',
+            style: const TextStyle(
               fontSize: 19,
               fontWeight: FontWeight.w700,
               color: _ink,
@@ -273,27 +293,23 @@ class _ReasonSheetState extends State<_ReasonSheet> {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            '可以揀一個或者多個。',
-            style: TextStyle(fontSize: 14, color: _inkMuted),
+          Text(
+            isEn ? 'Pick one.' : '揀一個。',
+            style: const TextStyle(fontSize: 14, color: _inkMuted),
           ),
           const SizedBox(height: 16),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: ResponseFeedbackReasons.all.map((id) {
-              final selected = _selected.contains(id);
+              final selected = _selected == id;
               return _ReasonChip(
-                label: ResponseFeedbackReasons.labels[id] ?? id,
+                label: isEn
+                    ? (ResponseFeedbackReasons.labelsEn[id] ?? id)
+                    : (ResponseFeedbackReasons.labels[id] ?? id),
                 selected: selected,
                 onTap: () {
-                  setState(() {
-                    if (selected) {
-                      _selected.remove(id);
-                    } else {
-                      _selected.add(id);
-                    }
-                  });
+                  setState(() => _selected = selected ? null : id);
                 },
               );
             }).toList(),
@@ -317,9 +333,11 @@ class _ReasonSheetState extends State<_ReasonSheet> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: () {
+              onPressed: _selected == null
+                  ? null
+                  : () {
                 Navigator.of(context).pop(_DownResult(
-                  reasons: _selected.toList(),
+                  reasons: [_selected!],
                   otherText:
                       _otherCtrl.text.trim().isEmpty ? null : _otherCtrl.text.trim(),
                 ));

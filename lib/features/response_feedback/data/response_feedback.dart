@@ -57,26 +57,35 @@ class ResponseFeedback {
 }
 
 /// Reason categories shown on the thumbs-down modal.
+///
+/// M-6 (Phase A baseline 2026-09): exactly four, single-select —
+/// 唔明白我 / 講錯話題 / 冇幫助 / 其他.  The id is what lands in
+/// `turns.feedback.reason`; the `uncomfortable` option from the earlier
+/// five-chip sheet was retired.
 class ResponseFeedbackReasons {
   static const notUnderstand = 'not_understand';
   static const wrongTopic = 'wrong_topic';
   static const notHelpful = 'not_helpful';
-  static const uncomfortable = 'uncomfortable';
   static const other = 'other';
 
   static const all = [
     notUnderstand,
     wrongTopic,
     notHelpful,
-    uncomfortable,
     other,
   ];
 
   static const labels = {
-    notUnderstand: '唔明白我講咩',
-    wrongTopic: '講錯重點 / 唔啱題',
-    notHelpful: '唔幫到我',
-    uncomfortable: '唔舒服 / 唔啱我',
+    notUnderstand: '唔明白我',
+    wrongTopic: '講錯話題',
+    notHelpful: '冇幫助',
     other: '其他',
+  };
+
+  static const labelsEn = {
+    notUnderstand: "Didn't understand me",
+    wrongTopic: 'Wrong topic',
+    notHelpful: 'Not helpful',
+    other: 'Other',
   };
 }

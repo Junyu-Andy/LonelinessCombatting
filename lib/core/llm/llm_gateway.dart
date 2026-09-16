@@ -80,6 +80,11 @@ class LlmGateway {
     /// term, discarding that session's memory.  Never set this for
     /// live user input.
     bool skipSafetyScan = false,
+    /// V-2 — this week's reminiscence theme.  When set, the gateway appends
+    /// `[今週主題] {theme}` to the context suffix so the Ah Jan prompt's
+    /// theme lock actually receives the value its "Context injection" block
+    /// promises.  `[模組] {moduleId}` is appended for every agent call.
+    String? theme,
   }) async {
     assert(
       systemPrompt != null || promptKey != null,
@@ -122,8 +127,18 @@ class LlmGateway {
           agentId: agentId,
           sessionId: sessionId,
         ),
+        status: LlmStatus.shortCircuited,
       );
     }
+
+    // V-2 — theme / module_id injection (Phase A baseline).  Appended at the
+    // END of the suffix so the persona prompt's declared context order
+    // (summary → entities → threads → theme → module) is preserved.
+    final injected = injectThemeAndModule(
+      contextSuffix: contextSuffix,
+      theme: theme,
+      moduleId: agentId == null ? null : moduleId,
+    );
 
     final sw = Stopwatch()..start();
     final raw = await _client.complete(
@@ -132,7 +147,7 @@ class LlmGateway {
       promptKey: promptKey,
       agentId: agentId,
       variantName: variantName,
-      contextSuffix: contextSuffix,
+      contextSuffix: injected,
       history: history,
       userInput: userInput,
       regenerate: regenerate,
@@ -184,6 +199,12 @@ class LlmGateway {
       );
     }
 
+    // S-6 — an empty body with no transport error is still a failure from
+    // the participant's point of view (nothing to show); classify it so the
+    // page shows the per-agent fallback line and the turn logs
+    // `llm.status = fallback`.
+    final error = raw.error ?? (filtered.isEmpty ? 'empty_response' : null);
+
     return LlmResponse(
       text: filtered,
       inputFlag: inputFlag,
@@ -196,10 +217,45 @@ class LlmGateway {
         sessionId: sessionId,
       ),
       llmFlags: raw.llmFlags,
+      status: error == null ? LlmStatus.ok : LlmStatus.fallback,
+      error: error,
+      model: raw.model,
+      latencyMs: latencyMs,
+      temperature: raw.temperature,
+      promptVersion: raw.promptVersion,
     );
   }
 
   String _postFilter(String text) => text.trim();
+
+  /// V-2 — pure helper (unit-tested) that appends the two injection lines.
+  static String? injectThemeAndModule({
+    String? contextSuffix,
+    String? theme,
+    String? moduleId,
+  }) {
+    final lines = <String>[
+      if (theme != null && theme.trim().isNotEmpty) '[今週主題] ${theme.trim()}',
+      if (moduleId != null && moduleId.trim().isNotEmpty)
+        '[模組] ${moduleId.trim()}',
+    ];
+    if (lines.isEmpty) return contextSuffix;
+    final base = (contextSuffix ?? '').trim();
+    return base.isEmpty ? lines.join('\n') : '$base\n\n${lines.join('\n')}';
+  }
+}
+
+/// S-6 — outcome of one gateway call as recorded in `turns.llm.status`.
+enum LlmStatus {
+  ok,
+  fallback,
+  shortCircuited;
+
+  String get code => switch (this) {
+        LlmStatus.ok => 'ok',
+        LlmStatus.fallback => 'fallback',
+        LlmStatus.shortCircuited => 'short_circuited',
+      };
 }
 
 class LlmTurn {
@@ -222,6 +278,27 @@ class LlmResponse {
   /// short-circuited and failed responses.
   final Map<String, dynamic> llmFlags;
 
+  /// S-6 — `ok` / `fallback` / `short_circuited`.
+  final LlmStatus status;
+
+  /// S-6 — error class when [status] is [LlmStatus.fallback]
+  /// (`timeout` / `cf_<code>` / `network` / `empty_response` / `bad_shape`).
+  final String? error;
+
+  /// L-2 — DeepSeek response-body `model` field, verbatim.  Null on
+  /// fallback / short-circuit.
+  final String? model;
+
+  /// Gateway round-trip in ms (client-side stopwatch).  Null when the
+  /// model was not called.
+  final int? latencyMs;
+
+  /// Decoding temperature the CF used (per-agent constant echoed back).
+  final double? temperature;
+
+  /// `siu_yan_v1@2026-06`-style prompt version echoed by the CF.
+  final String? promptVersion;
+
   const LlmResponse({
     required this.text,
     required this.inputFlag,
@@ -229,7 +306,17 @@ class LlmResponse {
     required this.shortCircuited,
     required this.metadata,
     this.llmFlags = const {},
+    this.status = LlmStatus.ok,
+    this.error,
+    this.model,
+    this.latencyMs,
+    this.temperature,
+    this.promptVersion,
   });
+
+  /// True when the page should show the per-agent S-6 fallback line
+  /// instead of [text].
+  bool get isFallback => status == LlmStatus.fallback;
 
   bool get hasEscalation =>
       shortCircuited || inputFlag.isEscalation || outputFlag.isEscalation;
@@ -247,10 +334,22 @@ class LlmRawResponse {
   /// when the response failed or the CF doesn't yet ship the detector.
   final Map<String, dynamic> llmFlags;
 
+  /// S-6 — transport / upstream error class; null on success.
+  final String? error;
+
+  /// L-2 — DeepSeek `model` field from the response body.
+  final String? model;
+  final double? temperature;
+  final String? promptVersion;
+
   const LlmRawResponse({
     required this.text,
     this.systemPromptHash,
     this.llmFlags = const {},
+    this.error,
+    this.model,
+    this.temperature,
+    this.promptVersion,
   });
 }
 
@@ -330,12 +429,16 @@ class DeepseekLlmClient implements LlmClient {
           text: data['text'] as String? ?? '',
           systemPromptHash: data['systemPromptHash'] as String?,
           llmFlags: flags,
+          model: data['model'] as String?,
+          temperature: (data['temperature'] as num?)?.toDouble(),
+          promptVersion: data['promptVersion'] as String?,
         );
       }
       // Unexpected response shape — log so it's visible.
       if (kDebugMode) {
         debugPrint('[LlmGateway] unexpected response shape: $data');
       }
+      return const LlmRawResponse(text: '', error: 'bad_shape');
     } on FirebaseFunctionsException catch (e, st) {
       // Surface CF errors instead of swallowing them.  Common causes:
       //   - unauthenticated: user not signed in (auth gate broken)
@@ -351,17 +454,20 @@ class DeepseekLlmClient implements LlmClient {
             'code=${e.code} message=${e.message}');
         debugPrintStack(stackTrace: st);
       }
+      // S-6 — `deadline-exceeded` is the CF-side 55 s timeout; `internal`
+      // wraps DeepSeek 4xx/5xx; `unavailable` is a network drop.
+      return LlmRawResponse(text: '', error: 'cf_${e.code}');
     } on TimeoutException {
       if (kDebugMode) {
         debugPrint('[LlmGateway] CF call timed out after 50s');
       }
+      return const LlmRawResponse(text: '', error: 'timeout');
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[LlmGateway] unexpected error: $e');
         debugPrintStack(stackTrace: st);
       }
+      return const LlmRawResponse(text: '', error: 'network');
     }
-
-    return const LlmRawResponse(text: '');
   }
 }

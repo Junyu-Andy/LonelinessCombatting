@@ -51,6 +51,50 @@ function loadSafetyAcks() {
   return _safetyCache;
 }
 
+// L-2 — prompt version label derived from the prompt file header, e.g.
+// "## 小欣 — … · v1 (rev 2026-06)" → "siu_yan_v1@2026-06".  Cached with the
+// prompt text; null for raw systemPrompt callers (no server-side file).
+const _promptVersionCache = {};
+function promptVersionFor(key) {
+  if (!key) return null;
+  if (_promptVersionCache[key] !== undefined) return _promptVersionCache[key];
+  const text = loadPrompt(key);
+  let label = null;
+  if (text) {
+    const m = text.split("\n")[0].match(/v(\d+)\s*\(rev\s*([0-9-]+)\)/);
+    if (m) label = `${key.replace(/_v\d+$/, "")}_v${m[1]}@${m[2]}`;
+  }
+  _promptVersionCache[key] = label;
+  return label;
+}
+
+// S-4 — crisis resources (hotline names / numbers) are a single JSON that
+// the client bundles as an asset AND the acknowledgement callable reads, so
+// the template's hotline always matches the crisis page.
+let _crisisCache = null;
+function loadCrisisResources() {
+  if (_crisisCache !== null) return _crisisCache;
+  try {
+    const file = path.join(PROMPT_DIR, "crisis_resources.json");
+    _crisisCache = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (err) {
+    _crisisCache = {resources: []};
+  }
+  return _crisisCache;
+}
+
+// Fills {{HOTLINE_NAME}} / {{HOTLINE_NUMBER}} from the resource flagged
+// `acuteTemplateReference` (must be item 1 or 2 per HREC §8.1).
+function fillHotline(text, locale) {
+  if (!text) return text;
+  const res = (loadCrisisResources().resources || [])
+      .find((r) => r.acuteTemplateReference) || {};
+  const name = locale === "en" ? (res.nameEn || "") : (res.nameZh || "");
+  return text
+      .split("{{HOTLINE_NAME}}").join(name)
+      .split("{{HOTLINE_NUMBER}}").join(res.number || "");
+}
+
 function resolvePrompt(payload) {
   const promptKey = payload.promptKey;
   const rawPrompt = payload.systemPrompt;
@@ -67,7 +111,10 @@ function resolvePrompt(payload) {
   out = out.split("{{VARIANT_NAME}}").join(variantName);
   const contextSuffix = payload.contextSuffix;
   if (contextSuffix && typeof contextSuffix === "string") {
-    out = `${out}\n\n${contextSuffix}`;
+    // P-2 (2026-09): the suffix carries the rolling summary + named
+    // entities + mood snippet, i.e. participant-derived text — it goes
+    // through the same identifier scrub as the chat messages.
+    out = `${out}\n\n${stripPII(contextSuffix)}`;
   }
   return out;
 }
@@ -306,6 +353,10 @@ exports.proxyDeepSeek = onCall(
       agentId: agentId,
       systemPromptHash: systemPromptHash,
       llmFlags: llmFlags,
+      // L-2 — provenance echoed back for the client's per-turn log.
+      model: (data && data.model) || null,
+      temperature: temperatureFor(agentId),
+      promptVersion: promptVersionFor(payload.promptKey || null),
     };
   },
 );
@@ -326,7 +377,7 @@ exports.safetyAcknowledgement = onCall(
     if (!forAgent) return {text: ""};
     const forLevel = forAgent[level] || forAgent.moderate || null;
     if (!forLevel) return {text: ""};
-    return {text: forLevel[locale] || forLevel.zh || ""};
+    return {text: fillHotline(forLevel[locale] || forLevel.zh || "", locale)};
   },
 );
 
@@ -1219,5 +1270,100 @@ exports.weeklySurveyReminder = onSchedule(
       "今個禮拜過得點？得閒入嚟答幾條，想答先答，唔想都冇問題。",
       "weekly_survey_reminder",
     );
+  },
+);
+
+// ---------------------------------------------------------------------------
+// M-4 (Phase A baseline 2026-09) — Week 2 push.
+//
+// Daily 10:00 HKT: for every non-tester user whose enrolment day index is
+// inside [w2DayOffset, w2DayOffset + w2WindowDays) and who has not yet
+// received the push, send a per-device notification (fcm_tokens) and mark
+// `w2PushSentAt` on the user doc + a `w2_push_sent` event.  Parameters
+// come from `app_config/phase_a` (same doc the client reads) with the spec
+// defaults (14 / 3) as fallback.  The in-app banner owns the actual DJG-ES
+// + Agent Differentiation routing; this is only the doorbell.
+// ---------------------------------------------------------------------------
+
+async function phaseAConfig(db) {
+  const defaults = {w2DayOffset: 14, w2WindowDays: 3};
+  try {
+    const snap = await db.doc("app_config/phase_a").get();
+    return {...defaults, ...(snap.exists ? snap.data() : {})};
+  } catch (err) {
+    return defaults;
+  }
+}
+
+function hkDateKey(d) {
+  return d.toLocaleDateString("en-CA", {timeZone: "Asia/Hong_Kong"});
+}
+
+function daysBetweenHk(fromIso, toIso) {
+  const a = new Date(`${fromIso}T00:00:00Z`);
+  const b = new Date(`${toIso}T00:00:00Z`);
+  return Math.round((b - a) / 86400000);
+}
+
+exports.week2Push = onSchedule(
+  {
+    schedule: "0 10 * * *",
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    retryCount: 0,
+  },
+  async (_event) => {
+    const db = admin.firestore();
+    const cfg = await phaseAConfig(db);
+    const today = hkDateKey(new Date());
+    const usersSnap = await db.collection("users").get();
+    let sent = 0;
+    for (const userDoc of usersSnap.docs) {
+      const data = userDoc.data() || {};
+      if (data.isTester === true) continue;
+      if (data.w2PushSentAt) continue;
+      const createdRaw = data.createdAt;
+      if (!createdRaw) continue;
+      const createdIso = typeof createdRaw === "string" ?
+        createdRaw.slice(0, 10) :
+        (createdRaw.toDate ? hkDateKey(createdRaw.toDate()) : null);
+      if (!createdIso) continue;
+      const day = daysBetweenHk(createdIso, today);
+      if (day < cfg.w2DayOffset || day >= cfg.w2DayOffset + cfg.w2WindowDays) {
+        continue;
+      }
+      const tokensSnap = await userDoc.ref.collection("fcm_tokens").get();
+      const tokens = tokensSnap.docs
+          .map((t) => (t.data() || {}).token)
+          .filter((t) => typeof t === "string" && t.length > 0);
+      let delivered = 0;
+      for (const token of tokens) {
+        try {
+          await admin.messaging().send({
+            token,
+            notification: {
+              title: "陪住",
+              body: "入嚟兩個禮拜喇，有幾條短問題想問下你。得閒先答，唔急。",
+            },
+            android: {priority: "normal"},
+            data: {kind: "w2_push"},
+          });
+          delivered++;
+        } catch (err) {
+          console.warn(`week2Push token send failed for ${userDoc.id}: ${err.message}`);
+        }
+      }
+      await userDoc.ref.set({
+        w2PushSentAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+      await userDoc.ref.collection("events").add({
+        name: "w2_push_sent",
+        params: {enrolmentDay: day, tokens: tokens.length, delivered},
+        source: "cf_week2Push",
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      sent++;
+    }
+    console.log(`week2Push: ${sent} users notified`);
   },
 );

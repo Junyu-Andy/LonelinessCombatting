@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 
 import 'app/app.dart';
 import 'app/app_settings.dart';
+import 'core/config/phase_a_config.dart';
+import 'core/safety/safety_copy.dart';
 import 'core/agent_context/agent_context_service.dart';
 import 'core/agent_context/shared_context_service.dart';
 import 'core/agents/persona_resolver.dart';
@@ -59,6 +61,11 @@ Future<void> main() async {
     }
   }
 
+  // Phase A baseline — participant-facing safety strings + runtime config
+  // are loaded before the first frame so a crisis surface is never blank.
+  await SafetyCopy.load();
+  await PhaseAConfig.load(available: firebaseReady);
+
   const detector = DistressDetector();
   final distressState = DistressState();
   final distressRouter = DistressRouter(state: distressState);
@@ -88,7 +95,10 @@ Future<void> main() async {
     },
   );
   final handoffExecutor = HandoffExecutor(sharedContext: sharedContext);
-  final fcm = FcmService(available: firebaseReady);
+  final fcm = FcmService(
+    available: firebaseReady,
+    onEvent: (type, payload) => analytics.logEvent(type, payload),
+  );
   final llmGateway = LlmGateway(
     detector: detector,
     safetyWriter: safetyWriter,

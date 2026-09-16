@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/education_library.dart';
 import 'education_article_page.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 
 /// M8 library landing — identical in both arms (spec: library content
 /// is identical; only the "Ask me about this" dialogue is Arm A).
@@ -12,7 +13,10 @@ class EducationLibraryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
-    return Scaffold(
+    // M-7 — tool session: enter = start, leave = end.
+    return ToolSessionScope(
+      toolId: 'education',
+      child: Scaffold(
       appBar: AppBar(title: Text(isEn ? 'Read a little' : '讀少少')),
       body: SafeArea(
         child: ListView(
@@ -39,6 +43,7 @@ class EducationLibraryPage extends StatelessWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../context/presentation/pages/check_in_arm_a.dart';
 import '../../../context/presentation/pages/check_in_shared.dart';
@@ -83,6 +84,13 @@ class _GreetingHeroState extends State<GreetingHero> {
     // so existing dashboards stay accurate; supplementary entries get
     // their own variant to avoid double-counting.
     final analytics = AnalyticsScope.of(context);
+    // M-3 — spec event, alongside the legacy daily_mood_* names.
+    analytics.logEvent(PhaseAEvents.moodCheckin, {
+      'skipped': false,
+      'mood': value,
+      'source': 'home_hero',
+      'supplementary': wasSupplementary,
+    });
     if (wasSupplementary) {
       // Reuse the existing skip event family for now — a dedicated
       // supplementary event can be added without breaking the wire.

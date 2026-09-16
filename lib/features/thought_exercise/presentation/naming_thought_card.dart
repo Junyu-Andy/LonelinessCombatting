@@ -31,6 +31,17 @@ class NamingThoughtCard extends StatelessWidget {
     required this.onDecline,
   });
 
+  /// L-3 — the exact invitation sentence shown to the participant, with the
+  /// thought summary filled in.  Logged verbatim on `turns.te.offerText`
+  /// because the Thought Exercise offer is audited at 100 %.
+  static String invitationText(String thought, {required bool isEn}) => isEn
+      ? 'You just said something that I noticed got stuck '
+          'with me — "${_trim(thought)}". Would you like '
+          'to do a small practice to look at that thought? '
+          'Either way is fine.'
+      : '你頭先講咗一句令我有少少 stuck — 「${_trim(thought)}」。'
+          '要唔要做個小練習慢慢望一望呢個諗法？要唔要都得。';
+
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
@@ -46,13 +57,7 @@ class NamingThoughtCard extends StatelessWidget {
             children: [
               Text(
                 // Phase A spec-exact invitation copy.
-                isEn
-                    ? 'You just said something that I noticed got stuck '
-                        'with me — "${_trim(thought)}". Would you like '
-                        "to do a small practice to look at that thought? "
-                        "Either way is fine."
-                    : "你頭先講咗一句令我有少少 stuck — 「${_trim(thought)}」。"
-                        '要唔要做個小練習慢慢望一望呢個諗法？要唔要都得。',
+                invitationText(thought, isEn: isEn),
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onTertiaryContainer,
                   height: 1.5,

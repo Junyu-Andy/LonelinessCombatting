@@ -51,11 +51,19 @@ service cloud.firestore {
     // Function trigger runs as a service account (bypasses rules)
     // and patches the doc with dedup_key.
     // ============================================================
+    // Phase A baseline — runtime parameters (PhaseAConfig).  Clients read,
+    // never write; the research team edits from the console.
+    match /app_config/{doc} {
+      allow read: if isAuthed();
+      allow write: if false;
+    }
+
     match /safety_events/{eventId} {
       allow create: if isAuthed()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasAll(['uid', 'source', 'textHash', 'level'])
-        && request.resource.data.level in ['none', 'low', 'moderate', 'acute'];
+        && request.resource.data.level in ['none', 'low', 'moderate',
+            'moderate_review', 'moderate_interrupt', 'acute'];
       // Reads + updates come only from service accounts.
       allow read, update, delete: if false;
     }

@@ -14,11 +14,16 @@ import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
+import '../../../../core/safety/safety_copy.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
-import '../../../ppr/presentation/pages/ppr_brief_page.dart';
+import '../../../brief_pr/data/brief_pr_gate.dart';
+import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
 
@@ -166,6 +171,11 @@ clay-pot rice stand..."
   bool _openerRequested = false;
   bool _generatingOpener = false;
 
+  /// L-1 / M-7 — agent-session + per-turn log (Phase A baseline).  The
+  /// theme rides on every turn doc and is injected into the prompt (V-2).
+  ChatSessionRecorder? _recorder;
+  bool _briefPrSurfaced = false;
+
   @override
   void initState() {
     super.initState();
@@ -188,6 +198,18 @@ clay-pot rice stand..."
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_recorder == null) {
+      final profile = AppSettingsScope.read(context).profile;
+      _recorder = ChatSessionRecorder(
+        uid: profile?.uid,
+        agentId: AgentRegistry.ahJanAhBakId,
+        moduleId: 'm3_reminiscence_w${widget.theme.weekIndex}',
+        theme: widget.theme.titleZh,
+        analytics: AnalyticsScope.of(context),
+        available: AuthServiceScope.of(context).available,
+        onIdleTimeout: _onIdleTimeout,
+      );
+    }
     if (!_priorLoaded) {
       _priorLoaded = true;
       // Load prior-week context first, then generate the opener so it
@@ -311,9 +333,17 @@ clay-pot rice stand..."
   @override
   void dispose() {
     _connSub?.cancel();
+    _recorder?.dispose();
     _inputCtrl.dispose();
     _summaryCtrl.dispose();
     super.dispose();
+  }
+
+  /// M-7 — idle clock closed the session in place; run the Brief PR flow.
+  void _onIdleTimeout() {
+    if (!mounted || _showingSummary) return;
+    _briefPrSurfaced = false;
+    unawaited(_maybeSurfaceBriefPr(Navigator.of(context), closeSession: false));
   }
 
   /// Wrapper so ANY throw inside the send pipeline can't strand
@@ -351,6 +381,9 @@ clay-pot rice stand..."
       );
       if (!mounted) return;
     }
+    final userSentAt = DateTime.now();
+    final (usedVoice, voiceMs) = _voice.takeModality();
+    _recorder?.bumpActivity();
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));
@@ -361,6 +394,7 @@ clay-pot rice stand..."
     final auth = AuthServiceScope.of(context);
     final store = M3SessionStore(available: auth.available);
     await _ensureSessionStarted();
+    await _recorder?.ensureStarted();
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final history = _turns
         .take(_turns.length - 1)
@@ -401,6 +435,9 @@ clay-pot rice stand..."
       history: history,
       userInput: text,
       uid: profile?.uid,
+      sessionId: _recorder?.sessionId,
+      // V-2 — `[今週主題]` + `[模組]` lines appended by the gateway.
+      theme: themeTitle,
     );
 
     // Mirror the user turn into Ah Jan / Ah Bak's agent-context buffer
@@ -449,39 +486,89 @@ clay-pot rice stand..."
     }
 
     if (!mounted) return;
+    final modality = usedVoice ? InputModality.voice : InputModality.text;
+    final moduleId = 'm3_reminiscence_w${widget.theme.weekIndex}';
     if (response.shortCircuited) {
+      // S-2 — acute: template instead of any reply; session ends `crisis`.
       setState(() {
         _busy = false;
-        _turns.add(_Turn.system(isEn
-            ? 'I\'m glad you trusted me with that. Please call Samaritans '
-                'Hong Kong at 2896 0000 right now.'
-            : '多謝你信我，肯講出嚟。請即刻打撒瑪利亞會熱線 2896 0000。'));
+        _turns.add(_Turn.system(
+            SafetyCopy.acuteAck(AgentRegistry.ahJanAhBakId, isEn: isEn)));
       });
+      unawaited(_recorder?.logTurn(TurnRecord(
+        agentId: AgentRegistry.ahJanAhBakId,
+        moduleId: moduleId,
+        theme: widget.theme.titleZh,
+        userSent: userSentAt,
+        replyShown: DateTime.now(),
+        modality: modality,
+        voiceDurationMs: voiceMs,
+        charCount: text.length,
+        detector: response.inputFlag,
+        shortCircuited: true,
+        ackShown: true,
+        response: response,
+      )));
+      unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
       return;
     }
-    // Moderate distress (input or output) → soft sheet after the
-    // turn settles. Acute on output is rare but routed too.
+    // S-1 — moderate_review (grief / hardship inside a memory): the LLM
+    // keeps listening, nothing is surfaced.  moderate_interrupt: template
+    // in addition to the reply + soft sheet.  Acute on output is rare but
+    // routed too.
     final escalation = response.inputFlag.level.index >=
             response.outputFlag.level.index
         ? response.inputFlag
         : response.outputFlag;
-    if (escalation.level == DistressLevel.moderate ||
-        escalation.level == DistressLevel.acute) {
-      await core.distressRouter.route(escalation, context: context);
-    }
+    final moderateAck = escalation.interrupts
+        ? SafetyCopy.moderateAck(AgentRegistry.ahJanAhBakId, isEn: isEn)
+        : null;
 
-    final replyText = response.text.isNotEmpty
-        ? response.text
-        : (isEn
-            ? 'Thank you for sharing. Tell me more if you\'d like.'
-            : '多謝你話畀我聽。想再講多啲都得。');
+    // S-6 — fallback line from JSON on LLM failure.
+    final replyText = response.isFallback
+        ? SafetyCopy.llmFallback(AgentRegistry.ahJanAhBakId, isEn: isEn)
+        : response.text;
+    final replyShownAt = DateTime.now();
     setState(() {
       _busy = false;
-      _turns.add(_Turn.bot(replyText));
+      _turns.add(_Turn.bot(replyText,
+          promptHash: response.metadata.systemPromptHash));
+      if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
     });
+    final turnIndex = _turns.lastIndexWhere((t) => !t.fromUser && !t.isSystem);
+    final turnDocId = await _recorder?.logTurn(TurnRecord(
+      agentId: AgentRegistry.ahJanAhBakId,
+      moduleId: moduleId,
+      theme: widget.theme.titleZh,
+      userSent: userSentAt,
+      replyShown: replyShownAt,
+      modality: modality,
+      voiceDurationMs: voiceMs,
+      charCount: text.length,
+      detector: escalation,
+      shortCircuited: false,
+      ackShown: moderateAck != null,
+      response: response,
+    ));
+    if (mounted && turnDocId != null && turnIndex >= 0) {
+      setState(() =>
+          _turns[turnIndex] = _turns[turnIndex].withTurnDocId(turnDocId));
+    }
+    if (!mounted) return;
+    if (escalation.level != DistressLevel.none) {
+      await core.distressRouter.route(
+        escalation,
+        context: context,
+        onModerateSheetShown: () =>
+            _recorder?.logEvent(PhaseAEvents.moderateSheetShown, {
+          'turnId': turnDocId,
+          'matchedTerm': escalation.matchedTerm,
+        }),
+      );
+    }
 
-    if (profile != null && response.text.isNotEmpty) {
+    if (profile != null && !response.isFallback && response.text.isNotEmpty) {
       await store.appendTurns(
         uid: profile.uid,
         weekIndex: widget.theme.weekIndex,
@@ -539,12 +626,17 @@ clay-pot rice stand..."
         .where((t) => t.fromUser)
         .map((t) => t.text)
         .join('\n');
-    final body = response.text.isNotEmpty ? response.text : fallback;
+    final body = !response.isFallback && response.text.isNotEmpty
+        ? response.text
+        : fallback;
     setState(() {
       _busy = false;
       _endSummaryOriginal = body;
       _summaryCtrl.text = body;
     });
+    // L-1 — session doc: summary shown + whether the soft TE pointer
+    // (「望一望心入面」) appeared.
+    unawaited(_recorder?.recordSessionSummary(shown: true, summaryText: body));
   }
 
   Future<void> _saveSummary({required bool useOriginal}) async {
@@ -583,23 +675,52 @@ clay-pot rice stand..."
     setState(() => _saved = true);
     await Future<void>.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
-    // Pop the reminiscence page first so the PPR brief becomes the
-    // new top route. The brief itself pops back to the My Story tab
-    // when the participant submits.
-    // B.6 — compute mandatory-first flag from the user profile so the
-    // first brief PPR per agent surfaces a non-dismissable modal.
-    // (profile is already in scope from line 484.)
-    final mandatory =
-        profile != null &&
-        !profile.firstPprSeenByAgent
-            .containsKey(AgentRegistry.ahJanAhBakId);
-    Navigator.of(context).pop();
-    await Navigator.of(context).push(
+    // M-1 (Phase A baseline) — the 4-item Brief PR replaces the earlier
+    // 2-item PPR brief on this surface so all three companions share one
+    // instrument.  Pop the reminiscence page first so the Brief PR becomes
+    // the new top route; it pops back to My Story on submit.
+    final nav = Navigator.of(context);
+    nav.pop();
+    await _maybeSurfaceBriefPr(nav);
+  }
+
+  /// M-1 / M-7 — close the agent session (unless the idle clock already
+  /// did) and offer the Brief PR when ≥ briefPRMinTurns turns reached the
+  /// model and the session did not end in crisis.  Context-free after the
+  /// first await (page may be popped).
+  Future<void> _maybeSurfaceBriefPr(NavigatorState nav,
+      {bool closeSession = true}) async {
+    if (_briefPrSurfaced) return;
+    _briefPrSurfaced = true;
+    final profile = AppSettingsScope.read(context).profile;
+    final rec = _recorder;
+    if (closeSession && rec != null && rec.isOpen) {
+      await rec.end(SessionEndReason.userLeft);
+    }
+    if (profile == null || rec == null || rec.sessionId == null) return;
+    final sessionId = rec.sessionId;
+    final gate = BriefPrGate();
+    final shouldShow = await gate.shouldSurfaceBriefPr(
+      uid: profile.uid,
+      agentId: AgentRegistry.ahJanAhBakId,
+      sessionStartedAt: rec.startedAt ?? DateTime.now(),
+      exchangeCount: rec.userTurnCount,
+      endReason: rec.endReason,
+    );
+    if (!shouldShow) return;
+    final anchor = await gate.isAnchorPromptFor(
+      uid: profile.uid,
+      agentId: AgentRegistry.ahJanAhBakId,
+    );
+    final agent = AgentRegistry.byId(AgentRegistry.ahJanAhBakId);
+    final variant = agent.resolveVariant(profile.ahJanAhBakVariant);
+    await nav.push(
       MaterialPageRoute<void>(
-        builder: (_) => PprBriefPage(
+        builder: (_) => BriefPrPage(
           agentId: AgentRegistry.ahJanAhBakId,
-          sessionTag: 'm3_w${widget.theme.weekIndex}',
-          mandatory: mandatory,
+          agentDisplayName: variant.displayNameZh,
+          isAnchorPrompt: anchor,
+          sessionId: sessionId,
         ),
       ),
     );
@@ -686,7 +807,14 @@ clay-pot rice stand..."
 
     return FirstIntroOverlay(
       agentId: AgentRegistry.ahJanAhBakId,
-      child: Scaffold(
+      child: PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (didPop, _) async {
+          // Leaving without the summary still ends the agent session (M-7)
+          // and offers the Brief PR (M-1).
+          if (didPop) await _maybeSurfaceBriefPr(Navigator.of(context));
+        },
+        child: Scaffold(
       appBar: AppBar(
         title: Text(title),
         actions: [
@@ -710,7 +838,22 @@ clay-pot rice stand..."
                 children: [
                   if (_priorWeeks.isNotEmpty)
                     _PriorWeeksHint(entries: _priorWeeks, isEn: isEn),
-                  for (final t in _turns) _Bubble(turn: t),
+                  for (int i = 0; i < _turns.length; i++) ...[
+                    _Bubble(turn: _turns[i]),
+                    if (!_turns[i].fromUser &&
+                        !_turns[i].isSystem &&
+                        _turns[i].turnDocId != null)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: ThumbsFeedback(
+                          agentId: AgentRegistry.ahJanAhBakId,
+                          moduleId: 'm3_reminiscence_w${widget.theme.weekIndex}',
+                          turnKey: 'turn_$i',
+                          promptHash: _turns[i].promptHash,
+                          turnDocId: _turns[i].turnDocId,
+                        ),
+                      ),
+                  ],
                   if (_generatingOpener && _turns.isEmpty)
                     _OpenerLoadingBubble(isEn: isEn),
                   if (_busy && !_generatingOpener)
@@ -740,6 +883,7 @@ clay-pot rice stand..."
         ),
       ),
     ),
+      ),
     );
   }
 }
@@ -748,10 +892,18 @@ class _Turn {
   final bool fromUser;
   final bool isSystem;
   final String text;
-  const _Turn._(this.fromUser, this.isSystem, this.text);
+  final String? promptHash;
+
+  /// L-1 — id of the logged `turns/{turnId}` doc (assistant turns only).
+  final String? turnDocId;
+  const _Turn._(this.fromUser, this.isSystem, this.text,
+      {this.promptHash, this.turnDocId});
   factory _Turn.user(String t) => _Turn._(true, false, t);
-  factory _Turn.bot(String t) => _Turn._(false, false, t);
+  factory _Turn.bot(String t, {String? promptHash}) =>
+      _Turn._(false, false, t, promptHash: promptHash);
   factory _Turn.system(String t) => _Turn._(false, true, t);
+  _Turn withTurnDocId(String id) =>
+      _Turn._(fromUser, isSystem, text, promptHash: promptHash, turnDocId: id);
 }
 
 class _Bubble extends StatelessWidget {

@@ -41,3 +41,9 @@ flutter:
     - assets/mock/
     - assets/images/
     - assets/agents/
+    - assets/config/
+    # Phase A baseline — single source of truth shared with the Cloud
+    # Functions bundle (S-3 templates, S-4 crisis resources).  Bundled so
+    # the client shows the same strings the server would return.
+    - functions/prompts/safety_acknowledgements.json
+    - functions/prompts/crisis_resources.json

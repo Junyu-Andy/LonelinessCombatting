@@ -30,9 +30,12 @@ import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
+import '../../../../core/safety/safety_copy.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
@@ -46,7 +49,15 @@ class TungTungPage extends StatefulWidget {
   final String? articleContext;
   final String? articleTitle;
 
-  const TungTungPage({super.key, this.articleContext, this.articleTitle});
+  /// L-1 — `tungtung.articleId` when opened from an article (mode A).
+  final String? articleId;
+
+  const TungTungPage({
+    super.key,
+    this.articleContext,
+    this.articleTitle,
+    this.articleId,
+  });
 
   @override
   State<TungTungPage> createState() => _TungTungPageState();
@@ -88,6 +99,9 @@ class _TungTungPageState extends State<TungTungPage> {
   /// composed from the most recent successful query.
   final List<_SearchSession> _searches = [];
 
+  /// L-1 / M-7 — agent-session + per-turn log (Phase A baseline).
+  ChatSessionRecorder? _recorder;
+
   @override
   void initState() {
     super.initState();
@@ -115,6 +129,14 @@ class _TungTungPageState extends State<TungTungPage> {
     if (_searchRepo == null) {
       final auth = AuthServiceScope.of(context);
       _searchRepo = SearchRepository(available: auth.available);
+      _recorder = ChatSessionRecorder(
+        uid: AppSettingsScope.read(context).profile?.uid,
+        agentId: AgentRegistry.tungTungId,
+        moduleId: 'tung_tung_chat',
+        analytics: AnalyticsScope.of(context),
+        available: auth.available,
+        onIdleTimeout: _onIdleTimeout,
+      );
     }
     // Seed an opening bubble so the page reads as a chat from the
     // first frame. Tung Tung's tone is light + curious; the article
@@ -178,8 +200,16 @@ class _TungTungPageState extends State<TungTungPage> {
   @override
   void dispose() {
     _connSub?.cancel();
+    _recorder?.dispose();
     _inputCtrl.dispose();
     super.dispose();
+  }
+
+  /// M-7 — idle clock closed the session in place; run the Brief PR flow.
+  void _onIdleTimeout() {
+    if (!mounted) return;
+    _briefPrSurfaced = false;
+    unawaited(_maybeSurfaceBriefPr(closeSession: false));
   }
 
   /// Wrapper so ANY throw inside the send pipeline (persona resolve,
@@ -219,6 +249,9 @@ class _TungTungPageState extends State<TungTungPage> {
     // Snapshot + reset the search-armed flag now so a second send
     // doesn't accidentally re-search the same query.
     final searchThisTurn = _searchArmed;
+    final userSentAt = DateTime.now();
+    final (usedVoice, voiceMs) = _voice.takeModality();
+    _recorder?.bumpActivity();
 
     setState(() {
       _busy = true;
@@ -226,6 +259,7 @@ class _TungTungPageState extends State<TungTungPage> {
       _inputCtrl.clear();
       _searchArmed = false;
     });
+    await _recorder?.ensureStarted();
 
     // If the user armed search, run it before the LLM call so the
     // results are part of this turn's contextSuffix.
@@ -326,6 +360,7 @@ class _TungTungPageState extends State<TungTungPage> {
       history: history,
       userInput: text,
       uid: profile?.uid,
+      sessionId: _recorder?.sessionId,
     );
 
     if (profile != null &&
@@ -342,27 +377,77 @@ class _TungTungPageState extends State<TungTungPage> {
     }
 
     if (!mounted) return;
+    final modality = usedVoice ? InputModality.voice : InputModality.text;
+    final mode = widget.articleContext != null ? 'A' : 'B';
     if (response.shortCircuited) {
+      // S-2 — acute: template instead of any reply; session ends `crisis`.
       setState(() {
         _busy = false;
-        _turns.add(_Turn.system(_acuteSafetyMessage(isEn)));
+        _turns.add(_Turn.system(
+            SafetyCopy.acuteAck(AgentRegistry.tungTungId, isEn: isEn)));
       });
+      unawaited(_recorder?.logTurn(TurnRecord(
+        agentId: AgentRegistry.tungTungId,
+        moduleId: 'tung_tung_chat',
+        userSent: userSentAt,
+        replyShown: DateTime.now(),
+        modality: modality,
+        voiceDurationMs: voiceMs,
+        charCount: text.length,
+        detector: response.inputFlag,
+        shortCircuited: true,
+        ackShown: true,
+        response: response,
+        tungTungMode: mode,
+        tungTungArticleId: widget.articleId,
+        tungTungSearchInvoked: searchThisTurn,
+      )));
+      unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
       return;
     }
 
-    final replyText = response.text.trim().isNotEmpty
-        ? response.text.trim()
-        : (isEn
-            ? 'I\'m not sure what to say to that — tell me a bit more?'
-            : '我未諗到點答 —— 講多少少好嗎？');
+    // S-6 — fallback line from JSON on LLM failure.
+    final replyText = response.isFallback
+        ? SafetyCopy.llmFallback(AgentRegistry.tungTungId, isEn: isEn)
+        : response.text.trim();
+    final escalation = _higher(response.inputFlag, response.outputFlag);
+    // S-3 — Tung Tung's moderate template is resources-only; the referral
+    // to Siu Yan is already in the LLM reply per the prompt.
+    final moderateAck = escalation.interrupts
+        ? SafetyCopy.moderateAck(AgentRegistry.tungTungId, isEn: isEn)
+        : null;
+    final replyShownAt = DateTime.now();
     setState(() {
       _busy = false;
       _turns.add(_Turn.bot(replyText,
           promptHash: response.metadata.systemPromptHash));
+      if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
     });
+    final turnIndex = _turns.lastIndexWhere((t) => !t.fromUser && !t.isSystem);
+    final turnDocId = await _recorder?.logTurn(TurnRecord(
+      agentId: AgentRegistry.tungTungId,
+      moduleId: 'tung_tung_chat',
+      userSent: userSentAt,
+      replyShown: replyShownAt,
+      modality: modality,
+      voiceDurationMs: voiceMs,
+      charCount: text.length,
+      detector: escalation,
+      shortCircuited: false,
+      ackShown: moderateAck != null,
+      response: response,
+      tungTungMode: mode,
+      tungTungArticleId: widget.articleId,
+      tungTungSearchInvoked: searchThisTurn,
+    ));
+    if (mounted && turnDocId != null && turnIndex >= 0) {
+      setState(() =>
+          _turns[turnIndex] = _turns[turnIndex].withTurnDocId(turnDocId));
+    }
 
     if (profile != null &&
+        !response.isFallback &&
         response.text.trim().isNotEmpty &&
         profile.consent.transcriptRetentionFor(AgentRegistry.tungTungId)) {
       await core.agentContext.appendTurn(
@@ -376,19 +461,22 @@ class _TungTungPageState extends State<TungTungPage> {
       );
     }
 
-    final escalation = _higher(response.inputFlag, response.outputFlag);
+    if (!mounted) return;
     if (escalation.level != DistressLevel.none) {
-      await core.distressRouter.route(escalation, context: context);
+      await core.distressRouter.route(
+        escalation,
+        context: context,
+        onModerateSheetShown: () =>
+            _recorder?.logEvent(PhaseAEvents.moderateSheetShown, {
+          'turnId': turnDocId,
+          'matchedTerm': escalation.matchedTerm,
+        }),
+      );
     }
   }
 
   DistressMatch _higher(DistressMatch a, DistressMatch b) =>
       a.level.index >= b.level.index ? a : b;
-
-  String _acuteSafetyMessage(bool isEn) => isEn
-      ? 'What you just said is important. Please call Samaritans Hong '
-          'Kong at 2896 0000 right now.'
-      : '你啱啱講嘅嘢非常重要。請即刻打撒瑪利亞會 2896 0000。';
 
   void _toggleSearch() {
     setState(() => _searchArmed = !_searchArmed);
@@ -442,6 +530,7 @@ class _TungTungPageState extends State<TungTungPage> {
                             moduleId: 'tung_tung_chat',
                             turnKey: 'turn_$i',
                             promptHash: _turns[i].promptHash,
+                            turnDocId: _turns[i].turnDocId,
                           ),
                         ),
                     ],
@@ -504,10 +593,14 @@ class _TungTungPageState extends State<TungTungPage> {
     );
   }
 
-  Future<void> _maybeSurfaceBriefPr() async {
+  Future<void> _maybeSurfaceBriefPr({bool closeSession = true}) async {
     if (_briefPrSurfaced) return;
     _briefPrSurfaced = true;
     final profile = AppSettingsScope.read(context).profile;
+    final rec = _recorder;
+    if (closeSession && rec != null && rec.isOpen) {
+      await rec.end(SessionEndReason.userLeft);
+    }
     if (profile == null) return;
     // Capture the navigator NOW: this runs from PopScope after the route
     // has already popped, so once the gate queries outlast the pop
@@ -529,13 +622,15 @@ class _TungTungPageState extends State<TungTungPage> {
           profile.consent.transcriptRetentionFor(AgentRegistry.tungTungId),
     ));
 
-    final exchangeCount = _turns.where((t) => t.fromUser).length;
+    if (rec == null || rec.sessionId == null) return;
+    final sessionId = rec.sessionId;
     final gate = BriefPrGate();
     final shouldShow = await gate.shouldSurfaceBriefPr(
       uid: profile.uid,
       agentId: 'tung_tung',
-      sessionStartedAt: _sessionStartedAt,
-      exchangeCount: exchangeCount,
+      sessionStartedAt: rec.startedAt ?? _sessionStartedAt,
+      exchangeCount: rec.userTurnCount,
+      endReason: rec.endReason,
     );
     if (!shouldShow) return;
     final anchor = await gate.isAnchorPromptFor(
@@ -548,6 +643,7 @@ class _TungTungPageState extends State<TungTungPage> {
           agentId: 'tung_tung',
           agentDisplayName: '通通',
           isAnchorPrompt: anchor,
+          sessionId: sessionId,
         ),
       ),
     );
@@ -951,9 +1047,15 @@ class _Turn {
   final bool isSystem;
   final String text;
   final String? promptHash;
-  const _Turn._(this.fromUser, this.isSystem, this.text, {this.promptHash});
+
+  /// L-1 — id of the logged `turns/{turnId}` doc (assistant turns only).
+  final String? turnDocId;
+  const _Turn._(this.fromUser, this.isSystem, this.text,
+      {this.promptHash, this.turnDocId});
   factory _Turn.user(String t) => _Turn._(true, false, t);
   factory _Turn.bot(String t, {String? promptHash}) =>
       _Turn._(false, false, t, promptHash: promptHash);
   factory _Turn.system(String t) => _Turn._(false, true, t);
+  _Turn withTurnDocId(String id) =>
+      _Turn._(fromUser, isSystem, text, promptHash: promptHash, turnDocId: id);
 }

@@ -46,9 +46,7 @@ class SafetyEventWriter {
     String? sessionId,
   }) async {
     if (!available) return;
-    if (match.level == DistressLevel.none || match.level == DistressLevel.low) {
-      return;
-    }
+    if (!match.isEscalation) return;
 
     final textHash = _sha256(inputText);
 
@@ -57,7 +55,12 @@ class SafetyEventWriter {
         'uid': uid,
         'source': source.code,
         'textHash': textHash,
-        'level': match.level.name,
+        // `level` keeps the legacy 4-band label the Firestore rule and CF
+        // trigger validate against; `tier` carries the S-1 split.
+        'level': match.level.legacyLevelCode,
+        'tier': match.level.tierCode,
+        'category': match.category?.code,
+        'lexiconVersion': DistressDetector.wordlistVersion,
         'matchedTerm': match.matchedTerm,
         'agentId': agentId,
         'sessionId': sessionId,

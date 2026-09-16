@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -18,7 +19,9 @@ import '../core/safety/distress_detector.dart';
 import '../core/safety/distress_router.dart';
 import '../core/safety/distress_state.dart';
 import '../core/safety/safety_overlay.dart';
+import '../core/session/chat_session_recorder.dart';
 import '../core/telemetry/screen_dwell_observer.dart';
+import '../core/version/build_info.dart';
 import '../core/telemetry/screen_dwell_tracker.dart';
 import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
@@ -93,6 +96,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _sessionOpen = true;
     _sessionStartedAt = DateTime.now();
     widget.analytics.logSessionStart(platform: _currentPlatform());
+    // L-2 — one `app_start` event per process with the pinned versions
+    // (buffered until sign-in, then flushed under the uid).
+    widget.analytics.logEvent(PhaseAEvents.appStart, {
+      'appVersion': BuildInfo.appVersion,
+      'buildNumber': BuildInfo.buildNumber,
+      'lexiconVersion': BuildInfo.lexiconVersion,
+      'promptBundleHash': BuildInfo.promptBundleHash,
+      'platform': _currentPlatform(),
+    });
   }
 
   @override
@@ -109,6 +121,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (uid == _lastFcmUid) return;
     _lastFcmUid = uid;
     if (uid != null) {
+      // M-7 — close sessions left open by a process kill.
+      unawaited(ChatSessionRecorder.sweepUnclosed(uid));
       await widget.fcm.initialize(uid);
     } else {
       await widget.fcm.deregister();
@@ -131,6 +145,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           _sessionOpen = true;
           _sessionStartedAt = DateTime.now();
           widget.analytics.logSessionStart(platform: _currentPlatform());
+          widget.analytics.logEvent(PhaseAEvents.appForeground);
         }
         break;
       case AppLifecycleState.inactive:
@@ -144,6 +159,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ScreenDwellTracker.instance.backgroundAll();
         if (_sessionOpen) {
           _sessionOpen = false;
+          widget.analytics.logEvent(PhaseAEvents.appBackground);
           widget.analytics.logSessionEnd(
             durationSeconds:
                 DateTime.now().difference(_sessionStartedAt).inSeconds,

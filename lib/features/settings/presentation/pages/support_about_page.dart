@@ -1,5 +1,8 @@
+import 'dart:ui' show FontFeature;
+
 import 'package:flutter/material.dart';
 
+import '../../../../core/version/build_info.dart';
 import '../../../../l10n/app_localizations.dart';
 import 'faq_page.dart';
 import 'privacy_policy_page.dart';
@@ -40,10 +43,31 @@ class SupportAboutPage extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 10),
+                    // V-1 — field-checkable pin: version, build, lexicon and
+                    // the first 8 hex of promptBundleHash must match the
+                    // Manual §13 table for this Phase A build.
                     Text(
-                      isEn ? 'Version $version' : '版本 $version',
+                      isEn
+                          ? 'Version ${BuildInfo.appVersion} (build ${BuildInfo.buildNumber})'
+                          : '版本 ${BuildInfo.appVersion}（build ${BuildInfo.buildNumber}）',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      (isEn ? 'Lexicon ' : '詞表 ') + BuildInfo.lexiconVersion,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      (isEn ? 'Prompt bundle ' : 'Prompt bundle ') +
+                          BuildInfo.promptBundleHashShort,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
                     const SizedBox(height: 6),

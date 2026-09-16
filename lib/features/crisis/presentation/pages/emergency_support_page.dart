@@ -1,25 +1,53 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/safety/safety_copy.dart';
 import '../../../../core/safety/safety_overlay.dart';
+import '../../../../core/session/chat_session_recorder.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 
-/// Emergency support page surfaced when the safety pill is tapped or
-/// the distress router routes here on an acute flag.
+/// Crisis page (Phase A baseline S-4, HREC approval §8.1).
 ///
-/// Buttons fire `tel:` URIs via url_launcher for one-tap dialling on
-/// Android and iOS. Falls back to a clipboard copy + snackbar on
-/// platforms that don't support tel: (web).
+/// Surfaced by the distress router on an acute flag, from the moderate
+/// sheet's "reach someone", and from the settings / footer entry points.
 ///
-/// Defaults trimmed per the May-2026 review:
-///   • Hard-coded "表姐 / 阿May" trusted-contact rows removed; the page
-///     now reads from `UserProfile.emergencyContactName/Phone` (which
-///     onboarding now requires).
-///   • Opening copy reframed from "如果你或者身邊嘅人有即時危險" to
-///     "如果你有不安嘅諗法" so a participant in moderate distress
-///     does not bounce off a phrasing that only fits acute danger.
-class EmergencySupportPage extends StatelessWidget {
-  const EmergencySupportPage({super.key});
+/// Content rules (spec §S-4):
+///   • Exactly the four resources in `crisis_resources.json`, in order
+///     (生命熱線 → 撒瑪利亞會 → 醫管局精神健康專線 → 急症室 / 999).
+///   • Every item is one-tap dial; every text ≥ 20 sp.
+///   • One headline sentence ≤ 20 characters at the top.
+///   • Footer: 「資料核對日期：YYYY-MM-DD」 from the JSON (待核對 until the
+///     PI fills it).  Numbers never live in code.
+///
+/// Logs `crisis_page_shown(from)` on open and `crisis_call_tapped(resource)`
+/// per dial.
+class EmergencySupportPage extends StatefulWidget {
+  /// Where the page was opened from (`acute_route` / `moderate_sheet` /
+  /// `settings` / `today_footer` / …) — logged, never shown.
+  final String from;
+
+  const EmergencySupportPage({super.key, this.from = 'unknown'});
+
+  @override
+  State<EmergencySupportPage> createState() => _EmergencySupportPageState();
+}
+
+class _EmergencySupportPageState extends State<EmergencySupportPage> {
+  bool _logged = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_logged) return;
+    _logged = true;
+    unawaited(AnalyticsScope.of(context).logEvent(
+      PhaseAEvents.crisisPageShown,
+      {'from': widget.from, 'resourcesVersion': SafetyCopy.crisis.version},
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,186 +56,93 @@ class EmergencySupportPage extends StatelessWidget {
     final profile = AppSettingsScope.of(context).profile;
     final contactName = profile?.emergencyContactName?.trim();
     final contactPhone = profile?.emergencyContactPhone?.trim();
-    final hasContact =
-        contactName != null && contactName.isNotEmpty;
+    final hasContact = contactName != null && contactName.isNotEmpty;
+    final crisis = SafetyCopy.crisis;
+    final verified = crisis.verifiedDate.trim();
 
     return SafetyOverlaySuppressor(
-        child: Scaffold(
-      appBar: AppBar(
-        title: Text(isEn ? 'Get help now' : '即時支援'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.errorContainer,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.favorite_rounded,
-                      size: 32,
-                      color: theme.colorScheme.onErrorContainer,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        isEn ? 'If you are having upsetting thoughts' : '如果你有不安嘅諗法',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          color: theme.colorScheme.onErrorContainer,
-                        ),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(isEn ? 'Get help now' : '即時支援'),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          children: [
+            // S-4 — one headline sentence, ≤ 20 characters.
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.favorite_rounded,
+                    size: 32,
+                    color: theme.colorScheme.onErrorContainer,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      crisis.headline(isEn),
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                        color: theme.colorScheme.onErrorContainer,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  isEn
-                      ? 'You can call any of the listeners below for a chat. '
-                          'If you or someone near you is in immediate danger, please call 999 right away or go to the nearest A&E.'
-                      : '可以打電話搵下面任何一個聆聽者傾下。'
-                          '如果你或者身邊嘅人有即時危險，請即刻撥 999 或者去最近嘅急症室。',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.onErrorContainer,
-                    fontWeight: FontWeight.w500,
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () => _dialNumber(context, '999'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: theme.colorScheme.error,
-                      foregroundColor: theme.colorScheme.onError,
-                    ),
-                    icon: const Icon(Icons.local_phone_rounded, size: 30),
-                    label: Text(isEn ? 'Call 999' : '撥 999'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
-          _SectionHeader(
-            icon: Icons.support_agent_outlined,
-            title: isEn ? '24-hour emotional support hotlines' : '24 小時情緒支援熱線',
-          ),
-          const SizedBox(height: 14),
-          _HotlineCard(
-            name: isEn ? 'Samaritan Befrienders Hong Kong' : '撒瑪利亞防止自殺會',
-            number: '2382 0000',
-            hours: isEn ? '24 hours' : '全日 24 小時',
-            note: isEn
-                ? '24-hour suicide prevention hotline.'
-                : '24 小時防止自殺熱線。',
-          ),
-          const SizedBox(height: 12),
-          _HotlineCard(
-            name: isEn
-                ? 'The Samaritans Hong Kong (multilingual)'
-                : '香港撒瑪利亞會（多語）',
-            number: '2896 0000',
-            hours: isEn ? '24 hours' : '全日 24 小時',
-            note: isEn
-                ? 'Cantonese, Mandarin or English available.'
-                : '可以粵語、普通話或英語溝通。',
-          ),
-          const SizedBox(height: 12),
-          _HotlineCard(
-            name: isEn
-                ? 'Hospital Authority mental health hotline'
-                : '醫管局精神健康專線',
-            number: '2466 7350',
-            hours: isEn ? '24 hours' : '24 小時',
-            note: isEn
-                ? 'Hong Kong Hospital Authority psychiatric hotline.'
-                : '香港醫院管理局精神科熱線。',
-          ),
-          const SizedBox(height: 12),
-          _HotlineCard(
-            name: isEn ? '999 emergency services' : '999 緊急服務',
-            number: '999',
-            hours: isEn ? '24 hours' : '24 小時',
-            note: isEn
-                ? 'Call right away if you are in immediate danger.'
-                : '即時危險時請即刻撥打。',
-          ),
-          const SizedBox(height: 28),
-          _SectionHeader(
-            icon: Icons.contacts_outlined,
-            title: isEn ? 'Your trusted contact' : '你嘅信任聯絡人',
-          ),
-          const SizedBox(height: 14),
-          if (hasContact)
-            _TrustedContactCard(
-              name: contactName,
-              number: contactPhone ?? '',
-            )
-          else
-            _EmptyTrustedContactHint(theme: theme),
-          const SizedBox(height: 28),
-          _SectionHeader(
-            icon: Icons.self_improvement,
-            title: isEn ? 'While you wait, take a few deep breaths' : '等嚟緊再深呼吸幾下',
-          ),
-          const SizedBox(height: 14),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isEn ? 'A few things you can try now' : '現在可以試吓嘅幾個動作',
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 14),
-                  _TipRow(
-                    number: '1',
-                    text: isEn
-                        ? 'Sit down or lean against a wall, and slowly take three deep breaths.'
-                        : '坐落或者攰住牆，慢慢深呼吸三次。',
-                  ),
-                  const SizedBox(height: 10),
-                  _TipRow(
-                    number: '2',
-                    text: isEn
-                        ? 'Look around, and name three things you can see.'
-                        : '望下周圍，講出你見到嘅三樣嘢。',
-                  ),
-                  const SizedBox(height: 10),
-                  _TipRow(
-                    number: '3',
-                    text: isEn
-                        ? 'Drink a sip of water and give your body a moment to relax.'
-                        : '飲一啖水，畀身體一啲時間放鬆。',
-                  ),
-                  const SizedBox(height: 10),
-                  _TipRow(
-                    number: '4',
-                    text: isEn
-                        ? 'Call or text any of the people listed above.'
-                        : '撥電話或者傳訊息畀上面任何一個人。',
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+            for (var i = 0; i < crisis.resources.length; i++) ...[
+              _ResourceCard(
+                index: i + 1,
+                resource: crisis.resources[i],
+                isEn: isEn,
+                emphasis: crisis.resources[i].id == 'emergency_999',
+              ),
+              const SizedBox(height: 12),
+            ],
+            const SizedBox(height: 12),
+            _SectionHeader(
+              icon: Icons.contacts_outlined,
+              title: isEn ? 'Your trusted contact' : '你嘅信任聯絡人',
+            ),
+            const SizedBox(height: 12),
+            if (hasContact)
+              _TrustedContactCard(name: contactName, number: contactPhone ?? '')
+            else
+              _EmptyTrustedContactHint(theme: theme),
+            const SizedBox(height: 24),
+            Center(
+              child: Text(
+                isEn
+                    ? 'Information verified: ${verified.isEmpty ? 'pending' : verified}'
+                    : '資料核對日期：${verified.isEmpty ? '待核對' : verified}',
+                style: TextStyle(
+                  fontSize: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 }
 
-Future<void> _dialNumber(BuildContext context, String number) async {
+Future<void> _dialNumber(BuildContext context, String number,
+    {String? resourceId}) async {
+  unawaited(AnalyticsScope.of(context).logEvent(
+    PhaseAEvents.crisisCallTapped,
+    {'resource': resourceId ?? number},
+  ));
   final digits = number.replaceAll(RegExp(r'\s'), '');
   final uri = Uri(scheme: 'tel', path: digits);
   if (await canLaunchUrl(uri)) {
@@ -238,84 +173,74 @@ class _SectionHeader extends StatelessWidget {
         Icon(icon, size: 30, color: theme.colorScheme.primary),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(
-            title,
-            style: theme.textTheme.titleLarge,
-          ),
+          child: Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
         ),
       ],
     );
   }
 }
 
-class _HotlineCard extends StatelessWidget {
-  final String name;
-  final String number;
-  final String hours;
-  final String note;
+class _ResourceCard extends StatelessWidget {
+  final int index;
+  final CrisisResource resource;
+  final bool isEn;
+  final bool emphasis;
 
-  const _HotlineCard({
-    required this.name,
-    required this.number,
-    required this.hours,
-    required this.note,
+  const _ResourceCard({
+    required this.index,
+    required this.resource,
+    required this.isEn,
+    required this.emphasis,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
+      color: emphasis ? theme.colorScheme.errorContainer : null,
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              name,
-              style: theme.textTheme.titleLarge,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              number,
-              style: theme.textTheme.displaySmall?.copyWith(
-                color: theme.colorScheme.primary,
-                letterSpacing: 1.5,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Icon(
-                  Icons.schedule,
-                  size: 22,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  hours,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+              '$index. ${resource.name(isEn)}',
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.3),
             ),
             const SizedBox(height: 8),
             Text(
-              note,
-              style: theme.textTheme.bodyLarge,
+              resource.number,
+              style: TextStyle(
+                fontSize: 34,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.5,
+                color: emphasis ? theme.colorScheme.error : theme.colorScheme.primary,
+              ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 6),
+            Text(
+              '${resource.hours(isEn)}・${resource.note(isEn)}',
+              style: TextStyle(
+                fontSize: 20,
+                height: 1.4,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              child: Builder(builder: (context) {
-                final isEn =
-                    Localizations.localeOf(context).languageCode == 'en';
-                return FilledButton.icon(
-                  onPressed: () => _dialNumber(context, number),
-                  icon: const Icon(Icons.phone_rounded, size: 26),
-                  label: Text(isEn ? 'Call $number' : '撥打 $number'),
-                );
-              }),
+              child: FilledButton.icon(
+                onPressed: () =>
+                    _dialNumber(context, resource.number, resourceId: resource.id),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 60),
+                  backgroundColor: emphasis ? theme.colorScheme.error : null,
+                  foregroundColor: emphasis ? theme.colorScheme.onError : null,
+                  textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                ),
+                icon: const Icon(Icons.phone_rounded, size: 30),
+                label: Text(isEn ? 'Call ${resource.number}' : '撥打 ${resource.number}'),
+              ),
             ),
           ],
         ),
@@ -328,10 +253,7 @@ class _TrustedContactCard extends StatelessWidget {
   final String name;
   final String number;
 
-  const _TrustedContactCard({
-    required this.name,
-    required this.number,
-  });
+  const _TrustedContactCard({required this.name, required this.number});
 
   @override
   Widget build(BuildContext context) {
@@ -360,23 +282,18 @@ class _TrustedContactCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    name,
-                    style: theme.textTheme.titleLarge,
-                  ),
+                  Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
                   Text(
                     hasNumber ? number : (isEn ? 'No phone number' : '未填電話'),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: TextStyle(fontSize: 20, color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
             ),
             IconButton(
               onPressed: hasNumber
-                  ? () => _dialNumber(context,number)
+                  ? () => _dialNumber(context, number, resourceId: 'trusted_contact')
                   : null,
               iconSize: 32,
               style: IconButton.styleFrom(
@@ -407,61 +324,19 @@ class _EmptyTrustedContactHint extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(Icons.person_off_outlined,
-                size: 26, color: theme.colorScheme.onSurfaceVariant),
+            Icon(Icons.person_off_outlined, size: 26, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 isEn
                     ? 'No trusted contact yet. You can add one in Settings → Profile.'
                     : '仲未設定信任聯絡人。可以喺「設定 → 個人資料」入面填。',
-                style: theme.textTheme.bodyLarge,
+                style: const TextStyle(fontSize: 20, height: 1.4),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _TipRow extends StatelessWidget {
-  final String number;
-  final String text;
-
-  const _TipRow({required this.number, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            number,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.onPrimaryContainer,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: theme.textTheme.bodyLarge,
-          ),
-        ),
-      ],
     );
   }
 }

@@ -50,7 +50,7 @@ void main() {
         moduleId: 'm2_check_in',
         systemPrompt: 'sys',
         history: const [],
-        userInput: '我想死。',
+        userInput: '我唔想活喇。',
       );
       expect(fake.calls, 0);
       expect(r.shortCircuited, true);
@@ -70,7 +70,7 @@ void main() {
       );
       expect(fake.calls, 1);
       expect(r.shortCircuited, false);
-      expect(r.inputFlag.level, DistressLevel.moderate);
+      expect(r.inputFlag.level, DistressLevel.moderateInterrupt);
       expect(r.hasEscalation, true);
       expect(r.text.isNotEmpty, true);
     });
@@ -84,7 +84,7 @@ void main() {
         history: const [],
         userInput: '今日唔錯。',
       );
-      expect(r.outputFlag.level, DistressLevel.moderate);
+      expect(r.outputFlag.level, DistressLevel.moderateInterrupt);
       expect(r.hasEscalation, true);
     });
 
@@ -111,7 +111,7 @@ void main() {
         moduleId: 'm3',
         systemPrompt: 'sys',
         history: const [],
-        userInput: '我想死。',
+        userInput: '我唔想活喇。',
       );
       expect(r.shortCircuited, true);
       expect(r.metadata.systemPromptHash, isNull);

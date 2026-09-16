@@ -20,6 +20,33 @@ class VoiceInputController {
     if (identical(_state, state)) _state = null;
   }
 
+  // L-1 input.modality — accumulated by the button while dictating and
+  // drained by the host page at send time via [takeModality].
+  bool _voiceUsed = false;
+  int _voiceMs = 0;
+  DateTime? _listenStartedAt;
+
+  void _onListenStart() {
+    _voiceUsed = true;
+    _listenStartedAt = DateTime.now();
+  }
+
+  void _onListenStop() {
+    final s = _listenStartedAt;
+    if (s != null) _voiceMs += DateTime.now().difference(s).inMilliseconds;
+    _listenStartedAt = null;
+  }
+
+  /// Returns `(usedVoice, voiceDurationMs)` for the message about to be
+  /// sent and resets the accumulator for the next one.
+  (bool, int?) takeModality() {
+    _onListenStop();
+    final r = (_voiceUsed, _voiceUsed ? _voiceMs : null);
+    _voiceUsed = false;
+    _voiceMs = 0;
+    return r;
+  }
+
   /// Cancel any active dictation and discard pending recognition so no
   /// late callback can repopulate the input after it's been cleared.
   Future<void> stopForSend() async {
@@ -199,12 +226,14 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
       _userStopped = true;
       _warnTimer?.cancel();
       await _stt.stop();
+      widget.controller?._onListenStop();
       if (mounted) setState(() => _listening = false);
       return;
     }
     _bufferStart = widget.prefix?.call() ?? '';
     _suppressResults = false;
     _userStopped = false;
+    widget.controller?._onListenStart();
     setState(() => _listening = true);
     final localeId = await _pickLocale();
 
@@ -264,6 +293,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
     _suppressResults = true;
     _userStopped = true;
     _warnTimer?.cancel();
+    widget.controller?._onListenStop();
     if (_listening || _stt.isListening) {
       try {
         await _stt.cancel();

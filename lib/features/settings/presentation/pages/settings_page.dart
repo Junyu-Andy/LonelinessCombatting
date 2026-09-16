@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/version/build_info.dart';
 import '../../data/tester_tools.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
@@ -89,7 +90,7 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: l10n.meItemCrisisSubtitle,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => const EmergencySupportPage(),
+                builder: (_) => const EmergencySupportPage(from: 'settings'),
               ),
             ),
           ),
@@ -254,7 +255,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 : '版本資料、常見問題、私隱政策',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => const SupportAboutPage(version: '1.0.0+3'),
+                builder: (_) => SupportAboutPage(
+                    version: '${BuildInfo.appVersion}+${BuildInfo.buildNumber}'),
               ),
             ),
           ),
@@ -666,7 +668,7 @@ class _BoundaryCard extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => const EmergencySupportPage(),
+                    builder: (_) => const EmergencySupportPage(from: 'settings'),
                   ),
                 );
               },

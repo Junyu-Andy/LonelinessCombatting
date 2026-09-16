@@ -121,7 +121,7 @@ class SafetyFooterCard extends StatelessWidget {
               AnalyticsScope.of(context).logEmergencyOpened(from: analyticsTag);
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => const EmergencySupportPage(),
+                  builder: (_) => const EmergencySupportPage(from: 'today_footer'),
                 ),
               );
             },

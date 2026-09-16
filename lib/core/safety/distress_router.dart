@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../features/crisis/presentation/pages/emergency_support_page.dart';
 import '../../features/wellbeing/presentation/pages/calm_page.dart';
+import '../../features/analytics/presentation/analytics_scope.dart';
+import '../session/chat_session_recorder.dart';
 import 'distress_detector.dart';
 import 'distress_state.dart';
 
@@ -12,9 +14,14 @@ import 'distress_state.dart';
 /// Routing rules:
 ///   - `none` / `low`: update [DistressState] so the [SafetyOverlay]
 ///     pill repaints, but do not interrupt the user's flow.
-///   - `moderate`: pill repaints, and after the current turn settles
-///     we offer a non-blocking bottom sheet with three options
-///     (4-4-6 breathing / call someone / I'm OK, continue).
+///   - `moderateReview` (S-1, 2026-09): grief / past-hardship vocabulary
+///     inside a life review.  Logged upstream; **nothing** is surfaced —
+///     no sheet, no template, and the pill state is left untouched so a
+///     bereaved participant is not nudged out of the memory.
+///   - `moderateInterrupt`: pill repaints, and after the current turn
+///     settles we offer a non-blocking bottom sheet with three options
+///     (4-4-6 breathing / call someone / I'm OK, continue).  The caller
+///     also shows the per-agent safety template (see SafetyAcknowledgements).
 ///   - `acute`: immediately push a full-screen crisis surface
 ///     ([EmergencySupportPage]) on the root navigator. Callers are
 ///     responsible for *not* persisting the offending turn — but
@@ -34,16 +41,26 @@ class DistressRouter {
   /// [context] must be a widget mounted under the [SafetyOverlay] root
   /// (i.e. any module page). On `acute` we use [rootNavigator] so the
   /// crisis page sits above any in-flight dialogs or sheets.
+  /// [onModerateSheetShown] fires right before the moderate_interrupt
+  /// bottom sheet is pushed so the calling page can log
+  /// `moderate_sheet_shown` (L-1 events).
   Future<void> route(
     DistressMatch match, {
     required BuildContext context,
+    void Function()? onModerateSheetShown,
   }) async {
+    if (match.level == DistressLevel.moderateReview) {
+      // S-1: review-only.  Not reported to the pill state either.
+      return;
+    }
     state.report(match);
     switch (match.level) {
       case DistressLevel.none:
       case DistressLevel.low:
+      case DistressLevel.moderateReview:
         return;
-      case DistressLevel.moderate:
+      case DistressLevel.moderateInterrupt:
+        onModerateSheetShown?.call();
         // Defer one frame so the caller's setState completes before
         // we add the bottom sheet to the route stack.
         await Future<void>.delayed(Duration.zero);
@@ -54,7 +71,7 @@ class DistressRouter {
         if (!context.mounted) return;
         await Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute<void>(
-            builder: (_) => const EmergencySupportPage(),
+            builder: (_) => const EmergencySupportPage(from: 'acute_route'),
             fullscreenDialog: true,
           ),
         );
@@ -131,10 +148,13 @@ class DistressModerateSheet extends StatelessWidget {
               icon: Icons.phone_in_talk_outlined,
               label: isEn ? 'Reach someone' : '搵人傾',
               onPressed: () {
+                AnalyticsScope.of(context)
+                    .logEvent(PhaseAEvents.moderateSheetOpenedResources);
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => const EmergencySupportPage(),
+                    builder: (_) =>
+                        const EmergencySupportPage(from: 'moderate_sheet'),
                   ),
                 );
               },

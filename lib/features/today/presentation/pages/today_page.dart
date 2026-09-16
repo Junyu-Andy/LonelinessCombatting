@@ -14,7 +14,9 @@ import '../widgets/continue_chat_card.dart';
 import '../widgets/facts_recap_row.dart';
 import '../widgets/greeting_hero.dart';
 import '../widgets/home_tool_shortcuts.dart';
+import '../widgets/daily_mood_prompt.dart';
 import '../widgets/pending_prompts_banner.dart';
+import '../widgets/week1_nudge_banner.dart';
 
 /// Home tab (屋企) — final layout per Home Layout Spec §1:
 ///   1. Greeting hero with embedded 5-emoji mood pad (§1–2)
@@ -43,6 +45,10 @@ class _TodayPageState extends State<TodayPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _maybeWarmGreetings();
+    // M-3 — one-question mood prompt on the first home build of the day.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(DailyMoodPrompt.maybeShow(context));
+    });
   }
 
   void _maybeWarmGreetings() {
@@ -81,6 +87,8 @@ class _TodayPageState extends State<TodayPage> {
           // study-critical nudges still surface when the protocol calls
           // for them.
           PendingPromptsBanner(),
+          // P-1 — first-week "try {agent}" nudge (days 3 and 6).
+          Week1NudgeBanner(),
           MissedCheckInBanner(),
           ActivePlanBanner(),
           AgentTileRow(),

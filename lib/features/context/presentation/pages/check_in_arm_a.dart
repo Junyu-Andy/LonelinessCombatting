@@ -18,11 +18,14 @@ import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/memory/cross_module_memory.dart';
 import '../../../../core/safety/distress_detector.dart';
+import '../../../../core/safety/safety_copy.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
 import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
@@ -137,10 +140,25 @@ class _CheckInArmAState extends State<CheckInArmA> {
   String? _pendingNamingThought;
   String? _pendingNamingInvitation;
 
+  /// L-1 / M-7 — agent-session + per-turn log (Phase A baseline).
+  ChatSessionRecorder? _recorder;
+  bool _briefPrSurfaced = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _analytics = AnalyticsScope.of(context);
+    if (_recorder == null) {
+      final profile = AppSettingsScope.read(context).profile;
+      _recorder = ChatSessionRecorder(
+        uid: profile?.uid,
+        agentId: AgentRegistry.siuYanId,
+        moduleId: 'm2_check_in',
+        analytics: _analytics!,
+        available: AuthServiceScope.of(context).available,
+        onIdleTimeout: _onIdleTimeout,
+      );
+    }
     if (!_openerSeeded) {
       _openerSeeded = true;
       final isEn = Localizations.localeOf(context).languageCode == 'en';
@@ -221,6 +239,11 @@ class _CheckInArmAState extends State<CheckInArmA> {
     final profile = AppSettingsScope.read(context).profile;
     if (profile != null) {
       final v = face.numericScore;
+      _analytics?.logEvent(PhaseAEvents.moodCheckin, {
+        'skipped': false,
+        'mood': v,
+        'source': 'check_in_a_gate',
+      });
       // Fire-and-forget (offline-safe) so the mood is captured even if the
       // conversation is abandoned right after.
       unawaited(() async {
@@ -360,8 +383,20 @@ class _CheckInArmAState extends State<CheckInArmA> {
   @override
   void dispose() {
     _connSub?.cancel();
+    _recorder?.dispose();
     _inputCtrl.dispose();
     super.dispose();
+  }
+
+  /// M-7 — the 10-minute idle clock closed the session while the page is
+  /// still open: run the end-of-session flow (Brief PR) in place.  Typing
+  /// again starts a fresh session.
+  void _onIdleTimeout() {
+    if (!mounted) return;
+    final uid = AppSettingsScope.read(context).profile?.uid;
+    if (uid == null) return;
+    _briefPrSurfaced = false;
+    unawaited(_surfaceBriefPr(Navigator.of(context), uid));
   }
 
   /// Re-send the message queued while offline through the normal path
@@ -410,6 +445,10 @@ class _CheckInArmAState extends State<CheckInArmA> {
       );
       if (!mounted) return;
     }
+    // L-1 — capture send-time facts before anything async happens.
+    final userSentAt = DateTime.now();
+    final (usedVoice, voiceMs) = _voice.takeModality();
+    _recorder?.bumpActivity();
     setState(() {
       _busy = true;
       _turns.add(_Turn.user(text));
@@ -418,6 +457,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
     final core = CoreServicesScope.of(context);
     final profile = AppSettingsScope.read(context).profile;
     final isEn = Localizations.localeOf(context).languageCode == 'en';
+    await _recorder?.ensureStarted();
 
     // Cross-module callback (Layer 3): on the user's *first* turn,
     // ask the budget service whether M2 may lightly reference recent
@@ -479,6 +519,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
       history: history,
       userInput: text,
       uid: profile?.uid,
+      sessionId: _recorder?.sessionId,
     );
 
     // Append the user's turn to Siu Yan's short-term buffer so
@@ -498,27 +539,89 @@ class _CheckInArmAState extends State<CheckInArmA> {
     }
     if (!mounted) return;
     if (response.shortCircuited) {
+      // S-2 — acute: template INSTEAD of any reply (system voice), crisis
+      // page, session closed as `crisis` (no Brief PR).
+      final ack = SafetyCopy.acuteAck(AgentRegistry.siuYanId, isEn: isEn);
       setState(() {
         _busy = false;
-        _turns.add(_Turn.system(_acuteSafetyMessage()));
+        _turns.add(_Turn.system(ack));
       });
+      unawaited(_recorder?.logTurn(TurnRecord(
+        agentId: AgentRegistry.siuYanId,
+        moduleId: 'm2_check_in',
+        userSent: userSentAt,
+        replyShown: DateTime.now(),
+        modality: usedVoice ? InputModality.voice : InputModality.text,
+        voiceDurationMs: voiceMs,
+        charCount: text.length,
+        detector: response.inputFlag,
+        shortCircuited: true,
+        ackShown: true,
+        response: response,
+      )));
+      unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
       return;
     }
+
+    // S-6 — LLM failure → per-agent fallback line from JSON, never a
+    // scripted "LLM-ish" acknowledgement.
+    final replyText = response.isFallback
+        ? SafetyCopy.llmFallback(AgentRegistry.siuYanId, isEn: isEn)
+        : response.text;
+    // Route the higher of the two flags so moderate-on-output still
+    // triggers the soft sheet even if input was clean.
+    final escalation = _higher(response.inputFlag, response.outputFlag);
+    // S-1 — moderate_interrupt: template shown IN ADDITION to the reply
+    // (detection is client-side, so this holds on fallback turns too).
+    final moderateAck = escalation.interrupts
+        ? SafetyCopy.moderateAck(AgentRegistry.siuYanId, isEn: isEn)
+        : null;
+
+    // Phase A spec §2.6 — decide the Thought Exercise offer now so the
+    // exact invitation text is logged on this turn (L-3).
+    String? teOfferText;
+    NegativeCognitionMatch? namingMatch;
+    if (_pendingNamingThought == null &&
+        _pendingReferral == null &&
+        !response.hasEscalation &&
+        !response.isFallback) {
+      namingMatch = _negCogDetector.scan(text);
+      if (namingMatch != null) {
+        teOfferText =
+            NamingThoughtCard.invitationText(namingMatch.fullTurn, isEn: isEn);
+      }
+    }
+
+    final replyShownAt = DateTime.now();
     setState(() {
       _busy = false;
-      if (response.text.isNotEmpty) {
-        _turns.add(_Turn.bot(response.text,
-            promptHash: response.metadata.systemPromptHash));
-      } else {
-        // No API key configured — keep the flow moving with a scripted
-        // acknowledgement so the screen isn't dead.
-        _turns.add(_Turn.bot(_scriptedAck()));
-      }
+      _turns.add(_Turn.bot(replyText,
+          promptHash: response.metadata.systemPromptHash));
+      if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
     });
+    final turnIndex = _turns.lastIndexWhere((t) => !t.fromUser && !t.isSystem);
+    final turnDocId = await _recorder?.logTurn(TurnRecord(
+      agentId: AgentRegistry.siuYanId,
+      moduleId: 'm2_check_in',
+      userSent: userSentAt,
+      replyShown: replyShownAt,
+      modality: usedVoice ? InputModality.voice : InputModality.text,
+      voiceDurationMs: voiceMs,
+      charCount: text.length,
+      detector: escalation,
+      shortCircuited: false,
+      ackShown: moderateAck != null,
+      response: response,
+      teOfferText: teOfferText,
+    ));
+    if (mounted && turnDocId != null && turnIndex >= 0) {
+      setState(() => _turns[turnIndex] = _turns[turnIndex].withTurnDocId(turnDocId));
+    }
 
     // Persist the assistant turn so the buffer round-trips properly.
     if (profile != null &&
+        !response.isFallback &&
         response.text.isNotEmpty &&
         profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId)) {
       await core.agentContext.appendTurn(
@@ -532,33 +635,33 @@ class _CheckInArmAState extends State<CheckInArmA> {
       );
     }
 
-    // Route the higher of the two flags so moderate-on-output still
-    // triggers the soft sheet even if input was clean.
-    final escalation = _higher(response.inputFlag, response.outputFlag);
+    if (!mounted) return;
     if (escalation.level != DistressLevel.none) {
-      await core.distressRouter.route(escalation, context: context);
+      await core.distressRouter.route(
+        escalation,
+        context: context,
+        onModerateSheetShown: () =>
+            _recorder?.logEvent(PhaseAEvents.moderateSheetShown, {
+          'turnId': turnDocId,
+          'matchedTerm': escalation.matchedTerm,
+        }),
+      );
     }
     if (!mounted) return;
 
-    // Phase A spec §2.6 — Siu Yan's Thought Exercise offer.  We surface
-    // the naming card iff (a) negative cognition matched on this turn,
-    // (b) no other card is currently pending, (c) distress hasn't
-    // escalated.  Cached invitation = Siu Yan's last assistant reply
-    // (B.5 audit-trigger race fix).
-    if (_pendingNamingThought == null &&
-        _pendingReferral == null &&
-        !response.hasEscalation) {
-      final match = _negCogDetector.scan(text);
-      if (match != null) {
-        final lastBot = _turns.lastWhere(
-          (t) => !t.fromUser && !t.isSystem,
-          orElse: () => _Turn.bot(''),
-        );
-        setState(() {
-          _pendingNamingThought = match.fullTurn;
-          _pendingNamingInvitation = lastBot.text;
-        });
-      }
+    // Phase A spec §2.6 — Siu Yan's Thought Exercise offer.  Surface the
+    // naming card iff (a) negative cognition matched on this turn, (b) no
+    // other card is currently pending, (c) distress hasn't escalated.
+    // Cached invitation = the exact card text (B.5 audit trigger, L-3).
+    if (namingMatch != null && teOfferText != null) {
+      setState(() {
+        _pendingNamingThought = namingMatch!.fullTurn;
+        _pendingNamingInvitation = teOfferText;
+      });
+      _recorder?.logEvent(PhaseAEvents.teOffer, {
+        'turnId': turnDocId,
+        'offerText': teOfferText,
+      });
     }
 
     // Cross-referral routing (Sprint 5). Skip when a naming card is
@@ -578,6 +681,14 @@ class _CheckInArmAState extends State<CheckInArmA> {
       );
       if (mounted && surfaced != null) {
         setState(() => _pendingReferral = surfaced);
+        final target = surfaced.match.trigger.targetAgentId;
+        unawaited(_recorder?.updateTurn(turnDocId, {
+          'referral': {'offered': true, 'target': target},
+        }));
+        _recorder?.logEvent(PhaseAEvents.referralOffered, {
+          'turnId': turnDocId,
+          'target': target,
+        });
       }
     }
   }
@@ -591,6 +702,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
       _pendingNamingThought = null;
       _pendingNamingInvitation = null;
     });
+    _recorder?.logEvent(PhaseAEvents.teAccept, {'offerText': invitation});
     if (mounted) {
       await AnalyticsScope.of(context)
           .logM5ThoughtExerciseOpened(origin: 'siu_yan_offer');
@@ -611,6 +723,9 @@ class _CheckInArmAState extends State<CheckInArmA> {
   }
 
   void _declineNaming() {
+    _recorder?.logEvent(PhaseAEvents.teDecline, {
+      'offerText': _pendingNamingInvitation,
+    });
     setState(() {
       _pendingNamingThought = null;
       _pendingNamingInvitation = null;
@@ -619,26 +734,6 @@ class _CheckInArmAState extends State<CheckInArmA> {
 
   DistressMatch _higher(DistressMatch a, DistressMatch b) {
     return a.level.index >= b.level.index ? a : b;
-  }
-
-  String _acuteSafetyMessage() {
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-    // System-voice crisis copy (NOT agent voice).  Deliberately avoids
-    // attachment phrasing forbidden in the agent prompts ("我好擔心你"
-    // / "我會諗起你") — this is a directive system message shown when
-    // the LLM is short-circuited, not Siu Yan speaking.
-    return isEn
-        ? "What you've just said is heavy. Please call the Samaritans "
-            "Hong Kong hotline now: 2896 0000 (24 hours)."
-        : '你頭先講嘅嘢好重。請即刻打撒瑪利亞會熱線 2896 0000，'
-            '24 小時都有人聽。';
-  }
-
-  String _scriptedAck() {
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-    return isEn
-        ? 'Thanks for telling me. I\'m here.'
-        : '多謝你話畀我知。我喺度。';
   }
 
   Future<void> _saveSession() async {
@@ -742,7 +837,10 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// chat — no 完成 button whose meaning collided with 阿伯's.
   Future<void> _finalizeOnExit() async {
     final userTurnCount = _turns.where((t) => t.fromUser).length;
-    if (_saved || userTurnCount < 1) return;
+    if (_saved || userTurnCount < 1) {
+      unawaited(_recorder?.end(SessionEndReason.userLeft));
+      return;
+    }
     // Captured NOW (pop callback, element still live) — everything after
     // the awaits below must not touch context: the State is disposed once
     // the pop animation ends.
@@ -751,6 +849,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
     final nav = Navigator.of(context);
     final uid = AppSettingsScope.read(context).profile?.uid;
     await _saveSession();
+    if (uid == null) unawaited(_recorder?.end(SessionEndReason.userLeft));
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
@@ -763,14 +862,24 @@ class _CheckInArmAState extends State<CheckInArmA> {
 
   /// Context-free Brief PR surfacing (runs post-pop via the captured
   /// navigator, same pattern as the Tung Tung / reflective surfaces).
+  ///
+  /// M-1 / M-7 — closes the agent session first (`user_left`, unless the
+  /// idle clock already closed it) and gates on the recorder's counts:
+  /// ≥ briefPRMinTurns model-reached turns and not a crisis end.
   Future<void> _surfaceBriefPr(NavigatorState nav, String uid) async {
-    final exchangeCount = _turns.where((t) => t.fromUser).length;
+    if (_briefPrSurfaced) return;
+    _briefPrSurfaced = true;
+    final rec = _recorder;
+    if (rec == null || rec.sessionId == null) return;
+    if (rec.isOpen) await rec.end(SessionEndReason.userLeft);
+    final sessionId = rec.sessionId;
     final gate = BriefPrGate();
     final shouldShow = await gate.shouldSurfaceBriefPr(
       uid: uid,
       agentId: 'siu_yan',
-      sessionStartedAt: _sessionStartedAt,
-      exchangeCount: exchangeCount,
+      sessionStartedAt: rec.startedAt ?? _sessionStartedAt,
+      exchangeCount: rec.userTurnCount,
+      endReason: rec.endReason,
     );
     if (!shouldShow) return;
     final anchor = await gate.isAnchorPromptFor(
@@ -783,6 +892,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
           agentId: 'siu_yan',
           agentDisplayName: '小欣',
           isAnchorPrompt: anchor,
+          sessionId: sessionId,
         ),
       ),
     );
@@ -877,6 +987,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
                             moduleId: 'm2_check_in',
                             turnKey: 'turn_$i',
                             promptHash: _turns[i].promptHash,
+                            turnDocId: _turns[i].turnDocId,
                           ),
                         ),
                     ],
@@ -933,11 +1044,17 @@ class _Turn {
   final bool isSystem;
   final String text;
   final String? promptHash;
-  const _Turn._(this.fromUser, this.isSystem, this.text, {this.promptHash});
+
+  /// L-1 — id of the logged `turns/{turnId}` doc (assistant turns only).
+  final String? turnDocId;
+  const _Turn._(this.fromUser, this.isSystem, this.text,
+      {this.promptHash, this.turnDocId});
   factory _Turn.user(String t) => _Turn._(true, false, t);
   factory _Turn.bot(String t, {String? promptHash}) =>
       _Turn._(false, false, t, promptHash: promptHash);
   factory _Turn.system(String t) => _Turn._(false, true, t);
+  _Turn withTurnDocId(String id) =>
+      _Turn._(fromUser, isSystem, text, promptHash: promptHash, turnDocId: id);
 }
 
 class _TurnBubble extends StatelessWidget {

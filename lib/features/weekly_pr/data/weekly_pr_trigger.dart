@@ -1,9 +1,14 @@
 /// Weekly PR trigger helper — figures out which agents the user used
 /// this week and whether the weekly PR has already been submitted.
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/session/chat_session_recorder.dart';
+import '../../analytics/data/analytics_service.dart';
 import 'weekly_pr_response.dart';
+import 'weekly_pr_window.dart';
 
 class WeeklyPrAgentUsage {
   final String agentId;
@@ -14,11 +19,18 @@ class WeeklyPrAgentUsage {
   /// tie-break when two agents have the same session count (C2).
   final DateTime firstUseAt;
 
+  /// M-2 — user turns this week (second tie-break) and the rule that
+  /// selected this agent.  Null when produced by the legacy events path.
+  final int? userTurnCount;
+  final String? referentRule;
+
   const WeeklyPrAgentUsage({
     required this.agentId,
     required this.displayName,
     required this.sessionCount,
     required this.firstUseAt,
+    this.userTurnCount,
+    this.referentRule,
   });
 }
 
@@ -119,10 +131,118 @@ class WeeklyPrTrigger {
 
   /// C2 — the single companion the Weekly PR is anchored to: the one used
   /// most this week (deterministic tie-break = earliest first-use). Null
-  /// when no companion was used.
+  /// when no companion was used.  Legacy events-based path; the Phase A
+  /// baseline uses [referentForRatedWeek].
   Future<WeeklyPrAgentUsage?> mostUsedAgentThisWeek(String uid) async {
     final list = await agentsUsedThisWeek(uid);
     return list.isEmpty ? null : list.first;
+  }
+
+  /// M-2 (Phase A baseline) — referent from `users/{uid}/sessions` (agent
+  /// sessions, Monday 00:00 → Sunday pushHour of the rated week): most
+  /// sessions → tie: most user turns → tie: most recent.  Returns the
+  /// choice with `referentRule` populated; `agent == null` + rule `none`
+  /// when the week had no agent session.
+  Future<ReferentChoice> referentForRatedWeek(
+    String uid,
+    DateTime ratedMonday,
+  ) async {
+    final (start, end) = WeeklyPrWindow.referentRange(ratedMonday);
+    try {
+      final snap = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('sessions')
+          .where('startedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+          .where('startedAt', isLessThan: Timestamp.fromDate(end))
+          .get();
+      final sessions = <String, int>{};
+      final turns = <String, int>{};
+      final last = <String, DateTime>{};
+      for (final d in snap.docs) {
+        final data = d.data();
+        if (data['kind'] != 'agent') continue;
+        final agentId = data['agentId'];
+        if (agentId is! String) continue;
+        sessions.update(agentId, (v) => v + 1, ifAbsent: () => 1);
+        turns.update(agentId, (v) => v + ((data['userTurnCount'] as num?)?.toInt() ?? 0),
+            ifAbsent: () => (data['userTurnCount'] as num?)?.toInt() ?? 0);
+        final ts = data['startedAt'];
+        final when = ts is Timestamp ? ts.toDate() : start;
+        last.update(agentId, (cur) => when.isAfter(cur) ? when : cur, ifAbsent: () => when);
+      }
+      final usage = [
+        for (final e in sessions.entries)
+          AgentWeekUsage(
+            agentId: e.key,
+            sessionCount: e.value,
+            userTurnCount: turns[e.key] ?? 0,
+            lastUsedAt: last[e.key] ?? start,
+          ),
+      ];
+      return chooseReferent(usage);
+    } catch (_) {
+      return const ReferentChoice(null, ReferentRule.none);
+    }
+  }
+
+  /// Convenience: [referentForRatedWeek] as the page's usage model.
+  Future<WeeklyPrAgentUsage?> referentUsageForRatedWeek(
+    String uid,
+    DateTime ratedMonday,
+  ) async {
+    final choice = await referentForRatedWeek(uid, ratedMonday);
+    final a = choice.agent;
+    if (a == null) return null;
+    return WeeklyPrAgentUsage(
+      agentId: a.agentId,
+      displayName: _displayNames[a.agentId] ?? a.agentId,
+      sessionCount: a.sessionCount,
+      firstUseAt: a.lastUsedAt,
+      userTurnCount: a.userTurnCount,
+      referentRule: choice.rule,
+    );
+  }
+
+  /// M-2 — after the window closes with no weekly_pr doc for that week,
+  /// write one `missed_{weekIso}` record (idempotent) and emit
+  /// `weekly_pr_missed`.  Skipped for weeks before enrolment.
+  Future<void> recordMissedIfNeeded({
+    required String uid,
+    required String arm,
+    required DateTime ratedMonday,
+    required DateTime? enrolledAt,
+    AnalyticsService? analytics,
+  }) async {
+    final weekIso = WeeklyPrWindow.ratedWeekIso(ratedMonday);
+    if (enrolledAt != null &&
+        enrolledAt.isAfter(ratedMonday.add(const Duration(days: 6)))) {
+      return;
+    }
+    try {
+      if (await hasSubmittedThisWeek(uid, weekIso)) return;
+      final ref = _db
+          .collection('users')
+          .doc(uid)
+          .collection('weekly_pr')
+          .doc('missed_$weekIso');
+      if ((await ref.get()).exists) return;
+      final now = DateTime.now();
+      await ref.set(WeeklyPrResponse(
+        weekIso: weekIso,
+        agentId: '_none',
+        agentDisplayName: '—',
+        sessionCountThisWeek: 0,
+        items: const {},
+        status: 'missed',
+        promptedAt: now,
+        respondedAt: now,
+        arm: arm,
+        referentRule: null,
+      ).toFirestore());
+      unawaited(analytics?.logEvent(PhaseAEvents.weeklyPrMissed, {'weekIso': weekIso}) ??
+          Future<void>.value());
+    } catch (_) {}
   }
 
   /// Returns true iff a weekly_pr doc with this weekIso already exists.
@@ -141,12 +261,13 @@ class WeeklyPrTrigger {
     }
   }
 
-  /// Writes a no_referent record when no agents were used this week.
-  Future<void> writeNoReferent(String uid, String arm) async {
+  /// Writes a no_referent record when no agents were used this week
+  /// (M-2: the 12 items are missing-by-design; only PGIC was asked).
+  Future<void> writeNoReferent(String uid, String arm, {String? weekIso}) async {
     try {
       final now = DateTime.now();
       final resp = WeeklyPrResponse(
-        weekIso: WeeklyPrResponse.currentWeekIso(),
+        weekIso: weekIso ?? WeeklyPrResponse.currentWeekIso(),
         agentId: '_none',
         agentDisplayName: '—',
         sessionCountThisWeek: 0,
@@ -155,6 +276,7 @@ class WeeklyPrTrigger {
         promptedAt: now,
         respondedAt: now,
         arm: arm,
+        referentRule: ReferentRule.none,
       );
       await _db
           .collection('users')
