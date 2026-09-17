@@ -373,6 +373,15 @@ abstract class LlmClient {
 class DeepseekLlmClient implements LlmClient {
   const DeepseekLlmClient();
 
+  /// Tester hook (T-11): `flutter run --dart-define=FORCE_LLM_FALLBACK=true`
+  /// makes every call fail as `forced_fallback` so the S-6 fallback line,
+  /// `llm.status = fallback` and the interrupt-template-on-fallback path can
+  /// be exercised without breaking the network or the DeepSeek key.  A real
+  /// airplane-mode test never reaches this client: the chat pages hold the
+  /// message offline and auto-resend on reconnect.
+  static const bool forceFallback =
+      bool.fromEnvironment('FORCE_LLM_FALLBACK', defaultValue: false);
+
   @override
   Future<LlmRawResponse> complete({
     required String moduleId,
@@ -386,6 +395,9 @@ class DeepseekLlmClient implements LlmClient {
     bool regenerate = false,
     Map<String, dynamic>? agentContextSnapshot,
   }) async {
+    if (forceFallback) {
+      return const LlmRawResponse(text: '', error: 'forced_fallback');
+    }
     try {
       final payload = <String, dynamic>{
         'messages': [
