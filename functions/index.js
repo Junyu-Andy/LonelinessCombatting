@@ -1072,6 +1072,18 @@ const _EXPORT_BLINDED_COLLECTIONS = [
   "llm_turn_features",
   "thought_exercise",
   "loneliness_probes",
+  // Phase A baseline (2026-09) — L-1 / M-1…M-4 / M-6 surfaces.  `turns`
+  // carries no transcript except `te.offerText` (the audited TE
+  // invitation, which quotes the participant's own sentence).
+  "turns",
+  "sessions",
+  "brief_pr",
+  "weekly_pr",
+  "pgic",
+  "djg_es",
+  "agent_diff",
+  "daily_mood",
+  "response_feedback",
   "safety_events",
   "pi_alerts",
 ];
@@ -1158,6 +1170,8 @@ exports.blindedDataExport = onSchedule(
       for (const subName of [
         "events", "ppr_responses", "llm_turn_features",
         "thought_exercise", "loneliness_probes",
+        "turns", "sessions", "brief_pr", "weekly_pr", "pgic", "djg_es",
+        "agent_diff", "daily_mood", "response_feedback",
       ]) {
         const sub = await userDoc.ref.collection(subName).get();
         for (const d of sub.docs) {
@@ -1272,8 +1286,43 @@ exports.weeklySurveyReminder = onSchedule(
       "今個禮拜過得點？得閒入嚟答幾條，想答先答，唔想都冇問題。",
       "weekly_survey_reminder",
     );
+    // Phase A L-1 — `weekly_pr_pushed` per participant.  The doorbell is a
+    // topic broadcast, so per-device receipt is unknown; this records that
+    // the push was issued for the account (testers excluded).
+    try {
+      const db = admin.firestore();
+      const usersSnap = await db.collection("users").get();
+      const weekIso = isoWeekLabel(new Date());
+      const writes = [];
+      for (const userDoc of usersSnap.docs) {
+        const data = userDoc.data() || {};
+        if (data.isTester === true) continue;
+        writes.push(userDoc.ref.collection("events").add({
+          name: "weekly_pr_pushed",
+          params: {weekIso, channel: "fcm_topic_all"},
+          source: "cf_weeklySurveyReminder",
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        }));
+      }
+      await Promise.all(writes);
+      console.log(`weekly_pr_pushed recorded for ${writes.length} users`);
+    } catch (err) {
+      console.error("weekly_pr_pushed record failed:", err.message);
+    }
   },
 );
+
+// ISO-8601 week label (e.g. 2026-W37) in HKT, matching the client's
+// WeeklyPrResponse.currentWeekIso for the Sunday that opens the window.
+function isoWeekLabel(date) {
+  const hk = new Date(date.toLocaleString("en-US", {timeZone: "Asia/Hong_Kong"}));
+  const d = new Date(Date.UTC(hk.getFullYear(), hk.getMonth(), hk.getDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
 
 // ---------------------------------------------------------------------------
 // M-4 (Phase A baseline 2026-09) — Week 2 push.

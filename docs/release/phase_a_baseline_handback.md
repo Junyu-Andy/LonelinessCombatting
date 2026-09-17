@@ -55,8 +55,7 @@
 ### `users/{uid}/events/{auto}`
 
 沿用现有 `AnalyticsService` 文档结构：`name` ≡ 规格的 `type`，`params` ≡ `payload`，另有 `sessionId`（app 级）、`locale`、`arm`、`timestamp`。规格枚举全部在 `PhaseAEvents`（`chat_session_recorder.dart`）：
-`te_offer` `te_accept` `te_decline` `te_module_open` `te_module_complete` `crisis_page_shown(from)` `crisis_call_tapped(resource)` `moderate_sheet_shown` `moderate_sheet_opened_resources` `referral_offered(target)` `weekly_pr_pushed`（由 CF 推送侧承担，客户端记 `notification_received/opened`）`weekly_pr_completed` `weekly_pr_missed` `mood_checkin` `w2_push_sent`（CF 写）`w2_completed` `notification_received` `notification_opened` `screen_view`（沿用既有 `screen_entered/exited` + `dwell`）`app_foreground` `app_background` `llm_fallback` `week1_nudge_shown` `app_start`。
-`agent_switch(from,to)` 沿用既有 `cross_referral_accepted{fromAgent,toAgent}`。
+`te_offer` `te_accept` `te_decline` `te_module_open` `te_module_complete` `crisis_page_shown(from)` `crisis_call_tapped(resource)` `moderate_sheet_shown` `moderate_sheet_opened_resources` `referral_offered(target)` `agent_switch(from,to)`（任一 agent session 开始时与上一个 agent 不同即记）`weekly_pr_pushed`（CF `weeklySurveyReminder` 每周日 20:00 给每个非 tester 账号写一条；设备是否收到不可知）`weekly_pr_completed` `weekly_pr_missed` `mood_checkin` `w2_push_sent`（CF 写）`w2_completed` `notification_received`（仅前台收到时；后台/杀死状态下 FCM 不回调 app）`notification_opened` `screen_view(screen, dwellMs)`（每次离开页面写，另保留既有 `screen_entered/exited`）`app_foreground` `app_background` `llm_fallback` `week1_nudge_shown` `app_start`。
 
 `app_start` payload：`appVersion` `buildNumber` `lexiconVersion` `promptBundleHash` `platform`（L-2）。
 

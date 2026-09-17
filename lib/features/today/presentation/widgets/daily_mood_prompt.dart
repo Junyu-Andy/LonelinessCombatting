@@ -12,7 +12,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/agent_context/shared_context_service.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/core_services_scope.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../context/presentation/pages/check_in_shared.dart';
@@ -39,6 +41,7 @@ class DailyMoodPrompt {
     final existing = await recorder.latestForDate(uid: profile.uid, dateIso: today);
     if (existing != null || !context.mounted) return;
     final analytics = AnalyticsScope.of(context);
+    final sharedContext = CoreServicesScope.of(context).sharedContext;
     final isArmA = Arm.isA(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final picked = await showModalBottomSheet<int?>(
@@ -61,6 +64,20 @@ class DailyMoodPrompt {
           mood: picked,
           arm: isArmA ? 'A' : 'B',
           sourceSurface: 'daily_prompt',
+        );
+      } catch (_) {}
+    }());
+    // M-3 — Siu Yan's `[Recent mood snippet]` is read from shared context,
+    // so the daily prompt must feed it too (previously only the check-in
+    // page did).
+    unawaited(() async {
+      try {
+        await sharedContext.updateRecentMood(
+          uid: profile.uid,
+          mood: SharedMoodSummary(
+            summary: '最近一次心情評分：$picked/5。',
+            asOf: DateTime.now(),
+          ),
         );
       } catch (_) {}
     }());

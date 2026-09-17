@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../core/agent_context/shared_context_service.dart';
+import '../../../../core/core_services_scope.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../context/presentation/pages/check_in_arm_a.dart';
@@ -74,6 +76,19 @@ class _GreetingHeroState extends State<GreetingHero> {
             mood: value,
             arm: isArmA ? 'A' : 'B',
             sourceSurface: 'home_hero',
+          );
+        } catch (_) {}
+      }());
+      // M-3 — keep Siu Yan's `[Recent mood snippet]` in step with the pad.
+      final sharedContext = CoreServicesScope.of(context).sharedContext;
+      unawaited(() async {
+        try {
+          await sharedContext.updateRecentMood(
+            uid: profile.uid,
+            mood: SharedMoodSummary(
+              summary: '最近一次心情評分：$value/5。',
+              asOf: DateTime.now(),
+            ),
           );
         } catch (_) {}
       }());

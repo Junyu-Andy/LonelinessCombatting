@@ -339,10 +339,23 @@ class ChatSessionRecorder {
     return _firestore.collection('users').doc(u).collection('sessions').doc(s);
   }
 
+  /// Last agent whose session started in this process — drives the
+  /// `agent_switch(from, to)` event (L-1) regardless of how the participant
+  /// reached the new agent (home tile, referral card, continue-chat card).
+  static String? _lastAgentId;
+
   /// Start the session if it is not already open.  Safe to call on every
   /// send.  A session that has ended (timeout) is replaced by a new one.
   Future<void> ensureStarted() async {
     if (isOpen) return;
+    final previous = _lastAgentId;
+    _lastAgentId = agentId;
+    if (previous != null && previous != agentId) {
+      unawaited(analytics.logEvent(PhaseAEvents.agentSwitch, {
+        'from': previous,
+        'to': agentId,
+      }));
+    }
     _sessionId = _newId();
     _startedAt = DateTime.now();
     _lastActivityAt = _startedAt;
