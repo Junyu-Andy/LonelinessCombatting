@@ -78,7 +78,12 @@ class PhaseAConfig {
   static Future<PhaseAConfig> load({bool available = true}) async {
     if (!available) return _current;
     try {
-      final snap = await FirebaseFirestore.instance.doc(remotePath).get();
+      // Bounded: a cold start on a flaky network must not wait on this read;
+      // the defaults are always safe and the next launch retries.
+      final snap = await FirebaseFirestore.instance
+          .doc(remotePath)
+          .get()
+          .timeout(const Duration(seconds: 3));
       final data = snap.data();
       if (data != null) _current = fromMap(data, base: _current);
     } catch (e) {

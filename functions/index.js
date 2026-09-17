@@ -455,13 +455,15 @@ SKIP: 內容係順帶一句，唔重要。
 {"decision":"SURFACE|DEFER|SKIP","suggestion":"<如果 SURFACE 用你本人嘅
 agent 聲音寫邀請；其他情況留空>"}`;
 
+    // P-2 (2026-09): same identifier scrub as proxyDeepSeek — the recent
+    // turns and the matched phrase are participant text leaving the region.
     const messages = [];
     recentTurns.slice(-10).forEach((t) => {
       if (t && t.role && t.content) {
-        messages.push({role: t.role, content: t.content});
+        messages.push({role: t.role, content: stripPII(t.content)});
       }
     });
-    messages.push({role: "user", content: judgementPrompt});
+    messages.push({role: "user", content: stripPII(judgementPrompt)});
 
     const response = await fetch(
       "https://api.deepseek.com/chat/completions",

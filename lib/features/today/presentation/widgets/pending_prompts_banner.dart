@@ -139,12 +139,18 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
     final tiles = <Widget>[];
 
     if (p.pgic || p.weeklyPr) {
+      final noReferent = p.weeklyPr && p.weeklyPrAgent == null;
       tiles.add(_BannerTile(
         icon: Icons.sentiment_satisfied_outlined,
         title: isEn ? 'A quick weekly check-in' : '今週有個簡短嘅週評',
-        subtitle: isEn
-            ? 'Has your loneliness changed since last week?'
-            : '同上週比較，孤單感有冇變化？',
+        // M-2 — a week with no companion session still asks PGIC; say so.
+        subtitle: noReferent
+            ? (isEn
+                ? "You didn't chat with a companion this week — one quick question only."
+                : '本週你冇同 companion 傾偈，淨係一條問題。')
+            : (isEn
+                ? 'Has your loneliness changed since last week?'
+                : '同上週比較，孤單感有冇變化？'),
         onTap: _openWeeklyCycle,
       ));
     }

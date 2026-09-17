@@ -15,6 +15,7 @@ import '../../../my_story/presentation/pages/my_story_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../assessment/presentation/pages/djg_es_page.dart';
 import '../../../ppr/presentation/pages/ppr_brief_page.dart';
 import '../../../weekly_pr/data/weekly_pr_trigger.dart';
 import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
@@ -986,6 +987,14 @@ class _SurveyPreviewButtons extends StatelessWidget {
           ),
         ),
         btn('PGIC', const PgicPage()),
+        btn(
+          isEn ? 'DJG-ES (Week 2, 6 items)' : 'DJG-ES（第 2 週，6 題）',
+          const DjgEsPage(timepoint: 'week2'),
+        ),
+        btn(
+          isEn ? 'Crisis page (S-4)' : '危機頁面（S-4）',
+          const EmergencySupportPage(from: 'tester_tools'),
+        ),
         btn(
           isEn ? 'PPR brief (after session)' : 'PPR 簡版（session 後）',
           const PprBriefPage(

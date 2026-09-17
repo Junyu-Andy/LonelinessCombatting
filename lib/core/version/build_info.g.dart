@@ -5,8 +5,8 @@
 const String kAppVersion = '1.0.0';
 const String kBuildNumber = '3';
 const String kLexiconVersion = 'v5-2026-09';
-const String kPromptBundleHash = 'e45bf221b5a470242e2f11f151b7aae12086d336edc5bf1dff0608038610510d';
-const String kGeneratedAt = '2026-09-16';
+const String kPromptBundleHash = 'bfb53212509912bdc0fc7abed77ed227b6c04b4898921098a8647242f731dd88';
+const String kGeneratedAt = '2026-09-17';
 
 /// Per-artefact SHA-256 (path → hex) for the About page / audit.
 const Map<String, String> kArtefactHashes = {
@@ -15,7 +15,7 @@ const Map<String, String> kArtefactHashes = {
   'functions/prompts/tung_tung_v1.txt': '251584dc7f1e503d63dc81e78b823e541342a75b9f7ed8b88d4457053bc08ecc',
   'docs/prompts/context_suffix_template.txt': 'a068c471634e6577a47eec379578334318d100df228ca1fed4e416c0702b2a22',
   'functions/prompts/safety_acknowledgements.json': '96fd03c84e3ece63216420de7e8ae60600daf2d798fde45865fe4075ab2db218',
-  'functions/prompts/crisis_resources.json': '95c3e56aa879e960e089072afae5c6b83292b9d55a5346a71b085dd1d29f0c66',
+  'functions/prompts/crisis_resources.json': 'b8b0d47c5739f82e58986d6a420f8d02089f96e35044f045f5b56225f2d88786',
   'assets/config/llm_fallback_messages.json': '2a495b99b4d715e5a745acaeb2a174c13b05d823a38d2ff18f911f63bc2e799c',
   'lib/core/safety/distress_detector.dart': '079af7a7741614501950f51f3c1537c3bc5e2bdccf9e6a59daf7001ead0b4cc7',
 };

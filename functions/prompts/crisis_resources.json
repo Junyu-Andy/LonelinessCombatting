@@ -1,5 +1,5 @@
 {
-  "_comment": "S-4 — crisis page resource list (HREC approval §8.1 order). Numbers below are PLACEHOLDERS carried over from the pre-baseline page / public listings and have NOT been verified for the Phase A baseline: the PI must confirm each against the organisation's own website, then set verifiedDate (YYYY-MM-DD). Until verifiedDate is set the crisis page footer reads 資料核對日期：待核對. Item flagged acuteTemplateReference is the hotline named in the three acute templates and must stay at position 1 or 2.",
+  "_comment": "S-4 — crisis page resource list (HREC approval §8.1 order). Numbers are carried over from the pre-baseline page / public listings and were NOT verifiable from the build environment (official sites unreachable through the CI proxy). PI: open each `verifySource`, confirm the number, then set `verifiedDate` (YYYY-MM-DD). Until then the crisis page footer reads 資料核對日期：待核對. Item flagged acuteTemplateReference is the hotline named in the three acute templates and must stay at position 1 or 2.",
   "_version": "v1-2026-09",
   "verifiedDate": "",
   "headlineZh": "如果你有不安嘅諗法，可以即刻搵人傾",
@@ -14,7 +14,8 @@
       "hoursEn": "24 hours",
       "noteZh": "24 小時防止自殺熱線。",
       "noteEn": "24-hour suicide prevention hotline.",
-      "acuteTemplateReference": false
+      "acuteTemplateReference": false,
+      "verifySource": "https://www.sps.org.hk/"
     },
     {
       "id": "samaritans_hk",
@@ -25,7 +26,8 @@
       "hoursEn": "24 hours · multilingual",
       "noteZh": "可以粵語、普通話或英語溝通。",
       "noteEn": "Cantonese, Mandarin or English available.",
-      "acuteTemplateReference": true
+      "acuteTemplateReference": true,
+      "verifySource": "https://samaritans.org.hk/"
     },
     {
       "id": "ha_mental_health_direct",
@@ -36,7 +38,8 @@
       "hoursEn": "24 hours",
       "noteZh": "醫院管理局精神健康專線。",
       "noteEn": "Hospital Authority mental health line.",
-      "acuteTemplateReference": false
+      "acuteTemplateReference": false,
+      "verifySource": "https://www.ha.org.hk/ (醫院管理局精神健康專線 2466 7350)"
     },
     {
       "id": "emergency_999",
@@ -47,7 +50,8 @@
       "hoursEn": "Emergencies",
       "noteZh": "即時危險時請即刻撥打，或去最近嘅急症室。",
       "noteEn": "Call right away if in immediate danger, or go to the nearest A&E.",
-      "acuteTemplateReference": false
+      "acuteTemplateReference": false,
+      "verifySource": "https://www.police.gov.hk/"
     }
   ]
 }

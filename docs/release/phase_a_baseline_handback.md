@@ -117,13 +117,13 @@
 
 ## 6. P-2 stripPII 说明
 
-见 `docs/privacy/strip_pii.md`。关键发现：基线前 `contextSuffix`（rolling summary / named entities / mood）出站 DeepSeek **不经** stripPII；本版补上一行（`resolvePrompt` 内）。`referralJudgement` callable 仍未剥离（文档已标注，未改）。
+见 `docs/privacy/strip_pii.md`。关键发现：基线前 `contextSuffix`（rolling summary / named entities / mood）出站 DeepSeek **不经** stripPII；本版补上（`resolvePrompt` 内）。`referralJudgement` callable 的 `recentTurns` / `matchedText` 同样补上剥离（2026-09-17）。剩余未覆盖类别（姓名、中文数字电话、中文地址）见文档 §2，属规则本身能力边界，需 PI 决定是否要求扩展。
 
 ---
 
 ## 7. 危机页面
 
-`functions/prompts/crisis_resources.json`（同时作为 app asset）。四项顺序按 HREC §8.1；号码沿用公开列表但**标记为未核对**（`verifiedDate` 空 → 页面底部「資料核對日期：待核對」）。请 PI 核对后填入 `verifiedDate`。注意：基线前页面把 2382 0000 标为「撒瑪利亞防止自殺會」，公开资料该号码属生命熱線（SPS）；本版按规格名称对应，请一并核对。
+`functions/prompts/crisis_resources.json`（同时作为 app asset）。四项顺序按 HREC §8.1；号码沿用公开列表但**标记为未核对**（`verifiedDate` 空 → 页面底部「資料核對日期：待核對」）。开发环境的代理拦截了三个机构官网（HTTP 403），无法在仓库侧核对；每项已附 `verifySource` 链接，请 PI 打开核对后填入 `verifiedDate`（填好后页面自动显示日期，不需改代码）。注意：基线前页面把 2382 0000 标为「撒瑪利亞防止自殺會」，公开资料该号码属生命熱線（SPS）；本版按规格名称对应，请一并核对。
 
 ---
 
@@ -142,6 +142,7 @@
 3. **M-2 12 题 + PGIC**：沿用现有 `WeeklyPrItems` 与 `PgicPage` 题目；referent 与窗口逻辑已按规格。
 4. **M-4 DJG-ES**：题目为按公开 6 题短表的粤语工作稿（`djg_es_response.dart`，`itemsVersion: djg_es_6_draft_v1-2026-09`），待 v1.3 文本替换。W2 推送为逐设备 token 推送（不是广播 topic），需 `fcm_tokens` 已注册；iOS APNs 仍未配置（既有限制）。
 5. **S-7**：默认 `moderate_interrupt`；改 `DistressDetector.hopelessnessTier` 一行即切到 acute。
-6. **remote config**：实现为 Firestore `app_config/phase_a` 文档覆盖（无 Firebase Remote Config 依赖），键名与规格一致（`sessionIdleTimeoutMin` `briefPRMinTurns` `briefPRItemCount` `weeklyPrPushHour` `w2DayOffset` `w2WindowDays` `week1NudgeDays`）。CF `week2Push` 读同一文档。
+6. **remote config**：实现为 Firestore `app_config/phase_a` 文档覆盖（无 Firebase Remote Config 依赖），键名与规格一致（`sessionIdleTimeoutMin` `briefPRMinTurns` `briefPRItemCount` `weeklyPrPushHour` `w2DayOffset` `w2WindowDays` `week1NudgeDays`）。CF `week2Push` 读同一文档。读取带 3 秒超时，离线冷启动不会被卡住；`firestore.rules` 已加只读规则，文档不存在时全部走默认值。
+9. **测试前需要部署的东西**：`firebase deploy --only functions,firestore:rules`（新 CF `week2Push`、`proxyDeepSeek` 回传字段、规则新增 `app_config` 与 `safety_events.level` 新值）；客户端 `flutter pub get` 后重新打包（新增 asset 路径）。测试工具页（設定 → 測試工具）已加 DJG-ES 与危机页入口。
 7. **既有测试修正**：4 条基线时已失败的旧断言（`我想死` → acute，与 v4 D1 决定矛盾；"I don't see a reason to live" 为 v4 文档记录的已接受漏检）改为与现行词表一致。
 8. **安全事件 `safety_events.level`** 保留旧四档值（`moderate`）以兼容规则与 CF 触发器，新增 `tier` / `category` / `lexiconVersion` 字段。
