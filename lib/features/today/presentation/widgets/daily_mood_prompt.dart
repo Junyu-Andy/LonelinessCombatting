@@ -16,6 +16,7 @@ import '../../../../core/agent_context/shared_context_service.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/session/chat_session_recorder.dart';
+import '../../../../core/time/app_clock.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../context/presentation/pages/check_in_shared.dart';
 import '../../data/mood_recorder.dart';
@@ -32,7 +33,7 @@ class DailyMoodPrompt {
 
   /// Call from the home page once per build; safe to call repeatedly.
   static Future<void> maybeShow(BuildContext context) async {
-    final today = MoodRecorder.dateIsoFor(DateTime.now());
+    final today = MoodRecorder.dateIsoFor(AppClock.now());
     if (_promptedDateIso == today) return;
     final profile = AppSettingsScope.read(context).profile;
     if (profile == null) return;

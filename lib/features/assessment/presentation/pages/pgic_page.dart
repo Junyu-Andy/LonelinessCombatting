@@ -7,10 +7,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../weekly_pr/data/weekly_pr_response.dart';
 import '../../data/pgic_response.dart';
 
 class PgicPage extends StatefulWidget {
-  const PgicPage({super.key});
+  /// M-2 — ISO week being rated (e.g. `2026-W37`).  Inside the Sun 20:00 →
+  /// Tue 23:59 window a Monday answer rates the *previous* week, so the
+  /// banner passes it explicitly; `isoWeek` alone would mislabel it.
+  final String? weekIso;
+  const PgicPage({super.key, this.weekIso});
 
   @override
   State<PgicPage> createState() => _PgicPageState();
@@ -57,7 +62,10 @@ class _PgicPageState extends State<PgicPage> {
             .collection('users')
             .doc(profile.uid)
             .collection('pgic')
-            .add(response.toFirestore());
+            .add({
+          ...response.toFirestore(),
+          'weekIso': widget.weekIso ?? WeeklyPrResponse.currentWeekIso(now),
+        });
       } catch (_) {
         // Graceful degradation: Firebase unavailable in guest mode.
       }

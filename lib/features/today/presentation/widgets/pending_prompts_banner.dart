@@ -15,6 +15,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/scheduling/pending_prompts_service.dart';
 import '../../../../core/session/chat_session_recorder.dart';
+import '../../../../core/time/app_clock.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
 import '../../../assessment/presentation/pages/djg_es_page.dart';
@@ -33,6 +34,25 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
   PendingPrompts? _pending;
   bool _loading = false;
   PendingPromptsService? _service;
+
+  @override
+  void initState() {
+    super.initState();
+    AppClock.instance.addListener(_onClock);
+  }
+
+  @override
+  void dispose() {
+    AppClock.instance.removeListener(_onClock);
+    super.dispose();
+  }
+
+  /// Tester schedule simulation moved the clock — recompute what is due.
+  void _onClock() {
+    if (!mounted) return;
+    setState(() => _pending = null);
+    _maybeLoad();
+  }
 
   @override
   void didChangeDependencies() {
@@ -62,7 +82,7 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
     if (p == null) return;
     if (p.pgic) {
       await Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const PgicPage()),
+        MaterialPageRoute<void>(builder: (_) => PgicPage(weekIso: p.weeklyPrWeekIso)),
       );
       if (!mounted) return;
     }

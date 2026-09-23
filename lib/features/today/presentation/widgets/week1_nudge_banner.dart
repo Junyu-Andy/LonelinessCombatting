@@ -15,7 +15,9 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/config/phase_a_config.dart';
+import '../../../../core/scheduling/enrolment_day.dart';
 import '../../../../core/session/chat_session_recorder.dart';
+import '../../../../core/time/app_clock.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/mood_recorder.dart';
@@ -35,11 +37,22 @@ class _Week1NudgeBannerState extends State<Week1NudgeBanner> {
   String? _unusedAgentId;
   bool _resolved = false;
 
-  /// Enrolment day index (day 1 = the enrolment date).
-  static int enrolmentDay(DateTime createdAt, DateTime now) {
-    final c = DateTime(createdAt.year, createdAt.month, createdAt.day);
-    final n = DateTime(now.year, now.month, now.day);
-    return n.difference(c).inDays + 1;
+  @override
+  void initState() {
+    super.initState();
+    AppClock.instance.addListener(_onClock);
+  }
+
+  @override
+  void dispose() {
+    AppClock.instance.removeListener(_onClock);
+    super.dispose();
+  }
+
+  void _onClock() {
+    if (!mounted) return;
+    setState(() => _unusedAgentId = null);
+    unawaited(_resolve());
   }
 
   @override
@@ -55,9 +68,9 @@ class _Week1NudgeBannerState extends State<Week1NudgeBanner> {
     final available = AuthServiceScope.of(context).available;
     final createdAt = profile?.createdAt;
     if (profile == null || createdAt == null || !available) return;
-    final today = MoodRecorder.dateIsoFor(DateTime.now());
+    final today = MoodRecorder.dateIsoFor(AppClock.now());
     if (_dismissedDateIso == today) return;
-    final day = enrolmentDay(createdAt, DateTime.now());
+    final day = enrolmentDay(createdAt, AppClock.now());
     if (!PhaseAConfig.current.week1NudgeDays.contains(day)) return;
     final used = <String>{};
     try {
@@ -93,7 +106,7 @@ class _Week1NudgeBannerState extends State<Week1NudgeBanner> {
   }
 
   void _dismiss() {
-    _dismissedDateIso = MoodRecorder.dateIsoFor(DateTime.now());
+    _dismissedDateIso = MoodRecorder.dateIsoFor(AppClock.now());
     setState(() => _unusedAgentId = null);
   }
 

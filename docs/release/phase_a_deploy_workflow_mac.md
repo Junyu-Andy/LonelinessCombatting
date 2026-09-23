@@ -87,12 +87,14 @@ Firebase Console → Firestore → 新建集合 `app_config` → 文档 ID `phas
 | `sessionIdleTimeoutMin` | `1`（number） | 10 | 1 分钟不说话就结束 session，测 timeout + Brief PR |
 | `briefPRMinTurns` | `2` | 2 | T-13 / T-14 |
 | `briefPRItemCount` | `4` | 4 | 改成 3 看第四题消失 |
-| `w2DayOffset` | `0` | 14 | 新账号当天就出「第 2 週問卷」，测 T-16 的 app 内路径 |
+| `w2DayOffset` | `1` | 14 | 新账号当天（第 1 天）就出「第 2 週問卷」。天数从 1 起算：入组当天 = 第 1 天 |
 | `w2WindowDays` | `3` | 3 | |
 | `week1NudgeDays` | `[1]`（array of number） | [3, 6] | 入组当天出「你仲未同 X 傾過」 |
 | `weeklyPrPushHour` | `20` | 20 | 配合改系统时间测 T-15 |
 
 app 每次冷启动读一次；改完杀掉 app 重开。**测完把这个文档删掉或改回正式值**，否则参与者 1 会用到测试参数。
+
+> 大部分「固定到某一天」的测试现在**不需要**改这个文档，用第 6.5 节的日程模拟即可；这个文档只在要测真实云端推送（`week2Push`）时才需要。
 
 ## 5. 云端：测试账号标记
 
@@ -103,8 +105,20 @@ app 每次冷启动读一次；改完杀掉 app 重开。**测完把这个文档
 ```bash
 flutter clean && flutter pub get      # 本版新增了 asset 路径，clean 一次最稳
 flutter devices
-flutter run -d <设备id>               # 正常 build
+flutter run -d <设备id> --dart-define=TESTER_PIN=<你定的数字密码>
 ```
+
+**测试员工具需要密码**：不带 `TESTER_PIN` 打的包（给参与者的包）无论如何都打不开测试员工具，调试版也一样。解锁方法：設定 → 關於同支援 → 连按版本号 7 下 → 输入密码。重开 app 自动锁回。
+
+## 6.5 固定到某一天测试（日程模拟）
+
+解锁后：設定（自己）页最底 → 測試員工具 → **日程模擬／測試推送**。
+
+1. 拖动「第 N 天」+ 选时间，页面直接列出那天会有哪些**推送**（每日 19:00、周日 20:00、第 2 週 10:00）和首页会出哪些**量表**（每日心情、周评卡片、第 2／4 週、首周提示、周三的未答记录），以及第 1–35 天总览。
+2. 按「模擬到第 N 天 HH:MM，返回屋企睇」→ 首页顶部出现橙色条，首页横幅、每日心情、首周提示按那个时间出现，可以真的点进去答。点橙色条或重开 app 回到真实时间。
+3. 模拟只改 app 内「几时出什么问卷」的判断；Firestore 时间戳、云端推送仍用真实时间。答的问卷写入这个测试账号。
+
+**测试推送**：同一页三个按钮会调用云函数 `sendTestPush`，15 秒后把对应那条真实通知发到这个账号的设备。前提是账号已开「測試員帳號」、手机允许通知。按完立刻回到手机桌面（安卓 app 在前台时系统不显示通知）。iOS 因 APNs 未配置收不到。
 
 签名 / bundle id 三方一致的检查沿用 `TESTING_WORKFLOW.md` 阶段 0。
 
@@ -123,7 +137,8 @@ flutter run -d <设备id> --dart-define=FORCE_LLM_FALLBACK=true
 
 - 周日 20:00 / 周一至周六 19:00 的 doorbell 是既有的 topic 广播，不用改。
 - `week2Push` 每天 10:00 HKT 扫描，按设备 token 推（`users/{uid}/fcm_tokens`）。**iOS 的 APNs 仍未配置（既有限制）**，所以 W2 推送只能在安卓上收到；iOS 靠打开 app 看首页横幅即可覆盖 T-16 的 app 内部分。
-- 想立刻验证函数本身而不等 10:00：GCP Console → Cloud Scheduler → 找 `firebase-schedule-week2Push-asia-east2` → **Force run**。前提是第 4 步把 `w2DayOffset` 设成 0 且该账号今天注册、`isTester` 不为 true（函数跳过 tester）。看 `users/{uid}/events` 里出现 `w2_push_sent`。
+- 想看通知长什么样、点开是否记 `notification_opened`：用第 6.5 节的测试推送（最快）。
+- 想验证 `week2Push` 云函数本身的筛选逻辑：GCP Console → Cloud Scheduler → 找 `firebase-schedule-week2Push-asia-east2` → **Force run**。前提是第 4 步把 `w2DayOffset` 设成 1、该账号今天注册、`isTester` 不为 true（函数跳过 tester）。看 `users/{uid}/events` 里出现 `w2_push_sent`。
 
 ## 8. 热线号码核对（PI，参与者 1 入组前必做）
 

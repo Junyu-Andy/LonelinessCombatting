@@ -1379,7 +1379,9 @@ exports.week2Push = onSchedule(
         createdRaw.slice(0, 10) :
         (createdRaw.toDate ? hkDateKey(createdRaw.toDate()) : null);
       if (!createdIso) continue;
-      const day = daysBetweenHk(createdIso, today);
+      // 1-based enrolment day (day 1 = signup date), same as the client's
+      // enrolmentDay(): 「入組第 14 天」 == day 14.
+      const day = daysBetweenHk(createdIso, today) + 1;
       if (day < cfg.w2DayOffset || day >= cfg.w2DayOffset + cfg.w2WindowDays) {
         continue;
       }
@@ -1416,5 +1418,72 @@ exports.week2Push = onSchedule(
       sent++;
     }
     console.log(`week2Push: ${sent} users notified`);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Tester-only: send one of the real doorbells to the caller's own devices
+// (2026-09-23).  Lets a tester verify delivery, copy and the
+// notification_opened event without waiting for the cron.
+//
+// Guard: caller must be signed in AND `users/{uid}.isTester == true`.
+// `delaySeconds` (0–45) gives the tester time to put the app in the
+// background — Android does not display a system notification for FCM
+// messages received while the app is in the foreground.
+// iOS devices will not receive anything until APNs is configured.
+// ---------------------------------------------------------------------------
+
+const _TEST_PUSH_COPY = {
+  daily_mood_reminder: "今日過得點？得閒入嚟同我哋講兩句，想講先講，唔講都冇所謂。",
+  weekly_survey_reminder: "今個禮拜過得點？得閒入嚟答幾條，想答先答，唔想都冇問題。",
+  w2_push: "入嚟兩個禮拜喇，有幾條短問題想問下你。得閒先答，唔急。",
+};
+
+exports.sendTestPush = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 3, timeoutSeconds: 60},
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+    const uid = request.auth.uid;
+    const db = admin.firestore();
+    const userSnap = await db.collection("users").doc(uid).get();
+    if (!userSnap.exists || userSnap.data().isTester !== true) {
+      throw new HttpsError("permission-denied", "tester accounts only");
+    }
+    const payload = request.data || {};
+    const kind = payload.kind;
+    if (!Object.prototype.hasOwnProperty.call(_TEST_PUSH_COPY, kind)) {
+      throw new HttpsError("invalid-argument", "unknown kind");
+    }
+    const delay = Math.max(0, Math.min(45, Number(payload.delaySeconds) || 0));
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay * 1000));
+
+    const tokensSnap = await userSnap.ref.collection("fcm_tokens").get();
+    const tokens = tokensSnap.docs
+        .map((t) => (t.data() || {}).token)
+        .filter((t) => typeof t === "string" && t.length > 0);
+    let delivered = 0;
+    const errors = [];
+    for (const token of tokens) {
+      try {
+        await admin.messaging().send({
+          token,
+          notification: {title: "陪住（測試）", body: _TEST_PUSH_COPY[kind]},
+          android: {priority: "high"},
+          data: {kind, test: "1"},
+        });
+        delivered++;
+      } catch (err) {
+        errors.push(err.code || err.message);
+      }
+    }
+    await userSnap.ref.collection("events").add({
+      name: "test_push_sent",
+      params: {kind, tokens: tokens.length, delivered, delay},
+      source: "cf_sendTestPush",
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return {tokens: tokens.length, delivered, errors};
   },
 );

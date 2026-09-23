@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/testing/tester_gate.dart';
 import '../../../../core/version/build_info.dart';
 import '../../data/tester_tools.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -20,6 +21,7 @@ import '../../../ppr/presentation/pages/ppr_brief_page.dart';
 import '../../../weekly_pr/data/weekly_pr_trigger.dart';
 import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
 import 'support_about_page.dart';
+import 'tester_schedule_page.dart';
 
 enum _AppLanguage { cantonese, english }
 
@@ -31,6 +33,22 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  @override
+  void initState() {
+    super.initState();
+    TesterGate.unlocked.addListener(_onGate);
+  }
+
+  @override
+  void dispose() {
+    TesterGate.unlocked.removeListener(_onGate);
+    super.dispose();
+  }
+
+  void _onGate() {
+    if (mounted) setState(() {});
+  }
+
   bool _quietHours = true;
   bool _voiceReadback = false;
 
@@ -104,36 +122,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 : '慢慢嚟，可以跳過唔想講嘅時期。',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const MyStoryPage()),
-            ),
-          ),
-
-          const SizedBox(height: 28),
-          _SectionHeader(
-            icon: Icons.fact_check_outlined,
-            title: isEn ? 'Feedback & surveys' : '反饋／問卷',
-          ),
-          const SizedBox(height: 10),
-          _NavTileCard(
-            icon: Icons.sentiment_satisfied_outlined,
-            title: isEn ? 'Weekly mood change' : '每週感受變化',
-            subtitle: isEn
-                ? '7-point loneliness change rating'
-                : '過去一週，孤單感有冇變化？',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const PgicPage()),
-            ),
-          ),
-          const SizedBox(height: 10),
-          _NavTileCard(
-            icon: Icons.people_alt_outlined,
-            title: isEn ? 'Companion assessment' : '夥伴評估',
-            subtitle: isEn
-                ? 'W2/W4 usage and personality rating'
-                : '第 2 及 4 週嘅夥伴使用評估',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const AgentDiffPage(wave: 2),
-              ),
             ),
           ),
 
@@ -265,9 +253,10 @@ class _SettingsPageState extends State<SettingsPage> {
           // researcher dashboard return here when those instruments are
           // ready to expose to participants again.
 
-          // T6 — tester tools. Hidden from real participants: shown only in
-          // debug builds or when this account is flagged isTester.
-          if (kDebugMode || (settings.profile?.isTester ?? false)) ...[
+          // T6 — tester tools.  Since 2026-09-23 hidden from EVERYONE (debug
+          // builds and isTester accounts included) until the build's
+          // TESTER_PIN is entered: 關於同支援 → tap the version line 7×.
+          if (TesterGate.unlocked.value) ...[
             const SizedBox(height: 28),
             _SectionHeader(
               icon: Icons.bug_report_outlined,
@@ -310,6 +299,59 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 8),
             _SurveyPreviewButtons(isEn: isEn),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const TesterSchedulePage()),
+                ),
+                icon: const Icon(Icons.calendar_month_outlined, size: 26),
+                label: const Text('日程模擬／測試推送'),
+              ),
+            ),
+            // Direct survey entries — moved here from the participant-visible
+            // settings list (2026-09-23): participants must only reach PGIC
+            // / Agent Differentiation through their scheduled windows.
+          const SizedBox(height: 28),
+            _SectionHeader(
+              icon: Icons.fact_check_outlined,
+              title: isEn ? 'Feedback & surveys' : '反饋／問卷',
+            ),
+            const SizedBox(height: 10),
+            _NavTileCard(
+              icon: Icons.sentiment_satisfied_outlined,
+              title: isEn ? 'Weekly mood change' : '每週感受變化',
+              subtitle: isEn
+                  ? '7-point loneliness change rating'
+                  : '過去一週，孤單感有冇變化？',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const PgicPage()),
+              ),
+            ),
+            const SizedBox(height: 10),
+            _NavTileCard(
+              icon: Icons.people_alt_outlined,
+              title: isEn ? 'Companion assessment' : '夥伴評估',
+              subtitle: isEn
+                  ? 'W2/W4 usage and personality rating'
+                  : '第 2 及 4 週嘅夥伴使用評估',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AgentDiffPage(wave: 2),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: TesterGate.lock,
+                icon: const Icon(Icons.lock_outline, size: 24),
+                label: const Text('鎖定測試員工具（同時返回真實時間）'),
+              ),
+            ),
           ],
         ],
       ),

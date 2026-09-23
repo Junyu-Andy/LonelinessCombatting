@@ -22,13 +22,15 @@ import '../../features/auth/data/user_profile.dart';
 import '../../features/weekly_pr/data/weekly_pr_trigger.dart';
 import '../../features/weekly_pr/data/weekly_pr_window.dart';
 import '../config/phase_a_config.dart';
+import '../time/app_clock.dart';
+import 'enrolment_day.dart';
 
 class PendingPrompts {
   final bool pgic;
   final bool weeklyPr;
 
   /// M-2 — the rated week's ISO label (may differ from the current week on
-  /// Mon/Tue).
+  /// Mon/Tue).  Set whenever the window is open (PGIC uses it too).
   final String? weeklyPrWeekIso;
 
   /// C2 — the single companion the Weekly PR is anchored to. Null when the
@@ -71,7 +73,7 @@ class PendingPromptsService {
     UserProfile? profile, {
     DateTime? now,
   }) async {
-    final t = now ?? DateTime.now();
+    final t = now ?? AppClock.now();
     final cfg = PhaseAConfig.current;
 
     bool pgic = false;
@@ -82,11 +84,11 @@ class PendingPromptsService {
     final ratedMonday = WeeklyPrWindow.ratedWeekMonday(t, config: cfg);
     final ratedIso = WeeklyPrWindow.ratedWeekIso(ratedMonday);
     if (WeeklyPrWindow.isOpen(t, config: cfg)) {
+      weekIso = ratedIso;
       final hasWeekly = await _weeklyTrigger.hasSubmittedThisWeek(uid, ratedIso);
-      pgic = await _noPgicForWeek(uid, ratedMonday);
+      pgic = await _noPgicForWeek(uid, ratedMonday, ratedIso);
       if (!hasWeekly) {
         weeklyPr = true;
-        weekIso = ratedIso;
         chosenAgent = await _weeklyTrigger.referentUsageForRatedWeek(uid, ratedMonday);
       }
     } else if (WeeklyPrWindow.hasClosed(ratedMonday, t, config: cfg)) {
@@ -105,14 +107,15 @@ class PendingPromptsService {
     bool agentDiffW4 = false;
     final createdAt = profile?.createdAt;
     if (createdAt != null) {
-      final daysSince = t.difference(createdAt).inDays;
+      // 1-based calendar day (「入組第 N 天」); mirrored in CF week2Push.
+      final day = enrolmentDay(createdAt, t);
       final inW2Window =
-          daysSince >= cfg.w2DayOffset && daysSince < cfg.w2DayOffset + cfg.w2WindowDays;
+          day >= cfg.w2DayOffset && day < cfg.w2DayOffset + cfg.w2WindowDays;
       if (inW2Window) {
         if (!await _hasDoc(uid, 'djg_es', 'timepoint', 'week2')) djgEsW2 = true;
         if (!await _hasDoc(uid, 'agent_diff', 'timepoint', 'week2')) agentDiffW2 = true;
       }
-      if (daysSince >= 28 && !await _hasDoc(uid, 'agent_diff', 'timepoint', 'week4')) {
+      if (day >= 28 && !await _hasDoc(uid, 'agent_diff', 'timepoint', 'week4')) {
         agentDiffW4 = true;
       }
     }
@@ -128,8 +131,17 @@ class PendingPromptsService {
     );
   }
 
-  Future<bool> _noPgicForWeek(String uid, DateTime ratedMonday) async {
+  Future<bool> _noPgicForWeek(String uid, DateTime ratedMonday, String weekIso) async {
     try {
+      // Preferred: PGIC docs written since 2026-09-23 carry the rated week.
+      final byWeek = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('pgic')
+          .where('weekIso', isEqualTo: weekIso)
+          .limit(1)
+          .get();
+      if (byWeek.docs.isNotEmpty) return false;
       final snap = await _db
           .collection('users')
           .doc(uid)
