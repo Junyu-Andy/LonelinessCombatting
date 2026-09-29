@@ -226,7 +226,11 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       armCode: profile?.arm?.code,
     );
 
+    // Safety-flagged turns (moderate/acute, input or output) never enter
+    // the memory buffer: it is folded into the rolling summary, sent to
+    // the model and re-injected in later sessions.
     if (profile != null &&
+        !response.hasEscalation &&
         profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
       await core.agentContext.appendTurn(
         uid: profile.uid,
@@ -267,6 +271,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
 
     if (profile != null &&
         response.text.trim().isNotEmpty &&
+        !response.hasEscalation &&
         profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
       await core.agentContext.appendTurn(
         uid: profile.uid,

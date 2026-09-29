@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../app/app_settings_scope.dart';
 import '../../features/auth/data/user_profile.dart';
+import '../feature_flags/feature_flags.dart';
 
 /// Thin lookup helper for the current participant's RCT arm. Reads from
 /// the user profile held in [AppSettings], so it stays reactive: if the
@@ -23,12 +24,10 @@ class Arm {
 
   /// The participant's assigned arm, or null in guest / demo mode.
   static ArmAssignment? of(BuildContext context) {
-    // TEST OVERRIDE — Phase A pilot is forcing every user to Arm A so
-    // the researcher can run end-to-end LLM walk-throughs without
-    // hitting Arm B rule-based fallbacks. Revert this stub before
-    // randomisation goes live for Phase B.
-    return ArmAssignment.a;
-    // ignore: dead_code
+    // Phase A renders Arm A for everyone (single-arm pilot). A Phase B
+    // build (--dart-define=PHASE_B=true) reads the randomised arm from
+    // the profile; a missing arm falls through to null → Arm B UI.
+    if (!FeatureFlags.phaseB) return ArmAssignment.a;
     if (_forced.isNotEmpty) {
       return ArmAssignment.tryParse(_forced);
     }

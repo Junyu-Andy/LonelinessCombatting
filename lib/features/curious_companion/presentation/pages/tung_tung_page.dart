@@ -328,7 +328,11 @@ class _TungTungPageState extends State<TungTungPage> {
       uid: profile?.uid,
     );
 
+    // Safety-flagged turns (moderate/acute, input or output) never enter
+    // the memory buffer: it is folded into the rolling summary, sent to
+    // the model and re-injected in later sessions.
     if (profile != null &&
+        !response.hasEscalation &&
         profile.consent.transcriptRetentionFor(AgentRegistry.tungTungId)) {
       await core.agentContext.appendTurn(
         uid: profile.uid,
@@ -364,6 +368,7 @@ class _TungTungPageState extends State<TungTungPage> {
 
     if (profile != null &&
         response.text.trim().isNotEmpty &&
+        !response.hasEscalation &&
         profile.consent.transcriptRetentionFor(AgentRegistry.tungTungId)) {
       await core.agentContext.appendTurn(
         uid: profile.uid,

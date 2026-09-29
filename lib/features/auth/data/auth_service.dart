@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../core/feature_flags/feature_flags.dart';
 import 'arm_assigner.dart';
 import 'user_profile.dart';
 
@@ -15,7 +16,9 @@ import 'user_profile.dart';
 /// [AuthUnavailableException] so callers can show a friendly message.
 class AuthService {
   AuthService({required this.available, ArmAssigner? armAssigner})
-      : _armAssigner = armAssigner ?? ArmAssigner();
+      // Phase A forces Arm A at signup; a Phase B build randomises.
+      : _armAssigner =
+            armAssigner ?? ArmAssigner(forceArmA: !FeatureFlags.phaseB);
 
   /// False when Firebase.initializeApp failed — typically because
   /// firebase_options.dart hasn't been generated yet. Lets the UI show a
@@ -244,11 +247,20 @@ class AuthService {
       createdAt: DateTime.now(),
       lastLoginAt: DateTime.now(),
     );
-    await ref.set({
-      ...profile.toMap(),
-      'createdAt': FieldValue.serverTimestamp(),
-      'lastLoginAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await ref.set({
+        ...profile.toMap(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      // signUp's write landed between our last read and this set, and the
+      // rules refuse to overwrite an assigned arm — use the real doc.
+      if (e.code != 'permission-denied') rethrow;
+      final landed = await ref.get();
+      if (!landed.exists) rethrow;
+      return UserProfile.fromMap(user.uid, landed.data() ?? {});
+    }
     return profile;
   }
 

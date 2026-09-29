@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../adherence/presentation/widgets/missed_checkin_banner.dart';
 import '../../../crisis/presentation/widgets/safety_footer_card.dart';
@@ -49,6 +50,8 @@ class _TodayPageState extends State<TodayPage> {
     if (_greetingsWarmed) return;
     final profile = AppSettingsScope.read(context).profile;
     if (profile == null) return;
+    // Personalised openers are LLM-generated — Arm A only.
+    if (!Arm.isA(context)) return;
     _greetingsWarmed = true;
     final core = CoreServicesScope.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';

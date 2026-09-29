@@ -70,6 +70,11 @@ class _CheckInArmAState extends State<CheckInArmA> {
   final _inputCtrl = TextEditingController();
   final _voice = VoiceInputController();
   final List<_Turn> _turns = [];
+
+  /// User turns whose exchange tripped a moderate/acute distress flag.
+  /// Kept on screen but left out of the session summary written to
+  /// `memory/m2_check_in`, which M6 feeds back into an LLM prompt.
+  final Set<_Turn> _safetyFlaggedTurns = Set.identity();
   final DateTime _sessionStartedAt = DateTime.now();
 
   // Offline resend: a message typed while offline is held here (shown as a
@@ -410,9 +415,10 @@ class _CheckInArmAState extends State<CheckInArmA> {
       );
       if (!mounted) return;
     }
+    final userTurn = _Turn.user(text);
     setState(() {
       _busy = true;
-      _turns.add(_Turn.user(text));
+      _turns.add(userTurn);
       _inputCtrl.clear();
     });
     final core = CoreServicesScope.of(context);
@@ -484,7 +490,12 @@ class _CheckInArmAState extends State<CheckInArmA> {
     // Append the user's turn to Siu Yan's short-term buffer so
     // subsequent sessions and cross-agent reads (PersonaResolver) can
     // see it. Honours the per-agent transcript retention flag.
+    // Safety-flagged turns (moderate/acute, input or output) never enter
+    // the memory buffer: it is folded into the rolling summary, sent to
+    // the model and re-injected in later sessions.
+    if (response.hasEscalation) _safetyFlaggedTurns.add(userTurn);
     if (profile != null &&
+        !response.hasEscalation &&
         profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId)) {
       await core.agentContext.appendTurn(
         uid: profile.uid,
@@ -520,6 +531,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
     // Persist the assistant turn so the buffer round-trips properly.
     if (profile != null &&
         response.text.isNotEmpty &&
+        !response.hasEscalation &&
         profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId)) {
       await core.agentContext.appendTurn(
         uid: profile.uid,
@@ -646,7 +658,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
     final profile = AppSettingsScope.read(context).profile;
     if (profile != null && _turns.isNotEmpty) {
       final summary = _turns
-          .where((t) => t.fromUser)
+          .where((t) => t.fromUser && !_safetyFlaggedTurns.contains(t))
           .map((t) => t.text)
           .join('\n');
       final callback = _crossModuleCallbackUsedThisSession;

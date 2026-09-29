@@ -1,6 +1,7 @@
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
 import 'package:app_demo/core/arm/arm_scope.dart';
+import 'package:app_demo/core/feature_flags/feature_flags.dart';
 import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,10 +43,9 @@ void main() {
       ));
       expect(find.text('B-branch'), findsOneWidget);
     },
-      // Phase A: Arm.of (arm_scope.dart) hard-returns Arm A for every user,
-      // so the Arm B / guest-fallback branch is unreachable until Phase B
-      // randomisation is restored. Skip until then.
-      skip: true,
+      // Phase A builds render Arm A for everyone; this runs under
+      // --dart-define=PHASE_B=true.
+      skip: !FeatureFlags.phaseB,
     );
 
     testWidgets('falls back to armB when arm is missing (guest mode)',
@@ -60,10 +60,9 @@ void main() {
       ));
       expect(find.text('B-branch'), findsOneWidget);
     },
-      // Phase A: Arm.of (arm_scope.dart) hard-returns Arm A for every user,
-      // so the Arm B / guest-fallback branch is unreachable until Phase B
-      // randomisation is restored. Skip until then.
-      skip: true,
+      // Phase A builds render Arm A for everyone; this runs under
+      // --dart-define=PHASE_B=true.
+      skip: !FeatureFlags.phaseB,
     );
 
     testWidgets('falls back to armB when no profile signed in',
@@ -78,10 +77,23 @@ void main() {
       ));
       expect(find.text('B-branch'), findsOneWidget);
     },
-      // Phase A: Arm.of (arm_scope.dart) hard-returns Arm A for every user,
-      // so the Arm B / guest-fallback branch is unreachable until Phase B
-      // randomisation is restored. Skip until then.
-      skip: true,
+      // Phase A builds render Arm A for everyone; this runs under
+      // --dart-define=PHASE_B=true.
+      skip: !FeatureFlags.phaseB,
+    );
+    testWidgets('Phase A build renders armA even when profile.arm == B',
+        (tester) async {
+      final settings = AppSettings(profile: _profileWith(ArmAssignment.b));
+      await tester.pumpWidget(_wrap(
+        settings,
+        ArmGate(
+          armA: (_) => const Text('A-branch'),
+          armB: (_) => const Text('B-branch'),
+        ),
+      ));
+      expect(find.text('A-branch'), findsOneWidget);
+    },
+      skip: FeatureFlags.phaseB,
     );
   });
 }

@@ -177,6 +177,40 @@ function temperatureFor(agentId) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase B arm guard.  Arm B (rule-based) participants must never reach an
+// LLM, whatever the client does — a routing bug or a stale build must not
+// leak Hybrid behaviour into the control arm.  The arm is write-once in
+// firestore.rules, so a non-null value is safe to cache per instance.
+// A missing arm (Phase A pilot, failed signup assignment) is allowed: the
+// Phase A client renders Arm A for everyone.
+// ---------------------------------------------------------------------------
+const _armCache = new Map();
+
+/**
+ * The participant's stored arm ('A' | 'B'), or null when unassigned.
+ * @param {string} uid Firebase auth uid.
+ * @return {Promise<?string>} Arm code or null.
+ */
+async function armFor(uid) {
+  if (_armCache.has(uid)) return _armCache.get(uid);
+  const snap = await admin.firestore().collection("users").doc(uid).get();
+  const arm = snap.exists ? (snap.get("arm") || null) : null;
+  if (arm) _armCache.set(uid, arm);
+  return arm;
+}
+
+/**
+ * Throws permission-denied for Arm B participants.
+ * @param {string} uid Firebase auth uid.
+ */
+async function assertLlmAllowed(uid) {
+  if (await armFor(uid) === "B") {
+    throw new HttpsError(
+        "permission-denied", "LLM features are not part of this study arm");
+  }
+}
+
+// ---------------------------------------------------------------------------
 // proxyDeepSeek — main LLM entry point. Now supports promptKey resolution
 // in addition to the legacy systemPrompt path.
 //   payload.promptKey       — resolves prompt file in functions/prompts/
@@ -201,6 +235,7 @@ exports.proxyDeepSeek = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in required");
     }
+    await assertLlmAllowed(request.auth.uid);
 
     const payload = request.data || {};
     const messages = payload.messages;
@@ -346,6 +381,7 @@ exports.referralJudgement = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in required");
     }
+    await assertLlmAllowed(request.auth.uid);
     const payload = request.data || {};
     const sourceAgentId = payload.sourceAgentId;
     const targetAgentId = payload.targetAgentId;
@@ -490,6 +526,7 @@ exports.webSearch = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in required");
     }
+    await assertLlmAllowed(request.auth.uid);
     const payload = request.data || {};
     const query = (payload.query || "").trim();
     if (!query) {

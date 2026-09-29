@@ -408,7 +408,10 @@ clay-pot rice stand..."
     // verbatim transcript for life-review review; the buffer here is
     // the short, agent-scoped working memory used by future PersonaResolver
     // reads (M2 callbacks, opener generation).
+    // Safety-flagged turns (moderate/acute, input or output) never enter
+    // the memory buffer — see check_in_arm_a.dart.
     if (profile != null &&
+        !response.hasEscalation &&
         profile.consent
             .transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
       await core.agentContext.appendTurn(
@@ -498,8 +501,9 @@ clay-pot rice stand..."
         hasTranscriptConsent: profile.consent
             .transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
       );
-      if (profile.consent
-          .transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
+      if (!response.hasEscalation &&
+          profile.consent
+              .transcriptRetentionFor(AgentRegistry.ahJanAhBakId)) {
         await core.agentContext.appendTurn(
           uid: profile.uid,
           agentId: AgentRegistry.ahJanAhBakId,

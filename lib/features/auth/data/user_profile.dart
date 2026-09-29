@@ -352,7 +352,10 @@ class UserProfile {
         'highContrast': highContrast,
         'createdAt': createdAt?.toIso8601String(),
         'lastLoginAt': lastLoginAt?.toIso8601String(),
-        'arm': arm?.code,
+        // Omitted when null so a merge-write of a profile that was loaded
+        // before the arm landed can never erase the assigned arm (the
+        // arm==null backfill would then re-randomise the participant).
+        if (arm != null) 'arm': arm!.code,
         'consent': consent.toMap(),
         'ahJanAhBakVariant': ahJanAhBakVariant?.code,
         'closeContacts': closeContacts.map((c) => c.toMap()).toList(),
