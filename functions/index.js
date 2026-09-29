@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const {computeLlmFlags} = require("./llm_flags");
+const memory = require("./memory");
 
 admin.initializeApp();
 
@@ -246,7 +247,7 @@ exports.proxyDeepSeek = onCall(
       throw new HttpsError("invalid-argument", "bad payload: messages");
     }
 
-    const systemPrompt = resolvePrompt(payload);
+    let systemPrompt = resolvePrompt(payload);
     if (!systemPrompt) {
       throw new HttpsError(
         "invalid-argument",
@@ -254,7 +255,19 @@ exports.proxyDeepSeek = onCall(
       );
     }
 
+    // Hash the persona + client suffix only, so per-turn memory content
+    // doesn't fragment prompt-hash analyses.
     const systemPromptHash = computePromptHash(systemPrompt);
+
+    // Memory v1: assembled and policy-filtered here, never on the client.
+    // Returns "" unless the kill switch is on and the user opted in.
+    const memoryBlock = await memory.injectMemory(admin.firestore(), {
+      uid: request.auth.uid,
+      agentId,
+      moduleId,
+      messages,
+    });
+    if (memoryBlock) systemPrompt = `${systemPrompt}\n\n${memoryBlock}`;
 
     // HREC data minimisation: strip identifiers from every outgoing
     // user/assistant message and replace the auth uid with a coded
@@ -1226,6 +1239,127 @@ async function sendDoorbell(title, body, analyticsLabel) {
     console.error(`doorbell send failed (${analyticsLabel}):`, err.message);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Memory v1 write path (functions/memory.js).  memoryEndSession runs when
+// the user leaves a chat; memorySweep catches sessions that never got a
+// clean exit (30 min without a new turn, app killed) and retries failed
+// extractions.  Both no-op unless memory v1 is on for the user.
+// ---------------------------------------------------------------------------
+
+/**
+ * One strict-JSON DeepSeek call for memory extraction.
+ * @param {{system: string, user: string}} prompt
+ * @return {Promise<string>} raw JSON text
+ */
+async function callDeepSeekJson(prompt) {
+  const response = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${DEEPSEEK_API_KEY.value()}`,
+    },
+    body: JSON.stringify({
+      model: "deepseek-chat",
+      messages: [
+        {role: "system", content: prompt.system},
+        {role: "user", content: stripPII(prompt.user)},
+      ],
+      response_format: {type: "json_object"},
+      temperature: 0.2,
+      max_tokens: 1500,
+    }),
+  });
+  if (!response.ok) {
+    const body = (await response.text()).slice(0, 300);
+    throw new Error(`deepseek ${response.status}: ${body}`);
+  }
+  const data = await response.json();
+  return (data.choices && data.choices[0] && data.choices[0].message &&
+    data.choices[0].message.content) || "";
+}
+
+exports.memoryEndSession = onCall(
+  {
+    secrets: [DEEPSEEK_API_KEY],
+    region: "asia-east2",
+    enforceAppCheck: false,
+    maxInstances: 10,
+    timeoutSeconds: 60,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+    const agentId = (request.data || {}).agentId;
+    if (!memory.AGENTS.includes(agentId)) {
+      throw new HttpsError("invalid-argument", "unknown agentId");
+    }
+    const db = admin.firestore();
+    const uid = request.auth.uid;
+    if (!await memory.memoryActive(db, uid)) return {status: "inactive"};
+    const id = await memory.claimBuffer(db, uid, agentId);
+    if (!id) return {status: "empty"};
+    const status = await memory.processExtraction(
+        db, uid, id, callDeepSeekJson);
+    return {status};
+  },
+);
+
+exports.memorySweep = onSchedule(
+  {
+    schedule: "every 15 minutes",
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    secrets: [DEEPSEEK_API_KEY],
+    timeoutSeconds: 300,
+    retryCount: 0,
+  },
+  async (_event) => {
+    const db = admin.firestore();
+    const cfg = await memory.loadConfig(db);
+    if (!cfg.enabled) return;
+    const idleBefore = Date.now() - 30 * 60 * 1000;
+    const staleBefore = Date.now() - 10 * 60 * 1000;
+    const users = await db.collection("users")
+        .where("memory_enabled", "==", true).get();
+    for (const user of users.docs) {
+      const uid = user.id;
+      if (user.get("arm") === "B") continue;
+      try {
+        for (const agentId of memory.AGENTS) {
+          const ctx = await user.ref.collection("agent_contexts")
+              .doc(agentId).get();
+          const buffer = ctx.exists ? (ctx.get("shortTermBuffer") || []) : [];
+          const last = ctx.exists ? ctx.get("lastUpdated") : null;
+          const lastMs = last && last.toMillis ? last.toMillis() : 0;
+          if (buffer.length === 0 || lastMs > idleBefore) continue;
+          const id = await memory.claimBuffer(db, uid, agentId);
+          if (id) {
+            await memory.processExtraction(db, uid, id, callDeepSeekJson);
+          }
+        }
+        // Retry failures; pick up pending ones a crashed run left behind.
+        const open = await user.ref.collection("mem_extractions")
+            .where("status", "in", ["failed", "pending"]).get();
+        for (const ext of open.docs) {
+          const created = ext.get("created_at");
+          const createdMs = created && created.toMillis ?
+            created.toMillis() : 0;
+          if ((ext.get("attempts") || 0) >= memory.LIMITS.maxAttempts) {
+            continue;
+          }
+          if (ext.get("status") === "pending" && createdMs > staleBefore) {
+            continue;
+          }
+          await memory.processExtraction(db, uid, ext.id, callDeepSeekJson);
+        }
+      } catch (err) {
+        console.error("memorySweep user failed", {uid, err: String(err)});
+      }
+    }
+  },
+);
 
 exports.dailyMoodReminder = onSchedule(
   {

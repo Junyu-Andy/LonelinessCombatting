@@ -19,6 +19,7 @@
 /// dart-define overrides (rebuild required):
 ///   flutter build apk --dart-define=WEEKLY_PROBE=true
 ///   flutter build apk --dart-define=PHASE_B=true
+///   flutter build apk --dart-define=MEMORY_V1=true   (memory v1, dev only)
 ///
 /// Code path: import this file wherever a flag is consulted; do NOT read
 /// the dart-define strings directly so flag callsites stay greppable.
@@ -31,6 +32,8 @@ class FeatureFlags {
       String.fromEnvironment('WEEKLY_PROBE', defaultValue: 'false');
   static const _phaseBDefine =
       String.fromEnvironment('PHASE_B', defaultValue: 'false');
+  static const _memoryV1Define =
+      String.fromEnvironment('MEMORY_V1', defaultValue: 'false');
 
   /// C.1 — Weekly loneliness probe surfaced to client.  Defaults OFF for
   /// Phase A so the cron-written queue stays invisible to users.
@@ -44,6 +47,17 @@ class FeatureFlags {
   /// C.3 — Phase A: assume forceArmA = true on the server, so render
   /// only Arm A paths.  Returns true unless Phase B is enabled.
   static bool get forceArmAEverywhere => !phaseB;
+
+  /// Memory v1 (server-side memory, 「我記得嘅嘢」 page). Off by default:
+  /// only a --dart-define=MEMORY_V1=true build shows the opt-in, so study
+  /// builds never do. The server additionally needs its kill switch
+  /// (meta/memory_config.enabled) and the user's opt-in.
+  static bool get memoryV1 => _memoryV1Define == 'true';
+
+  /// True when this user's memory is served by v1 on the server: the
+  /// client then skips the v0 rolling-summary fold and its prompt block.
+  static bool memoryV1ActiveFor(bool? userOptedIn) =>
+      memoryV1 && userOptedIn == true;
 
   /// C.3 — Hybrid-only affordances that must NOT mount in Phase A or for
   /// an Arm B participant.  The arm tutorial / education surface keys

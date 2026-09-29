@@ -11,6 +11,7 @@ import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
 import '../../../../core/connectivity/offline_pending_banner.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../core/feature_flags/feature_flags.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
@@ -581,6 +582,7 @@ clay-pot rice stand..."
         agentId: AgentRegistry.ahJanAhBakId,
         retentionOn:
             profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
+        memoryV1: FeatureFlags.memoryV1ActiveFor(profile.memoryEnabled),
       ));
     }
     if (!mounted) return;

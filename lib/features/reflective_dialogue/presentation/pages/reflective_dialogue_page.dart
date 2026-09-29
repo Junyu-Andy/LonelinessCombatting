@@ -24,6 +24,7 @@ import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
 import '../../../../core/connectivity/offline_pending_banner.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../core/feature_flags/feature_flags.dart';
 import '../../../../core/cross_referral/referral_routing_service.dart';
 import '../../../../core/cross_referral/referral_suggestion_card.dart';
 import '../../../../core/llm/llm_gateway.dart';
@@ -555,6 +556,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       agentId: AgentRegistry.ahJanAhBakId,
       retentionOn:
           profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
+      memoryV1: FeatureFlags.memoryV1ActiveFor(profile.memoryEnabled),
     ));
 
     final exchangeCount = _turns.where((t) => t.fromUser).length;

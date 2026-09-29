@@ -32,6 +32,7 @@ import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
 import '../../../../core/connectivity/offline_pending_banner.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../core/feature_flags/feature_flags.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
@@ -632,6 +633,7 @@ class _TungTungPageState extends State<TungTungPage> {
         agentId: AgentRegistry.tungTungId,
         retentionOn: profile.consent
             .transcriptRetentionFor(AgentRegistry.tungTungId),
+        memoryV1: FeatureFlags.memoryV1ActiveFor(profile.memoryEnabled),
       ));
     }
 

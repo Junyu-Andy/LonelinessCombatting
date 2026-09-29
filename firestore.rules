@@ -21,6 +21,8 @@ rules_version = '2';
 //   users/{uid}/m3_reminiscence/...              -> M3 sessions
 //   users/{uid}/agent_contexts/{agent_id}        -> per-agent context (Dev Req §4.2)
 //   users/{uid}/shared_context/current           -> cross-agent shared state
+//   users/{uid}/mem_*/{id}                       -> memory v1 (server-written; owner read/delete)
+//   meta/memory_config                           -> memory v1 kill switch + policy (admin only)
 //   users/{uid}/fcm_tokens/{deviceId}            -> *new* B.12 FCM push tokens
 //   meta/arm_counter                             -> *new* 4-cell A/B balance counter
 //   safety_events/{eventId}                      -> *new* B.7 distress events (client-write, admin-read)
@@ -62,7 +64,36 @@ service cloud.firestore {
     // The owner reads/writes anything under their own user doc.
     // ============================================================
     match /users/{uid}/{collection}/{document=**} {
-      allow read, write: if isOwner(uid);
+      allow read, write: if isOwner(uid) && !collection.matches('mem_.*');
+    }
+
+    // ============================================================
+    // Memory v1 (functions/memory.js is the only writer).  The owner
+    // may read and delete their memory items — the 「我記得嘅嘢」 page —
+    // and confirm a sensitive item (pending_confirmation → active,
+    // nothing else changed).  They can never create or edit content,
+    // so an agent can't be fed fabricated memories.  Injection logs
+    // and extraction records are server-only.
+    // ============================================================
+    match /users/{uid}/mem_summaries/{id} {
+      allow read, delete: if isOwner(uid);
+    }
+    match /users/{uid}/mem_followups/{id} {
+      allow read, delete: if isOwner(uid);
+    }
+    match /users/{uid}/mem_facts/{id} {
+      allow read, delete: if isOwner(uid);
+      allow update: if isOwner(uid)
+        && resource.data.status == 'pending_confirmation'
+        && request.resource.data.status == 'active'
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status']);
+    }
+    match /users/{uid}/mem_injections/{id} {
+      allow read, write: if false;
+    }
+    match /users/{uid}/mem_extractions/{id} {
+      allow read, write: if false;
     }
 
     // ============================================================

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/feature_flags/feature_flags.dart';
 import '../../data/tester_tools.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
@@ -10,6 +11,7 @@ import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import '../../../personalization/presentation/pages/personalization_page.dart';
+import '../../../memory/presentation/pages/remembered_page.dart';
 import '../../../my_story/presentation/pages/my_story_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
@@ -104,6 +106,50 @@ class _SettingsPageState extends State<SettingsPage> {
               MaterialPageRoute<void>(builder: (_) => const MyStoryPage()),
             ),
           ),
+
+          // Memory v1 — only in MEMORY_V1 builds, never in study builds.
+          if (FeatureFlags.memoryV1) ...[
+            const SizedBox(height: 28),
+            _SectionHeader(
+              icon: Icons.psychology_outlined,
+              title: isEn ? 'Memory' : '記憶',
+            ),
+            const SizedBox(height: 10),
+            _SwitchTileCard(
+              icon: Icons.bookmark_border_rounded,
+              title: isEn ? 'Let companions remember' : '俾佢哋記得我講過嘅嘢',
+              subtitle: isEn
+                  ? 'Your name and family are known to all three; what '
+                      'you tell each one stays with that one. Off any time.'
+                  : '三位都會知你叫咩名、屋企有邊個；你同每位講嘅心事，'
+                      '就只有佢知。隨時可以熄。',
+              value: settings.profile?.memoryEnabled ?? false,
+              onChanged: (value) async {
+                final profile = settings.profile;
+                if (profile == null) return;
+                final updated = profile.copyWith(memoryEnabled: value);
+                settings.profile = updated;
+                try {
+                  await AuthServiceScope.of(context).updateProfile(updated);
+                } catch (_) {
+                  // Offline: the local value stands; the SDK syncs later.
+                }
+              },
+            ),
+            const SizedBox(height: 10),
+            _NavTileCard(
+              icon: Icons.list_alt_rounded,
+              title: isEn ? 'What I remember' : '我記得嘅嘢',
+              subtitle: isEn
+                  ? 'See, confirm or delete anything remembered.'
+                  : '睇下、確認或者刪除記住咗嘅嘢。',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const RememberedPage(),
+                ),
+              ),
+            ),
+          ],
 
           const SizedBox(height: 28),
           _SectionHeader(

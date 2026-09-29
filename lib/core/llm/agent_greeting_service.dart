@@ -29,6 +29,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../features/auth/data/user_profile.dart';
 import '../agent_context/agent_context_service.dart';
+import '../feature_flags/feature_flags.dart';
 import 'llm_gateway.dart';
 
 class AgentGreetingService {
@@ -97,7 +98,10 @@ class AgentGreetingService {
     if (cached != null) return cached;
 
     String? lastSessionTopic;
-    if (_agentContext != null) {
+    // Memory v1: the server injects memory into greeting_* calls; the v0
+    // summary is no longer kept up to date for these users.
+    if (_agentContext != null &&
+        !FeatureFlags.memoryV1ActiveFor(profile.memoryEnabled)) {
       try {
         final snap = await _agentContext!.read(uid: uid, agentId: agentId);
         final summary = snap.rollingSummary.trim();
