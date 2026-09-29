@@ -11,6 +11,10 @@
 /// Article context can be passed via the [articleContext] constructor
 /// argument — M8's "問下呢篇" button uses this so Tung Tung opens
 /// already aware of which article the user wants to discuss.
+///
+/// Arm B (rule-based) uses this same page so the surface stays identical;
+/// only the reply engine differs: openers from [TungTungRulePool], replies
+/// from [TungTungRuleResponder], no LLM, no memory buffer, no search.
 library;
 
 import 'dart:async';
@@ -24,21 +28,26 @@ import '../../../../core/agent_context/rolling_summary_compiler.dart';
 import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
+import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
 import '../../../../core/connectivity/offline_pending_banner.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
+import '../../../../core/safety/safety_event_writer.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
 import '../../../onboarding/data/interest_labels.dart';
 import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/search_repository.dart';
+import '../../data/tung_tung_rule_pool.dart';
+import '../../data/tung_tung_rule_responder.dart';
 
 class TungTungPage extends StatefulWidget {
   /// Optional article body / title injected by M8's "問下呢篇" entry.
@@ -106,6 +115,14 @@ class _TungTungPageState extends State<TungTungPage> {
 
   bool _openerSeeded = false;
 
+  /// Arm B: replies come from the rule templates, never the LLM. Fixed
+  /// for the page's lifetime (read once, alongside the opener).
+  bool _ruleBased = false;
+
+  /// Arm B: which pool opener this session starts from. Rotates daily so
+  /// returning users meet a different question.
+  int _openerOffset = 0;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -121,6 +138,7 @@ class _TungTungPageState extends State<TungTungPage> {
     // grounded mode (M8 hand-off) opens differently.
     if (!_openerSeeded) {
       _openerSeeded = true;
+      _ruleBased = !Arm.isA(context);
       _seedOpener();
     }
   }
@@ -128,6 +146,19 @@ class _TungTungPageState extends State<TungTungPage> {
   Future<void> _seedOpener() async {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final profile = AppSettingsScope.read(context).profile;
+
+    if (_ruleBased) {
+      _openerOffset =
+          DateTime.now().difference(DateTime.utc(2026)).inDays;
+      final opener = TungTungRulePool.openerFor(_openerOffset);
+      setState(() => _turns.add(_Turn.bot(isEn ? opener.en : opener.zh)));
+      unawaited(AnalyticsScope.of(context).logEvent('tung_tung_opener_shown', {
+        'opener_id': opener.id,
+        'pool_version': TungTungRulePool.version,
+        'turn_index': 0,
+      }));
+      return;
+    }
 
     // Article-Q&A mode (M8 "問下呢篇") has its own dedicated opener
     // flow; never substitute the cached personalised greeting there.
@@ -205,6 +236,10 @@ class _TungTungPageState extends State<TungTungPage> {
             _pendingOffline == null ? text : '$_pendingOffline\n$text';
         _inputCtrl.clear();
       });
+      return;
+    }
+    if (_ruleBased) {
+      await _sendRuleBased(text);
       return;
     }
     final isFirstTurn = _turns.isEmpty;
@@ -387,6 +422,69 @@ class _TungTungPageState extends State<TungTungPage> {
     }
   }
 
+  /// Arm B send path: same deterministic distress handling as Arm A (the
+  /// detector, routing and PI alert are arm-invariant), then a template
+  /// reply. Nothing is written to the agent memory buffer.
+  Future<void> _sendRuleBased(String text) async {
+    final core = CoreServicesScope.of(context);
+    final analytics = AnalyticsScope.of(context);
+    final profile = AppSettingsScope.read(context).profile;
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final userTurnIndex = _turns.where((t) => t.fromUser).length;
+
+    setState(() {
+      _busy = true;
+      _turns.add(_Turn.user(text));
+      _inputCtrl.clear();
+    });
+
+    final flag = core.distress.analyze(text);
+    if (flag.isEscalation && profile != null) {
+      unawaited(SafetyEventWriter(
+        available: AuthServiceScope.of(context).available,
+      ).maybeWrite(
+        uid: profile.uid,
+        source: SafetySource.ruleTurn,
+        match: flag,
+        inputText: text,
+        agentId: AgentRegistry.tungTungId,
+      ));
+    }
+    if (flag.level == DistressLevel.acute) {
+      setState(() {
+        _busy = false;
+        _turns.add(_Turn.system(_acuteSafetyMessage(isEn)));
+      });
+      await core.distressRouter.route(flag, context: context);
+      return;
+    }
+
+    // A short pause so the reply doesn't snap in before the user's own
+    // bubble has settled.
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    if (!mounted) return;
+    final reply = TungTungRuleResponder.reply(
+      text,
+      userTurnIndex: userTurnIndex,
+      openerOffset: _openerOffset,
+    );
+    setState(() {
+      _busy = false;
+      _turns.add(_Turn.bot(reply.text(isEn: isEn)));
+    });
+    unawaited(analytics.logEvent('tung_tung_rule_reply', {
+      'template_id': reply.id,
+      'responder_version': TungTungRuleResponder.version,
+      'turn_index': userTurnIndex,
+      if (reply.openerId != null) 'opener_id': reply.openerId,
+      if (reply.openerId != null) 'pool_version': TungTungRulePool.version,
+    }));
+
+    if (flag.level != DistressLevel.none) {
+      await core.distressRouter.route(flag, context: context);
+    }
+  }
+
   DistressMatch _higher(DistressMatch a, DistressMatch b) =>
       a.level.index >= b.level.index ? a : b;
 
@@ -523,16 +621,19 @@ class _TungTungPageState extends State<TungTungPage> {
 
     // §1C — fold this Tung Tung session into the rolling summary and clear
     // the verbatim buffer on exit. Fire-and-forget (context-free service).
-    final core = CoreServicesScope.of(context);
-    unawaited(RollingSummaryCompiler(
-      agentContext: core.agentContext,
-      llm: core.llm,
-    ).compileAtSessionEnd(
-      uid: profile.uid,
-      agentId: AgentRegistry.tungTungId,
-      retentionOn:
-          profile.consent.transcriptRetentionFor(AgentRegistry.tungTungId),
-    ));
+    // Arm B has no memory, so nothing to fold.
+    if (!_ruleBased) {
+      final core = CoreServicesScope.of(context);
+      unawaited(RollingSummaryCompiler(
+        agentContext: core.agentContext,
+        llm: core.llm,
+      ).compileAtSessionEnd(
+        uid: profile.uid,
+        agentId: AgentRegistry.tungTungId,
+        retentionOn: profile.consent
+            .transcriptRetentionFor(AgentRegistry.tungTungId),
+      ));
+    }
 
     final exchangeCount = _turns.where((t) => t.fromUser).length;
     final gate = BriefPrGate();

@@ -4,10 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../core/safety/safety_event_writer.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../today/data/mood_recorder.dart';
 import 'check_in_shared.dart';
 
@@ -177,6 +180,16 @@ class _CheckInArmBState extends State<CheckInArmB> {
         ) ??
         Future<void>.value());
     if (distress.isEscalation && profile != null) {
+      // Same PI alert Arm A gets through the gateway (arm-invariant).
+      unawaited(SafetyEventWriter(
+        available: AuthServiceScope.of(context).available,
+      ).maybeWrite(
+        uid: profile.uid,
+        source: SafetySource.ruleTurn,
+        match: distress,
+        inputText: note,
+        agentId: AgentRegistry.siuYanId,
+      ));
       // Arm B safety surface — direct, no LLM in the loop.
       showDialog<void>(
         context: context,

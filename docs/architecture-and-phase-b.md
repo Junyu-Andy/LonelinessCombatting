@@ -3,7 +3,7 @@
 > 2026-09-29 · 基于 `main`（c80a2ab）读代码核对，每条说法附文件位置。
 > 读者：项目负责人。目的：看懂现在的系统，以及 Phase B（两组随机分配）上线前要改什么。
 
-**一句话：** 现在所有人都在 Hybrid 组（Arm A）。Rule-based 组（Arm B）只有签到和回忆两个模块做了独立页面，通通和阿珍/阿伯自由对话没有 B 版本。本次改动把「Phase A 全员 A / Phase B 按分组」做成一个编译开关，并补上服务端防线和几处安全问题。剩下的 P0 待办见第 5 节。
+**一句话：** 现在所有人都在 Hybrid 组（Arm A）。Rule-based 组（Arm B）的签到、回忆、通通都已有 B 版本；阿珍/阿伯自由对话还没有。本次改动把「Phase A 全员 A / Phase B 按分组」做成一个编译开关，并补上服务端防线和几处安全问题。剩下的 P0 待办见第 5 节。
 
 ---
 
@@ -63,7 +63,7 @@ flowchart LR
 | M2 小欣 签到 | LLM 对话 + 记忆 | 心情脸 + 3 道选择题 + 一段文字（`check_in_arm_b.dart`） | ✅ 有 B 页，经 `ArmGate` 进入 |
 | M3 阿珍/阿伯 回忆 | LLM 对话 + 周摘要 | 固定主题开场 + 一个输入框（`reminiscence_arm_b_page.dart`） | ✅ 有 B 页 |
 | 阿珍/阿伯 自由对话 | LLM（`reflective_dialogue_page.dart`） | **无** | ❌ 入口 `my_story_page.dart:91` 不分组 |
-| 通通 | LLM 闲聊 + 文章问答 | 规则池 20 条开场白已写好（`tung_tung_rule_pool.dart`），**未接入** | ❌ 入口 `agent_tile_row.dart:116`、`continue_chat_card.dart:132`、`agent_profile_controller.dart:83` 不分组 |
+| 通通 | LLM 闲聊 + 文章问答 | 同一个聊天页面：开场白来自规则池（每天轮换），回复按关键词话题从固定粤语模板选一句，每 3 轮追加一个新开场问题（`tung_tung_rule_responder.dart`）。不调 LLM、不写记忆 | ✅ 页面内按组切换，三个入口无需改动 |
 | M5 反思 | 按上下文生成题目 | 固定题库轮换 | ✅ 页内分支 |
 | M6 社交建议 | 个性化建议 | 16 条建议池 | ✅ 页内分支 |
 | M7 行动计划 | LLM 辅助 | 模板（`action_loop_arm_b_page.dart`） | ✅ 页内分支 |
@@ -101,11 +101,12 @@ A 组现在已经有一版跨会话记忆。`cross_session_memory` 是 5 个「L
 - [x] **修复分组计数器规则。** 原来 `meta/arm_counter` 的规则超过了规则引擎 1000 个表达式的上限，**所有**合法的 +1 都会被拒绝（模拟器测试在原始规则上复现）。注册流程吞掉了这个错误，所以用户会以 arm=null 继续使用。已改写成等价但开销小的版本。
 - [x] **安全：被标记的对话不进入记忆。** 四个 A 组对话页过去会把触发 moderate/acute 的那一轮写进记忆缓冲区，之后折叠进摘要、再发给 DeepSeek、下次再注入。现在这些轮次（包括 agent 对它的回复）不写入缓冲区；M2 会话结束写入 `memory/m2_check_in`（M6 会读取）时也排除这些轮次。
 - [x] **B 组不预热问候。** 首页不再为 B 组用户每天生成 LLM 问候。
+- [x] **通通 B 版本。** 同一个页面按组切换回应引擎：规则池开场白 + 固定模板回应（10 个话题 + 通用回应，健康话题优先、只给中性回应，不重复老人原话）。遥测事件 `tung_tung_opener_shown` / `tung_tung_rule_reply` 带模板编号和版本号。**模板需文化顾问审核。**
+- [x] **B 组安全告警。** 签到 B、回忆 B、通通 B 检测到 moderate/acute 时写 `safety_events`（来源 `rule_turn`），PI 告警与 A 组一致。此前 B 组只弹对话框，PI 收不到告警；回忆 B 组连检测都没有。
 - [x] **测试。** Arm B 相关测试改为在 `PHASE_B=true` 时运行；新增 Phase A 测试和 13 条 Firestore 规则测试（`test/rules/profile_arm.test.js`、`arm_counter.test.js`）。
 
 ### Phase B 上线前还要做（P0）
 
-- [ ] **通通 B 版本。** 需要先定规格：规则池开场白之后，老人输入的内容怎么回应（固定回应模板？只记录不回应？）。定了之后接到 3 个入口，全部经过 `ArmGate`。
 - [ ] **阿珍/阿伯 自由对话 B 版本**，或者 B 组隐藏这个入口（需同时保证两组界面一致）。
 - [ ] **发布方式确认。** Phase B 用一个安装包：`--dart-define=PHASE_B=true` 构建；Phase A 的构建保持不加该参数。Codemagic（`codemagic.yaml:55` 的 `flutter build ipa`）需要为 Phase B 构建加上 `--dart-define=PHASE_B=true`；Android 构建同理。
 - [ ] **部署**：`firebase deploy --only firestore:rules,functions`。规则改动对现有 Phase A 用户无影响（他们的 arm 已经是 A 或为空）。

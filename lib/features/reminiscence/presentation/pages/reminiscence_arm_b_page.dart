@@ -1,6 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/core_services_scope.dart';
+import '../../../../core/safety/distress_detector.dart';
+import '../../../../core/safety/safety_event_writer.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/m3_session_store.dart';
@@ -51,6 +57,18 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
     if (body.isEmpty) return;
     final profile = AppSettingsScope.read(context).profile;
     final auth = AuthServiceScope.of(context);
+    final core = CoreServicesScope.of(context);
+    // Same deterministic safety check + PI alert as Arm A (arm-invariant).
+    final distress = core.distress.analyze(body);
+    if (distress.isEscalation && profile != null) {
+      unawaited(SafetyEventWriter(available: auth.available).maybeWrite(
+        uid: profile.uid,
+        source: SafetySource.ruleTurn,
+        match: distress,
+        inputText: body,
+        agentId: AgentRegistry.ahJanAhBakId,
+      ));
+    }
     setState(() => _busy = true);
     if (profile != null) {
       final store = M3SessionStore(available: auth.available);
@@ -69,7 +87,8 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
             timestamp: DateTime.now(),
           ),
         ],
-        hasTranscriptConsent: profile.consent.transcriptRetention,
+        hasTranscriptConsent: profile.consent
+            .transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
       );
       await store.finalizeSession(
         uid: profile.uid,
@@ -85,6 +104,11 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
       _busy = false;
       _saved = true;
     });
+    if (distress.level != DistressLevel.none) {
+      await core.distressRouter.route(distress, context: context);
+      // Acute pushes the crisis page; leave this page under it.
+      if (distress.level == DistressLevel.acute) return;
+    }
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (mounted) Navigator.of(context).pop();
   }
