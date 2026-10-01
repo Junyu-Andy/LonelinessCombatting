@@ -64,7 +64,8 @@ function chooseArm({aCount, bCount}, {randomise, rng}) {
  * @param {object} db admin.firestore()
  * @param {string} uid
  * @param {{rng: (function(): number|undefined)}} opts
- * @return {Promise<{arm: string, cell: number, assigned: boolean}>}
+ * @return {Promise<{arm: string, cell: number, mode: string,
+ *     assigned: boolean}>}
  */
 async function assignArm(db, uid, opts = {}) {
   const rng = opts.rng || Math.random;
@@ -85,6 +86,7 @@ async function assignArm(db, uid, opts = {}) {
       return {
         arm: existing,
         cell: typeof cell === "number" ? cell : null,
+        mode: user.get("armAssignmentMode") || null,
         assigned: false,
       };
     }
@@ -101,6 +103,7 @@ async function assignArm(db, uid, opts = {}) {
     };
     const randomise = config.exists && config.get("randomise") === true;
     const arm = chooseArm(counts, {randomise, rng});
+    const mode = randomise ? "randomise" : "force_a";
 
     tx.set(counterRef, {
       [key]: {
@@ -114,10 +117,10 @@ async function assignArm(db, uid, opts = {}) {
       strataCell: cell,
       armAssignedBy: "server",
       armAssignedAt: new Date(),
-      armAssignmentMode: randomise ? "randomise" : "force_a",
+      armAssignmentMode: mode,
     }, {merge: true});
 
-    return {arm, cell, assigned: true};
+    return {arm, cell, mode, assigned: true};
   });
 }
 

@@ -11,6 +11,9 @@
 ///   • shared_context/*   — recentMood snippet, pending referrals
 ///   • daily_mood/*       — mood log
 ///   • memory/{moduleId}/entries/* — cross-module rolling summaries
+///   • mem_facts / mem_followups / mem_summaries — memory v1 items (the
+///     rules let the owner delete these; injection and extraction logs are
+///     server-only and stay)
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -26,7 +29,14 @@ class TesterTools {
   Future<int> resetMyData(String uid) async {
     if (!available) return 0;
     var deleted = 0;
-    for (final sub in const ['agent_contexts', 'shared_context', 'daily_mood']) {
+    for (final sub in const [
+      'agent_contexts',
+      'shared_context',
+      'daily_mood',
+      'mem_facts',
+      'mem_followups',
+      'mem_summaries',
+    ]) {
       deleted += await _deleteFlat(uid, sub);
     }
     deleted += await _deleteMemory(uid);

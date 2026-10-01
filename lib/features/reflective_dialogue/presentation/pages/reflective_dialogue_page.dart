@@ -42,6 +42,7 @@ import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
 import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/negative_cognition_detector.dart';
+import '../../../../core/memory/memory_mode.dart';
 
 class ReflectiveDialoguePage extends StatefulWidget {
   const ReflectiveDialoguePage({super.key});
@@ -640,6 +641,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       agentId: AgentRegistry.ahJanAhBakId,
       retentionOn:
           profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
+      memoryV1: MemoryModes.of(profile).isV1,
     ));
 
     if (rec == null || rec.sessionId == null) return;

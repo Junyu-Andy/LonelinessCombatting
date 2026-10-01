@@ -50,6 +50,7 @@ import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/search_repository.dart';
 import '../../data/tung_tung_rule_pool.dart';
 import '../../data/tung_tung_rule_responder.dart';
+import '../../../../core/memory/memory_mode.dart';
 
 class TungTungPage extends StatefulWidget {
   /// Optional article body / title injected by M8's "問下呢篇" entry.
@@ -776,6 +777,7 @@ class _TungTungPageState extends State<TungTungPage> {
         agentId: AgentRegistry.tungTungId,
         retentionOn: profile.consent
             .transcriptRetentionFor(AgentRegistry.tungTungId),
+        memoryV1: MemoryModes.of(profile).isV1,
       ));
     }
 

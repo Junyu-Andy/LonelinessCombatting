@@ -25,6 +25,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/memory/memory_mode.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -368,6 +369,22 @@ class _IntroWelcome extends StatelessWidget {
                     '佢哋每一個都係專門做一件事，所以你想傾乜，就揀對應嘅夥伴。',
             style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
           ),
+          // Phase B Arm A: memory is on for everyone, so say so up front.
+          if (MemoryModes.of(AppSettingsScope.of(context).profile) ==
+              MemoryMode.phaseB) ...[
+            const SizedBox(height: 14),
+            Text(
+              isEn
+                  ? 'They will remember what you tell them, so the next '
+                      'chat can pick up where you left off. You can see '
+                      'and delete what they remember any time in '
+                      'Settings → What I remember.'
+                  : '佢哋會記得你講過嘅嘢，下次傾偈就可以接得上。'
+                      '你隨時可以喺「設定 → 我記得嘅嘢」睇返同刪走。',
+              key: const Key('onboarding_memory_notice'),
+              style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+            ),
+          ],
           const SizedBox(height: 24),
           for (final agent in AgentRegistry.all) _AgentSummaryRow(agent: agent),
         ],

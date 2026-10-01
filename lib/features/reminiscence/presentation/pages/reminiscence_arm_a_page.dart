@@ -26,6 +26,7 @@ import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
 import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
+import '../../../../core/memory/memory_mode.dart';
 
 /// M3 — Reminiscence, Arm A.
 ///
@@ -673,6 +674,7 @@ clay-pot rice stand..."
         agentId: AgentRegistry.ahJanAhBakId,
         retentionOn:
             profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
+        memoryV1: MemoryModes.of(profile).isV1,
       ));
     }
     if (!mounted) return;

@@ -39,7 +39,8 @@ test("phase A default: no config doc → A, counted in the right cell",
       await reset({});
       await db.doc("users/u1").set({ageGroup: "75+", baselineUclaScore: 60});
       const r = await assignArm(db, "u1");
-      assert.deepStrictEqual(r, {arm: "A", cell: 3, assigned: true});
+      assert.deepStrictEqual(r, {arm: "A", cell: 3, mode: "force_a",
+        assigned: true});
       const u = (await db.doc("users/u1").get()).data();
       assert.strictEqual(u.arm, "A");
       assert.strictEqual(u.strataCell, 3);
@@ -57,6 +58,7 @@ test("idempotent: a second call returns the arm without counting again",
       const again = await assignArm(db, "u1");
       assert.strictEqual(again.arm, first.arm);
       assert.strictEqual(again.assigned, false);
+      assert.strictEqual(again.mode, "randomise");
       const c = (await counter()).cell_0;
       assert.strictEqual(c.aCount + c.bCount, 1);
     });
@@ -86,7 +88,8 @@ test("an existing arm is never changed", async () => {
   await reset({randomise: true});
   await db.doc("users/u1").set({arm: "B", strataCell: 2});
   const r = await assignArm(db, "u1");
-  assert.deepStrictEqual(r, {arm: "B", cell: 2, assigned: false});
+  assert.deepStrictEqual(r, {arm: "B", cell: 2, mode: null,
+    assigned: false});
   assert.strictEqual(await counter(), undefined, "nothing counted");
 });
 

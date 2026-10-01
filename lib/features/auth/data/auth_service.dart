@@ -129,7 +129,9 @@ class AuthService {
     try {
       final assignment = await _armAssigner.assign();
       return profile.copyWith(
-          arm: assignment.arm, strataCell: assignment.cell);
+          arm: assignment.arm,
+          strataCell: assignment.cell,
+          armAssignmentMode: assignment.mode);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[auth] arm assignment failed at signup '
@@ -206,7 +208,9 @@ class AuthService {
           // The server writes arm + strataCell to the profile itself.
           final result = await _armAssigner.assign();
           return existing.copyWith(
-              arm: result.arm, strataCell: result.cell);
+              arm: result.arm,
+              strataCell: result.cell,
+              armAssignmentMode: result.mode);
         } catch (e) {
           if (kDebugMode) {
             debugPrint('[auth] arm backfill failed '

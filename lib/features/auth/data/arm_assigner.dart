@@ -92,7 +92,7 @@ class ArmAssigner {
   /// Ask the server to assign this signed-in user's arm. The profile doc
   /// must already exist (the server reads ageGroup / baselineUclaScore
   /// from it). Idempotent: returns the stored arm on repeat calls.
-  Future<({ArmAssignment arm, int? cell})> assign() async {
+  Future<({ArmAssignment arm, int? cell, String? mode})> assign() async {
     final result = await FirebaseFunctions.instanceFor(region: 'asia-east2')
         .httpsCallable('assignArm')
         .call<Map<String, dynamic>>()
@@ -100,6 +100,10 @@ class ArmAssigner {
     final data = Map<String, dynamic>.from(result.data);
     final arm = ArmAssignment.tryParse(data['arm'] as String?);
     if (arm == null) throw StateError('assignArm returned no arm');
-    return (arm: arm, cell: (data['cell'] as num?)?.toInt());
+    return (
+      arm: arm,
+      cell: (data['cell'] as num?)?.toInt(),
+      mode: data['mode'] as String?,
+    );
   }
 }

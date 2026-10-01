@@ -34,6 +34,7 @@ import '../../../thought_exercise/presentation/naming_thought_card.dart';
 import '../../../thought_exercise/presentation/thought_exercise_page.dart';
 import '../../../today/data/mood_recorder.dart';
 import 'check_in_shared.dart';
+import '../../../../core/memory/memory_mode.dart';
 
 /// M2 — hybrid check-in (Arm A). Free-text or voice opener, LLM produces
 /// a brief empathetic reflection + at most one adaptive follow-up. The
@@ -831,6 +832,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
         agentId: AgentRegistry.siuYanId,
         retentionOn:
             profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId),
+        memoryV1: MemoryModes.of(profile).isV1,
       ));
     }
     _analytics?.logCheckIn(

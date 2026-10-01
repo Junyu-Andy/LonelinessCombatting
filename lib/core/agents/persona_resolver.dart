@@ -15,6 +15,7 @@ import '../agent_context/agent_context_service.dart';
 import '../agent_context/intake_memory_seeder.dart';
 import '../agent_context/shared_context_service.dart';
 import 'agent_registry.dart';
+import '../memory/memory_mode.dart';
 
 class PersonaContext {
   final AgentDefinition agent;
@@ -80,12 +81,15 @@ class PersonaResolver {
       agentId: agentId,
     );
 
-    var summaryText = snapshot.rollingSummary.trim();
+    // Memory v1 users get their memory block from the server
+    // (functions/memory.js); the v0 rolling summary stays out of the prompt.
+    final memoryV1 = MemoryModes.of(profile).isV1;
+    var summaryText = memoryV1 ? '' : snapshot.rollingSummary.trim();
 
     // §1D — lazy intake seeding. The first time the summary is empty we seed
     // it from onboarding so the opening conversation already feels
     // personalised, then persist it so this only happens once.
-    if (summaryText.isEmpty && intakeRepo != null) {
+    if (!memoryV1 && summaryText.isEmpty && intakeRepo != null) {
       final intake = await intakeRepo!.load(profile.uid);
       final seed = IntakeMemorySeeder.seedFor(
         agentId: agentId,
@@ -106,13 +110,15 @@ class PersonaResolver {
 
     // Appendix A anti-fabrication guardrail — ALWAYS injected so the agent
     // never pretends to remember when there is nothing real to recall.
-    lines.add('[過往摘要]');
-    lines.add(summaryText.isEmpty
-        ? '（暫時未有，今次係第一次同佢傾偈）'
-        : summaryText);
-    lines.add('[注意] 只可以引用上面真實寫咗嘅嘢；上面空嘅就當第一次傾，'
-        '唔好扮記得任何嘢。');
-    lines.add('');
+    if (!memoryV1) {
+      lines.add('[過往摘要]');
+      lines.add(summaryText.isEmpty
+          ? '（暫時未有，今次係第一次同佢傾偈）'
+          : summaryText);
+      lines.add('[注意] 只可以引用上面真實寫咗嘅嘢；上面空嘅就當第一次傾，'
+          '唔好扮記得任何嘢。');
+      lines.add('');
+    }
 
     if (snapshot.namedEntities.isNotEmpty) {
       final entries = snapshot.namedEntities.entries.toList()

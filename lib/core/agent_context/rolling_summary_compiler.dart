@@ -14,16 +14,19 @@
 library;
 
 import '../llm/llm_gateway.dart';
+import '../memory/memory_v1_service.dart';
 import 'agent_context_service.dart';
 
 class RollingSummaryCompiler {
   RollingSummaryCompiler({
     required this.agentContext,
     required this.llm,
+    this.memoryV1Service = const MemoryV1Service(),
   });
 
   final AgentContextService agentContext;
   final LlmGateway llm;
+  final MemoryV1Service memoryV1Service;
 
   /// Hard cap from Appendix A. Characters (runes), not words — the summary
   /// is Cantonese.
@@ -45,11 +48,19 @@ class RollingSummaryCompiler {
   ///
   /// [retentionOn] is the per-agent transcript-retention consent; pass it so
   /// the T5 fold-status can distinguish "consent off" from "empty session".
+  ///
+  /// [memoryV1]: this user's memory is served by v1 on the server, which
+  /// extracts the buffer itself — hand the session over instead of folding.
   Future<void> compileAtSessionEnd({
     required String uid,
     required String agentId,
     bool retentionOn = true,
+    bool memoryV1 = false,
   }) async {
+    if (memoryV1) {
+      await memoryV1Service.endSession(agentId);
+      return;
+    }
     // Callers fire-and-forget this — a Firestore read/write failure in
     // here must never surface as an unhandled async exception.
     try {

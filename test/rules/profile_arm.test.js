@@ -124,4 +124,20 @@ describe('users/{uid} write-once arm', () => {
         'entries', 'e1');
     await assertSucceeds(setDoc(deep, { summary: 's' }));
   });
+  it('DENIES a client setting the server assignment fields', async () => {
+    await assertFails(setDoc(profile(owner()),
+      { uid: 'u1', armAssignmentMode: 'randomise' }));
+    await seed({ uid: 'u1', arm: 'A', armAssignmentMode: 'force_a' });
+    await assertFails(setDoc(profile(owner()),
+      { armAssignmentMode: 'randomise' }, { merge: true }));
+    await assertFails(updateDoc(profile(owner()),
+      { armAssignedBy: 'client' }));
+  });
+
+  it('ALLOWS ordinary writes to a server-assigned profile', async () => {
+    await seed({ uid: 'u1', arm: 'A', armAssignmentMode: 'randomise',
+      armAssignedBy: 'server' });
+    await assertSucceeds(setDoc(profile(owner()),
+      { displayName: 'y', memory_enabled: true }, { merge: true }));
+  });
 });

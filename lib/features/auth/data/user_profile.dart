@@ -214,6 +214,15 @@ class UserProfile {
   /// PI when Phase B begins — not toggled in-app.
   final bool weeklyProbeEnabled;
 
+  /// Memory v1 opt-in (Firestore key `memory_enabled`). Only honoured by
+  /// the server when the memory kill switch is on; off by default and
+  /// never offered in Phase A/B builds (FeatureFlags.memoryV1).
+  final bool memoryEnabled;
+
+  /// Server-written with the arm: `randomise` (assigned in Phase B) or
+  /// `force_a` (Phase A pilot). Read-only on the client — never in toMap.
+  final String? armAssignmentMode;
+
   /// Timestamps of the first time each agent introduced itself to the
   /// user (Dev Req §3.3). Missing entries mean the intro has not been
   /// shown yet and must be played the next time the agent opens.
@@ -265,6 +274,8 @@ class UserProfile {
     this.firstPprSeenByAgent = const {},
     this.quietTodayActivatedAt,
     this.weeklyProbeEnabled = false,
+    this.memoryEnabled = false,
+    this.armAssignmentMode,
     this.firstIntroSeen = const {},
     this.avoidTopics,
     this.hasCompletedIntake = false,
@@ -300,6 +311,8 @@ class UserProfile {
     DateTime? quietTodayActivatedAt,
     bool clearQuietToday = false,
     bool? weeklyProbeEnabled,
+    bool? memoryEnabled,
+    String? armAssignmentMode,
     Map<String, DateTime>? firstIntroSeen,
     String? avoidTopics,
     bool? hasCompletedIntake,
@@ -331,6 +344,8 @@ class UserProfile {
           ? null
           : (quietTodayActivatedAt ?? this.quietTodayActivatedAt),
       weeklyProbeEnabled: weeklyProbeEnabled ?? this.weeklyProbeEnabled,
+      memoryEnabled: memoryEnabled ?? this.memoryEnabled,
+      armAssignmentMode: armAssignmentMode ?? this.armAssignmentMode,
       firstIntroSeen: firstIntroSeen ?? this.firstIntroSeen,
       avoidTopics: avoidTopics ?? this.avoidTopics,
       hasCompletedIntake: hasCompletedIntake ?? this.hasCompletedIntake,
@@ -369,6 +384,7 @@ class UserProfile {
         },
         'quietTodayActivatedAt': quietTodayActivatedAt?.toIso8601String(),
         'weeklyProbeEnabled': weeklyProbeEnabled,
+        'memory_enabled': memoryEnabled,
         'firstIntroSeen': {
           for (final e in firstIntroSeen.entries)
             e.key: e.value.toIso8601String(),
@@ -452,6 +468,8 @@ class UserProfile {
       firstPprSeenByAgent: firstPpr,
       quietTodayActivatedAt: parseDate(map['quietTodayActivatedAt']),
       weeklyProbeEnabled: (map['weeklyProbeEnabled'] as bool?) ?? false,
+      memoryEnabled: (map['memory_enabled'] as bool?) ?? false,
+      armAssignmentMode: map['armAssignmentMode'] as String?,
       firstIntroSeen: intro,
       avoidTopics: map['avoidTopics'] as String?,
       hasCompletedIntake: (map['hasCompletedIntake'] as bool?) ?? false,

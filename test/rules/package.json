@@ -4,7 +4,7 @@
   "private": true,
   "description": "Firestore security-rules unit tests (arm_counter, profile arm). Run inside the Firestore emulator.",
   "scripts": {
-    "test": "mocha arm_counter.test.js profile_arm.test.js --timeout 20000"
+    "test": "mocha arm_counter.test.js profile_arm.test.js memory_rules.test.js --timeout 20000"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",
