@@ -219,6 +219,10 @@ class UserProfile {
   /// never offered in Phase A/B builds (FeatureFlags.memoryV1).
   final bool memoryEnabled;
 
+  /// Server-written with the arm: `randomise` (assigned in Phase B) or
+  /// `force_a` (Phase A pilot). Read-only on the client — never in toMap.
+  final String? armAssignmentMode;
+
   /// Timestamps of the first time each agent introduced itself to the
   /// user (Dev Req §3.3). Missing entries mean the intro has not been
   /// shown yet and must be played the next time the agent opens.
@@ -271,6 +275,7 @@ class UserProfile {
     this.quietTodayActivatedAt,
     this.weeklyProbeEnabled = false,
     this.memoryEnabled = false,
+    this.armAssignmentMode,
     this.firstIntroSeen = const {},
     this.avoidTopics,
     this.hasCompletedIntake = false,
@@ -307,6 +312,7 @@ class UserProfile {
     bool clearQuietToday = false,
     bool? weeklyProbeEnabled,
     bool? memoryEnabled,
+    String? armAssignmentMode,
     Map<String, DateTime>? firstIntroSeen,
     String? avoidTopics,
     bool? hasCompletedIntake,
@@ -339,6 +345,7 @@ class UserProfile {
           : (quietTodayActivatedAt ?? this.quietTodayActivatedAt),
       weeklyProbeEnabled: weeklyProbeEnabled ?? this.weeklyProbeEnabled,
       memoryEnabled: memoryEnabled ?? this.memoryEnabled,
+      armAssignmentMode: armAssignmentMode ?? this.armAssignmentMode,
       firstIntroSeen: firstIntroSeen ?? this.firstIntroSeen,
       avoidTopics: avoidTopics ?? this.avoidTopics,
       hasCompletedIntake: hasCompletedIntake ?? this.hasCompletedIntake,
@@ -368,7 +375,9 @@ class UserProfile {
         'ahJanAhBakVariant': ahJanAhBakVariant?.code,
         'closeContacts': closeContacts.map((c) => c.toMap()).toList(),
         'interests': interests,
-        'strataCell': strataCell,
+        // Server-assigned with the arm; omitted when null so a stale
+        // profile write can't erase it.
+        if (strataCell != null) 'strataCell': strataCell,
         'firstPprSeenByAgent': {
           for (final e in firstPprSeenByAgent.entries)
             e.key: e.value.toIso8601String(),
@@ -460,6 +469,7 @@ class UserProfile {
       quietTodayActivatedAt: parseDate(map['quietTodayActivatedAt']),
       weeklyProbeEnabled: (map['weeklyProbeEnabled'] as bool?) ?? false,
       memoryEnabled: (map['memory_enabled'] as bool?) ?? false,
+      armAssignmentMode: map['armAssignmentMode'] as String?,
       firstIntroSeen: intro,
       avoidTopics: map['avoidTopics'] as String?,
       hasCompletedIntake: (map['hasCompletedIntake'] as bool?) ?? false,

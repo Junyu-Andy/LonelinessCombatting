@@ -516,11 +516,36 @@ async function loadConfig(db) {
   const snap = await db.doc("meta/memory_config").get();
   const d = snap.exists ? snap.data() : {};
   const policy = ["A", "B", "C"].includes(d.policy) ? d.policy : "C";
-  return {enabled: d.enabled === true, policy};
+  return {
+    enabled: d.enabled === true,
+    policy,
+    phaseBArmA: d.phaseBArmA === true,
+  };
 }
 
 /**
- * Memory v1 is active only with the kill switch on AND the user opted in.
+ * Who memory v1 applies to, given the config and a profile doc's data:
+ *   - never Arm B;
+ *   - Phase B Arm A (assigned while randomising) when cfg.phaseBArmA —
+ *     mandatory, no opt-out; Phase A pilot users (assigned in force_a
+ *     mode) keep memory v0;
+ *   - anyone else who opted in (testers on a MEMORY_V1 build).
+ * The kill switch (cfg.enabled) overrides everything.
+ * @param {{enabled: boolean, phaseBArmA: boolean}} cfg
+ * @param {object} user profile doc data
+ * @return {boolean}
+ */
+function inScope(cfg, user) {
+  if (!cfg.enabled || !user) return false;
+  if (user.arm === "B") return false;
+  if (cfg.phaseBArmA && user.arm === "A" &&
+      user.armAssignmentMode === "randomise") {
+    return true;
+  }
+  return user.memory_enabled === true;
+}
+
+/**
  * @param {object} db
  * @param {string} uid
  * @return {Promise<?{policy: string}>}
@@ -529,8 +554,7 @@ async function memoryActive(db, uid) {
   const cfg = await loadConfig(db);
   if (!cfg.enabled) return null;
   const user = await db.collection("users").doc(uid).get();
-  if (!user.exists || user.get("memory_enabled") !== true) return null;
-  if (user.get("arm") === "B") return null;
+  if (!user.exists || !inScope(cfg, user.data())) return null;
   return {policy: cfg.policy};
 }
 
@@ -827,6 +851,7 @@ module.exports = {
   selectForInjection,
   renderMemoryBlock,
   loadConfig,
+  inScope,
   memoryActive,
   loadMemory,
   injectMemory,

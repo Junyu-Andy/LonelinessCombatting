@@ -48,16 +48,10 @@ class FeatureFlags {
   /// only Arm A paths.  Returns true unless Phase B is enabled.
   static bool get forceArmAEverywhere => !phaseB;
 
-  /// Memory v1 (server-side memory, 「我記得嘅嘢」 page). Off by default:
-  /// only a --dart-define=MEMORY_V1=true build shows the opt-in, so study
-  /// builds never do. The server additionally needs its kill switch
-  /// (meta/memory_config.enabled) and the user's opt-in.
+  /// Memory v1 opt-in for testers (server-side memory, 「我記得嘅嘢」 page).
+  /// Phase B Arm A gets v1 without it — see core/memory/memory_mode.dart.
   static bool get memoryV1 => _memoryV1Define == 'true';
 
-  /// True when this user's memory is served by v1 on the server: the
-  /// client then skips the v0 rolling-summary fold and its prompt block.
-  static bool memoryV1ActiveFor(bool? userOptedIn) =>
-      memoryV1 && userOptedIn == true;
 
   /// C.3 — Hybrid-only affordances that must NOT mount in Phase A or for
   /// an Arm B participant.  The arm tutorial / education surface keys

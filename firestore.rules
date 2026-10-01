@@ -51,11 +51,22 @@ service cloud.firestore {
       return data.get('arm', null) == null || data.arm in ['A', 'B'];
     }
 
+    // Written only by the assignArm Cloud Function. armAssignmentMode
+    // also decides who gets mandatory memory v1 (Phase B Arm A), so a
+    // client must never set or change these.
+    function serverAssignmentUntouched() {
+      return !request.resource.data.diff(
+          resource == null ? {} : resource.data).affectedKeys()
+        .hasAny(['armAssignmentMode', 'armAssignedBy', 'armAssignedAt']);
+    }
+
     match /users/{uid} {
       allow read, delete: if isOwner(uid);
-      allow create: if isOwner(uid) && armValid(request.resource.data);
+      allow create: if isOwner(uid) && armValid(request.resource.data)
+        && serverAssignmentUntouched();
       allow update: if isOwner(uid)
         && armValid(request.resource.data)
+        && serverAssignmentUntouched()
         && (resource.data.get('arm', null) == null
             || request.resource.data.get('arm', null) == resource.data.arm);
     }
@@ -102,11 +113,19 @@ service cloud.firestore {
     // Function trigger runs as a service account (bypasses rules)
     // and patches the doc with dedup_key.
     // ============================================================
+    // Phase A baseline — runtime parameters (PhaseAConfig).  Clients read,
+    // never write; the research team edits from the console.
+    match /app_config/{doc} {
+      allow read: if isAuthed();
+      allow write: if false;
+    }
+
     match /safety_events/{eventId} {
       allow create: if isAuthed()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasAll(['uid', 'source', 'textHash', 'level'])
-        && request.resource.data.level in ['none', 'low', 'moderate', 'acute'];
+        && request.resource.data.level in ['none', 'low', 'moderate',
+            'moderate_review', 'moderate_interrupt', 'acute'];
       // Reads + updates come only from service accounts.
       allow read, update, delete: if false;
     }

@@ -8,6 +8,7 @@ import 'package:app_demo/core/agent_context/shared_context_service.dart';
 import 'package:app_demo/core/agents/persona_resolver.dart';
 import 'package:app_demo/core/feature_flags/feature_flags.dart';
 import 'package:app_demo/core/llm/llm_gateway.dart';
+import 'package:app_demo/core/memory/memory_mode.dart';
 import 'package:app_demo/core/memory/memory_v1_service.dart';
 import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:app_demo/features/memory/presentation/pages/remembered_page.dart';
@@ -75,11 +76,36 @@ void main() {
     });
   });
 
-  group('FeatureFlags.memoryV1ActiveFor', () {
-    test('needs both the build flag and the opt-in', () {
-      expect(FeatureFlags.memoryV1ActiveFor(false), isFalse);
-      expect(FeatureFlags.memoryV1ActiveFor(null), isFalse);
-      expect(FeatureFlags.memoryV1ActiveFor(true), FeatureFlags.memoryV1);
+  group('MemoryModes', () {
+    UserProfile p({ArmAssignment? arm, String? mode, bool optIn = false}) =>
+        UserProfile(uid: 'u', email: 'e', displayName: 'd', arm: arm,
+            armAssignmentMode: mode, memoryEnabled: optIn);
+
+    test('Arm B never has memory v1', () {
+      expect(MemoryModes.of(p(arm: ArmAssignment.b, mode: 'randomise',
+          optIn: true)), MemoryMode.off);
+    });
+
+    test('Phase B Arm A is v1 without opting in (Phase B builds)', () {
+      expect(MemoryModes.of(p(arm: ArmAssignment.a, mode: 'randomise')),
+          FeatureFlags.phaseB ? MemoryMode.phaseB : MemoryMode.off);
+    });
+
+    test('Phase A pilot users (force_a) keep v0', () {
+      expect(MemoryModes.of(p(arm: ArmAssignment.a, mode: 'force_a')),
+          MemoryMode.off);
+    });
+
+    test('testers opt in on a MEMORY_V1 build', () {
+      expect(MemoryModes.of(p(arm: ArmAssignment.a, optIn: true)),
+          FeatureFlags.memoryV1 ? MemoryMode.optIn : MemoryMode.off);
+    });
+
+    test('armAssignmentMode is read from Firestore but never written', () {
+      final profile = UserProfile.fromMap(
+          'u', {'arm': 'A', 'armAssignmentMode': 'randomise'});
+      expect(profile.armAssignmentMode, 'randomise');
+      expect(profile.toMap().containsKey('armAssignmentMode'), isFalse);
     });
   });
 
@@ -126,7 +152,9 @@ void main() {
     });
   });
 
-  group('RememberedPage', () {
+  // The page lists memories only when v1 is live for the user, which needs a
+  // MEMORY_V1 (or Phase B) build; the default-build suite skips these.
+  group('RememberedPage', skip: !FeatureFlags.memoryV1, () {
     Widget page(_FakeMemory mem, {bool memory = true}) => AppSettingsScope(
           settings: AppSettings(
               locale: const Locale('zh'), profile: _profile(memory: memory)),

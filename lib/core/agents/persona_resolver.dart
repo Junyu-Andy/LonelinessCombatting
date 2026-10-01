@@ -14,8 +14,8 @@ import '../../features/onboarding/data/intake_repository.dart';
 import '../agent_context/agent_context_service.dart';
 import '../agent_context/intake_memory_seeder.dart';
 import '../agent_context/shared_context_service.dart';
-import '../feature_flags/feature_flags.dart';
 import 'agent_registry.dart';
+import '../memory/memory_mode.dart';
 
 class PersonaContext {
   final AgentDefinition agent;
@@ -83,7 +83,7 @@ class PersonaResolver {
 
     // Memory v1 users get their memory block from the server
     // (functions/memory.js); the v0 rolling summary stays out of the prompt.
-    final memoryV1 = FeatureFlags.memoryV1ActiveFor(profile.memoryEnabled);
+    final memoryV1 = MemoryModes.of(profile).isV1;
     var summaryText = memoryV1 ? '' : snapshot.rollingSummary.trim();
 
     // §1D — lazy intake seeding. The first time the summary is empty we seed

@@ -226,6 +226,27 @@ test("modules outside the chat surfaces get nothing", async () => {
   assert.strictEqual(block, "");
 });
 
+test("Phase B Arm A gets memory without opting in; Phase A Arm A does not",
+    async () => {
+      await reset();
+      await db.doc("meta/memory_config").set({enabled: true,
+        phaseBArmA: true});
+      await user().collection("mem_facts").add({agent_id: "siu_yan",
+        category: "name", key: "稱呼", value: "陳太", status: "active",
+        visibility: "shared", sensitivity: "normal"});
+      const args = {uid: UID, agentId: "siu_yan", moduleId: "m2_check_in",
+        messages: [{role: "user", content: "hi"}], now: NOW};
+      await user().set({memory_enabled: false, arm: "A",
+        armAssignmentMode: "randomise"});
+      assert.ok((await m.injectMemory(db, args)).includes("陳太"));
+      await user().set({memory_enabled: false, arm: "A",
+        armAssignmentMode: "force_a"});
+      assert.strictEqual(await m.injectMemory(db, args), "");
+      await user().set({memory_enabled: false, arm: "B",
+        armAssignmentMode: "randomise"});
+      assert.strictEqual(await m.injectMemory(db, args), "");
+    });
+
 (async () => {
   let failed = 0;
   for (const t of tests) {

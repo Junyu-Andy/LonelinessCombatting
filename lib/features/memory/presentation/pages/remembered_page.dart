@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/memory/memory_mode.dart';
 import '../../../../core/memory/memory_v1_service.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
 
@@ -28,7 +29,7 @@ class RememberedPage extends StatelessWidget {
       body: SafeArea(
         child: profile == null
             ? _Empty(text: isEn ? 'Please sign in first.' : '請先登入。')
-            : !profile.memoryEnabled
+            : !MemoryModes.of(profile).isV1
                 ? _Empty(
                     text: isEn
                         ? 'Memory is off. Nothing new is being remembered.'

@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const {computeLlmFlags} = require("./llm_flags");
+const arm = require("./arm");
 const memory = require("./memory");
 
 admin.initializeApp();
@@ -52,6 +53,50 @@ function loadSafetyAcks() {
   return _safetyCache;
 }
 
+// L-2 — prompt version label derived from the prompt file header, e.g.
+// "## 小欣 — … · v1 (rev 2026-06)" → "siu_yan_v1@2026-06".  Cached with the
+// prompt text; null for raw systemPrompt callers (no server-side file).
+const _promptVersionCache = {};
+function promptVersionFor(key) {
+  if (!key) return null;
+  if (_promptVersionCache[key] !== undefined) return _promptVersionCache[key];
+  const text = loadPrompt(key);
+  let label = null;
+  if (text) {
+    const m = text.split("\n")[0].match(/v(\d+)\s*\(rev\s*([0-9-]+)\)/);
+    if (m) label = `${key.replace(/_v\d+$/, "")}_v${m[1]}@${m[2]}`;
+  }
+  _promptVersionCache[key] = label;
+  return label;
+}
+
+// S-4 — crisis resources (hotline names / numbers) are a single JSON that
+// the client bundles as an asset AND the acknowledgement callable reads, so
+// the template's hotline always matches the crisis page.
+let _crisisCache = null;
+function loadCrisisResources() {
+  if (_crisisCache !== null) return _crisisCache;
+  try {
+    const file = path.join(PROMPT_DIR, "crisis_resources.json");
+    _crisisCache = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (err) {
+    _crisisCache = {resources: []};
+  }
+  return _crisisCache;
+}
+
+// Fills {{HOTLINE_NAME}} / {{HOTLINE_NUMBER}} from the resource flagged
+// `acuteTemplateReference` (must be item 1 or 2 per HREC §8.1).
+function fillHotline(text, locale) {
+  if (!text) return text;
+  const res = (loadCrisisResources().resources || [])
+      .find((r) => r.acuteTemplateReference) || {};
+  const name = locale === "en" ? (res.nameEn || "") : (res.nameZh || "");
+  return text
+      .split("{{HOTLINE_NAME}}").join(name)
+      .split("{{HOTLINE_NUMBER}}").join(res.number || "");
+}
+
 function resolvePrompt(payload) {
   const promptKey = payload.promptKey;
   const rawPrompt = payload.systemPrompt;
@@ -68,7 +113,10 @@ function resolvePrompt(payload) {
   out = out.split("{{VARIANT_NAME}}").join(variantName);
   const contextSuffix = payload.contextSuffix;
   if (contextSuffix && typeof contextSuffix === "string") {
-    out = `${out}\n\n${contextSuffix}`;
+    // P-2 (2026-09): the suffix carries the rolling summary + named
+    // entities + mood snippet, i.e. participant-derived text — it goes
+    // through the same identifier scrub as the chat messages.
+    out = `${out}\n\n${stripPII(contextSuffix)}`;
   }
   return out;
 }
@@ -260,14 +308,17 @@ exports.proxyDeepSeek = onCall(
     const systemPromptHash = computePromptHash(systemPrompt);
 
     // Memory v1: assembled and policy-filtered here, never on the client.
-    // Returns "" unless the kill switch is on and the user opted in.
+    // Returns "" unless the kill switch is on and the user is in scope
+    // (Phase B Arm A, or an opted-in tester).
     const memoryBlock = await memory.injectMemory(admin.firestore(), {
       uid: request.auth.uid,
       agentId,
       moduleId,
       messages,
     });
-    if (memoryBlock) systemPrompt = `${systemPrompt}\n\n${memoryBlock}`;
+    if (memoryBlock) {
+      systemPrompt = `${systemPrompt}\n\n${stripPII(memoryBlock)}`;
+    }
 
     // HREC data minimisation: strip identifiers from every outgoing
     // user/assistant message and replace the auth uid with a coded
@@ -354,6 +405,10 @@ exports.proxyDeepSeek = onCall(
       agentId: agentId,
       systemPromptHash: systemPromptHash,
       llmFlags: llmFlags,
+      // L-2 — provenance echoed back for the client's per-turn log.
+      model: (data && data.model) || null,
+      temperature: temperatureFor(agentId),
+      promptVersion: promptVersionFor(payload.promptKey || null),
     };
   },
 );
@@ -374,7 +429,7 @@ exports.safetyAcknowledgement = onCall(
     if (!forAgent) return {text: ""};
     const forLevel = forAgent[level] || forAgent.moderate || null;
     if (!forLevel) return {text: ""};
-    return {text: forLevel[locale] || forLevel.zh || ""};
+    return {text: fillHotline(forLevel[locale] || forLevel.zh || "", locale)};
   },
 );
 
@@ -453,13 +508,15 @@ SKIP: 內容係順帶一句，唔重要。
 {"decision":"SURFACE|DEFER|SKIP","suggestion":"<如果 SURFACE 用你本人嘅
 agent 聲音寫邀請；其他情況留空>"}`;
 
+    // P-2 (2026-09): same identifier scrub as proxyDeepSeek — the recent
+    // turns and the matched phrase are participant text leaving the region.
     const messages = [];
     recentTurns.slice(-10).forEach((t) => {
       if (t && t.role && t.content) {
-        messages.push({role: t.role, content: t.content});
+        messages.push({role: t.role, content: stripPII(t.content)});
       }
     });
-    messages.push({role: "user", content: judgementPrompt});
+    messages.push({role: "user", content: stripPII(judgementPrompt)});
 
     const response = await fetch(
       "https://api.deepseek.com/chat/completions",
@@ -1069,6 +1126,18 @@ const _EXPORT_BLINDED_COLLECTIONS = [
   "llm_turn_features",
   "thought_exercise",
   "loneliness_probes",
+  // Phase A baseline (2026-09) — L-1 / M-1…M-4 / M-6 surfaces.  `turns`
+  // carries no transcript except `te.offerText` (the audited TE
+  // invitation, which quotes the participant's own sentence).
+  "turns",
+  "sessions",
+  "brief_pr",
+  "weekly_pr",
+  "pgic",
+  "djg_es",
+  "agent_diff",
+  "daily_mood",
+  "response_feedback",
   "safety_events",
   "pi_alerts",
 ];
@@ -1155,6 +1224,8 @@ exports.blindedDataExport = onSchedule(
       for (const subName of [
         "events", "ppr_responses", "llm_turn_features",
         "thought_exercise", "loneliness_probes",
+        "turns", "sessions", "brief_pr", "weekly_pr", "pgic", "djg_es",
+        "agent_diff", "daily_mood", "response_feedback",
       ]) {
         const sub = await userDoc.ref.collection(subName).get();
         for (const d of sub.docs) {
@@ -1321,9 +1392,19 @@ exports.memorySweep = onSchedule(
     if (!cfg.enabled) return;
     const idleBefore = Date.now() - 30 * 60 * 1000;
     const staleBefore = Date.now() - 10 * 60 * 1000;
-    const users = await db.collection("users")
-        .where("memory_enabled", "==", true).get();
-    for (const user of users.docs) {
+    // In scope: opted-in testers, plus Phase B Arm A when that is on.
+    const queries = [db.collection("users")
+        .where("memory_enabled", "==", true).get()];
+    if (cfg.phaseBArmA) {
+      queries.push(db.collection("users")
+          .where("arm", "==", "A")
+          .where("armAssignmentMode", "==", "randomise").get());
+    }
+    const byId = new Map();
+    for (const snap of await Promise.all(queries)) {
+      for (const d of snap.docs) byId.set(d.id, d);
+    }
+    for (const user of byId.values()) {
       const uid = user.id;
       if (user.get("arm") === "B") continue;
       try {
@@ -1390,5 +1471,227 @@ exports.weeklySurveyReminder = onSchedule(
       "今個禮拜過得點？得閒入嚟答幾條，想答先答，唔想都冇問題。",
       "weekly_survey_reminder",
     );
+    // Phase A L-1 — `weekly_pr_pushed` per participant.  The doorbell is a
+    // topic broadcast, so per-device receipt is unknown; this records that
+    // the push was issued for the account (testers excluded).
+    try {
+      const db = admin.firestore();
+      const usersSnap = await db.collection("users").get();
+      const weekIso = isoWeekLabel(new Date());
+      const writes = [];
+      for (const userDoc of usersSnap.docs) {
+        const data = userDoc.data() || {};
+        if (data.isTester === true) continue;
+        writes.push(userDoc.ref.collection("events").add({
+          name: "weekly_pr_pushed",
+          params: {weekIso, channel: "fcm_topic_all"},
+          source: "cf_weeklySurveyReminder",
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        }));
+      }
+      await Promise.all(writes);
+      console.log(`weekly_pr_pushed recorded for ${writes.length} users`);
+    } catch (err) {
+      console.error("weekly_pr_pushed record failed:", err.message);
+    }
+  },
+);
+
+// ISO-8601 week label (e.g. 2026-W37) in HKT, matching the client's
+// WeeklyPrResponse.currentWeekIso for the Sunday that opens the window.
+function isoWeekLabel(date) {
+  const hk = new Date(date.toLocaleString("en-US", {timeZone: "Asia/Hong_Kong"}));
+  const d = new Date(Date.UTC(hk.getFullYear(), hk.getMonth(), hk.getDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+// ---------------------------------------------------------------------------
+// M-4 (Phase A baseline 2026-09) — Week 2 push.
+//
+// Daily 10:00 HKT: for every non-tester user whose enrolment day index is
+// inside [w2DayOffset, w2DayOffset + w2WindowDays) and who has not yet
+// received the push, send a per-device notification (fcm_tokens) and mark
+// `w2PushSentAt` on the user doc + a `w2_push_sent` event.  Parameters
+// come from `app_config/phase_a` (same doc the client reads) with the spec
+// defaults (14 / 3) as fallback.  The in-app banner owns the actual DJG-ES
+// + Agent Differentiation routing; this is only the doorbell.
+// ---------------------------------------------------------------------------
+
+async function phaseAConfig(db) {
+  const defaults = {w2DayOffset: 14, w2WindowDays: 3};
+  try {
+    const snap = await db.doc("app_config/phase_a").get();
+    return {...defaults, ...(snap.exists ? snap.data() : {})};
+  } catch (err) {
+    return defaults;
+  }
+}
+
+function hkDateKey(d) {
+  return d.toLocaleDateString("en-CA", {timeZone: "Asia/Hong_Kong"});
+}
+
+function daysBetweenHk(fromIso, toIso) {
+  const a = new Date(`${fromIso}T00:00:00Z`);
+  const b = new Date(`${toIso}T00:00:00Z`);
+  return Math.round((b - a) / 86400000);
+}
+
+// ---------------------------------------------------------------------------
+// assignArm — server-side RCT arm assignment (functions/arm.js).  The app
+// calls this right after creating the profile (and again on login while the
+// profile has no arm).  Idempotent; returns the stored arm on repeat calls.
+// ---------------------------------------------------------------------------
+exports.assignArm = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 10},
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+    try {
+      return await arm.assignArm(admin.firestore(), request.auth.uid);
+    } catch (err) {
+      if (String(err && err.message) === "profile_missing") {
+        throw new HttpsError("failed-precondition", "profile_missing");
+      }
+      console.error("assignArm failed", {err: String(err)});
+      throw new HttpsError("internal", "assignment_failed");
+    }
+  },
+);
+
+exports.week2Push = onSchedule(
+  {
+    schedule: "0 10 * * *",
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    retryCount: 0,
+  },
+  async (_event) => {
+    const db = admin.firestore();
+    const cfg = await phaseAConfig(db);
+    const today = hkDateKey(new Date());
+    const usersSnap = await db.collection("users").get();
+    let sent = 0;
+    for (const userDoc of usersSnap.docs) {
+      const data = userDoc.data() || {};
+      if (data.isTester === true) continue;
+      if (data.w2PushSentAt) continue;
+      const createdRaw = data.createdAt;
+      if (!createdRaw) continue;
+      const createdIso = typeof createdRaw === "string" ?
+        createdRaw.slice(0, 10) :
+        (createdRaw.toDate ? hkDateKey(createdRaw.toDate()) : null);
+      if (!createdIso) continue;
+      // 1-based enrolment day (day 1 = signup date), same as the client's
+      // enrolmentDay(): 「入組第 14 天」 == day 14.
+      const day = daysBetweenHk(createdIso, today) + 1;
+      if (day < cfg.w2DayOffset || day >= cfg.w2DayOffset + cfg.w2WindowDays) {
+        continue;
+      }
+      const tokensSnap = await userDoc.ref.collection("fcm_tokens").get();
+      const tokens = tokensSnap.docs
+          .map((t) => (t.data() || {}).token)
+          .filter((t) => typeof t === "string" && t.length > 0);
+      let delivered = 0;
+      for (const token of tokens) {
+        try {
+          await admin.messaging().send({
+            token,
+            notification: {
+              title: "陪住",
+              body: "入嚟兩個禮拜喇，有幾條短問題想問下你。得閒先答，唔急。",
+            },
+            android: {priority: "normal"},
+            data: {kind: "w2_push"},
+          });
+          delivered++;
+        } catch (err) {
+          console.warn(`week2Push token send failed for ${userDoc.id}: ${err.message}`);
+        }
+      }
+      await userDoc.ref.set({
+        w2PushSentAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+      await userDoc.ref.collection("events").add({
+        name: "w2_push_sent",
+        params: {enrolmentDay: day, tokens: tokens.length, delivered},
+        source: "cf_week2Push",
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      sent++;
+    }
+    console.log(`week2Push: ${sent} users notified`);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Tester-only: send one of the real doorbells to the caller's own devices
+// (2026-09-23).  Lets a tester verify delivery, copy and the
+// notification_opened event without waiting for the cron.
+//
+// Guard: caller must be signed in AND `users/{uid}.isTester == true`.
+// `delaySeconds` (0–45) gives the tester time to put the app in the
+// background — Android does not display a system notification for FCM
+// messages received while the app is in the foreground.
+// iOS devices will not receive anything until APNs is configured.
+// ---------------------------------------------------------------------------
+
+const _TEST_PUSH_COPY = {
+  daily_mood_reminder: "今日過得點？得閒入嚟同我哋講兩句，想講先講，唔講都冇所謂。",
+  weekly_survey_reminder: "今個禮拜過得點？得閒入嚟答幾條，想答先答，唔想都冇問題。",
+  w2_push: "入嚟兩個禮拜喇，有幾條短問題想問下你。得閒先答，唔急。",
+};
+
+exports.sendTestPush = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 3, timeoutSeconds: 60},
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+    const uid = request.auth.uid;
+    const db = admin.firestore();
+    const userSnap = await db.collection("users").doc(uid).get();
+    if (!userSnap.exists || userSnap.data().isTester !== true) {
+      throw new HttpsError("permission-denied", "tester accounts only");
+    }
+    const payload = request.data || {};
+    const kind = payload.kind;
+    if (!Object.prototype.hasOwnProperty.call(_TEST_PUSH_COPY, kind)) {
+      throw new HttpsError("invalid-argument", "unknown kind");
+    }
+    const delay = Math.max(0, Math.min(45, Number(payload.delaySeconds) || 0));
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay * 1000));
+
+    const tokensSnap = await userSnap.ref.collection("fcm_tokens").get();
+    const tokens = tokensSnap.docs
+        .map((t) => (t.data() || {}).token)
+        .filter((t) => typeof t === "string" && t.length > 0);
+    let delivered = 0;
+    const errors = [];
+    for (const token of tokens) {
+      try {
+        await admin.messaging().send({
+          token,
+          notification: {title: "陪住（測試）", body: _TEST_PUSH_COPY[kind]},
+          android: {priority: "high"},
+          data: {kind, test: "1"},
+        });
+        delivered++;
+      } catch (err) {
+        errors.push(err.code || err.message);
+      }
+    }
+    await userSnap.ref.collection("events").add({
+      name: "test_push_sent",
+      params: {kind, tokens: tokens.length, delivered, delay},
+      source: "cf_sendTestPush",
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return {tokens: tokens.length, delivered, errors};
   },
 );

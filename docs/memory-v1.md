@@ -1,13 +1,25 @@
 # 记忆模块 v1 实现说明
 
 > 分支 `claude/memory-v1`，基于《陪住 记忆模块 技术交付文档 v0》。
-> 默认完全关闭，不影响 Phase A / Phase B 的构建和用户。
+> 两种开法：Phase B 正式研究里 **A 组全员强制开启**（不能关）；测试时用 `MEMORY_V1` 构建自愿开启。B 组永远没有。
 
 ## 一句话
 
-A 组现有的「每个 agent 一段滚动摘要」（记忆 v0）保持不变。v1 是一套新的、在服务器上运行的记忆：会话摘要、结构化画像、待跟进事项，外加老人可以查看和删除的「我記得嘅嘢」页面。只有同时满足下面三个条件的用户才会用到它。
+A 组现有的「每个 agent 一段滚动摘要」（记忆 v0）保持不变。v1 是一套新的、在服务器上运行的记忆：会话摘要、结构化画像、待跟进事项，外加老人可以查看和删除的「我記得嘅嘢」页面。## 怎么开启
 
-## 怎么开启（三道开关，缺一不可）
+### Phase B 正式研究：A 组全员强制开
+
+| 开关 | 在哪 |
+|---|---|
+| 构建开关 | Phase B 构建（`--dart-define=PHASE_B=true`）即可，不需要另加 `MEMORY_V1` |
+| 服务器开关 | `meta/memory_config`：`{enabled: true, policy: "C", phaseBArmA: true}`，只能由管理员写 |
+| 适用对象 | `arm == "A"` **且** `armAssignmentMode == "randomise"`（由服务器 `assignArm` 在随机分组时写入，客户端改不了） |
+
+- Phase A 的老参与者（`armAssignmentMode` 为空或 `force_a`）继续用 v0，不受影响，虽然他们和 Phase B 在同一个 Firebase 项目里。
+- 设置页的「記憶」区只显示说明和「我記得嘅嘢」入口，**没有关闭开关**。
+- 停用：把 `enabled` 改成 `false`，立即对所有人生效（kill switch）。
+
+### 测试：三道开关，缺一不可
 
 | 开关 | 在哪 | 默认 |
 |---|---|---|
@@ -17,7 +29,13 @@ A 组现有的「每个 agent 一段滚动摘要」（记忆 v0）保持不变�
 
 Arm B 用户即使三道都开，服务器也不会给他们记忆。
 
-**Phase A / Phase B 的构建不要加 `MEMORY_V1`，研究项目的 `meta/memory_config` 保持关闭。** 这就是 v0 文档 MEM-1「Phase A/B 用户一律为关」的实现方式。
+Phase A 的构建不要加 `MEMORY_V1`。
+
+### 部署顺序
+
+1. 先部署 Cloud Functions（`assignArm`、记忆函数）和 Firestore 规则；
+2. 再写 `meta/memory_config`；
+3. 最后发布 Phase B App。顺序反了，新用户注册时拿不到组别。
 
 ## 流程
 
@@ -74,7 +92,7 @@ flowchart TD
 
 | 编号 | 状态 | 说明 |
 |---|---|---|
-| MEM-1 开关与 kill switch | ✅ | 三道开关，见上 |
+| MEM-1 开关与 kill switch | ✅ | Phase B A 组强制开；测试三道开关；见上 |
 | MEM-2 数据模型与安全规则 | ✅ | 规则测试 9 条 |
 | MEM-3 会话结束判定 | ✅ | 离开页面 + 30 分钟扫描；事务保证同一会话只抽取一次 |
 | MEM-4 抽取 prompt 与 JSON schema | ✅ 实现 / ⏳ 评估 | 原话出处校验保证「不编造」；「精确率 ≥ 90%」需要合成粤语测试集才能评估 |
@@ -88,11 +106,11 @@ flowchart TD
 ## 测试
 
 ```bash
-cd functions && node test/memory_test.js                       # 24 条纯逻辑
+cd functions && node test/memory_test.js                       # 28 条纯逻辑
 firebase emulators:exec --only firestore --project loneliness-pilot-dev \
-  "cd functions && node test/memory_emulator_test.js"           # 8 条读写集成
+  "cd functions && node test/memory_emulator_test.js"           # 9 条读写集成
 firebase emulators:exec --only firestore --project loneliness-pilot-dev \
-  "cd test/rules && npm install && npm test"                    # 规则 29 条（含记忆 9 条）
+  "cd test/rules && npm install && npm test"                    # 规则 31 条（含记忆 9 条）
 flutter test --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
 ```
 
@@ -102,7 +120,22 @@ flutter test --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
 
 - **「睇医生」类待跟进算不算敏感。** 现在：只因「医生、覆诊」这类约诊字眼的，**不算**敏感，可以主动问「上次睇醫生點呀？」（v0 文档的例子）；癌、手术、病等仍算敏感。
 - **敏感确认的方式。** 现在是在「我記得嘅嘢」页面确认。v0 文档写的是「下次对话开头问一句」，那种做法更自然，但更难做对，可以作为下一步。
-- **onboarding 时的一句话说明和开启选项。** 目前只在设置页里；onboarding 流程还没加这一步。
-- **研究结束或退出时，按 ICF 期限删除全部记忆**，需要一个管理员脚本（包括 `mem_injections` / `mem_extractions`）。
+- **onboarding 时的一句话说明。** A 组强制开启后，需要在 onboarding 里告诉老人「佢哋會記得你講過嘅嘢，可以喺設定睇同刪」；文案待定。
+- **ICF / 伦理批文是否覆盖「强制记忆」以及记忆内容发送给 DeepSeek。**
+- **删除期限**（按 ICF，待你告知）。脚本已写好，见下。
+
+## 删除记忆（退出研究 / 研究结束）
+
+`tool/delete_memory.js` 删除 `mem_*` 五个集合，以及 v0 的 `agent_contexts`、`memory/*`、`shared_context`、`agent_greetings`、`cross_module_callbacks`。**不碰**研究数据（turns、sessions、问卷、情绪、安全事件）。默认只演示（dry run），加 `--confirm` 才真删；真删后把该用户 `memory_enabled` 设为 false，并记 `memoryDeletedAt`。
+
+```bash
+cd functions && npm ci && cd ..
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+NODE_PATH=functions/node_modules node tool/delete_memory.js --email=x@hku.hk            # 先看会删多少
+NODE_PATH=functions/node_modules node tool/delete_memory.js --email=x@hku.hk --confirm  # 退出研究
+NODE_PATH=functions/node_modules node tool/delete_memory.js --all --confirm             # 研究结束
+```
+
+注意：对 Phase B A 组参与者，删除后服务器仍会按「强制开」继续记新的内容。退出研究的参与者不会再使用 App，所以没有影响；如果是「留在研究里但要求删除」，需要另议。
 - **合成粤语测试对话集（建议 30 段）**：MEM-4、MEM-6 的准确率评估依赖它。
 - **成本**：每次会话结束多 1 次 DeepSeek 调用（约 1–2k tokens）；每轮对话的 prompt 最多多约 1,500 tokens。

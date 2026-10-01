@@ -305,5 +305,33 @@ test("only chat surfaces get memory", () => {
   }
 });
 
+// ------------------------------------------------------------------ scope
+test("scope: Phase B Arm A is in without opting in; Phase A Arm A is not",
+    () => {
+      const cfg = {enabled: true, phaseBArmA: true};
+      assert.ok(m.inScope(cfg, {arm: "A", armAssignmentMode: "randomise"}));
+      assert.ok(!m.inScope(cfg, {arm: "A", armAssignmentMode: "force_a"}));
+      assert.ok(!m.inScope(cfg, {arm: "A"}), "pre-server-assignment user");
+    });
+
+test("scope: Arm B never, even opted in or randomised", () => {
+  const cfg = {enabled: true, phaseBArmA: true};
+  assert.ok(!m.inScope(cfg, {arm: "B", armAssignmentMode: "randomise"}));
+  assert.ok(!m.inScope(cfg, {arm: "B", memory_enabled: true}));
+});
+
+test("scope: testers opt in; phaseBArmA off leaves only opt-ins", () => {
+  assert.ok(m.inScope({enabled: true, phaseBArmA: false},
+      {arm: "A", memory_enabled: true}));
+  assert.ok(!m.inScope({enabled: true, phaseBArmA: false},
+      {arm: "A", armAssignmentMode: "randomise"}));
+});
+
+test("scope: the kill switch overrides everything", () => {
+  const off = {enabled: false, phaseBArmA: true};
+  assert.ok(!m.inScope(off, {arm: "A", armAssignmentMode: "randomise"}));
+  assert.ok(!m.inScope(off, {arm: "A", memory_enabled: true}));
+});
+
 console.log(`\n${passed} passed, ${failures.length} failed.`);
 if (failures.length) process.exit(1);

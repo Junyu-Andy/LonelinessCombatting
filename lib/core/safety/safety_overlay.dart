@@ -136,7 +136,7 @@ class _SafetyPillState extends State<_SafetyPill> {
           const Color(0xFFB91C1C),
           Icons.support_agent_rounded,
         ),
-      DistressLevel.moderate => (
+      DistressLevel.moderateReview || DistressLevel.moderateInterrupt => (
           l10n?.safetyPillModerate ?? (isEn ? 'Need support?' : '需要支援？'),
           isEn ? 'Open support options' : '打開支援選項',
           const Color(0xFF991B1B),
@@ -166,7 +166,7 @@ class _SafetyPillState extends State<_SafetyPill> {
             final navigator =
                 Navigator.maybeOf(context, rootNavigator: true);
             navigator?.push(MaterialPageRoute<void>(
-              builder: (_) => const EmergencySupportPage(),
+              builder: (_) => const EmergencySupportPage(from: 'pill'),
             ));
           },
           child: Padding(

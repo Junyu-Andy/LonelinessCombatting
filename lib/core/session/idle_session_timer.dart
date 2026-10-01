@@ -110,11 +110,19 @@ class IdleSessionTimer with WidgetsBindingObserver {
       _timer?.cancel();
       _timer = null;
     } else if (!wasForeground && _foreground) {
-      // Coming back to foreground: reset countdown from zero.
-      // (Spec: don't continue the pre-background countdown — the screen
-      // was off and any 60s idle assumption is invalid.)
+      // Coming back to foreground.  Phase A M-7: "10 minutes without a user
+      // message" counts wall-clock time, so a session left in the
+      // background past the timeout is closed on resume; a shorter absence
+      // restarts the countdown from zero (the pre-baseline behaviour).
+      final away = _backgroundedAt == null ? Duration.zero : _now() - _backgroundedAt!;
       _backgroundedAt = null;
-      if (_started && !_firedThisSession) _restartCountdown();
+      if (_started && !_firedThisSession) {
+        if (away >= idleDuration) {
+          _fire();
+        } else {
+          _restartCountdown();
+        }
+      }
     }
   }
 

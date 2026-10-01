@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../auth/data/auth_service.dart';
+import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/action_plan.dart';
 import 'action_loop_arm_a_page.dart';
 import 'action_loop_arm_b_page.dart';
 import 'action_loop_followup_page.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 
 /// M7 entry surface. Shows two things:
 ///   - A primary "Plan a small step" button that opens the arm-specific
@@ -24,6 +26,15 @@ class ActionLoopLandingPage extends StatelessWidget {
     final auth = AuthServiceScope.of(context);
     final profile = AppSettingsScope.of(context).profile;
     final repo = ActionPlanRepository(available: auth.available);
+    // M-7 — tool session: enter = start, leave = end.
+    return ToolSessionScope(
+      toolId: 'action_loop',
+      child: _buildBody(context, isEn, theme, auth, profile, repo),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, bool isEn, ThemeData theme,
+      AuthService auth, UserProfile? profile, ActionPlanRepository repo) {
 
     return Scaffold(
       appBar: AppBar(

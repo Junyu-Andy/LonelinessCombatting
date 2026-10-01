@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import '../../features/analytics/presentation/analytics_scope.dart';
 
 /// Handle a host page holds so it can stop in-progress dictation at a
 /// precise moment — specifically right before it snapshots the input and
@@ -18,6 +19,33 @@ class VoiceInputController {
   void _bind(_VoiceInputButtonState state) => _state = state;
   void _unbind(_VoiceInputButtonState state) {
     if (identical(_state, state)) _state = null;
+  }
+
+  // L-1 input.modality — accumulated by the button while dictating and
+  // drained by the host page at send time via [takeModality].
+  bool _voiceUsed = false;
+  int _voiceMs = 0;
+  DateTime? _listenStartedAt;
+
+  void _onListenStart() {
+    _voiceUsed = true;
+    _listenStartedAt = DateTime.now();
+  }
+
+  void _onListenStop() {
+    final s = _listenStartedAt;
+    if (s != null) _voiceMs += DateTime.now().difference(s).inMilliseconds;
+    _listenStartedAt = null;
+  }
+
+  /// Returns `(usedVoice, voiceDurationMs)` for the message about to be
+  /// sent and resets the accumulator for the next one.
+  (bool, int?) takeModality() {
+    _onListenStop();
+    final r = (_voiceUsed, _voiceUsed ? _voiceMs : null);
+    _voiceUsed = false;
+    _voiceMs = 0;
+    return r;
   }
 
   /// Cancel any active dictation and discard pending recognition so no
@@ -178,7 +206,44 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
       return null;
     }
 
-    return match('yue') ?? match('zh-HK') ?? match('zh') ?? match('en');
+    final picked = match('yue') ?? match('zh-HK') ?? match('zh') ?? match('en');
+    final cantonese = picked != null &&
+        (picked.toLowerCase().startsWith('yue') ||
+            picked.toLowerCase().startsWith('zh-hk') ||
+            picked.toLowerCase().startsWith('zh_hk'));
+    if (!cantonese) {
+      // The recogniser works but has no Cantonese: speech would come back
+      // as Mandarin / English.  Tell the user once per process.
+      _logVoiceIssue('no_cantonese_locale', locale: picked);
+      if (!_warnedNoCantonese && mounted) {
+        _warnedNoCantonese = true;
+        final isEn = Localizations.localeOf(context).languageCode == 'en';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(isEn
+              ? 'This phone has no Cantonese speech recognition, so speech may '
+                  'come out as Mandarin. Add "Cantonese (Hong Kong)" under Voice '
+                  'input → Google → Languages.'
+              : '呢部機未有粵語語音識別，講嘢可能會變咗普通話字。可以喺 語音輸入 → Google → 語言 '
+                  '加「粵語（香港）」。'),
+          duration: const Duration(seconds: 7),
+        ));
+      }
+    }
+    return picked;
+  }
+
+  static bool _warnedNoCantonese = false;
+
+  /// Phase A — `voice_issue` event so the team can see how many
+  /// participants' phones can't dictate Cantonese (platform-specific).
+  void _logVoiceIssue(String reason, {String? locale}) {
+    if (!mounted) return;
+    final scope = context.getInheritedWidgetOfExactType<AnalyticsScope>();
+    scope?.analytics.logEvent('voice_issue', {
+      'reason': reason,
+      'platform': defaultTargetPlatform.name,
+      if (locale != null) 'locale': locale,
+    });
   }
 
   Future<void> _toggle() async {
@@ -199,12 +264,14 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
       _userStopped = true;
       _warnTimer?.cancel();
       await _stt.stop();
+      widget.controller?._onListenStop();
       if (mounted) setState(() => _listening = false);
       return;
     }
     _bufferStart = widget.prefix?.call() ?? '';
     _suppressResults = false;
     _userStopped = false;
+    widget.controller?._onListenStart();
     setState(() => _listening = true);
     final localeId = await _pickLocale();
 
@@ -264,6 +331,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
     _suppressResults = true;
     _userStopped = true;
     _warnTimer?.cancel();
+    widget.controller?._onListenStop();
     if (_listening || _stt.isListening) {
       try {
         await _stt.cancel();
@@ -327,20 +395,28 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
     if (!mounted) return;
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final isIos = defaultTargetPlatform == TargetPlatform.iOS;
+    // iOS uses Apple's built-in recogniser (needs Dictation on).  Android
+    // has no built-in one: speech_to_text hands the audio to whatever
+    // RecognitionService the phone has — normally Google's — so phones
+    // without it (many mainland-ROM brands) or with it disabled have no
+    // voice input at all.  Offline packs are NOT required any more
+    // (_onDeviceOnly = false).
+    _logVoiceIssue('unavailable');
     final where = isIos
         ? (isEn
-            ? 'Settings → General → Keyboard → turn on Dictation, and download '
-                'the Chinese / Cantonese language'
-            : '設定 → 一般 → 鍵盤 → 開啟「聽寫」，並下載中文／粵語語言')
+            ? 'Settings → General → Keyboard → turn on Dictation'
+            : '設定 → 一般 → 鍵盤 → 開啟「聽寫」')
         : (isEn
-            ? 'Settings → System → Languages & input → Voice input → Offline '
-                'speech recognition → download Chinese / Cantonese'
-            : '設定 → 系統 → 語言及輸入 → 語音輸入 → 離線語音識別 → 下載中文／粵語');
+            ? 'install or update the "Google" app from the Play Store, then '
+                'Settings → System → Languages & input → Voice input → choose '
+                'Google and add "Cantonese (Hong Kong)"'
+            : '喺 Play 商店安裝或更新「Google」App，然後去 設定 → 系統 → 語言與輸入 → '
+                '語音輸入，揀「Google」，再加入「粵語（香港）」（唔同牌子菜單名稱會有少少唔同）');
     final msg = isEn
-        ? "Voice input isn't ready on this phone (no offline speech pack, or "
-            'mic permission is off). To use it: $where, and allow the '
-            'microphone.'
-        : '呢部機未準備好聲音輸入（未裝離線語音包，或者未開咪權限）。'
+        ? "Voice input isn't ready on this phone (no speech-recognition "
+            'service, or mic permission is off). To use it: $where, and allow '
+            'the microphone.'
+        : '呢部機未準備好聲音輸入（冇語音識別服務，或者未開咪權限）。'
             '想用就：$where，並允許使用麥克風。';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), duration: const Duration(seconds: 7)),

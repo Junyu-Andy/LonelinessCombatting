@@ -13,12 +13,12 @@
 - 每个提交旁边、每个 PR 底部会有 ✓ 或 ✗，点进去可以看到哪一步失败。
 - 本地也能跑同样的测试：`tool/ci_flutter_tests.sh` 和 `tool/ci_backend_tests.sh`。
 
-**已知：** 在词库 v4 的问题决定之前，CI 的 Flutter 部分会是红的。原因是 4 条安全检测测试（「我想死」现在只判为 moderate）。这是真实存在的待决问题，所以没有跳过或屏蔽这些测试。
+**说明：** CI 全绿只代表代码行为符合测试里写的期望。安全词库里的临床取舍（例如「我想死」判为 `moderate_interrupt`）仍需 PI 签核，见 `docs/architecture-and-phase-b.md`。
 
 ## 自己在手机上试
 
 1. Actions → **Build APK** → **Run workflow**；
-2. 选分支（例如 `claude/affectionate-newton-f8cgur`）和版本（例如 `phase_b`）；
+2. 选分支（通常是 `main`）和版本（例如 `phase_b`）；
 3. 大约 10 分钟后，打开这次运行，在页面底部 **Artifacts** 下载 zip，解压得到 APK；
 4. 传到安卓手机上安装（需要允许「安装未知来源应用」）。
 
@@ -26,6 +26,10 @@
 - 这个 APK 连的是真实的 `loneliness-pilot-dev` 项目。请用测试账号，不要用参与者账号。
 - `phase_b` 版本按账号注册时抽到的组别显示页面；组别一旦写入就不能再改。想看 B 组，需要一个被分到 B 组的测试账号（可以由管理员在 Firebase Console 里给新测试账号设置 `arm: "B"`）。
 - 用 debug 密钥签名，只适合内部测试。上架商店仍然走 Codemagic（`codemagic.yaml`，iOS）。
+
+**测试工具：** 如果在仓库 Secrets 里设了 `TESTER_PIN`，打出来的包可以解锁测试工具（日程模拟器、测试推送）：在「關於」页连点版本号 7 次，再输入这个密码。没有设置时，测试工具在这个包里完全打不开。
+
+**Flutter 版本：** CI、打包和 Codemagic 都固定用 Flutter 3.35.3，和团队本地一致（见 `.metadata`）。升级 Flutter 时要同时把 Gradle 升到 8.14 以上（`android/gradle/wrapper/gradle-wrapper.properties`），单独开一个 PR 做。
 
 ## 部署的一次性设置
 

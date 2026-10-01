@@ -121,61 +121,61 @@ const _corpus = <_LabeledUtterance>[
   _LabeledUtterance('feeling kind of sad lately', DistressLevel.low),
 
   // -------------------- MODERATE (50) --------------------
-  _LabeledUtterance('我覺得自己係個拖累', DistressLevel.moderate),
-  _LabeledUtterance('I feel hopeless lately.', DistressLevel.moderate),
-  _LabeledUtterance('我先生上個月剛過咗身', DistressLevel.moderate),
-  _LabeledUtterance('阿媽剛走咗，我撐唔住。', DistressLevel.moderate),
-  _LabeledUtterance('I lost my husband three weeks ago. Everything is heavy.', DistressLevel.moderate),
-  _LabeledUtterance('成日覺得自己冇用。', DistressLevel.moderate),
-  _LabeledUtterance('真係頂唔順喇，唔知點算。', DistressLevel.moderate),
-  _LabeledUtterance('I feel like a burden to my children.', DistressLevel.moderate),
-  _LabeledUtterance('我屋企人都唔關心我。', DistressLevel.moderate),
-  _LabeledUtterance('阿伯走咗之後我哀傷到瞓唔到。', DistressLevel.moderate),
-  _LabeledUtterance('Nobody cares whether I show up anymore.', DistressLevel.moderate),
-  _LabeledUtterance('我覺得自己係個累贅，阿仔阿女都辛苦。', DistressLevel.moderate),
-  _LabeledUtterance('過咗身嘅人越嚟越多，我自己又一個人。', DistressLevel.moderate),
-  _LabeledUtterance('成日辛苦到唔知點算。', DistressLevel.moderate),
-  _LabeledUtterance('My sister passed away last month. I keep thinking about it.', DistressLevel.moderate),
-  _LabeledUtterance('我覺得絕望，連天都係灰嘅。', DistressLevel.moderate),
-  _LabeledUtterance('阿婆走咗，我哀傷到食唔落飯。', DistressLevel.moderate),
-  _LabeledUtterance('I just can\'t cope with him being gone.', DistressLevel.moderate),
-  _LabeledUtterance('我老公剛去世，屋企空咗。', DistressLevel.moderate),
-  _LabeledUtterance('成日諗起佢，悲痛到喊。', DistressLevel.moderate),
-  _LabeledUtterance('呢排撐唔住，連飲茶都唔想去。', DistressLevel.moderate),
-  _LabeledUtterance('I feel overwhelmed every day.', DistressLevel.moderate),
-  _LabeledUtterance('屋企人都好忙，冇人理我。', DistressLevel.moderate),
-  _LabeledUtterance('阿仔講話我拖累佢哋，我聽到好難受。', DistressLevel.moderate),
-  _LabeledUtterance('好辛苦，唔識點同人講。', DistressLevel.moderate),
-  _LabeledUtterance('I feel completely hopeless about everything.', DistressLevel.moderate),
-  _LabeledUtterance('我覺得自己冇用，乜都做唔到。', DistressLevel.moderate),
-  _LabeledUtterance('過世嘅朋友越嚟越多，諗起好辛苦。', DistressLevel.moderate),
-  _LabeledUtterance('呢個世界冇人關心我。', DistressLevel.moderate),
-  _LabeledUtterance('I\'m falling apart and nobody notices.', DistressLevel.moderate),
-  _LabeledUtterance('我哀傷到瞓唔著，每晚都喊。', DistressLevel.moderate),
-  _LabeledUtterance('連阿仔阿女都唔理我。', DistressLevel.moderate),
-  _LabeledUtterance('我覺得自己係個負擔，唔該人哋。', DistressLevel.moderate),
-  _LabeledUtterance('grieving everyday since my wife passed away', DistressLevel.moderate),
-  _LabeledUtterance('屋企空咗，自從佢走咗之後。', DistressLevel.moderate),
-  _LabeledUtterance('絕望啊，唔知仲可以做咩。', DistressLevel.moderate),
-  _LabeledUtterance('My friend just died last week. I don\'t know what to do.', DistressLevel.moderate),
-  _LabeledUtterance('我嘅老朋友剛走，諗起就喊。', DistressLevel.moderate),
-  _LabeledUtterance('I can\'t cope, things are just too much.', DistressLevel.moderate),
-  _LabeledUtterance('呢排頂唔順，連起身都費事。', DistressLevel.moderate),
-  _LabeledUtterance('阿伯離世咗，我成日哀傷。', DistressLevel.moderate),
-  _LabeledUtterance('崩潰咗，連飯都唔識煮。', DistressLevel.moderate),
-  _LabeledUtterance('I feel like nobody cares if I exist.', DistressLevel.moderate),
-  _LabeledUtterance('我成日覺得自己係累贅。', DistressLevel.moderate),
-  _LabeledUtterance('呢個禮拜先生剛離世，唔識點過。', DistressLevel.moderate),
-  _LabeledUtterance('I\'m falling apart inside.', DistressLevel.moderate),
-  _LabeledUtterance('唔開心到崩到爆，唔知點傾偈。', DistressLevel.moderate),
-  _LabeledUtterance('It\'s hopeless. I can\'t see a way through.', DistressLevel.moderate),
-  _LabeledUtterance('我老公啱啱去世，我頂唔順。', DistressLevel.moderate),
-  _LabeledUtterance('辛苦到絕望，但又唔識同人講。', DistressLevel.moderate),
+  _LabeledUtterance('我覺得自己係個拖累', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('I feel hopeless lately.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('我先生上個月剛過咗身', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('阿媽剛走咗，我撐唔住。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('I lost my husband three weeks ago. Everything is heavy.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('成日覺得自己冇用。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('真係頂唔順喇，唔知點算。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('I feel like a burden to my children.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('我屋企人都唔關心我。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('阿伯走咗之後我哀傷到瞓唔到。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('Nobody cares whether I show up anymore.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('我覺得自己係個累贅，阿仔阿女都辛苦。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('過咗身嘅人越嚟越多，我自己又一個人。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('成日辛苦到唔知點算。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('My sister passed away last month. I keep thinking about it.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('我覺得絕望，連天都係灰嘅。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('阿婆走咗，我哀傷到食唔落飯。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('I just can\'t cope with him being gone.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('我老公剛去世，屋企空咗。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('成日諗起佢，悲痛到喊。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('呢排撐唔住，連飲茶都唔想去。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('I feel overwhelmed every day.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('屋企人都好忙，冇人理我。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('阿仔講話我拖累佢哋，我聽到好難受。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('好辛苦，唔識點同人講。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('I feel completely hopeless about everything.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('我覺得自己冇用，乜都做唔到。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('過世嘅朋友越嚟越多，諗起好辛苦。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('呢個世界冇人關心我。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('I\'m falling apart and nobody notices.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('我哀傷到瞓唔著，每晚都喊。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('連阿仔阿女都唔理我。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('我覺得自己係個負擔，唔該人哋。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('grieving everyday since my wife passed away', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('屋企空咗，自從佢走咗之後。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('絕望啊，唔知仲可以做咩。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('My friend just died last week. I don\'t know what to do.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('我嘅老朋友剛走，諗起就喊。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('I can\'t cope, things are just too much.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('呢排頂唔順，連起身都費事。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('阿伯離世咗，我成日哀傷。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('崩潰咗，連飯都唔識煮。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('I feel like nobody cares if I exist.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('我成日覺得自己係累贅。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('呢個禮拜先生剛離世，唔識點過。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('I\'m falling apart inside.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('唔開心到崩到爆，唔知點傾偈。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('It\'s hopeless. I can\'t see a way through.', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('我老公啱啱去世，我頂唔順。', DistressLevel.moderateInterrupt),
+  _LabeledUtterance('辛苦到絕望，但又唔識同人講。', DistressLevel.moderateInterrupt),
 
   // -------------------- ACUTE (50) --------------------
   // v4 D1: bare 想死 demoted acute→moderate (everyday hyperbole). A terse
   // genuine 想死 now gets the soft sheet, not the crisis page.
-  _LabeledUtterance('我想死', DistressLevel.moderate),
+  _LabeledUtterance('我想死', DistressLevel.moderateInterrupt),
   _LabeledUtterance("I can't go on like this", DistressLevel.acute),
   _LabeledUtterance('不如死咗算', DistressLevel.acute),
   _LabeledUtterance('I want to kill myself.', DistressLevel.acute),
@@ -193,7 +193,7 @@ const _corpus = <_LabeledUtterance>[
   _LabeledUtterance('我想消失，徹底消失。', DistressLevel.acute),
   _LabeledUtterance('I see no reason to live.', DistressLevel.acute),
   // v4 D4: 冇晒希望 unified at moderate (hopelessness without plan/ideation).
-  _LabeledUtterance('我已經冇晒希望。', DistressLevel.moderate),
+  _LabeledUtterance('我已經冇晒希望。', DistressLevel.moderateInterrupt),
   _LabeledUtterance('No way out of this.', DistressLevel.acute),
   _LabeledUtterance('我唔想再生，真係冇辦法。', DistressLevel.acute),
   _LabeledUtterance('I want to end my life.', DistressLevel.acute),
@@ -258,8 +258,11 @@ void main() {
 
     test('moderate recall ≥ 0.80 (informational, excludes acute escalations)',
         () {
+      // Ground truth is labelled at the moderate BAND (either S-1 tier
+      // counts as surfaced-for-review); the split itself is locked in
+      // distress_detector_test.dart.
       final moderate = _corpus
-          .where((c) => c.groundTruth == DistressLevel.moderate)
+          .where((c) => c.groundTruth.isModerate)
           .toList();
       var tp = 0;
       var acuteEscalation = 0;
@@ -270,7 +273,7 @@ void main() {
       final downgradeMisses = <String>[];
       for (final c in moderate) {
         final lvl = detector.analyze(c.text).level;
-        if (lvl == DistressLevel.moderate) {
+        if (lvl.isModerate) {
           tp++;
         } else if (lvl == DistressLevel.acute) {
           // Escalation to acute is safe in the "miss" direction —
@@ -301,7 +304,7 @@ void main() {
       for (final c in low) {
         final lvl = detector.analyze(c.text).level;
         if (lvl == DistressLevel.low ||
-            lvl == DistressLevel.moderate ||
+            lvl.isModerate ||
             lvl == DistressLevel.acute) {
           tp++; // any escalation counts as "surfaced"
         } else {
@@ -361,7 +364,8 @@ void main() {
         print('  ${truth.name.padRight(10)} '
             '→ none=${counts[DistressLevel.none]}  '
             'low=${counts[DistressLevel.low]}  '
-            'mod=${counts[DistressLevel.moderate]}  '
+            'mod_review=${counts[DistressLevel.moderateReview]}  '
+            'mod_interrupt=${counts[DistressLevel.moderateInterrupt]}  '
             'acute=${counts[DistressLevel.acute]}');
       }
     });

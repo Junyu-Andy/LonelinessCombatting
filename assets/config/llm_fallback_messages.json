@@ -1,0 +1,20 @@
+{
+  "_comment": "S-6 — per-agent line shown when the LLM call fails (CF 55 s timeout, DeepSeek 4xx/5xx, network error, empty body). Wording pending PI confirmation — edit here only. The turn logs llm.status = fallback and is excluded from the five-flag tags and the Brief PR turn count.",
+  "_version": "v1-2026-09",
+  "siu_yan": {
+    "zh": "唔好意思，我啱啱行慢咗。你講嘅嘢我聽到，可以再講多次嗎？",
+    "en": "Sorry, I was a bit slow just now. I heard you — could you say that once more?"
+  },
+  "ah_jan_ah_bak": {
+    "zh": "唔好意思，我啱啱走神咗。你頭先講嘅，再講多少少好嗎？",
+    "en": "Sorry, my mind wandered for a moment. Could you tell me that again?"
+  },
+  "tung_tung": {
+    "zh": "哎，我啱啱斷咗線。再講一次，我聽住。",
+    "en": "Oops, I dropped off for a second. Say it again — I'm listening."
+  },
+  "_default": {
+    "zh": "唔好意思，我啱啱行慢咗。可以再講多次嗎？",
+    "en": "Sorry, I was slow just now. Could you say that again?"
+  }
+}

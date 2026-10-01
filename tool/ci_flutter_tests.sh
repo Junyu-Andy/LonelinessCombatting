@@ -30,9 +30,9 @@ run() {
 run "phase A (default build)"
 run "phase B arm gating" --dart-define=PHASE_B=true \
   test/arm_gate_test.dart test/parity/
-[ -f test/tung_tung_arm_b_test.dart ] && run "phase B arm B pages" \
+run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
-  test/tung_tung_arm_b_test.dart
+  test/tung_tung_arm_b_test.dart test/my_story_arm_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \
   --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
 

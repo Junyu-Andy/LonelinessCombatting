@@ -12,9 +12,9 @@ void main() {
   });
 
   test('「負累」 burden cognition escalates to moderate', () {
-    expect(detector.analyze('我係個負累').level, DistressLevel.moderate);
+    expect(detector.analyze('我係個負累').level, DistressLevel.moderateInterrupt);
     expect(detector.analyze('我覺得自己係個負累，拖住屋企人').level,
-        DistressLevel.moderate);
+        DistressLevel.moderateInterrupt);
   });
 
   group('acute fail-safe broadenings (former corpus misses)', () {
@@ -22,7 +22,8 @@ void main() {
       'I keep thinking about taking my own life.',
       'My only way out is dying.',
       "It's better if I'm dead.",
-      "I don't see a reason to live.",
+      // "I don't see a reason to live." — documented v4 accepted miss
+      // (bare `reason to live` removed for precision; see lexicon v4 doc).
       'I have no will to live.',
       '唔想再生，希望快啲完。',
       '冇我會好過晒，唔再麻煩屋企人。',
