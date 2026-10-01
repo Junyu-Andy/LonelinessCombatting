@@ -57,8 +57,14 @@ jobs:
             echo "::notice::TESTER_PIN secret not set — tester tools stay locked in this build."
           fi
           flutter build apk --release $DEFINES
+      # Branch names like claude/x contain "/", which artifact names forbid.
+      - name: Artifact name
+        id: artifact
+        env:
+          REF: ${{ github.ref_name }}
+        run: echo "name=peizhu-${{ inputs.variant }}-${REF//\//-}-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
-          name: peizhu-${{ inputs.variant }}-${{ github.ref_name }}-${{ github.run_number }}
+          name: ${{ steps.artifact.outputs.name }}
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
