@@ -27,3 +27,9 @@ with rules disabled, then assert allow/deny for each write shape.
 - two cells changed at once → denied
 - a count decreasing → denied
 - an increment > +1 → denied
+- aCount and bCount of one cell raised together → denied
+
+`profile_arm.test.js` — the write-once `arm` on `users/{uid}`: signup create,
+null backfill and merge-writes that omit `arm` → allowed; switching, nulling,
+deleting or overwriting away an assigned arm → denied; subcollections stay
+owner-only.

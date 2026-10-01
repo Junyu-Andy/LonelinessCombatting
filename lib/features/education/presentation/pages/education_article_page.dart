@@ -118,7 +118,7 @@ Here is the article:
             response.outputFlag.level.index
         ? response.inputFlag
         : response.outputFlag;
-    if (escalation.level == DistressLevel.moderate ||
+    if (escalation.level.isModerate ||
         escalation.level == DistressLevel.acute) {
       await core.distressRouter.route(escalation, context: context);
     }
@@ -166,6 +166,7 @@ Here is the article:
                           builder: (_) => TungTungPage(
                             articleTitle: title,
                             articleContext: body,
+                            articleId: widget.article.id,
                           ),
                         ),
                       ),

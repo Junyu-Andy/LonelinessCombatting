@@ -15,6 +15,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/config/phase_a_config.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/survey/likert_scale.dart';
 import '../../../../core/survey/survey_item_card.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
@@ -26,12 +28,22 @@ class BriefPrPage extends StatefulWidget {
   final String? sessionRef;
   final bool isAnchorPrompt;
 
+  /// M-1 — id of the `users/{uid}/sessions` doc this PR belongs to;
+  /// receives `briefPR.shown / completed / items`.  Null in guest mode.
+  final String? sessionId;
+
+  /// M-1 — 4 (with the insensitivity item) or 3.  Defaults to
+  /// [PhaseAConfig.briefPRItemCount]; PI decision lands as a config edit.
+  final int? itemCount;
+
   const BriefPrPage({
     super.key,
     required this.agentId,
     required this.agentDisplayName,
     this.sessionRef,
     required this.isAnchorPrompt,
+    this.sessionId,
+    this.itemCount,
   });
 
   @override
@@ -50,10 +62,23 @@ class _BriefPrPageState extends State<BriefPrPage> {
   bool _saving = false;
   Timer? _skipTimer;
 
+  void _record({required bool shown, bool? completed, Map<String, int?>? items}) {
+    final uid = AppSettingsScope.read(context).profile?.uid;
+    final sid = widget.sessionId;
+    if (uid == null || sid == null) return;
+    ChatSessionRecorder.recordBriefPrFor(
+        uid: uid, sessionId: sid, shown: shown, completed: completed, items: items);
+  }
+
+  int get _itemCount =>
+      (widget.itemCount ?? PhaseAConfig.current.briefPRItemCount).clamp(3, 4);
+  bool get _hasInsensitivity => _itemCount >= 4;
+
   @override
   void initState() {
     super.initState();
     _promptedAt = DateTime.now();
+    _record(shown: true);
     if (!widget.isAnchorPrompt) {
       _skipTimer = Timer(const Duration(seconds: 3), () {
         if (mounted) setState(() => _skipVisible = true);
@@ -71,7 +96,7 @@ class _BriefPrPageState extends State<BriefPrPage> {
       _understanding != null &&
       _validation != null &&
       _caring != null &&
-      _insensitivity != null &&
+      (!_hasInsensitivity || _insensitivity != null) &&
       !_saving;
 
   Future<void> _submit() async {
@@ -79,10 +104,17 @@ class _BriefPrPageState extends State<BriefPrPage> {
     setState(() => _saving = true);
     final profile = AppSettingsScope.read(context).profile;
     final armCode = Arm.of(context)?.code ?? 'B';
+    final items = <String, int?>{
+      'understanding': _understanding,
+      'validation': _validation,
+      'caring': _caring,
+      if (_hasInsensitivity) 'insensitivity': _insensitivity,
+    };
+    _record(shown: true, completed: true, items: items);
     final response = BriefPrResponse(
       agentId: widget.agentId,
       agentDisplayName: widget.agentDisplayName,
-      sessionRef: widget.sessionRef,
+      sessionRef: widget.sessionRef ?? widget.sessionId,
       understanding: _understanding,
       validation: _validation,
       caring: _caring,
@@ -126,10 +158,11 @@ class _BriefPrPageState extends State<BriefPrPage> {
     setState(() => _saving = true);
     final profile = AppSettingsScope.read(context).profile;
     final armCode = Arm.of(context)?.code ?? 'B';
+    _record(shown: true, completed: false);
     final response = BriefPrResponse(
       agentId: widget.agentId,
       agentDisplayName: widget.agentDisplayName,
-      sessionRef: widget.sessionRef,
+      sessionRef: widget.sessionRef ?? widget.sessionId,
       isAnchorPrompt: widget.isAnchorPrompt,
       status: 'skipped',
       promptedAt: _promptedAt,
@@ -230,23 +263,25 @@ class _BriefPrPageState extends State<BriefPrPage> {
                 highLabel: posRight,
               ),
             ),
-            const SizedBox(height: 20),
-            Divider(color: theme.colorScheme.outlineVariant, thickness: 1),
-            const SizedBox(height: 20),
-            SurveyItemCard(
-              title: isEn
-                  ? '$name\'s response seemed to miss the point or feel indifferent.'
-                  : '$name 嘅回應好似搞錯重點，或者唔在乎。',
-              child: LikertScale(
-                points: 7,
-                value: _insensitivity,
-                onChanged: (v) => setState(() => _insensitivity = v),
-                // S4 is negatively worded; anchors run none → very much.
-                lowLabel: isEn ? 'Not at all' : '完全唔係咁',
-                midLabel: isEn ? 'A little' : '有少少',
-                highLabel: isEn ? 'Very much' : '好係咁',
+            if (_hasInsensitivity) ...[
+              const SizedBox(height: 20),
+              Divider(color: theme.colorScheme.outlineVariant, thickness: 1),
+              const SizedBox(height: 20),
+              SurveyItemCard(
+                title: isEn
+                    ? '$name\'s response seemed to miss the point or feel indifferent.'
+                    : '$name 嘅回應好似搞錯重點，或者唔在乎。',
+                child: LikertScale(
+                  points: 7,
+                  value: _insensitivity,
+                  onChanged: (v) => setState(() => _insensitivity = v),
+                  // S4 is negatively worded; anchors run none → very much.
+                  lowLabel: isEn ? 'Not at all' : '完全唔係咁',
+                  midLabel: isEn ? 'A little' : '有少少',
+                  highLabel: isEn ? 'Very much' : '好係咁',
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: 36),
             SizedBox(
               width: double.infinity,

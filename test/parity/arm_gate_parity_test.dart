@@ -1,4 +1,5 @@
 import 'package:app_demo/core/arm/arm_scope.dart';
+import 'package:app_demo/core/feature_flags/feature_flags.dart';
 import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,11 +50,9 @@ void main() {
         expect(find.text('B'), findsOneWidget);
         expect(find.text('A'), findsNothing);
       },
-      // Phase A forces every user to Arm A via the deliberate stub in
-      // `Arm.of` (arm_scope.dart). While that stub is live the ArmB branch
-      // is unreachable, so this assertion can't hold. Remove the skip when
-      // randomisation is restored for Phase B.
-      skip: true,
+      // Phase A builds render Arm A for everyone; this runs under
+      // --dart-define=PHASE_B=true.
+      skip: !FeatureFlags.phaseB,
     );
 
     testWidgets(

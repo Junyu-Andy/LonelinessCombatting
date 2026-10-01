@@ -8,7 +8,7 @@ rules_version = '2';
 // which bypass these rules.
 //
 // Collections this app uses (Sprint 1 additions marked *new*):
-//   users/{uid}                                  -> profile (incl. arm, consent,
+//   users/{uid}                                  -> profile (incl. write-once arm, consent,
 //                                                   close_contacts, interests,
 //                                                   firstIntroSeen, per-agent
 //                                                   transcript flags,
@@ -39,9 +39,29 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // Profile doc.  The owner reads/writes it, except that the RCT
+    // arm is write-once: it may go from absent/null to 'A' or 'B'
+    // (signup, or the arm==null backfill) and never change after.
+    // A merge-write that omits `arm` keeps the stored value, so
+    // ordinary profile updates pass.
+    // ============================================================
+    function armValid(data) {
+      return data.get('arm', null) == null || data.arm in ['A', 'B'];
+    }
+
+    match /users/{uid} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid) && armValid(request.resource.data);
+      allow update: if isOwner(uid)
+        && armValid(request.resource.data)
+        && (resource.data.get('arm', null) == null
+            || request.resource.data.get('arm', null) == resource.data.arm);
+    }
+
+    // ============================================================
     // The owner reads/writes anything under their own user doc.
     // ============================================================
-    match /users/{uid}/{document=**} {
+    match /users/{uid}/{collection}/{document=**} {
       allow read, write: if isOwner(uid);
     }
 
@@ -51,11 +71,19 @@ service cloud.firestore {
     // Function trigger runs as a service account (bypasses rules)
     // and patches the doc with dedup_key.
     // ============================================================
+    // Phase A baseline — runtime parameters (PhaseAConfig).  Clients read,
+    // never write; the research team edits from the console.
+    match /app_config/{doc} {
+      allow read: if isAuthed();
+      allow write: if false;
+    }
+
     match /safety_events/{eventId} {
       allow create: if isAuthed()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasAll(['uid', 'source', 'textHash', 'level'])
-        && request.resource.data.level in ['none', 'low', 'moderate', 'acute'];
+        && request.resource.data.level in ['none', 'low', 'moderate',
+            'moderate_review', 'moderate_interrupt', 'acute'];
       // Reads + updates come only from service accounts.
       allow read, update, delete: if false;
     }
@@ -115,59 +143,30 @@ service cloud.firestore {
     match /meta/arm_counter {
       allow read: if isAuthed();
 
-      // Map-literal keys MUST be quoted string literals; bare `{aCount: 0}`
-      // made the rules compiler read aCount/bCount as undefined variables
-      // ("Invalid variable name"), so the default-value branch (first-ever
-      // write, or first write into a cell) could evaluate to an error and
-      // silently DENY a legitimate arm-counter increment.
-      function cellPrior(cell) {
-        return resource == null ? {'aCount': 0, 'bCount': 0}
-             : (resource.data[cell] == null ? {'aCount': 0, 'bCount': 0}
-                : resource.data[cell]);
+      // Written as per-count deltas: the previous nested-helper form
+      // (cellPrior/cellNext/validIncrement/cellUnchanged over 4 × 4
+      // alternatives) exceeded the rules engine's 1,000-expression limit
+      // and DENIED every legitimate increment, including the first write.
+      // Missing cells / counts read as 0 via map.get defaults.
+      function count(data, cell, key) {
+        return data.get(cell, {}).get(key, 0);
       }
-      function cellNext(cell) {
-        return request.resource.data[cell] == null
-             ? {'aCount': 0, 'bCount': 0}
-             : request.resource.data[cell];
-      }
-      // A valid cell transition: one of (aCount+1, bCount same) or
-      // (aCount same, bCount+1).  Neither count may decrease.
-      function validIncrement(cell) {
-        let prior = cellPrior(cell);
-        let next = cellNext(cell);
-        let priorA = prior.aCount == null ? 0 : prior.aCount;
-        let priorB = prior.bCount == null ? 0 : prior.bCount;
-        let nextA = next.aCount == null ? 0 : next.aCount;
-        let nextB = next.bCount == null ? 0 : next.bCount;
-        return (nextA == priorA + 1 && nextB == priorB)
-            || (nextA == priorA     && nextB == priorB + 1);
-      }
-      // An unchanged cell: both counts stay the same.
-      function cellUnchanged(cell) {
-        let prior = cellPrior(cell);
-        let next = cellNext(cell);
-        let priorA = prior.aCount == null ? 0 : prior.aCount;
-        let priorB = prior.bCount == null ? 0 : prior.bCount;
-        let nextA = next.aCount == null ? 0 : next.aCount;
-        let nextB = next.bCount == null ? 0 : next.bCount;
-        return nextA == priorA && nextB == priorB;
+      function delta(cell, key) {
+        return count(request.resource.data, cell, key)
+             - count(resource == null ? {} : resource.data, cell, key);
       }
 
+      // No count may decrease, and exactly one count across all four
+      // cells rises by exactly 1 (so one cell changes, the rest don't).
       allow create, update: if isAuthed()
-        && (
-          // Exactly cell_0 increments, others unchanged.
-          (validIncrement('cell_0') && cellUnchanged('cell_1')
-            && cellUnchanged('cell_2') && cellUnchanged('cell_3'))
-          // Exactly cell_1 increments.
-          || (cellUnchanged('cell_0') && validIncrement('cell_1')
-            && cellUnchanged('cell_2') && cellUnchanged('cell_3'))
-          // Exactly cell_2 increments.
-          || (cellUnchanged('cell_0') && cellUnchanged('cell_1')
-            && validIncrement('cell_2') && cellUnchanged('cell_3'))
-          // Exactly cell_3 increments.
-          || (cellUnchanged('cell_0') && cellUnchanged('cell_1')
-            && cellUnchanged('cell_2') && validIncrement('cell_3'))
-        );
+        && delta('cell_0', 'aCount') >= 0 && delta('cell_0', 'bCount') >= 0
+        && delta('cell_1', 'aCount') >= 0 && delta('cell_1', 'bCount') >= 0
+        && delta('cell_2', 'aCount') >= 0 && delta('cell_2', 'bCount') >= 0
+        && delta('cell_3', 'aCount') >= 0 && delta('cell_3', 'bCount') >= 0
+        && delta('cell_0', 'aCount') + delta('cell_0', 'bCount')
+         + delta('cell_1', 'aCount') + delta('cell_1', 'bCount')
+         + delta('cell_2', 'aCount') + delta('cell_2', 'bCount')
+         + delta('cell_3', 'aCount') + delta('cell_3', 'bCount') == 1;
     }
 
     // Everything else is denied by default.

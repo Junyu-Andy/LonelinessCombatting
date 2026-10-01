@@ -15,11 +15,15 @@ class WeeklyPrResponse {
   /// status = 'skipped' or 'no_referent'.
   final Map<String, int> items;
 
-  /// 'completed' | 'skipped' | 'no_referent'
+  /// 'completed' | 'skipped' | 'no_referent' | 'missed'
   final String status;
   final DateTime promptedAt;
   final DateTime respondedAt;
   final String arm;
+
+  /// M-2 — referent chosen automatically from the week's agent sessions
+  /// (`max_sessions` / `tie_turns` / `tie_recency` / `none`).
+  final String? referentRule;
 
   const WeeklyPrResponse({
     required this.weekIso,
@@ -31,6 +35,7 @@ class WeeklyPrResponse {
     required this.promptedAt,
     required this.respondedAt,
     required this.arm,
+    this.referentRule,
   });
 
   Map<String, dynamic> toFirestore() => {
@@ -43,6 +48,8 @@ class WeeklyPrResponse {
         'promptedAt': Timestamp.fromDate(promptedAt),
         'respondedAt': FieldValue.serverTimestamp(),
         'arm': arm,
+        'referentAgentId': agentId == '_none' ? null : agentId,
+        'referentRule': referentRule,
       };
 
   /// ISO week label for [date] (defaults to `DateTime.now()`), e.g.

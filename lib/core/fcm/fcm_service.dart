@@ -24,9 +24,14 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 class FcmService {
-  FcmService({required this.available});
+  FcmService({required this.available, this.onEvent});
 
   final bool available;
+
+  /// L-1 — `notification_received` / `notification_opened` sink (wired to
+  /// AnalyticsService in main.dart).  Payload carries the doorbell `kind`.
+  final void Function(String type, Map<String, dynamic> payload)? onEvent;
+  bool _listenersBound = false;
 
   /// Broadcast topic every signed-in device subscribes to. The T2
   /// scheduled "doorbell" functions (daily mood / weekly survey reminders)
@@ -86,6 +91,31 @@ class FcmService {
         await messaging.subscribeToTopic(broadcastTopic);
       } catch (e) {
         if (kDebugMode) debugPrint('[fcm] subscribe topic failed: $e');
+      }
+    }
+
+    // L-1 — notification telemetry (foreground receipt + tap-to-open).
+    if (!_listenersBound) {
+      _listenersBound = true;
+      try {
+        FirebaseMessaging.onMessage.listen((m) {
+          onEvent?.call('notification_received', {
+            'kind': m.data['kind'],
+            'foreground': true,
+          });
+        });
+        FirebaseMessaging.onMessageOpenedApp.listen((m) {
+          onEvent?.call('notification_opened', {'kind': m.data['kind']});
+        });
+        final initial = await messaging.getInitialMessage();
+        if (initial != null) {
+          onEvent?.call('notification_opened', {
+            'kind': initial.data['kind'],
+            'coldStart': true,
+          });
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[fcm] listener bind failed: $e');
       }
     }
 

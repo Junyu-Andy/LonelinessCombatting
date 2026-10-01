@@ -1,8 +1,8 @@
 /// B.7 — writes distress detections to the global `safety_events` collection
 /// so the CF onCreate trigger can dedup and alert PI.
 ///
-/// This class is the single write-point for all three sources defined in the
-/// sprint plan: `gateway_input`, `gateway_output`, and `m3_turn`.  Arm B
+/// This class is the single write-point for every source: `gateway_input`,
+/// `gateway_output`, `m3_turn`, and `rule_turn` (Arm B surfaces).  Arm B
 /// callers use the same writer — safety checks are arm-invariant by design.
 library;
 
@@ -18,7 +18,11 @@ import 'distress_detector.dart';
 enum SafetySource {
   gatewayInput('gateway_input'),
   gatewayOutput('gateway_output'),
-  m3Turn('m3_turn');
+  m3Turn('m3_turn'),
+
+  /// Arm B (rule-based) surfaces — no gateway in the loop, so the page
+  /// writes the event itself to keep PI alerting arm-invariant.
+  ruleTurn('rule_turn');
 
   const SafetySource(this.code);
   final String code;
@@ -46,9 +50,7 @@ class SafetyEventWriter {
     String? sessionId,
   }) async {
     if (!available) return;
-    if (match.level == DistressLevel.none || match.level == DistressLevel.low) {
-      return;
-    }
+    if (!match.isEscalation) return;
 
     final textHash = _sha256(inputText);
 
@@ -57,7 +59,12 @@ class SafetyEventWriter {
         'uid': uid,
         'source': source.code,
         'textHash': textHash,
-        'level': match.level.name,
+        // `level` keeps the legacy 4-band label the Firestore rule and CF
+        // trigger validate against; `tier` carries the S-1 split.
+        'level': match.level.legacyLevelCode,
+        'tier': match.level.tierCode,
+        'category': match.category?.code,
+        'lexiconVersion': DistressDetector.wordlistVersion,
         'matchedTerm': match.matchedTerm,
         'agentId': agentId,
         'sessionId': sessionId,

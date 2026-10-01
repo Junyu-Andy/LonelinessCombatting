@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../core/agent_context/shared_context_service.dart';
+import '../../../../core/core_services_scope.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../context/presentation/pages/check_in_arm_a.dart';
 import '../../../context/presentation/pages/check_in_shared.dart';
@@ -76,6 +79,19 @@ class _GreetingHeroState extends State<GreetingHero> {
           );
         } catch (_) {}
       }());
+      // M-3 — keep Siu Yan's `[Recent mood snippet]` in step with the pad.
+      final sharedContext = CoreServicesScope.of(context).sharedContext;
+      unawaited(() async {
+        try {
+          await sharedContext.updateRecentMood(
+            uid: profile.uid,
+            mood: SharedMoodSummary(
+              summary: '最近一次心情評分：$value/5。',
+              asOf: DateTime.now(),
+            ),
+          );
+        } catch (_) {}
+      }());
     }
     _showRecordedToast(isEn);
     // Sprint logging: mood is now a stream of entries — the first-of-
@@ -83,6 +99,13 @@ class _GreetingHeroState extends State<GreetingHero> {
     // so existing dashboards stay accurate; supplementary entries get
     // their own variant to avoid double-counting.
     final analytics = AnalyticsScope.of(context);
+    // M-3 — spec event, alongside the legacy daily_mood_* names.
+    analytics.logEvent(PhaseAEvents.moodCheckin, {
+      'skipped': false,
+      'mood': value,
+      'source': 'home_hero',
+      'supplementary': wasSupplementary,
+    });
     if (wasSupplementary) {
       // Reuse the existing skip event family for now — a dedicated
       // supplementary event can be added without breaking the wire.

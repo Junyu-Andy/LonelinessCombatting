@@ -136,4 +136,15 @@ describe('meta/arm_counter security rules', () => {
       ),
     );
   });
+
+  it('DENIES raising aCount and bCount of one cell together', async () => {
+    await seed({ cell_0: { aCount: 1, bCount: 1 } });
+    await assertFails(
+      setDoc(
+        ref(authed()),
+        { cell_0: { aCount: 2, bCount: 2 }, updatedAt: serverTimestamp() },
+        { merge: true },
+      ),
+    );
+  });
 });
