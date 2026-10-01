@@ -10,6 +10,8 @@
 #                kill switch meta/memory_config must also be on)
 #
 # Signed with the debug key: fine for testing, not for a store release.
+# Flutter is pinned to the team's version (.metadata: 3.35.3); newer
+# Flutter needs a Gradle upgrade first (android/gradle/wrapper).
 name: Build APK
 
 on:
@@ -33,17 +35,27 @@ jobs:
           java-version: 17
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.47.5
+          flutter-version: 3.35.3
           channel: stable
           cache: true
       - run: flutter pub get
       - name: Build
+        env:
+          # Optional repo secret: unlocks the tester tools (schedule
+          # simulator, test pushes) in this build — About page, tap the
+          # version 7×. Without it the build has no tester access at all.
+          TESTER_PIN: ${{ secrets.TESTER_PIN }}
         run: |
           case "${{ inputs.variant }}" in
             phase_a)   DEFINES="" ;;
             phase_b)   DEFINES="--dart-define=PHASE_B=true" ;;
             memory_v1) DEFINES="--dart-define=MEMORY_V1=true" ;;
           esac
+          if [ -n "$TESTER_PIN" ]; then
+            DEFINES="$DEFINES --dart-define=TESTER_PIN=$TESTER_PIN"
+          else
+            echo "::notice::TESTER_PIN secret not set — tester tools stay locked in this build."
+          fi
           flutter build apk --release $DEFINES
       - uses: actions/upload-artifact@v4
         with:

@@ -36,7 +36,7 @@ flowchart LR
 |---|---|---|
 | 分组判断 | `lib/core/arm/arm_scope.dart` | `Arm.of` 返回当前用户的组；`ArmGate` 按组渲染 A 或 B 页面 |
 | 编译开关 | `lib/core/feature_flags/feature_flags.dart` | `PHASE_B`：`flutter build … --dart-define=PHASE_B=true` |
-| 分组分配 | `lib/features/auth/data/arm_assigner.dart` | 注册时按 UCLA × 年龄 分 4 层，层内平衡 A/B，计数器在 `meta/arm_counter` |
+| 分组分配 | `functions/arm.js`（服务端 `assignArm`） | 注册后由服务端按 UCLA × 年龄 分 4 层，层内平衡 A/B，计数器在 `meta/arm_counter`；是否随机由 `app_config/arm_assignment.randomise` 决定（不存在 = 全员 A） |
 | LLM 入口 | `lib/core/llm/llm_gateway.dart` | 所有 A 组 LLM 调用唯一入口；急性风险输入直接拦截，不调模型 |
 | 服务端 | `functions/index.js` | `proxyDeepSeek` 拼 prompt 文件 + 记忆后缀，清洗电话/邮箱/身份证，调 `deepseek-chat` |
 | Agent 设定 | `functions/prompts/*.txt` | 小欣 / 阿珍阿伯 / 通通 三份 prompt |
@@ -108,11 +108,14 @@ A 组现在已经有一版跨会话记忆。`cross_session_memory` 是 5 个「L
 ### Phase B 上线前还要做（P0）
 
 - [ ] **阿珍/阿伯 自由对话 B 版本**，或者 B 组隐藏这个入口（需同时保证两组界面一致）。
+- [ ] **Phase B 开启步骤（两步都要做）：**
+  1. 在 Firestore Console 把 `app_config/arm_assignment` 设为 `{randomise: true}`，服务端从此开始随机分组；
+  2. 发布用 `--dart-define=PHASE_B=true` 构建的 App，界面开始按组别显示。
 - [ ] **发布方式确认。** Phase B 用一个安装包：`--dart-define=PHASE_B=true` 构建；Phase A 的构建保持不加该参数。Codemagic（`codemagic.yaml:55` 的 `flutter build ipa`）需要为 Phase B 构建加上 `--dart-define=PHASE_B=true`；Android 构建同理。
 - [ ] **部署**：`firebase deploy --only firestore:rules,functions`。规则改动对现有 Phase A 用户无影响（他们的 arm 已经是 A 或为空）。
 - [ ] **Phase B 用哪个 Firebase 项目**：与 Phase A 共用 `loneliness-pilot-dev`，还是新建项目？共用的话需要能区分两批参与者（例如 `cohort` 字段）。
-- [ ] **分配挪到服务端（D2，`docs/research/arm_assignment_scheme_v1.md`）。** 现在仍由客户端选组（只是写一次后不可改）。时间允许的话改为 Cloud Function 分配，客户端完全不能选组。
-- [ ] **arm 为空时显示哪组（W5）。** 现在默认 B。若分配失败，这位用户会在 B 组界面里、但分组记录为空，需要决定这段数据怎么处理。
+- [x] **分配挪到服务端（D2）。** `assignArm` Cloud Function 在一个事务里读计数器、按分层抽签、写入组别；重复调用不会重复计数。客户端不再选组。
+- [x] **arm 为空时显示哪组（W5）。** 已确认：默认显示 B 组。分配失败时，下次登录会自动重试服务端分配。
 
 ### 已知问题（未在本次处理）
 

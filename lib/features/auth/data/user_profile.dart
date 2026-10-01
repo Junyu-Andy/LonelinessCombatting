@@ -360,7 +360,9 @@ class UserProfile {
         'ahJanAhBakVariant': ahJanAhBakVariant?.code,
         'closeContacts': closeContacts.map((c) => c.toMap()).toList(),
         'interests': interests,
-        'strataCell': strataCell,
+        // Server-assigned with the arm; omitted when null so a stale
+        // profile write can't erase it.
+        if (strataCell != null) 'strataCell': strataCell,
         'firstPprSeenByAgent': {
           for (final e in firstPprSeenByAgent.entries)
             e.key: e.value.toIso8601String(),
