@@ -42,10 +42,18 @@ class ScreenDwellTracker {
     required String exitReason,
   }) async {
     final start = _enteredAt.remove(screenName);
-    _metadata.remove(screenName);
-    final duration = start == null
-        ? 0
-        : DateTime.now().difference(start).inSeconds;
+    final meta = _metadata.remove(screenName);
+    final dwell = start == null ? Duration.zero : DateTime.now().difference(start);
+    final duration = dwell.inSeconds;
+    // Phase A L-1 — spec-named event with millisecond dwell, alongside the
+    // legacy screen_entered / screen_exited pair.
+    await _analytics?.logEvent('screen_view', {
+      'screen': screenName,
+      'dwellMs': dwell.inMilliseconds,
+      'exitReason': exitReason,
+      if (meta?['agentId'] != null) 'agentId': meta!['agentId'],
+      if (meta?['moduleId'] != null) 'moduleId': meta!['moduleId'],
+    });
     await _analytics?.logScreenExited(
       screenName: screenName,
       durationSeconds: duration,

@@ -115,7 +115,7 @@ counts. Do not suggest other modules or new plans.
                 response.outputFlag.level.index
             ? response.inputFlag
             : response.outputFlag;
-        if (escalation.level == DistressLevel.moderate ||
+        if (escalation.level.isModerate ||
             escalation.level == DistressLevel.acute) {
           await core.distressRouter.route(escalation, context: context);
         }

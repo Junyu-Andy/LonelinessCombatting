@@ -83,7 +83,7 @@ class CrossModuleMemoryService {
     DateTime? now,
   }) async {
     if (!firestoreAvailable) return null;
-    if (currentTurnDistress == DistressLevel.moderate ||
+    if (currentTurnDistress.isModerate ||
         currentTurnDistress == DistressLevel.acute) {
       return null;
     }

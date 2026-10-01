@@ -19,6 +19,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/survey/likert_scale.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/weekly_pr_response.dart';
@@ -28,7 +29,11 @@ class WeeklyPrPage extends StatefulWidget {
   /// The single most-used companion this week (C2).
   final WeeklyPrAgentUsage agent;
 
-  const WeeklyPrPage({super.key, required this.agent});
+  /// M-2 — ISO week being rated (window may run into Mon/Tue of the next
+  /// week).  Defaults to the current ISO week for the tester entry point.
+  final String? weekIso;
+
+  const WeeklyPrPage({super.key, required this.agent, this.weekIso});
 
   @override
   State<WeeklyPrPage> createState() => _WeeklyPrPageState();
@@ -92,7 +97,7 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
     final profile = AppSettingsScope.read(context).profile;
     final armCode = Arm.of(context)?.code ?? 'B';
     final resp = WeeklyPrResponse(
-      weekIso: WeeklyPrResponse.currentWeekIso(),
+      weekIso: widget.weekIso ?? WeeklyPrResponse.currentWeekIso(),
       agentId: _currentAgent.agentId,
       agentDisplayName: _currentAgent.displayName,
       sessionCountThisWeek: _currentAgent.sessionCount,
@@ -101,6 +106,7 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
       promptedAt: _promptedAt,
       respondedAt: DateTime.now(),
       arm: armCode,
+      referentRule: _currentAgent.referentRule,
     );
     if (profile != null) {
       // Fire-and-forget: offline, add() waits for server ack — awaiting it
@@ -121,6 +127,11 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
         weekIso: resp.weekIso,
         agentId: _currentAgent.agentId,
       );
+      unawaited(AnalyticsScope.of(context).logEvent(PhaseAEvents.weeklyPrCompleted, {
+        'weekIso': resp.weekIso,
+        'referentAgentId': _currentAgent.agentId,
+        'referentRule': _currentAgent.referentRule,
+      }));
     } else {
       await AnalyticsScope.of(context).logWeeklyPrSkipped(
         weekIso: resp.weekIso,

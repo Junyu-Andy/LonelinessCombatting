@@ -13,7 +13,7 @@
 - 每个提交旁边、每个 PR 底部会有 ✓ 或 ✗，点进去可以看到哪一步失败。
 - 本地也能跑同样的测试：`tool/ci_flutter_tests.sh` 和 `tool/ci_backend_tests.sh`。
 
-**已知：** 在词库 v4 的问题决定之前，CI 的 Flutter 部分会是红的。原因是 4 条安全检测测试（「我想死」现在只判为 moderate）。这是真实存在的待决问题，所以没有跳过或屏蔽这些测试。
+**说明：** CI 全绿只代表代码行为符合测试里写的期望。安全词库里的临床取舍（例如「我想死」判为 `moderate_interrupt`）仍需 PI 签核，见 `docs/architecture-and-phase-b.md`。
 
 ## 自己在手机上试
 

@@ -15,7 +15,11 @@ import '../widgets/continue_chat_card.dart';
 import '../widgets/facts_recap_row.dart';
 import '../widgets/greeting_hero.dart';
 import '../widgets/home_tool_shortcuts.dart';
+import '../../../../core/time/app_clock.dart';
+import '../widgets/daily_mood_prompt.dart';
+import '../widgets/simulated_clock_strip.dart';
 import '../widgets/pending_prompts_banner.dart';
+import '../widgets/week1_nudge_banner.dart';
 
 /// Home tab (屋企) — final layout per Home Layout Spec §1:
 ///   1. Greeting hero with embedded 5-emoji mood pad (§1–2)
@@ -41,9 +45,33 @@ class _TodayPageState extends State<TodayPage> {
   bool _greetingsWarmed = false;
 
   @override
+  void initState() {
+    super.initState();
+    AppClock.instance.addListener(_onClock);
+  }
+
+  @override
+  void dispose() {
+    AppClock.instance.removeListener(_onClock);
+    super.dispose();
+  }
+
+  /// Tester schedule simulation jumped to another day — re-run the
+  /// first-open-of-the-day mood prompt for that day.
+  void _onClock() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(DailyMoodPrompt.maybeShow(context));
+    });
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _maybeWarmGreetings();
+    // M-3 — one-question mood prompt on the first home build of the day.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(DailyMoodPrompt.maybeShow(context));
+    });
   }
 
   void _maybeWarmGreetings() {
@@ -75,6 +103,8 @@ class _TodayPageState extends State<TodayPage> {
       child: ListView(
         padding: EdgeInsets.zero,
         children: const [
+          // Tester-only: visible whenever the schedule simulator is active.
+          SimulatedClockStrip(),
           GreetingHero(),
           // B05 — always-visible "did today's check-in happen?" status.
           CheckInStatusChip(),
@@ -84,6 +114,8 @@ class _TodayPageState extends State<TodayPage> {
           // study-critical nudges still surface when the protocol calls
           // for them.
           PendingPromptsBanner(),
+          // P-1 — first-week "try {agent}" nudge (days 3 and 6).
+          Week1NudgeBanner(),
           MissedCheckInBanner(),
           ActivePlanBanner(),
           AgentTileRow(),

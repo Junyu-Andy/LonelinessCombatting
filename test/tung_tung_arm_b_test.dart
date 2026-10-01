@@ -19,6 +19,7 @@ import 'package:app_demo/core/memory/memory_store.dart';
 import 'package:app_demo/core/safety/distress_detector.dart';
 import 'package:app_demo/core/safety/distress_router.dart';
 import 'package:app_demo/core/safety/distress_state.dart';
+import 'package:app_demo/core/safety/safety_copy.dart';
 import 'package:app_demo/features/analytics/data/analytics_service.dart';
 import 'package:app_demo/features/analytics/presentation/analytics_scope.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
@@ -147,8 +148,10 @@ void main() {
 
     expect(client.calls, 0);
     // Router pushes the crisis page on top; the chat page underneath
-    // carries the hotline system bubble.
-    expect(find.textContaining('2896 0000', findRichText: true,
+    // carries the same acute template Arm A shows (hotline from the
+    // crisis-resources config).
+    final acute = SafetyCopy.acuteAck('tung_tung', isEn: false);
+    expect(find.textContaining(acute, findRichText: true,
         skipOffstage: false), findsWidgets);
     expect(find.textContaining('原來係咁', findRichText: true,
         skipOffstage: false), findsNothing);

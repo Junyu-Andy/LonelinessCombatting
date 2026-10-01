@@ -157,7 +157,7 @@ class DistressFlagRecord {
 
   Map<String, dynamic> toMap() => {
         'turn_index': turnIndex,
-        'level': level.name,
+        'level': level.tierCode,
       };
 
   static DistressFlagRecord fromMap(Map<String, dynamic> map) {
@@ -167,12 +167,7 @@ class DistressFlagRecord {
     );
   }
 
-  static DistressLevel _parseLevel(String? raw) {
-    for (final v in DistressLevel.values) {
-      if (v.name == raw) return v;
-    }
-    return DistressLevel.none;
-  }
+  static DistressLevel _parseLevel(String? raw) => DistressLevel.parse(raw);
 }
 
 /// Firestore I/O for M3 sessions. One doc per (uid, weekIndex) at

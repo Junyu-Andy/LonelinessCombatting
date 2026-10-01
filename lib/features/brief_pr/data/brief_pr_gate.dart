@@ -7,61 +7,37 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../core/config/phase_a_config.dart';
+import '../../../core/session/chat_session_recorder.dart';
+
 class BriefPrGate {
   BriefPrGate({FirebaseFirestore? db}) : _db = db ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
 
-  /// Returns true iff:
-  ///   - the session lasted ≥ 180 s,
-  ///   - it had ≥ 3 exchange turns (user turns), and
-  ///   - no brief_pr has already been recorded today for this (agentId).
+  /// M-1 (Phase A baseline 2026-09) — returns true iff the agent session
+  /// ended for a non-crisis reason and had at least
+  /// [PhaseAConfig.briefPRMinTurns] user turns that reached the model
+  /// (fallback turns excluded upstream).
+  ///
+  /// The pre-baseline 180 s duration floor and once-per-day-per-agent
+  /// dedup were dropped: the spec asks for a slider after *every*
+  /// qualifying session.  Kept async + parameterised so call sites and
+  /// the anchor lookup below are unchanged.
   Future<bool> shouldSurfaceBriefPr({
     required String uid,
     required String agentId,
     required DateTime sessionStartedAt,
     required int exchangeCount,
+    String? endReason,
   }) async {
-    final now = DateTime.now();
-    final duration = now.difference(sessionStartedAt).inSeconds;
-    // Visibility for testers: this gate is CLIENT-side (no backend
-    // counter) — duration since the chat page opened + count of your
-    // sent turns. Both thresholds must pass.
+    final minTurns = PhaseAConfig.current.briefPRMinTurns;
     if (kDebugMode) {
-      debugPrint('[BriefPrGate] agent=$agentId  duration=${duration}s '
-          '(need >=180)  turns=$exchangeCount (need >=3)');
+      debugPrint('[BriefPrGate] agent=$agentId  turns=$exchangeCount '
+          '(need >=$minTurns)  endReason=$endReason');
     }
-    if (duration < 180) return false;
-    if (exchangeCount < 3) return false;
-
-    try {
-      // Single-field query + client-side date filter ON PURPOSE: the
-      // original equality+range query needs a composite index that is
-      // not deployed anywhere (no firestore.indexes.json), so it threw
-      // failed-precondition and the catch below turned the "once per
-      // day" gate into "every session".  Per-user brief_pr stays tiny,
-      // so filtering client-side is free and index-proof.
-      final startOfToday = DateTime(now.year, now.month, now.day);
-      final snap = await _db
-          .collection('users')
-          .doc(uid)
-          .collection('brief_pr')
-          .where('agentId', isEqualTo: agentId)
-          .get();
-      final alreadyToday = snap.docs.any((d) {
-        final raw = d.data()['promptedAt'];
-        final t = raw is Timestamp
-            ? raw.toDate()
-            : (raw is String ? DateTime.tryParse(raw) : null);
-        return t != null && !t.isBefore(startOfToday);
-      });
-      return !alreadyToday;
-    } catch (_) {
-      // Firebase unavailable (guest mode) — surface anyway so dev/demo
-      // flow can be walked. Production data won't be lost because the
-      // write below also tolerates Firebase being unreachable.
-      return true;
-    }
+    if (endReason == SessionEndReason.crisis) return false;
+    return exchangeCount >= minTurns;
   }
 
   /// Returns true iff no prior brief_pr document exists for this

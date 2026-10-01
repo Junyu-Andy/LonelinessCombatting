@@ -116,7 +116,7 @@ A 组现在已经有一版跨会话记忆。`cross_session_memory` 是 5 个「L
 
 ### 已知问题（未在本次处理）
 
-- **4 条安全检测测试失败（原本就失败）。** 词库 v4 的 D1 把单独的「想死」从 acute 降为 moderate，并删掉了单独的 `reason to live`（见 `docs/safety/distress_detector_lexicon_v4-2026-07.md`），但测试仍按旧期望写。结果是：「我想死」现在只弹可关闭的支援底板，LLM 照常回复；`I don't see a reason to live.` 不触发任何级别。需要 PI 确认：改词库，还是改测试。D4 也仍在等临床签核。
+- **安全词库的临床取舍仍待 PI 签核。** 已合并的词库 v5-2026-09 把 moderate 拆成 `moderate_interrupt` / `moderate_review`，原先失败的 4 条测试已按 v5 更新为通过。但判定本身仍需确认：「我想死」判为 `moderate_interrupt`，AI 照常回复，同时打断显示支援模板，不进入紧急页；`I don't see a reason to live.` 仍然不触发任何等级。
 - **M3 回忆的研究记录仍保存急性风险那一轮原文**（`reminiscence_arm_a_page.dart`，`distress_router.dart:18-21` 的注释要求不保存）。这是研究数据的决定，不属于记忆，暂未改。
 - **首页「今個星期 傾咗 N 次」只计签到**：只有 `m2_check_in_submitted` 事件真的会被发出，回忆、自由对话、通通的会话结束事件定义了但从未调用。
 - **静默吞错**、**聊天页脚手架五处复制**等，见 `ARCHITECTURE_NOTES.md`。

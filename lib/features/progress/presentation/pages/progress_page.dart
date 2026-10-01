@@ -10,6 +10,7 @@ import '../../../../theme/app_mood_encoding.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/progress_data.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 
 /// M9 — Progress Tracking. Identical chart chrome across arms. Arm A
 /// shows an LLM-generated weekly narrative; Arm B shows a static
@@ -146,7 +147,10 @@ Output: only the paragraph itself.
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
 
-    return Scaffold(
+    // M-7 — tool session: enter = start, leave = end.
+    return ToolSessionScope(
+      toolId: 'progress',
+      child: Scaffold(
       appBar: AppBar(title: Text(isEn ? 'Your week' : '你嘅一個禮拜')),
       body: SafeArea(
         child: _busy
@@ -213,6 +217,7 @@ Output: only the paragraph itself.
                   ),
                 ],
               ),
+      ),
       ),
     );
   }
