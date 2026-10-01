@@ -3,7 +3,7 @@
 > 2026-09-29 · 基于 `main`（c80a2ab）读代码核对，每条说法附文件位置。
 > 读者：项目负责人。目的：看懂现在的系统，以及 Phase B（两组随机分配）上线前要改什么。
 
-**一句话：** 现在所有人都在 Hybrid 组（Arm A）。Rule-based 组（Arm B）的签到、回忆、通通都已有 B 版本；阿珍/阿伯自由对话还没有。本次改动把「Phase A 全员 A / Phase B 按分组」做成一个编译开关，并补上服务端防线和几处安全问题。剩下的 P0 待办见第 5 节。
+**一句话：** 现在所有人都在 Hybrid 组（Arm A）。Rule-based 组（Arm B）的签到、回忆、通通都已有 B 版本；阿珍/阿伯自由对话只对 A 组开放。本次改动把「Phase A 全员 A / Phase B 按分组」做成一个编译开关，并补上服务端防线和几处安全问题。剩下的 P0 待办见第 5 节。
 
 ---
 
@@ -36,7 +36,7 @@ flowchart LR
 |---|---|---|
 | 分组判断 | `lib/core/arm/arm_scope.dart` | `Arm.of` 返回当前用户的组；`ArmGate` 按组渲染 A 或 B 页面 |
 | 编译开关 | `lib/core/feature_flags/feature_flags.dart` | `PHASE_B`：`flutter build … --dart-define=PHASE_B=true` |
-| 分组分配 | `lib/features/auth/data/arm_assigner.dart` | 注册时按 UCLA × 年龄 分 4 层，层内平衡 A/B，计数器在 `meta/arm_counter` |
+| 分组分配 | `functions/arm.js`（服务端 `assignArm`） | 注册后由服务端按 UCLA × 年龄 分 4 层，层内平衡 A/B，计数器在 `meta/arm_counter`；是否随机由 `app_config/arm_assignment.randomise` 决定（不存在 = 全员 A） |
 | LLM 入口 | `lib/core/llm/llm_gateway.dart` | 所有 A 组 LLM 调用唯一入口；急性风险输入直接拦截，不调模型 |
 | 服务端 | `functions/index.js` | `proxyDeepSeek` 拼 prompt 文件 + 记忆后缀，清洗电话/邮箱/身份证，调 `deepseek-chat` |
 | Agent 设定 | `functions/prompts/*.txt` | 小欣 / 阿珍阿伯 / 通通 三份 prompt |
@@ -62,7 +62,7 @@ flowchart LR
 |---|---|---|---|
 | M2 小欣 签到 | LLM 对话 + 记忆 | 心情脸 + 3 道选择题 + 一段文字（`check_in_arm_b.dart`） | ✅ 有 B 页，经 `ArmGate` 进入 |
 | M3 阿珍/阿伯 回忆 | LLM 对话 + 周摘要 | 固定主题开场 + 一个输入框（`reminiscence_arm_b_page.dart`） | ✅ 有 B 页 |
-| 阿珍/阿伯 自由对话 | LLM（`reflective_dialogue_page.dart`） | **无** | ❌ 入口 `my_story_page.dart:91` 不分组 |
+| 阿珍/阿伯 自由对话 | LLM（`reflective_dialogue_page.dart`） | 不提供：入口只对 A 组显示 | ✅ |
 | 通通 | LLM 闲聊 + 文章问答 | 同一个聊天页面：开场白来自规则池（每天轮换），回复按关键词话题从固定粤语模板选一句，每 3 轮追加一个新开场问题（`tung_tung_rule_responder.dart`）。不调 LLM、不写记忆 | ✅ 页面内按组切换，三个入口无需改动 |
 | M5 反思 | 按上下文生成题目 | 固定题库轮换 | ✅ 页内分支 |
 | M6 社交建议 | 个性化建议 | 16 条建议池 | ✅ 页内分支 |
@@ -107,18 +107,21 @@ A 组现在已经有一版跨会话记忆。`cross_session_memory` 是 5 个「L
 
 ### Phase B 上线前还要做（P0）
 
-- [ ] **阿珍/阿伯 自由对话 B 版本**，或者 B 组隐藏这个入口（需同时保证两组界面一致）。
+- [x] **阿珍/阿伯 自由对话**：已决定 B 组隐藏入口（「我的故事」页的「反思傾偈」卡片只对 A 组显示）。
+- [ ] **Phase B 开启步骤（两步都要做）：**
+  1. 在 Firestore Console 把 `app_config/arm_assignment` 设为 `{randomise: true}`，服务端从此开始随机分组；
+  2. 发布用 `--dart-define=PHASE_B=true` 构建的 App，界面开始按组别显示。
 - [ ] **发布方式确认。** Phase B 用一个安装包：`--dart-define=PHASE_B=true` 构建；Phase A 的构建保持不加该参数。Codemagic（`codemagic.yaml:55` 的 `flutter build ipa`）需要为 Phase B 构建加上 `--dart-define=PHASE_B=true`；Android 构建同理。
 - [ ] **部署**：`firebase deploy --only firestore:rules,functions`。规则改动对现有 Phase A 用户无影响（他们的 arm 已经是 A 或为空）。
 - [ ] **Phase B 用哪个 Firebase 项目**：与 Phase A 共用 `loneliness-pilot-dev`，还是新建项目？共用的话需要能区分两批参与者（例如 `cohort` 字段）。
-- [ ] **分配挪到服务端（D2，`docs/research/arm_assignment_scheme_v1.md`）。** 现在仍由客户端选组（只是写一次后不可改）。时间允许的话改为 Cloud Function 分配，客户端完全不能选组。
-- [ ] **arm 为空时显示哪组（W5）。** 现在默认 B。若分配失败，这位用户会在 B 组界面里、但分组记录为空，需要决定这段数据怎么处理。
+- [x] **分配挪到服务端（D2）。** `assignArm` Cloud Function 在一个事务里读计数器、按分层抽签、写入组别；重复调用不会重复计数。客户端不再选组。
+- [x] **arm 为空时显示哪组（W5）。** 已确认：默认显示 B 组。分配失败时，下次登录会自动重试服务端分配。
 
 ### 已知问题（未在本次处理）
 
 - **安全词库的临床取舍仍待 PI 签核。** 已合并的词库 v5-2026-09 把 moderate 拆成 `moderate_interrupt` / `moderate_review`，原先失败的 4 条测试已按 v5 更新为通过。但判定本身仍需确认：「我想死」判为 `moderate_interrupt`，AI 照常回复，同时打断显示支援模板，不进入紧急页；`I don't see a reason to live.` 仍然不触发任何等级。
 - **M3 回忆的研究记录仍保存急性风险那一轮原文**（`reminiscence_arm_a_page.dart`，`distress_router.dart:18-21` 的注释要求不保存）。这是研究数据的决定，不属于记忆，暂未改。
-- **首页「今個星期 傾咗 N 次」只计签到**：只有 `m2_check_in_submitted` 事件真的会被发出，回忆、自由对话、通通的会话结束事件定义了但从未调用。
+- **B 组签到和 B 组回忆不写 `sessions`**：两组的使用量记录口径不同（首页次数已用签到事件补上 B 组签到）。是否补齐，等研究决定。
 - **静默吞错**、**聊天页脚手架五处复制**等，见 `ARCHITECTURE_NOTES.md`。
 
 ## 6. 本次改动的文件

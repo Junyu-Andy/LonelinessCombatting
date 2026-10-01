@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../../core/feature_flags/feature_flags.dart';
 import 'arm_assigner.dart';
 import 'user_profile.dart';
 
@@ -16,9 +15,9 @@ import 'user_profile.dart';
 /// [AuthUnavailableException] so callers can show a friendly message.
 class AuthService {
   AuthService({required this.available, ArmAssigner? armAssigner})
-      // Phase A forces Arm A at signup; a Phase B build randomises.
-      : _armAssigner =
-            armAssigner ?? ArmAssigner(forceArmA: !FeatureFlags.phaseB);
+      // The server assigns the arm (functions/arm.js); whether it
+      // randomises is its own app_config/arm_assignment setting.
+      : _armAssigner = armAssigner ?? const ArmAssigner();
 
   /// False when Firebase.initializeApp failed — typically because
   /// firebase_options.dart hasn't been generated yet. Lets the UI show a
@@ -94,7 +93,7 @@ class AuthService {
     /// C.2 — baseline UCLA-LS-V3 total used for stratification (Phase B
     /// §4.4).  Pass when known at signup (HKU baseline assessment
     /// completed before in-person onboarding).  Null in Phase A is
-    /// acceptable since forceArmA shortcuts the assignment anyway.
+    /// acceptable: the server assigns Arm A to everyone in Phase A.
     int? baselineUclaScore,
   }) async {
     _ensureAvailable();
@@ -104,30 +103,6 @@ class AuthService {
     );
     final user = credential.user!;
     await user.updateDisplayName(displayName);
-    // Arm assignment must NEVER block account creation: the assignment
-    // transaction writes meta/arm_counter, and a rules problem there
-    // (e.g. the bare-map-key bug that shipped in the 7/21 rules deploy)
-    // used to make EVERY new registration throw after the Auth user was
-    // already created — leaving an account that could never sign in.
-    // On failure we create the profile with arm=null; the backfill in
-    // _loadOrCreateProfile retries on a later login, and Phase A forces
-    // Arm A in the UI regardless.
-    ArmAssignment? arm;
-    int? strataCell;
-    try {
-      final assignment = await _armAssigner.assign(
-        _db,
-        ageGroup: ageGroup,
-        uclaScore: baselineUclaScore,
-      );
-      arm = assignment.arm;
-      strataCell = assignment.cell;
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[auth] arm assignment failed at signup '
-            '(will backfill later): $e');
-      }
-    }
     final profile = UserProfile(
       uid: user.uid,
       email: user.email ?? email.trim(),
@@ -136,18 +111,31 @@ class AuthService {
       emergencyContactName: emergencyContactName,
       emergencyContactPhone: emergencyContactPhone,
       preferredLanguage: preferredLanguage,
-      arm: arm,
-      strataCell: strataCell,
       consent: consent,
       baselineUclaScore: baselineUclaScore,
       createdAt: DateTime.now(),
       lastLoginAt: DateTime.now(),
     );
+    // Merge: the login stream's backfill may already have assigned an arm
+    // to this doc; a full overwrite would try to drop it (and be refused).
     await _db.collection('users').doc(user.uid).set({
       ...profile.toMap(),
       'createdAt': FieldValue.serverTimestamp(),
       'lastLoginAt': FieldValue.serverTimestamp(),
-    });
+    }, SetOptions(merge: true));
+    // The server assigns the arm from the profile just written. This must
+    // NEVER block account creation: on failure the profile stays arm-less
+    // and the backfill in _loadOrCreateProfile retries on a later login.
+    try {
+      final assignment = await _armAssigner.assign();
+      return profile.copyWith(
+          arm: assignment.arm, strataCell: assignment.cell);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[auth] arm assignment failed at signup '
+            '(will backfill later): $e');
+      }
+    }
     return profile;
   }
 
@@ -215,15 +203,10 @@ class AuthService {
       // backfill simply retries on the next login.
       if (existing.arm == null) {
         try {
-          final result = await _armAssigner.assign(_db,
-              ageGroup: existing.ageGroup);
-          final patched = existing.copyWith(
+          // The server writes arm + strataCell to the profile itself.
+          final result = await _armAssigner.assign();
+          return existing.copyWith(
               arm: result.arm, strataCell: result.cell);
-          await ref.set({
-            'arm': result.arm.code,
-            'strataCell': result.cell,
-          }, SetOptions(merge: true));
-          return patched;
         } catch (e) {
           if (kDebugMode) {
             debugPrint('[auth] arm backfill failed '

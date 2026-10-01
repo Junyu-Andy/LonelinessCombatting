@@ -1,6 +1,4 @@
-import 'dart:math';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import 'user_profile.dart';
 
@@ -27,9 +25,12 @@ import 'user_profile.dart';
 /// transaction.  A future Phase B-specific block-randomisation table
 /// can replace this if precise block-size variation matters.
 ///
-/// **Phase A gate:** [forceArmA] = true (default) assigns every
-/// participant to Arm A regardless of cell.  Counter still increments
-/// in the right cell so Phase B balance data is preserved.
+/// **Assignment runs on the server** (`assignArm` Cloud Function,
+/// functions/arm.js) so a client cannot influence its own arm; the
+/// stratification and balancing rule there mirrors [strataCell] below.
+/// Phase A vs Phase B is the server's `app_config/arm_assignment.randomise`
+/// flag (absent = everyone Arm A); the counter increments in the right
+/// cell either way so Phase B balance data is preserved.
 ///
 /// Counter doc shape:
 /// ```
@@ -42,19 +43,7 @@ import 'user_profile.dart';
 /// }
 /// ```
 class ArmAssigner {
-  ArmAssigner({
-    Random? rng,
-    bool forceArmA = true,
-  })  : _rng = rng ?? Random.secure(),
-        _forceArmA = forceArmA;
-
-  final Random _rng;
-
-  /// Phase A gate. When true all participants receive Arm A; the strata
-  /// counter still updates so data is available for Phase B analysis.
-  final bool _forceArmA;
-
-  static const _counterPath = 'meta/arm_counter';
+  const ArmAssigner();
 
   /// UCLA-LS-V3 median split per Phase B §4.4.  Total possible range is
   /// 20–80; eligibility is 30–60, with 44 as the median that splits
@@ -100,49 +89,17 @@ class ArmAssigner {
     }
   }
 
-  Future<({ArmAssignment arm, int cell})> assign(
-    FirebaseFirestore db, {
-    String? ageGroup,
-    int? uclaScore,
-  }) async {
-    final cell = strataCell(
-      uclaScore: uclaScore,
-      ageYears: ageYearsFromGroup(ageGroup),
-    );
-    final cellKey = 'cell_$cell';
-    final ref = db.doc(_counterPath);
-
-    return db.runTransaction<({ArmAssignment arm, int cell})>((txn) async {
-      final snap = await txn.get(ref);
-      final data = snap.data() ?? const <String, dynamic>{};
-      final cellData = (data[cellKey] as Map<String, dynamic>?) ?? {};
-      final aCount = (cellData['aCount'] as int?) ?? 0;
-      final bCount = (cellData['bCount'] as int?) ?? 0;
-
-      final ArmAssignment chosen;
-      if (_forceArmA) {
-        chosen = ArmAssignment.a;
-      } else if (aCount < bCount) {
-        chosen = ArmAssignment.a;
-      } else if (bCount < aCount) {
-        chosen = ArmAssignment.b;
-      } else {
-        chosen = _rng.nextBool() ? ArmAssignment.a : ArmAssignment.b;
-      }
-
-      txn.set(
-        ref,
-        {
-          cellKey: {
-            'aCount': chosen == ArmAssignment.a ? aCount + 1 : aCount,
-            'bCount': chosen == ArmAssignment.b ? bCount + 1 : bCount,
-          },
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
-
-      return (arm: chosen, cell: cell);
-    });
+  /// Ask the server to assign this signed-in user's arm. The profile doc
+  /// must already exist (the server reads ageGroup / baselineUclaScore
+  /// from it). Idempotent: returns the stored arm on repeat calls.
+  Future<({ArmAssignment arm, int? cell})> assign() async {
+    final result = await FirebaseFunctions.instanceFor(region: 'asia-east2')
+        .httpsCallable('assignArm')
+        .call<Map<String, dynamic>>()
+        .timeout(const Duration(seconds: 20));
+    final data = Map<String, dynamic>.from(result.data);
+    final arm = ArmAssignment.tryParse(data['arm'] as String?);
+    if (arm == null) throw StateError('assignArm returned no arm');
+    return (arm: arm, cell: (data['cell'] as num?)?.toInt());
   }
 }

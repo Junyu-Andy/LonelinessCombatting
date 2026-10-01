@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const {computeLlmFlags} = require("./llm_flags");
+const arm = require("./arm");
 
 admin.initializeApp();
 
@@ -1392,6 +1393,29 @@ function daysBetweenHk(fromIso, toIso) {
   const b = new Date(`${toIso}T00:00:00Z`);
   return Math.round((b - a) / 86400000);
 }
+
+// ---------------------------------------------------------------------------
+// assignArm — server-side RCT arm assignment (functions/arm.js).  The app
+// calls this right after creating the profile (and again on login while the
+// profile has no arm).  Idempotent; returns the stored arm on repeat calls.
+// ---------------------------------------------------------------------------
+exports.assignArm = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 10},
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+    try {
+      return await arm.assignArm(admin.firestore(), request.auth.uid);
+    } catch (err) {
+      if (String(err && err.message) === "profile_missing") {
+        throw new HttpsError("failed-precondition", "profile_missing");
+      }
+      console.error("assignArm failed", {err: String(err)});
+      throw new HttpsError("internal", "assignment_failed");
+    }
+  },
+);
 
 exports.week2Push = onSchedule(
   {

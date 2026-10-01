@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/arm/arm_scope.dart';
 import '../../../my_story/data/my_story_progress.dart';
 import '../../data/mood_recorder.dart';
 
@@ -50,6 +51,7 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
   Future<void> _load() async {
     final profile = AppSettingsScope.read(context).profile;
     if (profile == null) return;
+    final isArmA = Arm.isA(context);
     final now = DateTime.now();
     final weekStart = now.subtract(const Duration(days: 7));
 
@@ -59,23 +61,36 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
 
     try {
       final db = FirebaseFirestore.instance;
-      final eventsSnap = await db
-          .collection('users')
-          .doc(profile.uid)
-          .collection('events')
-          .where('name', whereIn: const [
-        'm2_check_in_submitted',
-        'm3_session_end',
-        'm5_reflective_session_end',
-        'm8_article_opened',
-      ]).get();
-      conversations = eventsSnap.docs.where((d) {
-        final raw = d.data()['timestamp'];
-        final t = raw is Timestamp
-            ? raw.toDate()
-            : (raw is String ? DateTime.tryParse(raw) : null);
-        return t != null && t.isAfter(weekStart);
+      final user = db.collection('users').doc(profile.uid);
+      // Every companion chat (all three agents, both arms where the page
+      // records sessions) lands in users/{uid}/sessions; count the ones
+      // where the user actually said something.
+      final sessionsSnap = await user
+          .collection('sessions')
+          .where('startedAt',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart))
+          .get();
+      conversations = sessionsSnap.docs.where((d) {
+        final data = d.data();
+        return data['kind'] == 'agent' &&
+            ((data['userTurnCount'] as num?) ?? 0) > 0;
       }).length;
+      // The Arm B check-in is a form, not a recorded chat session, so its
+      // submissions are counted from the event log instead. (Arm A's
+      // check-in already has a session; counting its event would double it.)
+      if (!isArmA) {
+        final checkIns = await user
+            .collection('events')
+            .where('name', isEqualTo: 'm2_check_in_submitted')
+            .get();
+        conversations += checkIns.docs.where((d) {
+          final raw = d.data()['timestamp'];
+          final t = raw is Timestamp
+              ? raw.toDate()
+              : (raw is String ? DateTime.tryParse(raw) : null);
+          return t != null && t.isAfter(weekStart);
+        }).length;
+      }
     } catch (_) {}
 
     try {
