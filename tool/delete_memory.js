@@ -3,7 +3,7 @@
  * tool/delete_memory.js
  *
  * Deletes a participant's companion memory — for withdrawal, or for every
- * participant at the end of the study, per the retention period in the ICF.
+ * participant once the ICF retention period ends (3 years after the study).
  * It never touches research measures (turns, sessions, surveys, mood,
  * safety events); only what the companions remember:
  *
@@ -19,7 +19,7 @@
  *   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
  *   node tool/delete_memory.js --uid=abc123            # dry run, one user
  *   node tool/delete_memory.js --email=x@hku.hk --confirm
- *   node tool/delete_memory.js --all --confirm          # end of study
+ *   node tool/delete_memory.js --all --confirm          # 3 years after study
  *
  * Needs the firebase-admin package (cd functions && npm ci, then run with
  * NODE_PATH=functions/node_modules).

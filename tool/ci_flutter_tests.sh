@@ -29,7 +29,7 @@ run() {
 
 run "phase A (default build)"
 run "phase B arm gating" --dart-define=PHASE_B=true \
-  test/arm_gate_test.dart test/parity/
+  test/arm_gate_test.dart test/parity/ test/memory_v1_client_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
   test/tung_tung_arm_b_test.dart test/my_story_arm_test.dart

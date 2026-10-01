@@ -12,6 +12,7 @@ import 'package:app_demo/core/memory/memory_mode.dart';
 import 'package:app_demo/core/memory/memory_v1_service.dart';
 import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:app_demo/features/memory/presentation/pages/remembered_page.dart';
+import 'package:app_demo/features/onboarding/presentation/pages/agent_onboarding_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -214,6 +215,46 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('記憶已經熄咗'), findsOneWidget);
       expect(find.text('飲早茶'), findsNothing);
+    });
+  });
+
+  group('onboarding', () {
+    Future<void> pump(WidgetTester tester, UserProfile profile) async {
+      await tester.pumpWidget(AppSettingsScope(
+        settings: AppSettings(locale: const Locale('zh'), profile: profile),
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          supportedLocales: [Locale('zh'), Locale('en')],
+          localizationsDelegates: [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: AgentOnboardingPage(),
+        ),
+      ));
+      await tester.pump();
+    }
+
+    final notice = find.byKey(const Key('onboarding_memory_notice'));
+
+    testWidgets('Phase B Arm A is told memory is on', (tester) async {
+      await pump(tester, const UserProfile(uid: 'u', email: 'e',
+          displayName: 'd', arm: ArmAssignment.a,
+          armAssignmentMode: 'randomise'));
+      expect(notice, FeatureFlags.phaseB ? findsOneWidget : findsNothing);
+    });
+
+    testWidgets('Arm B and Phase A pilot users are not', (tester) async {
+      for (final p in const [
+        UserProfile(uid: 'u', email: 'e', displayName: 'd',
+            arm: ArmAssignment.b, armAssignmentMode: 'randomise'),
+        UserProfile(uid: 'u', email: 'e', displayName: 'd',
+            arm: ArmAssignment.a, armAssignmentMode: 'force_a'),
+      ]) {
+        await pump(tester, p);
+        expect(notice, findsNothing);
+      }
     });
   });
 }

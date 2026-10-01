@@ -118,13 +118,16 @@ flutter test --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
 
 ## 待你 / PI 决定
 
-- **「睇医生」类待跟进算不算敏感。** 现在：只因「医生、覆诊」这类约诊字眼的，**不算**敏感，可以主动问「上次睇醫生點呀？」（v0 文档的例子）；癌、手术、病等仍算敏感。
 - **敏感确认的方式。** 现在是在「我記得嘅嘢」页面确认。v0 文档写的是「下次对话开头问一句」，那种做法更自然，但更难做对，可以作为下一步。
-- **onboarding 时的一句话说明。** A 组强制开启后，需要在 onboarding 里告诉老人「佢哋會記得你講過嘅嘢，可以喺設定睇同刪」；文案待定。
-- **ICF / 伦理批文是否覆盖「强制记忆」以及记忆内容发送给 DeepSeek。**
-- **删除期限**（按 ICF，待你告知）。脚本已写好，见下。
+- **ICF 修订**：覆盖「A 组强制记忆」以及记忆内容发送给 DeepSeek（负责人修改中）。
 
-## 删除记忆（退出研究 / 研究结束）
+## 已定
+
+- **onboarding 说明**：Phase B A 组在 onboarding 第一页看到「佢哋會記得你講過嘅嘢，下次傾偈就可以接得上。你隨時可以喺『設定 → 我記得嘅嘢』睇返同刪走。」B 组和 Phase A 老用户看不到。
+- **「睇医生」类待跟进**：只有「医生、覆诊」这类约诊字眼的不算敏感，可以主动问「上次睇醫生點呀？」；癌、手术、病等仍算敏感。维持现状。
+- **保留期限：研究结束后 3 年**，到期用下面的脚本 `--all --confirm` 全部删除。参与者退出研究时，按其要求单独删除。
+
+## 删除记忆（退出研究 / 研究结束后 3 年）
 
 `tool/delete_memory.js` 删除 `mem_*` 五个集合，以及 v0 的 `agent_contexts`、`memory/*`、`shared_context`、`agent_greetings`、`cross_module_callbacks`。**不碰**研究数据（turns、sessions、问卷、情绪、安全事件）。默认只演示（dry run），加 `--confirm` 才真删；真删后把该用户 `memory_enabled` 设为 false，并记 `memoryDeletedAt`。
 
@@ -133,7 +136,7 @@ cd functions && npm ci && cd ..
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 NODE_PATH=functions/node_modules node tool/delete_memory.js --email=x@hku.hk            # 先看会删多少
 NODE_PATH=functions/node_modules node tool/delete_memory.js --email=x@hku.hk --confirm  # 退出研究
-NODE_PATH=functions/node_modules node tool/delete_memory.js --all --confirm             # 研究结束
+NODE_PATH=functions/node_modules node tool/delete_memory.js --all --confirm             # 研究结束后 3 年
 ```
 
 注意：对 Phase B A 组参与者，删除后服务器仍会按「强制开」继续记新的内容。退出研究的参与者不会再使用 App，所以没有影响；如果是「留在研究里但要求删除」，需要另议。
