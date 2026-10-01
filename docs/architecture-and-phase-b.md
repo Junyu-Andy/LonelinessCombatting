@@ -62,7 +62,7 @@ flowchart LR
 |---|---|---|---|
 | M2 小欣 签到 | LLM 对话 + 记忆 | 心情脸 + 3 道选择题 + 一段文字（`check_in_arm_b.dart`） | ✅ 有 B 页，经 `ArmGate` 进入 |
 | M3 阿珍/阿伯 回忆 | LLM 对话 + 周摘要 | 固定主题开场 + 一个输入框（`reminiscence_arm_b_page.dart`） | ✅ 有 B 页 |
-| 阿珍/阿伯 自由对话 | LLM（`reflective_dialogue_page.dart`） | **无** | ❌ 入口 `my_story_page.dart:91` 不分组 |
+| 阿珍/阿伯 自由对话 | LLM（`reflective_dialogue_page.dart`） | 不提供：入口只对 A 组显示 | ✅ |
 | 通通 | LLM 闲聊 + 文章问答 | 同一个聊天页面：开场白来自规则池（每天轮换），回复按关键词话题从固定粤语模板选一句，每 3 轮追加一个新开场问题（`tung_tung_rule_responder.dart`）。不调 LLM、不写记忆 | ✅ 页面内按组切换，三个入口无需改动 |
 | M5 反思 | 按上下文生成题目 | 固定题库轮换 | ✅ 页内分支 |
 | M6 社交建议 | 个性化建议 | 16 条建议池 | ✅ 页内分支 |
@@ -107,7 +107,7 @@ A 组现在已经有一版跨会话记忆。`cross_session_memory` 是 5 个「L
 
 ### Phase B 上线前还要做（P0）
 
-- [ ] **阿珍/阿伯 自由对话 B 版本**，或者 B 组隐藏这个入口（需同时保证两组界面一致）。
+- [x] **阿珍/阿伯 自由对话**：已决定 B 组隐藏入口（「我的故事」页的「反思傾偈」卡片只对 A 组显示）。
 - [ ] **Phase B 开启步骤（两步都要做）：**
   1. 在 Firestore Console 把 `app_config/arm_assignment` 设为 `{randomise: true}`，服务端从此开始随机分组；
   2. 发布用 `--dart-define=PHASE_B=true` 构建的 App，界面开始按组别显示。

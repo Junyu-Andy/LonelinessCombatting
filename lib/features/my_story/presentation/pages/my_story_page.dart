@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/arm/arm_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../reflective_dialogue/presentation/pages/reflective_dialogue_page.dart';
 import '../../data/my_story_progress.dart';
@@ -59,8 +60,12 @@ class _MyStoryPageState extends State<MyStoryPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 CurrentSessionEntry(week: _progress.currentWeek),
-                const SizedBox(height: 16),
-                _ReflectiveChatEntry(),
+                // Open-ended reflective chat is LLM-only; Arm B has no
+                // rule-based version of it, so the entry isn't shown there.
+                if (Arm.isA(context)) ...[
+                  const SizedBox(height: 16),
+                  _ReflectiveChatEntry(),
+                ],
                 const SizedBox(height: 24),
                 StoryThreadTimeline(progress: _progress),
                 const SizedBox(height: 24),
