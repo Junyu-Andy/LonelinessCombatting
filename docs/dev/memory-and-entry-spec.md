@@ -174,8 +174,8 @@ RAG 语义检索、人生叙事摘要、遗忘与时效、对话中确认敏感�
 
 | 待确认 | 现状 |
 |---|---|
-| Brief PR 什么时候弹出（3.8） | 离开聊天页时，本次会话用户发言 ≥2 轮且不是因为 acute 结束（`brief_pr_gate.dart`，轮数在 `PhaseAConfig.briefPRMinTurns`）。会话从**第一条用户消息**开始，不是打开页面；**10 分钟**无消息算结束（`sessionIdleTimeoutMin`）。**签到 B、回忆 B 不弹 Brief PR**，只有 A 组页面和通通（两组）弹 |
-| 会话 ID（3.8） | `ChatSessionRecorder` 已经为每次会话生成 `sessionId`，写在 `sessions` 和 `turns` 里。但 `proxyDeepSeek`、记忆整理、Brief PR 都没有用它：记忆缓冲区按陪伴者存，不按会话存 |
+| Brief PR 什么时候弹出（3.8） | 离开聊天页时，本次会话用户发言 ≥2 轮且不是因为 acute 结束（`brief_pr_gate.dart`，轮数在 `PhaseAConfig.briefPRMinTurns`）。会话从**第一条用户消息**开始，不是打开页面；**10 分钟**无消息算结束（`sessionIdleTimeoutMin`）。签到 B、回忆 B 原来不弹，已按决策 0015 改为每次提交后弹 |
+| 会话 ID（3.8） | `ChatSessionRecorder` 已经为每次会话生成 `sessionId`，写在 `sessions` 和 `turns` 里。Brief PR 的作答会写回对应的 session；但 `proxyDeepSeek` 和记忆整理没有用它：记忆缓冲区按陪伴者存，不按会话存 |
 | 现在的首页（4.1） | 4 个 tab：睇今日 / 搵人傾 / 做啲嘢 / 自己。「睇今日」有继续聊天卡片、三个陪伴者卡片、情绪等 |
 | `assignArm` 和 HTML 工具（第 1 节） | 仓库里没有 HTML 随机化工具，也没有引用它。`assignArm` 是自己按计数器做层内最小化（4 层，不是 DJG-ES 分层）。代码无法回答以哪个为准 |
 | 已有的版本字段（3.6） | 已有：`appVersion`、prompt/词库文件哈希（`build_info.g.dart`）、每条 `turns` 的 `promptVersion` 和 `model`。没有：`buildSha`、`memoryVersion`、敏感词表版本 |
@@ -184,7 +184,7 @@ RAG 语义检索、人生叙事摘要、遗忘与时效、对话中确认敏感�
 ### 8.2 影响研究、需要负责人决定的
 
 1. **DeepSeek 的模型版本可能在研究期间被悄悄换掉。** `deepseek-chat` 是别名，DeepSeek 升级时会直接指向新模型，API 不提供固定日期的版本。3.6 要记录的 `model` 字段只会是 `deepseek-chat`，看不出换没换。能做的：同时记录响应里的 `system_fingerprint`（需要实测 DeepSeek 是否返回、是否随升级变化），并在研究期间每周跑一次 3.1 的测试集，结果明显变化就当作 protocol deviation 记录。这是 fidelity 上最大的不确定性，建议写进局限。
-2. **两组的 Brief PR 测量口径不同**（见 8.1）。如果 Brief PR 是结局指标，签到 B 和回忆 B 也要弹，或者在分析里只用两组都有的页面。
+2. ~~两组的 Brief PR 测量口径不同~~：已按决策 0015 处理（签到 B、回忆 B 每次提交后弹）。剩下的差别是触发门槛：聊天页 ≥2 句，表单页 1 次提交。
 3. **规则组少了自由对话入口**（决策 0006），和第 0 节原则一冲突。
 4. **3.5 改成每次会话只组装一次后，「注入次数」的定义会变**：现在 `mem_injections` 每轮记一条，改后每次会话一条。第 4 节的剂量统计要按新定义写。
 5. **3.7「我的資料」在规则组几乎是空的。** 现在 App 里没有「对话保留设定」的界面（Phase A 改为纸本同意，`agent_onboarding_page.dart` 里写死为开）。规则组的页面里没有东西可放。要么新做这个设定（会改变同意流程），要么规则组页面只放一句说明。

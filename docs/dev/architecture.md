@@ -1,6 +1,6 @@
 # 陪住 App 技术文档
 
-> 最后核对：2026-10-04，`main` @ 8469581。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
 ## 1. 一句话
@@ -117,11 +117,12 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 |---|---|---|
 | 会话开始 | 聊天页里**第一条用户消息**发出时（不是打开页面时） | `lib/core/session/chat_session_recorder.dart` |
 | 会话结束 | 离开页面（`user_left`）；**10 分钟**没有新消息（`timeout`）；触发 acute（`crisis`）；App 被杀掉的，下次启动补记 `app_killed` | 同上；分钟数在 `PhaseAConfig.sessionIdleTimeoutMin` |
-| Brief PR 弹出 | 离开聊天页时，本次会话用户发言 **≥2 轮**且不是 crisis 结束 | `lib/features/brief_pr/data/brief_pr_gate.dart`；轮数在 `PhaseAConfig.briefPRMinTurns` |
-| Brief PR 出现的页面 | 签到 A、回忆 A、自由对话 A、通通（**两组都有**） | 各页面的 `BriefPrGate()` |
+| Brief PR 弹出（聊天页） | 离开聊天页时，本次会话用户发言 **≥2 轮**且不是 crisis 结束 | `lib/features/brief_pr/data/brief_pr_gate.dart`；轮数在 `PhaseAConfig.briefPRMinTurns` |
+| Brief PR 弹出（签到 B、回忆 B） | 每次提交算一次会话，提交后弹出，acute 结束的不弹（决策 0015） | `lib/features/brief_pr/data/rule_submission_flow.dart` |
+| Brief PR 出现的页面 | 两组的签到、回忆、通通；A 组的自由对话 | 各页面 |
 | 首次 Brief PR | 每个陪伴者第一次弹出时没有「跳过」按钮（anchor） | `isAnchorPromptFor` |
 
-⚠️ **签到 B 和回忆 B 不弹 Brief PR。** 如果 Brief PR 是 Phase B 的结局测量，两组的测量口径现在不一样，见 `docs/dev/backlog.md`。
+签到 B 和回忆 B 也写 `sessions` 和 `turns`（`llmStatus: rule_based`），`moduleId` 和 A 组相同，所以两组的使用量可以直接比较。
 
 ## 7. 记忆
 

@@ -40,6 +40,11 @@ class BriefPrGate {
     return exchangeCount >= minTurns;
   }
 
+  /// Decision 0015 — check-in B and reminiscence B are one submission, not
+  /// a chat: a completed submission qualifies unless it ended in crisis.
+  static bool shouldSurfaceAfterSubmission({String? endReason}) =>
+      endReason != SessionEndReason.crisis;
+
   /// Returns true iff no prior brief_pr document exists for this
   /// (uid, agentId) pair. Anchor prompt suppresses the skip button.
   Future<bool> isAnchorPromptFor({
