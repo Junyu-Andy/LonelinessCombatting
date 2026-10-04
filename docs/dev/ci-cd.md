@@ -13,7 +13,7 @@
 - 每个提交旁边、每个 PR 底部会有 ✓ 或 ✗，点进去可以看到哪一步失败。
 - 本地也能跑同样的测试：`tool/ci_flutter_tests.sh` 和 `tool/ci_backend_tests.sh`。
 
-**说明：** CI 全绿只代表代码行为符合测试里写的期望。安全词库里的临床取舍（例如「我想死」判为 `moderate_interrupt`）仍需 PI 签核，见 `docs/architecture-and-phase-b.md`。
+**说明：** CI 全绿只代表代码行为符合测试里写的期望。安全词库里的临床取舍（例如「我想死」判为 `moderate_interrupt`）暂按 v5 沿用，PI 签核搁置，见 `docs/decisions/0012-*`。
 
 ## 自己在手机上试
 
@@ -41,4 +41,4 @@
 
 部署时还要在输入框里手动键入项目 id `loneliness-pilot-dev` 作为确认，防止误点。
 
-**当前两个分支都还没有部署。** 规则改动（分组只能写一次、计数器修复）和 Cloud Functions 改动（B 组防线）要等你确认后再部署。
+**截至 2026-10-04，main 上的规则和 Cloud Functions 都还没有部署。** 部署顺序见 `docs/dev/architecture.md` 第 9 节。
