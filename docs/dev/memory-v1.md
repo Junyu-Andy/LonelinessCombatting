@@ -1,6 +1,8 @@
 # 记忆模块 v1 实现说明
 
-> 分支 `claude/memory-v1`，基于《陪住 记忆模块 技术交付文档 v0》。
+> 这份写的是**代码里现在是什么样**。要改成什么样，见 `docs/dev/memory-and-entry-spec.md`；研究上为什么这样，见 `docs/research/memory-in-hybrid-arm.md`。
+
+> 2026-10-01 合并进 main（PR #25），未部署。基于《陪住 记忆模块 技术交付文档 v0》。
 > 两种开法：Phase B 正式研究里 **A 组全员强制开启**（不能关）；测试时用 `MEMORY_V1` 构建自愿开启。B 组永远没有。
 
 ## 一句话
