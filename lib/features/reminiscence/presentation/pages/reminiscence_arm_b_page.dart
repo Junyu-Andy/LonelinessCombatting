@@ -7,8 +7,11 @@ import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/safety/safety_event_writer.dart';
+import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
+import '../../../brief_pr/data/rule_submission_flow.dart';
 import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
 
@@ -51,13 +54,20 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
 
   Future<void> _save() async {
     // B03 — stop dictation before reading the memory text.
+    final (usedVoice, voiceMs) = _voice.takeModality();
     await _voice.stopForSend();
     if (!mounted) return;
     final body = _textCtrl.text.trim();
     if (body.isEmpty) return;
+    final submittedAt = DateTime.now();
     final profile = AppSettingsScope.read(context).profile;
     final auth = AuthServiceScope.of(context);
     final core = CoreServicesScope.of(context);
+    final analytics = AnalyticsScope.of(context);
+    final nav = Navigator.of(context);
+    final agent = AgentRegistry.byId(AgentRegistry.ahJanAhBakId);
+    final displayName =
+        agent.resolveVariant(profile?.ahJanAhBakVariant).displayNameZh;
     // Same deterministic safety check + PI alert as Arm A (arm-invariant).
     final distress = core.distress.analyze(body);
     if (distress.isEscalation && profile != null) {
@@ -99,6 +109,20 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
         userEdited: false,
       );
     }
+    // Decision 0015 — the saved memory is one agent session, like a chat.
+    final rec = await RuleSubmissionFlow.record(
+      uid: profile?.uid,
+      agentId: AgentRegistry.ahJanAhBakId,
+      moduleId: 'm3_reminiscence_w${widget.theme.weekIndex}',
+      theme: widget.theme.titleZh,
+      analytics: analytics,
+      available: auth.available,
+      text: body,
+      detector: distress,
+      userSent: submittedAt,
+      modality: usedVoice ? InputModality.voice : InputModality.text,
+      voiceDurationMs: voiceMs,
+    );
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -110,7 +134,16 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
       if (distress.level == DistressLevel.acute) return;
     }
     await Future<void>.delayed(const Duration(milliseconds: 700));
-    if (mounted) Navigator.of(context).pop();
+    if (!mounted) return;
+    nav.pop();
+    if (profile == null) return;
+    await RuleSubmissionFlow.surfaceBriefPr(
+      nav,
+      rec: rec,
+      uid: profile.uid,
+      agentId: AgentRegistry.ahJanAhBakId,
+      agentDisplayName: displayName,
+    );
   }
 
   @override

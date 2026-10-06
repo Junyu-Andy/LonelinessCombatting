@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/safety/safety_event_writer.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
+import '../../../brief_pr/data/rule_submission_flow.dart';
 import '../../../today/data/mood_recorder.dart';
 import 'check_in_shared.dart';
 
@@ -148,12 +150,18 @@ class _CheckInArmBState extends State<CheckInArmB> {
     );
   }
 
-  void _save() {
+  Future<void> _save() async {
     final face = _face;
     if (face == null) return;
     final note = _noteCtrl.text.trim();
-    final distress = CoreServicesScope.of(context).distress.analyze(note);
+    final core = CoreServicesScope.of(context);
+    final distress = core.distress.analyze(note);
     final profile = AppSettingsScope.read(context).profile;
+    final authAvailable = AuthServiceScope.of(context).available;
+    final analytics = AnalyticsScope.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final nav = Navigator.of(context);
+    final submittedAt = DateTime.now();
 
     // B04 — before this fix Arm B only fired an analytics event; the
     // answers themselves were never persisted (= lost research data).
@@ -181,22 +189,46 @@ class _CheckInArmBState extends State<CheckInArmB> {
         Future<void>.value());
     if (distress.isEscalation && profile != null) {
       // Same PI alert Arm A gets through the gateway (arm-invariant).
-      unawaited(SafetyEventWriter(
-        available: AuthServiceScope.of(context).available,
-      ).maybeWrite(
+      unawaited(SafetyEventWriter(available: authAvailable).maybeWrite(
         uid: profile.uid,
         source: SafetySource.ruleTurn,
         match: distress,
         inputText: note,
         agentId: AgentRegistry.siuYanId,
       ));
-      // Arm B safety surface — direct, no LLM in the loop.
-      showDialog<void>(
-        context: context,
-        builder: (_) => _SafetyEscalationDialog(level: distress.level.name),
-      );
     }
     setState(() => _saved = true);
+
+    // Decision 0015 — the submission is one agent session, like a chat.
+    // The recorder's Firestore writes are fire-and-forget, so this never
+    // blocks offline.
+    final rec = await RuleSubmissionFlow.record(
+      uid: profile?.uid,
+      agentId: AgentRegistry.siuYanId,
+      moduleId: 'm2_check_in',
+      analytics: analytics,
+      available: authAvailable,
+      text: note,
+      detector: distress,
+      userSent: submittedAt,
+      replyText: isEn ? 'Saved. See you tomorrow.' : '收到喇。聽日再見。',
+    );
+    if (!mounted) return;
+
+    // Same safety surfaces as every other page (crisis page for acute,
+    // support sheet for moderate) — arm-invariant.
+    if (distress.level != DistressLevel.none) {
+      await core.distressRouter.route(distress, context: context);
+      if (distress.level == DistressLevel.acute) return;
+    }
+    if (profile == null) return;
+    await RuleSubmissionFlow.surfaceBriefPr(
+      nav,
+      rec: rec,
+      uid: profile.uid,
+      agentId: AgentRegistry.siuYanId,
+      agentDisplayName: '小欣',
+    );
   }
 
   Future<void> _persistResponses(
@@ -276,32 +308,6 @@ class _MultipleChoice extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _SafetyEscalationDialog extends StatelessWidget {
-  final String level;
-  const _SafetyEscalationDialog({required this.level});
-
-  @override
-  Widget build(BuildContext context) {
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-    return AlertDialog(
-      title: Text(isEn ? 'Talk to someone' : '搵個人傾傾'),
-      content: Text(
-        isEn
-            ? 'It sounds like today is heavy. You don\'t have to carry it '
-                'alone. The Samaritans Hong Kong hotline is 2896 0000.'
-            : '聽你咁講，今日有少少辛苦。你唔需要一個人扛。撒瑪利亞會熱線 2896 0000，可以打去傾下。',
-        style: const TextStyle(fontSize: 16, height: 1.4),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(isEn ? 'Close' : '知道'),
-        ),
-      ],
     );
   }
 }
