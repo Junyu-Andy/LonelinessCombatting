@@ -28,6 +28,7 @@ rules_version = '2';
 //   safety_events/{eventId}                      -> *new* B.7 distress events (client-write, admin-read)
 //   safety_event_dedup/{dedupKey}                -> *new* B.7 dedup sentinel (admin-write only)
 //   pi_alerts/{alertId}                          -> *new* B.7 acute alert queue (admin-write only)
+//   llm_calls/{callId}                           -> C04 per-call model log (Cloud Functions only)
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -165,6 +166,14 @@ service cloud.firestore {
     // analysts must NEVER read this collection or blinding fails.
     // ============================================================
     match /export_blind_keys/{dateKey} {
+      allow read, write: if false;
+    }
+
+    // ============================================================
+    // C04 model log — one doc per DeepSeek call, written by Cloud
+    // Functions (functions/llm_log.js).  Clients never read or write.
+    // ============================================================
+    match /llm_calls/{callId} {
       allow read, write: if false;
     }
 

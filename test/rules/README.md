@@ -33,6 +33,9 @@ with rules disabled, then assert allow/deny for each write shape.
 delete and confirm a pending sensitive fact, never create or edit; injection
 and extraction logs are server-only.
 
+`llm_calls_rules.test.js` — the C04 model log (`llm_calls`): no client may
+read, create, overwrite or delete a row, the participant's own included.
+
 `profile_arm.test.js` — the write-once `arm` on `users/{uid}`: signup create,
 null backfill and merge-writes that omit `arm` → allowed; switching, nulling,
 deleting or overwriting away an assigned arm → denied; subcollections stay

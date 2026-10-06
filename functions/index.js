@@ -9,6 +9,7 @@ const path = require("path");
 const {computeLlmFlags} = require("./llm_flags");
 const arm = require("./arm");
 const memory = require("./memory");
+const llmLog = require("./llm_log");
 
 admin.initializeApp();
 
@@ -339,53 +340,48 @@ exports.proxyDeepSeek = onCall(
     }));
     const codedSession = sessionCodeFor(request.auth && request.auth.uid);
 
-    const response = await fetch(
-      "https://api.deepseek.com/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": [
-            "Bearer",
-            DEEPSEEK_API_KEY.value(),
-          ].join(" "),
-          // No HKU email / IP in headers; pseudonymous session tag only.
-          "X-Session-Code": codedSession,
-        },
-        body: JSON.stringify({
-          model: DEEPSEEK_MODEL,
-          thinking: DEEPSEEK_THINKING,
-          messages: [
-            {role: "system", content: systemPrompt},
-            ...scrubbed,
-          ],
-          // Bumped 320 → 800.  Older Cantonese phrasing is denser; 320
-          // tokens often cut sentences mid-clause and made replies feel
-          // curt.  Weekly summary surfaces (m9_weekly_narrative) need
-          // more headroom; per-turn caps via the system prompt remain
-          // the policy lever for "1-2 sentence" agents.
-          max_tokens: 800,
-          temperature: temperatureFor(agentId),
-          top_p: 0.95,
-        }),
+    // C04: deepSeekChat logs model / tokens / latency to llm_calls.
+    const response = await llmLog.deepSeekChat(admin.firestore(), {
+      apiKey: DEEPSEEK_API_KEY.value(),
+      // No HKU email / IP in headers; pseudonymous session tag only.
+      headers: {"X-Session-Code": codedSession},
+      // Under the 55 s function timeout, so a hung call is still logged.
+      timeoutMs: 50000,
+      log: {
+        callType: llmLog.callTypeForModule(moduleId),
+        agentId,
+        uid: request.auth.uid,
       },
-    );
+      body: {
+        model: DEEPSEEK_MODEL,
+        thinking: DEEPSEEK_THINKING,
+        messages: [
+          {role: "system", content: systemPrompt},
+          ...scrubbed,
+        ],
+        // Bumped 320 → 800.  Older Cantonese phrasing is denser; 320
+        // tokens often cut sentences mid-clause and made replies feel
+        // curt.  Weekly summary surfaces (m9_weekly_narrative) need
+        // more headroom; per-turn caps via the system prompt remain
+        // the policy lever for "1-2 sentence" agents.
+        max_tokens: 800,
+        temperature: temperatureFor(agentId),
+        top_p: 0.95,
+      },
+    });
 
     if (!response.ok) {
       // Surface the upstream body so the client log can see exactly why
       // (auth, quota, model-not-found, etc.) instead of just "deepseek
       // 500".  Body is bounded so we don't spam the log with HTML.
-      let body = "";
-      try {
-        body = (await response.text()).slice(0, 400);
-      } catch (_) { /* ignore */ }
+      const body = response.errorBody;
       console.error("deepseek call failed",
           {status: response.status, body, agentId, moduleId});
       throw new HttpsError(
           "internal", `deepseek ${response.status}: ${body}`);
     }
 
-    const data = await response.json();
+    const data = response.data;
     const text = data.choices &&
       data.choices[0] &&
       data.choices[0].message &&
@@ -528,32 +524,31 @@ agent 聲音寫邀請；其他情況留空>"}`;
     });
     messages.push({role: "user", content: stripPII(judgementPrompt)});
 
-    const response = await fetch(
-      "https://api.deepseek.com/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": ["Bearer", DEEPSEEK_API_KEY.value()].join(" "),
-        },
-        body: JSON.stringify({
-          model: DEEPSEEK_MODEL,
-          thinking: DEEPSEEK_THINKING,
-          messages: [
-            {role: "system", content: sourcePrompt},
-            ...messages,
-          ],
-          max_tokens: 200,
-          temperature: 0.3,
-          response_format: {type: "json_object"},
-        }),
+    const response = await llmLog.deepSeekChat(admin.firestore(), {
+      apiKey: DEEPSEEK_API_KEY.value(),
+      timeoutMs: 17000, // function timeout is 20 s
+      log: {
+        callType: "referral_judgement",
+        agentId: sourceAgentId,
+        uid: request.auth.uid,
       },
-    );
+      body: {
+        model: DEEPSEEK_MODEL,
+        thinking: DEEPSEEK_THINKING,
+        messages: [
+          {role: "system", content: sourcePrompt},
+          ...messages,
+        ],
+        max_tokens: 200,
+        temperature: 0.3,
+        response_format: {type: "json_object"},
+      },
+    });
 
     if (!response.ok) {
       throw new HttpsError("internal", `deepseek ${response.status}`);
     }
-    const data = await response.json();
+    const data = response.data;
     const text = data.choices &&
       data.choices[0] &&
       data.choices[0].message &&
@@ -1330,36 +1325,41 @@ async function sendDoorbell(title, body, analyticsLabel) {
 // ---------------------------------------------------------------------------
 
 /**
- * One strict-JSON DeepSeek call for memory extraction.
- * @param {{system: string, user: string}} prompt
- * @return {Promise<string>} raw JSON text
+ * One strict-JSON DeepSeek call for memory extraction, logged to llm_calls
+ * (C04) under the given participant and agent.
+ * @param {string} uid
+ * @param {?string} agentId
+ * @return {function({system: string, user: string}): Promise<string>}
+ *   resolves to the raw JSON text
  */
-async function callDeepSeekJson(prompt) {
-  const response = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${DEEPSEEK_API_KEY.value()}`,
-    },
-    body: JSON.stringify({
-      model: DEEPSEEK_MODEL,
-      thinking: DEEPSEEK_THINKING,
-      messages: [
-        {role: "system", content: prompt.system},
-        {role: "user", content: stripPII(prompt.user)},
-      ],
-      response_format: {type: "json_object"},
-      temperature: 0.2,
-      max_tokens: 1500,
-    }),
-  });
-  if (!response.ok) {
-    const body = (await response.text()).slice(0, 300);
-    throw new Error(`deepseek ${response.status}: ${body}`);
-  }
-  const data = await response.json();
-  return (data.choices && data.choices[0] && data.choices[0].message &&
-    data.choices[0].message.content) || "";
+function callDeepSeekJsonFor(uid, agentId) {
+  return async (prompt) => {
+    const response = await llmLog.deepSeekChat(admin.firestore(), {
+      apiKey: DEEPSEEK_API_KEY.value(),
+      // memoryEndSession allows 60 s, including the Firestore reads and
+      // writes around this call.
+      timeoutMs: 45000,
+      log: {callType: "memory_extraction", agentId, uid},
+      body: {
+        model: DEEPSEEK_MODEL,
+        thinking: DEEPSEEK_THINKING,
+        messages: [
+          {role: "system", content: prompt.system},
+          {role: "user", content: stripPII(prompt.user)},
+        ],
+        response_format: {type: "json_object"},
+        temperature: 0.2,
+        max_tokens: 1500,
+      },
+    });
+    if (!response.ok) {
+      const body = response.errorBody.slice(0, 300);
+      throw new Error(`deepseek ${response.status}: ${body}`);
+    }
+    const data = response.data;
+    return (data.choices && data.choices[0] && data.choices[0].message &&
+      data.choices[0].message.content) || "";
+  };
 }
 
 exports.memoryEndSession = onCall(
@@ -1384,7 +1384,7 @@ exports.memoryEndSession = onCall(
     const id = await memory.claimBuffer(db, uid, agentId);
     if (!id) return {status: "empty"};
     const status = await memory.processExtraction(
-        db, uid, id, callDeepSeekJson);
+        db, uid, id, callDeepSeekJsonFor(uid, agentId));
     return {status};
   },
 );
@@ -1429,7 +1429,8 @@ exports.memorySweep = onSchedule(
           if (buffer.length === 0 || lastMs > idleBefore) continue;
           const id = await memory.claimBuffer(db, uid, agentId);
           if (id) {
-            await memory.processExtraction(db, uid, id, callDeepSeekJson);
+            await memory.processExtraction(
+                db, uid, id, callDeepSeekJsonFor(uid, agentId));
           }
         }
         // Retry failures; pick up pending ones a crashed run left behind.
@@ -1445,7 +1446,8 @@ exports.memorySweep = onSchedule(
           if (ext.get("status") === "pending" && createdMs > staleBefore) {
             continue;
           }
-          await memory.processExtraction(db, uid, ext.id, callDeepSeekJson);
+          await memory.processExtraction(db, uid, ext.id,
+              callDeepSeekJsonFor(uid, ext.get("agent_id") || null));
         }
       } catch (err) {
         console.error("memorySweep user failed", {uid, err: String(err)});

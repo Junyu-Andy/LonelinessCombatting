@@ -5,6 +5,7 @@
 | 日期 | Tag | 改动 | 影响（cohort × 组别） | 生效方式 | 决策记录 |
 |---|---|---|---|---|---|
 | 待定 | `phaseB-v1.0.0` | Phase B 冻结版本：v1 记忆、分组标记、版本追溯字段、「我的資料」页面 | phase_b × 两组 | 第一位 phase_b 参与者入组前 | 0001 |
+| 2026-10-06 | — | 未合并（PR 草稿）：每次调用 DeepSeek 都在 `llm_calls` 记一条（返回的 `model`、`system_fingerprint`、token、HTTP 状态、延迟、是否出错，不存原文）。参与者感受不到，影响测量记录 | 所有 cohort × Hybrid 组；规则组不产生记录 | 随合并后的下一次 Functions 部署 | 0016 |
 | 2026-10-06 | — | DeepSeek 请求从旧名 `deepseek-chat` 改为 `deepseek-flash` 并关闭思考模式。实际模型不变（旧名本来就指向 DeepSeek-V4.1-Flash 非思考模式），参与者感受不到差别；研究文件里的模型名要从 DeepSeek-V3 更正 | 所有 cohort × Hybrid 组 | 下次部署 Functions 后 | 0017 |
 | 2026-10-04 | — | 签到 B、回忆 B 每次提交记为一次会话并弹 Brief PR；签到 B 的安全提示改走统一流程（acute 打开危机页） | phase_b × 规则组 | 随 `phaseB-v1.0.0` | 0015 |
 | 2026-10-04 | — | 安全词库先沿用 v5-2026-09，PI 临床签核搁置 | 所有 cohort × 两组 | 现状不变 | 0012 |
