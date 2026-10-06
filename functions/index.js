@@ -18,6 +18,15 @@ const SMTP_USER = defineSecret("SMTP_USER");
 const SMTP_PASS = defineSecret("SMTP_PASS");
 const PI_EMAIL = defineSecret("PI_EMAIL");
 
+// `deepseek-chat` is a legacy alias; on 2026-10-06 DeepSeek resolved it to
+// `deepseek-flash` (DeepSeek-V4.1-Flash) with thinking off.  Naming the model
+// directly would turn thinking on by default: reasoning tokens then eat
+// max_tokens (the 200-token JSON calls came back empty) and temperature /
+// top_p stop applying.  So every call sends both fields below, which keeps
+// the exact behaviour the alias had.  Decision record 0016.
+const DEEPSEEK_MODEL = "deepseek-flash";
+const DEEPSEEK_THINKING = {type: "disabled"};
+
 // ---------------------------------------------------------------------------
 // Prompt resolution (Dev Req §3.2, §8 – prompts live server-side so the
 // client cannot tamper with them).
@@ -344,7 +353,8 @@ exports.proxyDeepSeek = onCall(
           "X-Session-Code": codedSession,
         },
         body: JSON.stringify({
-          model: "deepseek-chat",
+          model: DEEPSEEK_MODEL,
+          thinking: DEEPSEEK_THINKING,
           messages: [
             {role: "system", content: systemPrompt},
             ...scrubbed,
@@ -527,7 +537,8 @@ agent 聲音寫邀請；其他情況留空>"}`;
           "Authorization": ["Bearer", DEEPSEEK_API_KEY.value()].join(" "),
         },
         body: JSON.stringify({
-          model: "deepseek-chat",
+          model: DEEPSEEK_MODEL,
+          thinking: DEEPSEEK_THINKING,
           messages: [
             {role: "system", content: sourcePrompt},
             ...messages,
@@ -1331,7 +1342,8 @@ async function callDeepSeekJson(prompt) {
       "Authorization": `Bearer ${DEEPSEEK_API_KEY.value()}`,
     },
     body: JSON.stringify({
-      model: "deepseek-chat",
+      model: DEEPSEEK_MODEL,
+      thinking: DEEPSEEK_THINKING,
       messages: [
         {role: "system", content: prompt.system},
         {role: "user", content: stripPII(prompt.user)},

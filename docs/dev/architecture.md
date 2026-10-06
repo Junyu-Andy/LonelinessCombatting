@@ -24,7 +24,7 @@ flowchart LR
     OT["安全告警 · 推送提醒 · 数据导出 · 语音转文字"]
   end
   FS[("Firestore")]
-  DS["DeepSeek-V3<br/>（deepseek-chat）"]
+  DS["DeepSeek-V4.1-Flash<br/>（deepseek-flash，思考关闭）"]
   UI --> ARM --> GW --> DD
   GW --> PX --> DS
   MEM --> DS
@@ -37,7 +37,7 @@ flowchart LR
 | App | Flutter **3.35.3**（固定版本，见 `docs/dev/ci-cd.md`） | `lib/` |
 | 服务器 | Firebase Cloud Functions v2，Node 24，区域 `asia-east2` | `functions/` |
 | 数据库 | Firestore，项目 `loneliness-pilot-dev` | 规则 `firestore.rules` |
-| 大模型 | DeepSeek-V3，经 `proxyDeepSeek` 调用，API key 只在服务器上 | `functions/index.js` |
+| 大模型 | DeepSeek-V4.1-Flash（请求 `deepseek-flash`，`thinking` 关闭，决策 0016），经 `proxyDeepSeek` 调用，API key 只在服务器上 | `functions/index.js` 的 `DEEPSEEK_MODEL` |
 | 语音转文字 | Google Speech（chirp_2，失败退回 long） | `transcribeAudio` |
 | iOS 发布 | Codemagic | `codemagic.yaml` |
 | 测试和部署 | GitHub Actions | `.github/workflows/` |
@@ -213,7 +213,7 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | `appVersion`、`buildNumber` | `lib/core/version/build_info.g.dart`（由 `tool/export_spec_inputs.py` 生成） |
 | prompt、安全文件、词库的 SHA-256 | 同上，`kArtefactHashes`；`test/phase_a_version_pin_test.dart` 检查是否过期 |
 | `promptVersion`（如 `siu_yan_v1@2026-06`） | 服务器从 prompt 文件第一行读，写进每条 `turns` |
-| `model` | DeepSeek 返回的 `model` 字段 |
+| `model` | DeepSeek 返回的 `model` 字段（2026-10-06 实测为 `deepseek-flash`） |
 
 还没有：`buildSha`（git commit）、`memoryVersion`、敏感词表版本。见 `docs/dev/memory-and-entry-spec.md` 3.6。
 

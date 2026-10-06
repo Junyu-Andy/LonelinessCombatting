@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-06 开发任务 T1–T6；DeepSeek 模型名
+
+- 研究侧功能登记表（C01–C22）放进 `docs/spec/feature-registry.md`，任务单放进 `docs/dev-tasks/dev-tasks-1006.md`。T1–T6 分六个云端会话并行执行，报告写到 `docs/dev-reports/`、`docs/spec/`、`docs/export/`。
+- 云端环境接入 DeepSeek（凭据由代理注入，会话里看不到密钥），供 T4、T6 用合成对话测试。
+- **发现**：代码请求的 `deepseek-chat` 实际返回 `deepseek-flash`（DeepSeek-V4.1-Flash），模型列表里已没有 `deepseek-chat`。研究文件里写的 DeepSeek-V3 不准确。
+- **决定**：请求改为 `deepseek-flash` 并关闭思考模式，实际模型不变（决策 0016）。不关思考的话，转介判断会返回空内容。
+
 ## 2026-10-04 规则组 Brief PR
 
 - 签到 B、回忆 B 每次提交记为一次会话（`sessions` / `turns`），提交后弹 Brief PR（决策 0015）。之前这两个页面从不弹，两组结局测量口径不同。
