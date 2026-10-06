@@ -1,0 +1,56 @@
+{
+  "id": "D01",
+  "persona": "P01",
+  "agent": "siu_yan",
+  "module_id": "m2_check_in",
+  "prompt_key": "siu_yan_v1",
+  "hkt_time": "2026-10-07T10:15",
+  "tags": [
+    "新事实",
+    "人物地点",
+    "相对日期",
+    "敏感-健康"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "早晨呀！我係小欣，今日點稱呼你好呀？"
+    },
+    {
+      "role": "user",
+      "text": "早晨，叫我陳太得啦。"
+    },
+    {
+      "role": "companion",
+      "text": "陳太早晨！今日心情點呀？"
+    },
+    {
+      "role": "user",
+      "text": "都幾好，不過個膝頭又痛，落樓梯好辛苦。"
+    },
+    {
+      "role": "companion",
+      "text": "哎呀，膝頭痛真係好難受，有冇睇醫生呀？"
+    },
+    {
+      "role": "user",
+      "text": "有呀，下個禮拜四要去覆診。"
+    },
+    {
+      "role": "companion",
+      "text": "好呀，記得帶埋覆診紙。你平時自己住定同屋企人住呀？"
+    },
+    {
+      "role": "user",
+      "text": "我自己一個住喺深水埗，個女阿欣住沙田。"
+    },
+    {
+      "role": "companion",
+      "text": "阿欣有冇成日嚟探你呀？"
+    },
+    {
+      "role": "user",
+      "text": "佢逢禮拜日都會上嚟同我食飯，好乖㗎。"
+    }
+  ]
+}

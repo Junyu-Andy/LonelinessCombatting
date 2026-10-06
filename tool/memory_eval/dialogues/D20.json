@@ -1,0 +1,39 @@
+{
+  "id": "D20",
+  "persona": "P07",
+  "agent": "siu_yan",
+  "module_id": "m2_check_in",
+  "prompt_key": "siu_yan_v1",
+  "hkt_time": "2026-10-07T16:00",
+  "tags": [
+    "敏感-情绪孤独",
+    "敏感-健康",
+    "相对日期"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "吳婆婆午安，今日點呀？"
+    },
+    {
+      "role": "user",
+      "text": "唔係幾開心。個仔成個月冇打過電話嚟，覺得好孤獨。"
+    },
+    {
+      "role": "companion",
+      "text": "等唔到個仔電話一定好失落。"
+    },
+    {
+      "role": "user",
+      "text": "仲有我有高血壓，日日要食藥，有時都唔記得食。"
+    },
+    {
+      "role": "companion",
+      "text": "可以試下用藥盒提自己。"
+    },
+    {
+      "role": "user",
+      "text": "好主意。過多三日我要去街坊會攞免費飯盒。"
+    }
+  ]
+}

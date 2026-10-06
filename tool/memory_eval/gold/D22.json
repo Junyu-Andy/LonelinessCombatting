@@ -1,0 +1,109 @@
+{
+  "id": "D22",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D22-F1",
+      "desc": "稱呼：鄭伯",
+      "match": [
+        [
+          "鄭伯"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D22-F2",
+      "desc": "居住：觀塘公屋",
+      "match": [
+        [
+          "觀塘"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D22-F3",
+      "desc": "養狗豆豆",
+      "match": [
+        [
+          "豆豆"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D22-F4",
+      "desc": "每朝六點散步",
+      "match": [
+        [
+          "散步",
+          "六點"
+        ]
+      ],
+      "sensitive": false,
+      "required": false
+    },
+    {
+      "gid": "D22-F5",
+      "desc": "有太太",
+      "match": [
+        [
+          "太太"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D22-F6",
+      "desc": "孫女結婚",
+      "match": [
+        [
+          "孫女"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D22-FU1",
+      "desc": "下個月初同太太去台灣",
+      "match": [
+        [
+          "台灣",
+          "日月潭"
+        ]
+      ],
+      "required": true,
+      "due_range": [
+        "2026-11-01",
+        "2026-11-07"
+      ]
+    },
+    {
+      "gid": "D22-FU2",
+      "desc": "呢個週末孫女結婚",
+      "match": [
+        [
+          "結婚",
+          "婚"
+        ]
+      ],
+      "required": true,
+      "due_range": [
+        "2026-10-10",
+        "2026-10-11"
+      ]
+    }
+  ],
+  "forbidden": [],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

@@ -1,0 +1,90 @@
+{
+  "id": "D12",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D12-F1",
+      "desc": "老婆叫阿琼（糾正）",
+      "match": [
+        [
+          "阿琼"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D12-F2",
+      "desc": "居住：同老婆同孫女阿瑤住",
+      "match": [
+        [
+          "阿瑤"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D12-F3",
+      "desc": "結婚四十五年",
+      "match": [
+        [
+          "四十五",
+          "45"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D12-F4",
+      "desc": "孫女讀緊大學",
+      "match": [
+        [
+          "大學"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D12-F5",
+      "desc": "老婆煮得一手好菜",
+      "match": [
+        [
+          "好菜",
+          "煮"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [],
+  "forbidden": [],
+  "superseded": [
+    {
+      "gid": "D12-S1",
+      "desc": "舊：老婆叫阿玲",
+      "match": [
+        [
+          "阿玲"
+        ]
+      ]
+    },
+    {
+      "gid": "D12-S2",
+      "desc": "舊：兩個人住",
+      "match": [
+        [
+          "兩個人",
+          "兩人",
+          "二人",
+          "兩口子"
+        ]
+      ]
+    }
+  ],
+  "contradictions": [],
+  "notes": "糾正對象係另一位陪伴者（通通）記低嘅共享事實。"
+}

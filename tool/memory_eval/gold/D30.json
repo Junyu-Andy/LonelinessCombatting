@@ -1,0 +1,105 @@
+{
+  "id": "D30",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D30-F1",
+      "desc": "美玲下個禮拜搬去天水圍",
+      "match": [
+        [
+          "天水圍"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D30-F2",
+      "desc": "會請姨姨煮飯",
+      "match": [
+        [
+          "姨姨",
+          "工人",
+          "家務助理",
+          "傭"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D30-F3",
+      "desc": "十二月頭曾孫出世",
+      "match": [
+        [
+          "曾孫",
+          "太公"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D30-F4",
+      "desc": "擔心美玲搬走",
+      "match": [
+        [
+          "擔心"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D30-FU1",
+      "desc": "十二月頭曾孫出世",
+      "match": [
+        [
+          "曾孫",
+          "出世"
+        ]
+      ],
+      "required": true,
+      "due_range": [
+        "2026-12-01",
+        "2026-12-10"
+      ]
+    },
+    {
+      "gid": "D30-FU2",
+      "desc": "美玲下個禮拜搬屋",
+      "match": [
+        [
+          "搬",
+          "天水圍"
+        ]
+      ],
+      "required": false,
+      "due_range": [
+        "2026-10-12",
+        "2026-10-18"
+      ]
+    }
+  ],
+  "forbidden": [],
+  "superseded": [
+    {
+      "gid": "D30-S1",
+      "desc": "舊：美玲住隔籬座",
+      "match": [
+        [
+          "美玲"
+        ],
+        [
+          "隔籬座",
+          "隔壁",
+          "隔籬"
+        ]
+      ]
+    }
+  ],
+  "contradictions": [],
+  "notes": ""
+}

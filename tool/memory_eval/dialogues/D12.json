@@ -1,0 +1,38 @@
+{
+  "id": "D12",
+  "persona": "P04",
+  "agent": "ah_jan_ah_bak",
+  "module_id": "reflective_dialogue",
+  "prompt_key": "ah_jan_ah_bak_v1",
+  "hkt_time": "2026-10-07T11:45",
+  "tags": [
+    "纠正",
+    "更新已有事实"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "張伯，今日想傾啲咩？"
+    },
+    {
+      "role": "user",
+      "text": "我想講返，其實我屋企唔止兩個人住，個孫女阿瑤都同我哋住，佢讀緊大學。"
+    },
+    {
+      "role": "companion",
+      "text": "有孫女陪真係熱鬧啲。"
+    },
+    {
+      "role": "user",
+      "text": "仲有呀，我老婆唔係叫阿玲，係叫阿琼，之前講錯咗，人老咗口快。"
+    },
+    {
+      "role": "companion",
+      "text": "唔緊要，阿琼。你哋結婚幾耐呀？"
+    },
+    {
+      "role": "user",
+      "text": "四十五年喇。佢煮得一手好菜。"
+    }
+  ]
+}

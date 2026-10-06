@@ -1,0 +1,39 @@
+{
+  "id": "D25",
+  "persona": "P09",
+  "agent": "tung_tung",
+  "module_id": "tung_tung_chat",
+  "prompt_key": "tung_tung_v1",
+  "hkt_time": "2026-10-07T10:00",
+  "tags": [
+    "陪伴者自己说的内容",
+    "玩笑或假设句",
+    "纠正"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "你好！我係通通，我啱啱學識整蛋撻㗎！你識唔識整嘢食？"
+    },
+    {
+      "role": "user",
+      "text": "識呀，我整嘅老婆餅好出名㗎，街坊都搶住要。"
+    },
+    {
+      "role": "companion",
+      "text": "嘩！你係咪住喺北角呀？"
+    },
+    {
+      "role": "user",
+      "text": "唔係呀，我住柴灣，你記錯人喇。叫我蘇太得啦。"
+    },
+    {
+      "role": "companion",
+      "text": "蘇太，不如聽日去圖書館借本食譜？"
+    },
+    {
+      "role": "user",
+      "text": "唔得閒呀。假如我有錢，我就開間餅店。"
+    }
+  ]
+}

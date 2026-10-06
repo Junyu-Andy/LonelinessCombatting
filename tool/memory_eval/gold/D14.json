@@ -1,0 +1,55 @@
+{
+  "id": "D14",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D14-F1",
+      "desc": "興趣：種蘭花",
+      "match": [
+        [
+          "蘭花"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D14-FU1",
+      "desc": "十號街坊會義賣",
+      "match": [
+        [
+          "義賣",
+          "街坊會"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-10"
+    }
+  ],
+  "forbidden": [
+    {
+      "gid": "D14-X1",
+      "desc": "照顧老公好攰、想離開屋企（用戶要求唔好記住）",
+      "match": [
+        [
+          "離開屋企",
+          "離家",
+          "離開家",
+          "走開",
+          "好攰",
+          "疲累",
+          "疲倦",
+          "疲憊",
+          "攰"
+        ]
+      ],
+      "kind": "do_not_store",
+      "scope": "all"
+    }
+  ],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

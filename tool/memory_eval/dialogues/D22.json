@@ -1,0 +1,48 @@
+{
+  "id": "D22",
+  "persona": "P08",
+  "agent": "siu_yan",
+  "module_id": "m2_check_in",
+  "prompt_key": "siu_yan_v1",
+  "hkt_time": "2026-10-07T08:30",
+  "tags": [
+    "新事实",
+    "人物地点",
+    "计划",
+    "相对日期-范围"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "早晨！我係小欣，點稱呼你？"
+    },
+    {
+      "role": "user",
+      "text": "叫我鄭伯。我住觀塘嘅公屋。"
+    },
+    {
+      "role": "companion",
+      "text": "鄭伯早晨！今朝做咗咩？"
+    },
+    {
+      "role": "user",
+      "text": "日日朝早六點我都會帶我隻狗豆豆去散步。"
+    },
+    {
+      "role": "companion",
+      "text": "豆豆好得意呀！"
+    },
+    {
+      "role": "user",
+      "text": "下個月初我同太太去台灣旅行，佢一路都想去日月潭。"
+    },
+    {
+      "role": "companion",
+      "text": "好浪漫呀！"
+    },
+    {
+      "role": "user",
+      "text": "仲有呢個週末我孫女結婚，好開心。"
+    }
+  ]
+}

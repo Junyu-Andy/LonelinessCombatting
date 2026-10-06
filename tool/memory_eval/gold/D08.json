@@ -1,0 +1,92 @@
+{
+  "id": "D08",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D08-F1",
+      "desc": "後生喺製衣廠做車衣三十年",
+      "match": [
+        [
+          "製衣",
+          "車衣"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D08-F2",
+      "desc": "老公以前揸的士",
+      "match": [
+        [
+          "的士",
+          "計程車"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D08-F3",
+      "desc": "順德出世，十二歲落香港",
+      "match": [
+        [
+          "順德"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D08-F4",
+      "desc": "喺香港出世",
+      "match": [
+        [
+          "香港出世",
+          "生於香港",
+          "香港出生",
+          "在香港出世"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [],
+  "forbidden": [
+    {
+      "gid": "D08-X1",
+      "desc": "陪伴者自己喺工廠做過",
+      "match": [
+        [
+          "陪伴者",
+          "阿珍",
+          "阿伯"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    }
+  ],
+  "superseded": [],
+  "contradictions": [
+    {
+      "gid": "D08-C1",
+      "desc": "出生地前後矛盾：順德 vs 香港，兩條唔應該同時生效",
+      "a": [
+        [
+          "順德"
+        ]
+      ],
+      "b": [
+        [
+          "香港出世",
+          "生於香港",
+          "香港出生",
+          "在香港出世"
+        ]
+      ]
+    }
+  ],
+  "notes": ""
+}

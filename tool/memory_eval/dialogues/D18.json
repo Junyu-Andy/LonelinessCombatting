@@ -1,0 +1,39 @@
+{
+  "id": "D18",
+  "persona": "P06",
+  "agent": "tung_tung",
+  "module_id": "tung_tung_chat",
+  "prompt_key": "tung_tung_v1",
+  "hkt_time": "2026-10-07T14:40",
+  "tags": [
+    "更新已有事实(跨陪伴者私有)",
+    "玩笑或假设句",
+    "相对日期"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "華叔你好！我係通通。"
+    },
+    {
+      "role": "user",
+      "text": "你好。我以前鍾意捉象棋，不過而家眼矇，睇唔清啲棋子，冇點捉喇，改咗日日聽收音機講古。"
+    },
+    {
+      "role": "companion",
+      "text": "聽講古都好有趣！"
+    },
+    {
+      "role": "user",
+      "text": "我同你講，我後生游水贏過奧運冠軍㗎，哈哈，講笑咋。"
+    },
+    {
+      "role": "companion",
+      "text": "哈哈，華叔好幽默！"
+    },
+    {
+      "role": "user",
+      "text": "一個月後要去換身份證，好麻煩。"
+    }
+  ]
+}

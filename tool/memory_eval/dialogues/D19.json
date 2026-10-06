@@ -1,0 +1,42 @@
+{
+  "id": "D19",
+  "persona": "P07",
+  "agent": "tung_tung",
+  "module_id": "tung_tung_chat",
+  "prompt_key": "tung_tung_v1",
+  "hkt_time": "2026-10-07T11:20",
+  "tags": [
+    "相对日期-多种表达",
+    "计划"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "你好呀！我係通通，點稱呼？"
+    },
+    {
+      "role": "user",
+      "text": "叫我吳婆婆。我呢排好忙㗎！"
+    },
+    {
+      "role": "companion",
+      "text": "吳婆婆咁忙，忙啲咩呀？"
+    },
+    {
+      "role": "user",
+      "text": "大後日要去飲契女嘅喜酒，下星期二又要去睇眼科。"
+    },
+    {
+      "role": "companion",
+      "text": "嘩真係好多嘢做。"
+    },
+    {
+      "role": "user",
+      "text": "下個禮拜六同班姊妹去長洲玩，十一月三號仲有成家人聚會，慶祝我老公九十大壽。"
+    },
+    {
+      "role": "companion",
+      "text": "九十大壽好喜慶！"
+    }
+  ]
+}

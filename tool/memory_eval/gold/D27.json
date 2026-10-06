@@ -1,0 +1,78 @@
+{
+  "id": "D27",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D27-F1",
+      "desc": "二十歲結婚",
+      "match": [
+        [
+          "二十",
+          "20"
+        ]
+      ],
+      "sensitive": null,
+      "required": true
+    },
+    {
+      "gid": "D27-F2",
+      "desc": "老公以前做巴士司機三十年",
+      "match": [
+        [
+          "巴士"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D27-F3",
+      "desc": "仔女孝順",
+      "match": [
+        [
+          "仔女",
+          "子女"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [],
+  "forbidden": [
+    {
+      "gid": "D27-X1",
+      "desc": "十八歲結婚（已即時更正）",
+      "match": [
+        [
+          "十八",
+          "18"
+        ]
+      ],
+      "kind": "wrong_value",
+      "scope": "items"
+    }
+  ],
+  "superseded": [],
+  "contradictions": [
+    {
+      "gid": "D27-C1",
+      "desc": "仔女數目前後矛盾：三個 vs 兩個，兩條唔應該同時生效",
+      "a": [
+        [
+          "三個",
+          "3個",
+          "三名"
+        ]
+      ],
+      "b": [
+        [
+          "兩個",
+          "2個",
+          "兩名"
+        ]
+      ]
+    }
+  ],
+  "notes": ""
+}

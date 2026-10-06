@@ -1,0 +1,55 @@
+{
+  "id": "D04",
+  "persona": "P02",
+  "agent": "ah_jan_ah_bak",
+  "module_id": "reflective_dialogue",
+  "prompt_key": "ah_jan_ah_bak_v1",
+  "hkt_time": "2026-10-07T09:40",
+  "tags": [
+    "敏感-丧亲",
+    "人物",
+    "相对日期"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "早晨，我係阿伯。今日想傾啲咩呀？"
+    },
+    {
+      "role": "user",
+      "text": "早晨。叫我黃伯得啦。今日又諗起我老婆。"
+    },
+    {
+      "role": "companion",
+      "text": "黃伯，係咪掛住黃太呀？"
+    },
+    {
+      "role": "user",
+      "text": "係呀，佢舊年十一月過咗身，我哋結咗婚五十年。"
+    },
+    {
+      "role": "companion",
+      "text": "五十年，真係好長嘅感情。"
+    },
+    {
+      "role": "user",
+      "text": "而家夜晚成日瞓唔着，諗起佢就喊。"
+    },
+    {
+      "role": "companion",
+      "text": "辛苦你喇。屋企仲有邊個陪你呀？"
+    },
+    {
+      "role": "user",
+      "text": "我有兩個仔，大仔志強喺英國，細仔志明住屯門。"
+    },
+    {
+      "role": "companion",
+      "text": "佢哋有冇成日聯絡你？"
+    },
+    {
+      "role": "user",
+      "text": "志明有時會嚟。下個月十二號係我老婆死忌，我哋會一齊去拜佢。"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "id": "D10",
+  "persona": "P04",
+  "agent": "tung_tung",
+  "module_id": "tung_tung_chat",
+  "prompt_key": "tung_tung_v1",
+  "hkt_time": "2026-10-07T10:30",
+  "tags": [
+    "新事实",
+    "人物地点",
+    "相对日期",
+    "计划"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "你好！我係通通，點稱呼你好呀？"
+    },
+    {
+      "role": "user",
+      "text": "叫我張伯得喇，舊同事都叫我阿張。"
+    },
+    {
+      "role": "companion",
+      "text": "張伯你好！你住邊區㗎？"
+    },
+    {
+      "role": "user",
+      "text": "我住將軍澳，同老婆阿玲兩個人住。"
+    },
+    {
+      "role": "companion",
+      "text": "平時鍾意做咩呀？"
+    },
+    {
+      "role": "user",
+      "text": "我最鍾意行山，下個禮拜一同幾個舊同事去行麥理浩徑第二段。"
+    },
+    {
+      "role": "companion",
+      "text": "好嘢！記得帶夠水。"
+    },
+    {
+      "role": "user",
+      "text": "仲有兩個禮拜後要去深圳飲外甥嘅喜酒。"
+    }
+  ]
+}

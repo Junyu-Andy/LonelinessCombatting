@@ -1,0 +1,43 @@
+{
+  "id": "D11",
+  "persona": "P04",
+  "agent": "siu_yan",
+  "module_id": "m2_check_in",
+  "prompt_key": "siu_yan_v1",
+  "hkt_time": "2026-10-07T15:00",
+  "tags": [
+    "敏感-健康",
+    "敏感-财务",
+    "相对日期"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "張伯午安，今日心情點呀？"
+    },
+    {
+      "role": "user",
+      "text": "麻麻哋。上個禮拜驗身驗出有糖尿病，醫生叫我戒口，唔可以食甜嘢。"
+    },
+    {
+      "role": "companion",
+      "text": "突然要戒口一定唔習慣。"
+    },
+    {
+      "role": "user",
+      "text": "係囉，我最鍾意食蛋撻㗎。仲有早排俾人打電話呃咗兩萬蚊，好嬲。"
+    },
+    {
+      "role": "companion",
+      "text": "真係好激氣，有冇報警呀？"
+    },
+    {
+      "role": "user",
+      "text": "報咗，不過應該追唔返。下個月五號要再去抽血。"
+    },
+    {
+      "role": "companion",
+      "text": "好，記得前一晚唔好食嘢。"
+    }
+  ]
+}
