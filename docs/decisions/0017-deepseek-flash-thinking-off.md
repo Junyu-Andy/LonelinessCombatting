@@ -1,4 +1,4 @@
-# 0016：DeepSeek 请求改为 `deepseek-flash` 并关闭思考模式，实际用的模型不变
+# 0017：DeepSeek 请求改为 `deepseek-flash` 并关闭思考模式，实际用的模型不变
 
 - 日期：2026-10-06
 - 状态：已采纳
@@ -35,6 +35,6 @@
 - 对研究：
   - 实际用的模型没有变，参与者感受不到差别。但研究文件里写的模型名要更正：参与者拿到的回复来自 DeepSeek-V4.1-Flash（非思考模式），不是 DeepSeek-V3。protocol、ICF、DMP、HREC 材料里凡写"DeepSeek-V3"或"deepseek-chat"的地方要对一下。
   - 登记表 C03 写的是 `deepseek-chat`，需要研究侧改成 `deepseek-flash`（思考关闭）。开发侧不改登记表。
-  - `deepseek-flash` 也不是锁定版本，DeepSeek 升级时同一个名字可能指向新模型。C04（每次调用记录返回的 `model` 和 `system_fingerprint`）仍然必要。
+  - `deepseek-flash` 也不是锁定版本，DeepSeek 升级时同一个名字可能指向新模型。C04（每次调用记录返回的 `model` 和 `system_fingerprint`，决策 0016，PR 草稿 #28）仍然必要。
 - 对开发：改动很小，三处请求体各加一行、改一行。新增静态测试：每处调用都必须带这两个字段，任何服务器代码不得再请求 `deepseek-chat`。要部署 Functions 才生效。
 - 对论文：Methods 写明模型为 DeepSeek-V4.1-Flash（非思考模式），经官方 API 调用、版本无法锁定；局限里保留"模型可能被供应商更新"一句。

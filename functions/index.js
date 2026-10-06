@@ -23,7 +23,7 @@ const PI_EMAIL = defineSecret("PI_EMAIL");
 // directly would turn thinking on by default: reasoning tokens then eat
 // max_tokens (the 200-token JSON calls came back empty) and temperature /
 // top_p stop applying.  So every call sends both fields below, which keeps
-// the exact behaviour the alias had.  Decision record 0016.
+// the exact behaviour the alias had.  Decision record 0017.
 const DEEPSEEK_MODEL = "deepseek-flash";
 const DEEPSEEK_THINKING = {type: "disabled"};
 

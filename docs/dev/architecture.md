@@ -37,7 +37,7 @@ flowchart LR
 | App | Flutter **3.35.3**（固定版本，见 `docs/dev/ci-cd.md`） | `lib/` |
 | 服务器 | Firebase Cloud Functions v2，Node 24，区域 `asia-east2` | `functions/` |
 | 数据库 | Firestore，项目 `loneliness-pilot-dev` | 规则 `firestore.rules` |
-| 大模型 | DeepSeek-V4.1-Flash（请求 `deepseek-flash`，`thinking` 关闭，决策 0016），经 `proxyDeepSeek` 调用，API key 只在服务器上 | `functions/index.js` 的 `DEEPSEEK_MODEL` |
+| 大模型 | DeepSeek-V4.1-Flash（请求 `deepseek-flash`，`thinking` 关闭，决策 0017），经 `proxyDeepSeek` 调用，API key 只在服务器上 | `functions/index.js` 的 `DEEPSEEK_MODEL` |
 | 语音转文字 | Google Speech（chirp_2，失败退回 long） | `transcribeAudio` |
 | iOS 发布 | Codemagic | `codemagic.yaml` |
 | 测试和部署 | GitHub Actions | `.github/workflows/` |

@@ -1,6 +1,6 @@
 /**
  * Every DeepSeek request names `deepseek-flash` and turns thinking off
- * (decision record 0016).
+ * (decision record 0017).
  *
  * Run:  cd functions && node test/deepseek_request_test.js
  *

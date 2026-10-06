@@ -20,8 +20,8 @@
 | 6 | `main` 分支保护 | Settings → Branches：必须走 PR、CI 通过才能合并 |
 | 7 | 部署 | 顺序见 `docs/dev/architecture.md` 第 9 节 |
 | 8 | ICF 修订 | 记忆强制开启、发给 DeepSeek、查看和删除、保留 3 年。负责人在改 |
-| 21 | 研究文件里的模型名 | 登记表 C03、protocol、ICF、DMP、HREC 材料里的「DeepSeek-V3」「deepseek-chat」改为 DeepSeek-V4.1-Flash（`deepseek-flash`，思考关闭）。见决策 0016 |
-| 22 | 部署决策 0016 的改动 | 现在线上的 Functions 还在请求旧名 `deepseek-chat`，DeepSeek 停用旧名当天 Hybrid 组会全部报错。合并后尽快部署 Functions |
+| 23 | 研究文件里的模型名 | 登记表 C03、protocol、ICF、DMP、HREC 材料里的「DeepSeek-V3」「deepseek-chat」改为 DeepSeek-V4.1-Flash（`deepseek-flash`，思考关闭）。见决策 0017 |
+| 24 | 部署决策 0017 的改动 | 现在线上的 Functions 还在请求旧名 `deepseek-chat`，DeepSeek 停用旧名当天 Hybrid 组会全部报错。合并后尽快部署 Functions |
 
 ## 3. 待决定
 
