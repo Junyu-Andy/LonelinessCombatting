@@ -128,7 +128,10 @@ def call_deepseek(api_key: str, system: str, history, user: str,
         messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": user})
     body = json.dumps({
-        "model": "deepseek-chat",
+        # Same model and thinking setting as functions/index.js
+        # (DEEPSEEK_MODEL / DEEPSEEK_THINKING, decision record 0017).
+        "model": "deepseek-flash",
+        "thinking": {"type": "disabled"},
         "messages": messages,
         "max_tokens": 800,
         "temperature": temperature,
