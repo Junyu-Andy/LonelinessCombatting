@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-06 模型版本记录（C04，PR 草稿，未合并）
+
+- 服务器上所有 DeepSeek 请求改走 `functions/llm_log.js` 的 `deepSeekChat`，每次调用在 `llm_calls` 写一条：返回的 `model`、token 数、延迟、是否出错，不存原文（决策 0016）。
+- 新增 Firestore 规则：`llm_calls` 客户端不能读写。
+- 新增测试：`functions/test/llm_log_test.js`、`functions/test/llm_calls_emulator_test.js`、`test/rules/llm_calls_rules.test.js`。
+- 报告：`docs/dev-reports/T5-model-logging-20261006.md`。
+
 ## 2026-10-04 规则组 Brief PR
 
 - 签到 B、回忆 B 每次提交记为一次会话（`sessions` / `turns`），提交后弹 Brief PR（决策 0015）。之前这两个页面从不弹，两组结局测量口径不同。

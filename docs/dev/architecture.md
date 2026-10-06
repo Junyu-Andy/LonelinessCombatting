@@ -104,7 +104,8 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
    - 读 persona prompt 文件，接上 App 传来的上下文（`contextSuffix`）；
    - 记忆 v1 用户：服务器自己读记忆、拼进 prompt（见第 7 节）；
    - `stripPII` 去掉电话、邮箱、身份证等；
-   - 调 DeepSeek，计算 5 个「LLM 独有机制」标记（`functions/llm_flags.js`）。
+   - 调 DeepSeek，计算 5 个「LLM 独有机制」标记（`functions/llm_flags.js`）；
+   - 在 `llm_calls` 记一条：返回的 `model`、token 数、延迟（见第 11 节）。
 4. 回复再查一次安全词，然后显示。
 5. 记录：每轮写 `turns`，每次会话写 `sessions`（`ChatSessionRecorder`）；没有被安全标记的轮次写进记忆缓冲区。
 6. 离开页面：会话结束 → 整理记忆 → 满足条件时弹 Brief PR（见第 6 节）。
@@ -167,6 +168,7 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | `meta/arm_counter` | 4 个层各自的 A/B 人数 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开 |
 | `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列 |
+| `llm_calls` | 每次调用 DeepSeek 一条：时间、调用类型、agent、uid、请求和返回的模型名、token 数、延迟、是否出错。不存原文。只有服务器写，App 不能读写（决策 0016） |
 | `export_blind_keys` | 盲法导出时组别 → Group_X / Group_Y 的对照 |
 
 ## 9. Cloud Functions
@@ -213,7 +215,10 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | `appVersion`、`buildNumber` | `lib/core/version/build_info.g.dart`（由 `tool/export_spec_inputs.py` 生成） |
 | prompt、安全文件、词库的 SHA-256 | 同上，`kArtefactHashes`；`test/phase_a_version_pin_test.dart` 检查是否过期 |
 | `promptVersion`（如 `siu_yan_v1@2026-06`） | 服务器从 prompt 文件第一行读，写进每条 `turns` |
-| `model` | DeepSeek 返回的 `model` 字段 |
+| `model` | DeepSeek 返回的 `model` 字段，App 写进 `turns` |
+| 每次 LLM 调用的模型和用量 | `llm_calls`（`functions/llm_log.js`）。服务器上**所有** DeepSeek 请求都经过 `deepSeekChat`，包括对话、问候、总结、周小结、「問下呢篇」、转介判断、记忆抽取 |
+
+`llm_calls` 的 `call_type`：`chat`、`greeting`、`session_summary`、`weekly_summary`、`article_qa`、`suggestions`、`memory_summary`（v0 滚动摘要）（由 `proxyDeepSeek` 的 `moduleId` 推出）；`referral_judgement`；`memory_extraction`。规则组被服务器拒绝，不产生记录。
 
 还没有：`buildSha`（git commit）、`memoryVersion`、敏感词表版本。见 `docs/dev/memory-and-entry-spec.md` 3.6。
 
