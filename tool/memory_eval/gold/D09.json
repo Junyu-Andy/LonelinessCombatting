@@ -1,0 +1,90 @@
+{
+  "id": "D09",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D09-F1",
+      "desc": "興趣：用手機影相／影花",
+      "match": [
+        [
+          "影相",
+          "影花",
+          "攝影",
+          "拍照",
+          "影"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D09-F2",
+      "desc": "個孫教佢用手機",
+      "match": [
+        [
+          "孫"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D09-F3",
+      "desc": "報咗社區中心大澳長者旅行團",
+      "match": [
+        [
+          "大澳"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D09-FU1",
+      "desc": "月尾去大澳旅行",
+      "match": [
+        [
+          "大澳",
+          "旅行"
+        ]
+      ],
+      "required": true,
+      "due_range": [
+        "2026-10-25",
+        "2026-10-31"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "gid": "D09-X1",
+      "desc": "學跳舞（假設句）",
+      "match": [
+        [
+          "跳舞"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    },
+    {
+      "gid": "D09-X2",
+      "desc": "煮飯好食過酒樓（孫講笑）",
+      "match": [
+        [
+          "酒樓",
+          "廚藝",
+          "煮飯好",
+          "烹飪"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    }
+  ],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

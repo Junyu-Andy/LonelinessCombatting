@@ -1,0 +1,42 @@
+{
+  "id": "D30",
+  "persona": "P10",
+  "agent": "siu_yan",
+  "module_id": "m2_check_in",
+  "prompt_key": "siu_yan_v1",
+  "hkt_time": "2026-10-07T19:30",
+  "tags": [
+    "更新已有事实",
+    "相对日期-范围"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "馮伯晚安，今日點呀？"
+    },
+    {
+      "role": "user",
+      "text": "幾好。美玲話下個禮拜要搬去天水圍，以後冇咁方便過嚟。"
+    },
+    {
+      "role": "companion",
+      "text": "搬遠咗你會唔會唔習慣？"
+    },
+    {
+      "role": "user",
+      "text": "有少少擔心。不過佢話會請個姨姨嚟幫我煮飯。"
+    },
+    {
+      "role": "companion",
+      "text": "咁都好。"
+    },
+    {
+      "role": "user",
+      "text": "十二月頭我個曾孫就出世喇，我做太公喇！"
+    },
+    {
+      "role": "companion",
+      "text": "恭喜你！"
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "id": "D04",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D04-F1",
+      "desc": "稱呼：黃伯",
+      "match": [
+        [
+          "黃伯"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D04-F2",
+      "desc": "太太舊年十一月過身",
+      "match": [
+        [
+          "過身",
+          "去世",
+          "離世",
+          "過世",
+          "死",
+          "逝"
+        ]
+      ],
+      "sensitive": true,
+      "required": true
+    },
+    {
+      "gid": "D04-F3",
+      "desc": "結婚五十年",
+      "match": [
+        [
+          "五十年",
+          "50年"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D04-F4",
+      "desc": "夜晚瞓唔着、諗起太太就喊",
+      "match": [
+        [
+          "瞓唔着",
+          "失眠",
+          "睡不著",
+          "睡唔着",
+          "難以入睡",
+          "喊",
+          "哭"
+        ]
+      ],
+      "sensitive": true,
+      "required": true
+    },
+    {
+      "gid": "D04-F5",
+      "desc": "大仔志強喺英國",
+      "match": [
+        [
+          "志強"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D04-F6",
+      "desc": "細仔志明住屯門",
+      "match": [
+        [
+          "志明"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D04-FU1",
+      "desc": "下個月十二號太太死忌，去拜祭",
+      "match": [
+        [
+          "死忌",
+          "忌日",
+          "拜",
+          "祭"
+        ]
+      ],
+      "required": true,
+      "due": "2026-11-12"
+    }
+  ],
+  "forbidden": [],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

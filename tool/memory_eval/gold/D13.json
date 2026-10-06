@@ -1,0 +1,81 @@
+{
+  "id": "D13",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D13-F1",
+      "desc": "稱呼：何太",
+      "match": [
+        [
+          "何太"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D13-F2",
+      "desc": "居住：黃大仙",
+      "match": [
+        [
+          "黃大仙"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D13-F3",
+      "desc": "老公前年中風，要坐輪椅",
+      "match": [
+        [
+          "中風",
+          "輪椅"
+        ]
+      ],
+      "sensitive": true,
+      "required": true
+    },
+    {
+      "gid": "D13-F4",
+      "desc": "照顧老公",
+      "match": [
+        [
+          "照顧"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D13-F5",
+      "desc": "每朝推老公去飲早茶",
+      "match": [
+        [
+          "早茶",
+          "茶樓"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D13-FU1",
+      "desc": "下個禮拜三帶老公做物理治療",
+      "match": [
+        [
+          "物理治療",
+          "物理"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-14"
+    }
+  ],
+  "forbidden": [],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

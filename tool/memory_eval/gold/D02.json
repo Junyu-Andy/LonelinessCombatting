@@ -1,0 +1,103 @@
+{
+  "id": "D02",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D02-F1",
+      "desc": "興趣：睇粵劇（任白）",
+      "match": [
+        [
+          "粵劇",
+          "任白",
+          "大戲",
+          "任劍輝"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D02-F2",
+      "desc": "健康：腳唔好，行唔到山",
+      "match": [
+        [
+          "腳"
+        ]
+      ],
+      "sensitive": true,
+      "required": false
+    },
+    {
+      "gid": "D02-F3",
+      "desc": "街坊陳師奶",
+      "match": [
+        [
+          "陳師奶"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D02-FU1",
+      "desc": "後日去高山劇場睇大戲",
+      "match": [
+        [
+          "大戲",
+          "劇場",
+          "粵劇"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-09"
+    }
+  ],
+  "forbidden": [
+    {
+      "gid": "D02-X1",
+      "desc": "通通自己鍾意睇足球（陪伴者的話）",
+      "match": [
+        [
+          "足球",
+          "睇波"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    },
+    {
+      "gid": "D02-X2",
+      "desc": "鍾意行山（陪伴者猜錯，用戶否認）",
+      "match": [
+        [
+          "行山"
+        ],
+        [
+          "鍾意",
+          "喜歡",
+          "興趣",
+          "愛好"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    },
+    {
+      "gid": "D02-X3",
+      "desc": "中六合彩買大屋（假設句）",
+      "match": [
+        [
+          "六合彩",
+          "大屋"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    }
+  ],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

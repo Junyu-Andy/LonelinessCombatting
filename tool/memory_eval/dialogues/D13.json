@@ -1,0 +1,48 @@
+{
+  "id": "D13",
+  "persona": "P05",
+  "agent": "siu_yan",
+  "module_id": "m2_check_in",
+  "prompt_key": "siu_yan_v1",
+  "hkt_time": "2026-10-07T09:00",
+  "tags": [
+    "新事实",
+    "人物地点",
+    "敏感-家人健康",
+    "相对日期"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "早晨！我係小欣，點稱呼你呀？"
+    },
+    {
+      "role": "user",
+      "text": "叫我何太啦。我住黃大仙。"
+    },
+    {
+      "role": "companion",
+      "text": "何太早晨！今日有咩安排呀？"
+    },
+    {
+      "role": "user",
+      "text": "一陣要照顧我老公，佢前年中風之後要坐輪椅。"
+    },
+    {
+      "role": "companion",
+      "text": "照顧屋企人好辛苦，你都要顧住自己。"
+    },
+    {
+      "role": "user",
+      "text": "慣咗喇。我每朝都會推佢落樓下茶樓飲早茶。"
+    },
+    {
+      "role": "companion",
+      "text": "好溫馨呀。"
+    },
+    {
+      "role": "user",
+      "text": "下個禮拜三要帶佢去做物理治療。"
+    }
+  ]
+}

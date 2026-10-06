@@ -1,0 +1,78 @@
+{
+  "id": "D18",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D18-F1",
+      "desc": "興趣：而家日日聽收音機講古",
+      "match": [
+        [
+          "講古",
+          "收音機"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D18-F2",
+      "desc": "眼矇、睇唔清",
+      "match": [
+        [
+          "眼矇",
+          "視力",
+          "睇唔清",
+          "看不清",
+          "眼"
+        ]
+      ],
+      "sensitive": true,
+      "required": false
+    },
+    {
+      "gid": "D18-F3",
+      "desc": "以前鍾意象棋，而家少捉",
+      "match": [
+        [
+          "象棋"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D18-FU1",
+      "desc": "一個月後換身份證",
+      "match": [
+        [
+          "身份證"
+        ]
+      ],
+      "required": true,
+      "due_range": [
+        "2026-11-04",
+        "2026-11-09"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "gid": "D18-X1",
+      "desc": "游水贏奧運冠軍（講笑）",
+      "match": [
+        [
+          "奧運",
+          "冠軍",
+          "游水"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    }
+  ],
+  "superseded": [],
+  "contradictions": [],
+  "notes": "象棋係阿伯嘅私有事實，通通睇唔到，所以通通冇辦法『更新』佢；呢個係設計上嘅行為，報告記錄。"
+}

@@ -1,0 +1,39 @@
+{
+  "id": "D23",
+  "persona": "P08",
+  "agent": "tung_tung",
+  "module_id": "tung_tung_chat",
+  "prompt_key": "tung_tung_v1",
+  "hkt_time": "2026-10-07T13:10",
+  "tags": [
+    "唔好记住",
+    "敏感-财务",
+    "相对日期"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "鄭伯你好！我係通通，今日有咩趣事？"
+    },
+    {
+      "role": "user",
+      "text": "今日睇咗場賽馬，我淨係鍾意睇，唔賭㗎。"
+    },
+    {
+      "role": "companion",
+      "text": "睇馬都好刺激！"
+    },
+    {
+      "role": "user",
+      "text": "唉，講起錢就頭痛。我借咗五萬蚊俾個仔做生意，到而家都未還。你唔好記住呢件事呀，我唔想再諗。"
+    },
+    {
+      "role": "companion",
+      "text": "好，明白。"
+    },
+    {
+      "role": "user",
+      "text": "星期六帶豆豆去剪毛。"
+    }
+  ]
+}

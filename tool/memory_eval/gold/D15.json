@@ -1,0 +1,82 @@
+{
+  "id": "D15",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D15-F1",
+      "desc": "後生喺酒樓做點心二十幾年",
+      "match": [
+        [
+          "點心"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D15-F2",
+      "desc": "得一個女，住澳洲墨爾本",
+      "match": [
+        [
+          "澳洲",
+          "墨爾本"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D15-F3",
+      "desc": "個女逢禮拜六晚視像",
+      "match": [
+        [
+          "視像",
+          "視頻",
+          "視訊"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [],
+  "forbidden": [
+    {
+      "gid": "D15-X1",
+      "desc": "有個仔喺加拿大（陪伴者猜錯，用戶否認）",
+      "match": [
+        [
+          "加拿大"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    },
+    {
+      "gid": "D15-X2",
+      "desc": "紗廠（陪伴者自己）",
+      "match": [
+        [
+          "紗廠"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    },
+    {
+      "gid": "D15-X3",
+      "desc": "去探舊同事（陪伴者建議，用戶冇答應）",
+      "match": [
+        [
+          "探",
+          "同事"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "followups"
+    }
+  ],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

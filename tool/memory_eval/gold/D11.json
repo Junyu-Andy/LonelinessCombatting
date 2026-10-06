@@ -1,0 +1,72 @@
+{
+  "id": "D11",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D11-F1",
+      "desc": "健康：糖尿病",
+      "match": [
+        [
+          "糖尿"
+        ]
+      ],
+      "sensitive": true,
+      "required": true
+    },
+    {
+      "gid": "D11-F2",
+      "desc": "俾人電話詐騙兩萬蚊",
+      "match": [
+        [
+          "呃",
+          "騙",
+          "詐"
+        ]
+      ],
+      "sensitive": true,
+      "required": true
+    },
+    {
+      "gid": "D11-F3",
+      "desc": "鍾意食蛋撻",
+      "match": [
+        [
+          "蛋撻"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D11-F4",
+      "desc": "要戒口、唔可以食甜",
+      "match": [
+        [
+          "戒口",
+          "戒甜",
+          "甜"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D11-FU1",
+      "desc": "下個月五號抽血",
+      "match": [
+        [
+          "抽血",
+          "驗血"
+        ]
+      ],
+      "required": true,
+      "due": "2026-11-05"
+    }
+  ],
+  "forbidden": [],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

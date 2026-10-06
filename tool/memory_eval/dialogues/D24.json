@@ -1,0 +1,39 @@
+{
+  "id": "D24",
+  "persona": "P08",
+  "agent": "ah_jan_ah_bak",
+  "module_id": "reflective_dialogue",
+  "prompt_key": "ah_jan_ah_bak_v1",
+  "hkt_time": "2026-10-07T15:15",
+  "tags": [
+    "更新已有事实",
+    "敏感-丧亲(宠物)",
+    "相对日期"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "鄭伯，今日想傾啲咩？"
+    },
+    {
+      "role": "user",
+      "text": "豆豆上個禮拜走咗，佢十二歲，我好唔捨得。"
+    },
+    {
+      "role": "companion",
+      "text": "豆豆陪咗你咁耐，一定好傷心。"
+    },
+    {
+      "role": "user",
+      "text": "屋企冇咗佢好靜，朝早都唔知做咩好。"
+    },
+    {
+      "role": "companion",
+      "text": "要慢慢適應，辛苦你。"
+    },
+    {
+      "role": "user",
+      "text": "下個禮拜四我同太太會帶佢啲骨灰去海邊撒。"
+    }
+  ]
+}

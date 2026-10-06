@@ -1,0 +1,39 @@
+{
+  "id": "D29",
+  "persona": "P10",
+  "agent": "tung_tung",
+  "module_id": "tung_tung_chat",
+  "prompt_key": "tung_tung_v1",
+  "hkt_time": "2026-10-07T15:30",
+  "tags": [
+    "唔好记住",
+    "敏感-健康",
+    "相对日期"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "馮伯你好！我係通通。"
+    },
+    {
+      "role": "user",
+      "text": "今朝我喺屋企跌親，撞到個頭，而家仲有啲痛。你唔好話俾美玲知，亦都唔好記住呀。"
+    },
+    {
+      "role": "companion",
+      "text": "馮伯，撞到頭要小心，如果頭暈要睇醫生。"
+    },
+    {
+      "role": "user",
+      "text": "知道。講啲開心嘢，我好鍾意聽京劇，梅蘭芳嗰啲。"
+    },
+    {
+      "role": "companion",
+      "text": "京劇好有韻味！"
+    },
+    {
+      "role": "user",
+      "text": "後日老人中心有個講座講防騙，我會去聽。"
+    }
+  ]
+}

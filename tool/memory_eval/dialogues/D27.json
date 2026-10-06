@@ -1,0 +1,46 @@
+{
+  "id": "D27",
+  "persona": "P09",
+  "agent": "ah_jan_ah_bak",
+  "module_id": "m3_reminiscence_w5",
+  "prompt_key": "ah_jan_ah_bak_v1",
+  "hkt_time": "2026-10-07T12:00",
+  "tags": [
+    "纠正(对话内)",
+    "前后矛盾"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "蘇太，今個禮拜傾下你結婚嘅事。"
+    },
+    {
+      "role": "user",
+      "text": "我十八歲就嫁俾我老公……唔係，係二十歲，我記錯咗。"
+    },
+    {
+      "role": "companion",
+      "text": "二十歲，好後生呀。你老公做咩嘅？"
+    },
+    {
+      "role": "user",
+      "text": "佢以前做巴士司機，揸咗三十年巴士。"
+    },
+    {
+      "role": "companion",
+      "text": "你哋有幾多個仔女？"
+    },
+    {
+      "role": "user",
+      "text": "我有三個仔女。"
+    },
+    {
+      "role": "companion",
+      "text": "好熱鬧！"
+    },
+    {
+      "role": "user",
+      "text": "我兩個仔女都好孝順，成日返嚟探我。"
+    }
+  ]
+}

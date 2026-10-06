@@ -1,0 +1,89 @@
+{
+  "id": "D25",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D25-F1",
+      "desc": "整老婆餅好出名",
+      "match": [
+        [
+          "老婆餅"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D25-F2",
+      "desc": "居住：柴灣",
+      "match": [
+        [
+          "柴灣"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D25-F3",
+      "desc": "稱呼：蘇太",
+      "match": [
+        [
+          "蘇太"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    }
+  ],
+  "followups": [],
+  "forbidden": [
+    {
+      "gid": "D25-X1",
+      "desc": "住北角（陪伴者猜錯）",
+      "match": [
+        [
+          "北角"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    },
+    {
+      "gid": "D25-X2",
+      "desc": "整蛋撻（陪伴者自己）",
+      "match": [
+        [
+          "蛋撻"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    },
+    {
+      "gid": "D25-X3",
+      "desc": "開餅店（假設句）",
+      "match": [
+        [
+          "餅店"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    },
+    {
+      "gid": "D25-X4",
+      "desc": "去圖書館（陪伴者建議，用戶拒絕）",
+      "match": [
+        [
+          "圖書館"
+        ]
+      ],
+      "kind": "fabrication",
+      "scope": "items"
+    }
+  ],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

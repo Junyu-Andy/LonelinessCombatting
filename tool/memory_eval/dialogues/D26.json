@@ -1,0 +1,38 @@
+{
+  "id": "D26",
+  "persona": "P09",
+  "agent": "siu_yan",
+  "module_id": "m2_check_in",
+  "prompt_key": "siu_yan_v1",
+  "hkt_time": "2026-10-07T05:45",
+  "tags": [
+    "相对日期",
+    "时区陷阱"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "蘇太，咁早起身呀？我係小欣。"
+    },
+    {
+      "role": "user",
+      "text": "係呀，五點幾就醒咗，老人家冇覺瞓。"
+    },
+    {
+      "role": "companion",
+      "text": "早晨！今日有咩安排？"
+    },
+    {
+      "role": "user",
+      "text": "今晚個女請我去食飯，佢升咗職。"
+    },
+    {
+      "role": "companion",
+      "text": "恭喜呀！"
+    },
+    {
+      "role": "user",
+      "text": "禮拜五我照舊去長者中心做義工，教人整餅。下個月十號又要去覆診。"
+    }
+  ]
+}

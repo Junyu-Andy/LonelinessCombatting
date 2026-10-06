@@ -1,0 +1,86 @@
+{
+  "id": "D01",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D01-F1",
+      "desc": "稱呼：陳太",
+      "match": [
+        [
+          "陳太"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D01-F2",
+      "desc": "居住：一個人住深水埗",
+      "match": [
+        [
+          "深水埗"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D01-F3",
+      "desc": "家人：女兒阿欣住沙田",
+      "match": [
+        [
+          "阿欣"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D01-F4",
+      "desc": "阿欣逢禮拜日上嚟食飯",
+      "match": [
+        [
+          "阿欣",
+          "女兒"
+        ],
+        [
+          "禮拜日",
+          "星期日",
+          "週日",
+          "周日"
+        ]
+      ],
+      "sensitive": false,
+      "required": false
+    },
+    {
+      "gid": "D01-F5",
+      "desc": "健康：膝頭痛、落樓梯辛苦",
+      "match": [
+        [
+          "膝"
+        ]
+      ],
+      "sensitive": true,
+      "required": true
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D01-FU1",
+      "desc": "覆診",
+      "match": [
+        [
+          "覆診",
+          "醫"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-15"
+    }
+  ],
+  "forbidden": [],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

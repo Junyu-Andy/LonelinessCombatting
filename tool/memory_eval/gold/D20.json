@@ -1,0 +1,65 @@
+{
+  "id": "D20",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D20-F1",
+      "desc": "個仔成個月冇打電話，覺得孤獨",
+      "match": [
+        [
+          "孤獨",
+          "寂寞",
+          "冇打",
+          "沒有打",
+          "沒打",
+          "電話"
+        ]
+      ],
+      "sensitive": true,
+      "required": true
+    },
+    {
+      "gid": "D20-F2",
+      "desc": "高血壓，日日食藥",
+      "match": [
+        [
+          "高血壓",
+          "血壓"
+        ]
+      ],
+      "sensitive": true,
+      "required": true
+    },
+    {
+      "gid": "D20-F3",
+      "desc": "有時唔記得食藥",
+      "match": [
+        [
+          "唔記得",
+          "忘記",
+          "忘"
+        ]
+      ],
+      "sensitive": true,
+      "required": false
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D20-FU1",
+      "desc": "過多三日去街坊會攞飯盒",
+      "match": [
+        [
+          "飯盒",
+          "街坊會"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-10"
+    }
+  ],
+  "forbidden": [],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}
