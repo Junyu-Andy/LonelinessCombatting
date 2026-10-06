@@ -11,6 +11,7 @@
 - 服务器上所有 DeepSeek 请求改走 `functions/llm_log.js` 的 `deepSeekChat`，每次调用在 `llm_calls` 写一条：返回的 `model`、token 数、延迟、是否出错，不存原文（决策 0016）。
 - 新增 Firestore 规则：`llm_calls` 客户端不能读写。
 - 新增测试：`functions/test/llm_log_test.js`、`functions/test/llm_calls_emulator_test.js`、`test/rules/llm_calls_rules.test.js`。
+- 真实调用冒烟测试（`functions/test/llm_live_smoke.js`，手动跑）：请求 `deepseek-chat`，返回 `model` 为 `deepseek-flash`，正确写进日志。
 - 报告：`docs/dev-reports/T5-model-logging-20261006.md`。
 
 ## 2026-10-04 规则组 Brief PR

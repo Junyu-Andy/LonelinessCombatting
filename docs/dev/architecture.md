@@ -220,6 +220,8 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 
 `llm_calls` 的 `call_type`：`chat`、`greeting`、`session_summary`、`weekly_summary`、`article_qa`、`suggestions`、`memory_summary`（v0 滚动摘要）（由 `proxyDeepSeek` 的 `moduleId` 推出）；`referral_judgement`；`memory_extraction`。规则组被服务器拒绝，不产生记录。
 
+2026-10-06 实测：请求 `deepseek-chat`，DeepSeek 返回的 `model` 是 `deepseek-flash`。手动验证用 `functions/test/llm_live_smoke.js`（不在 CI 里）。
+
 还没有：`buildSha`（git commit）、`memoryVersion`、敏感词表版本。见 `docs/dev/memory-and-entry-spec.md` 3.6。
 
 ## 12. 编译开关和测试

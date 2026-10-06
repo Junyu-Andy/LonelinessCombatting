@@ -124,7 +124,7 @@ firebase emulators:exec --only firestore --project loneliness-pilot-dev \
 - `functions/llm_log.js`（新）：`deepSeekChat`、`callTypeForModule`、`buildLogRow`
 - `functions/index.js`：3 处 DeepSeek 请求改走 `deepSeekChat`；`callDeepSeekJson` 改为 `callDeepSeekJsonFor(uid, agentId)`
 - `firestore.rules`：`llm_calls` 客户端禁止读写
-- 测试：`functions/test/llm_log_test.js`、`functions/test/llm_calls_emulator_test.js`、`test/rules/llm_calls_rules.test.js`、`test/rules/package.json`、`test/rules/README.md`
+- 测试：`functions/test/llm_log_test.js`、`functions/test/llm_calls_emulator_test.js`、`functions/test/llm_live_smoke.js`（手动）、`test/rules/llm_calls_rules.test.js`、`test/rules/package.json`、`test/rules/README.md`
 - 文档：`docs/decisions/0016-log-every-llm-call-model.md`、`docs/STUDY_CHANGELOG.md`、`docs/dev/architecture.md`、`docs/history.md`、`docs/dev/backlog.md`、本报告
 
 ## 要带回研究侧的发现
@@ -136,6 +136,8 @@ firebase emulators:exec --only firestore --project loneliness-pilot-dev \
 - **C11**：每周小结由 App 进度页调用（`m9_progress_summary`），不是服务器定时生成。会被记录，但 `agent_id` 为 null。
 
 ### (2) 会影响 ICF、DMP、研究方案的事实
+
+- **请求的模型名和实际返回的不一样**：2026-10-06 实测，请求 `deepseek-chat`，返回 `model` = `deepseek-flash`。统筹会话另外看到 DeepSeek 的 `/models` 列出的是 DeepSeek-V4.1-Flash，列表里没有 `deepseek-chat`（这一点本会话没有自己查）。研究方案、注册和 ICF 里如果写的是「DeepSeek-V3」或「deepseek-chat」，需要核对措辞。`docs/dev/architecture.md` 第 2 节目前也写着 DeepSeek-V3。
 
 - `llm_calls` 是新的研究数据集合，含 Firebase uid，不含对话原文。DMP 需要写明：存在哪里（Firestore，与其他数据同一项目）、保存多久、退出研究时是否删除。
 - 研究方案 / 论文 Methods 可以写：「每次调用记录 DeepSeek 返回的模型标识、token 数和延迟」。模型版本无法锁定，建议在局限中说明。
