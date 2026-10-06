@@ -23,7 +23,9 @@ process.env.GCLOUD_PROJECT = process.env.GCLOUD_PROJECT ||
 process.env.DEEPSEEK_API_KEY = "test-key";
 
 // --- DeepSeek stub ---------------------------------------------------------
-const STUB_MODEL = "deepseek-chat-stub-0324";
+// Mirrors the live API as seen on 2026-10-06: asked for "deepseek-chat", it
+// answers with model "deepseek-flash".  The log must keep both names.
+const STUB_MODEL = "deepseek-flash";
 const REPLY = "STUB_REPLY_好開心同你傾偈";
 const USER_TEXT = "STUB_USER_今日去咗飲茶";
 let fetchCalls = [];
@@ -120,6 +122,9 @@ function assertRow(row, want) {
   }
   assert.strictEqual(row.uid, want.uid || UID_A);
   assert.strictEqual(row.model_requested, "deepseek-chat");
+  if (row.model_returned !== null) {
+    assert.notStrictEqual(row.model_returned, row.model_requested);
+  }
   assert.ok(row.ts instanceof admin.firestore.Timestamp, "ts is a Timestamp");
   assert.ok(Math.abs(row.ts.toMillis() - Date.now()) < 60000, "ts is now");
   assert.ok(typeof row.latency_ms === "number" && row.latency_ms >= 0);

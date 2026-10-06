@@ -10,7 +10,7 @@
 - 现在这 3 处都改为走同一个函数 `deepSeekChat`（`functions/llm_log.js`），每次调用后在顶层集合 `llm_calls` 写一条。出错也写。不存 prompt 和回复原文。
 - 规则组在服务器防线处就被拒绝，到不了 DeepSeek，所以不产生任何记录。代码里没有给规则组用的「安全标记」类 LLM 调用（5-flag 是正则，不是 LLM，见下文）。
 - 测试：模拟器上 15 项全部通过，覆盖每一类调用、出错、规则组零记录；Firestore 规则测试确认 App 不能读写 `llm_calls`。
-- **真实返回的 `model` 值未在本环境验证**（本环境没有 DeepSeek 密钥，也连不到 api.deepseek.com；测试用的是假响应）。
+- **真实调用已验证（2026-10-06）**：请求 `deepseek-chat`，DeepSeek 返回的 `model` 是 **`deepseek-flash`**，两者不同，日志里分别存在 `model_requested` 和 `model_returned`。这正是 C04 要记录的情况。
 
 ## 1. 调用 LLM 的地方
 
@@ -82,8 +82,9 @@ App 没传 `agentId` 的调用，`llm_calls.agent_id` 为 null。没有在服务
 | 测试 | 内容 | 结果 |
 |---|---|---|
 | `functions/test/llm_log_test.js`（新，无需模拟器） | `moduleId` → `call_type` 映射；成功一条、字段齐全、不含原文；非 2xx 记 `error: true`；网络失败记录后再抛出；写日志失败不影响调用 | 5/5 |
-| `functions/test/llm_calls_emulator_test.js`（新，模拟器） | 直接运行真实的函数（`proxyDeepSeek` 10 种 `moduleId`、`referralJudgement`、`memoryEndSession`、`memorySweep`），DeepSeek 用假响应（替换 `fetch`，返回带 `model` 字段）；每类各写一条，字段和值正确，不含原文；上游 500 记 `error: true`；规则组从所有入口调用都被拒，DeepSeek 没被调用，`llm_calls` 零条 | 15/15 |
+| `functions/test/llm_calls_emulator_test.js`（新，模拟器） | 直接运行真实的函数（`proxyDeepSeek` 10 种 `moduleId`、`referralJudgement`、`memoryEndSession`、`memorySweep`），DeepSeek 用假响应（替换 `fetch`），按真实情况设成「请求 `deepseek-chat`、返回 `deepseek-flash`」，断言两个字段分别存下且不相同；每类各写一条，字段和值正确，不含原文；上游 500 记 `error: true`；规则组从所有入口调用都被拒，DeepSeek 没被调用，`llm_calls` 零条 | 15/15 |
 | `test/rules/llm_calls_rules.test.js`（新，规则） | 本人不能读自己的记录；任何客户端不能新建、覆盖、删除；未登录也不能读 | 3/3（规则测试共 34 项通过） |
+| `functions/test/llm_live_smoke.js`（新，**手动跑，不在 CI 里**） | 真实调用 DeepSeek 一次（一句合成英文，`max_tokens` 5），经 `deepSeekChat` 写日志再读回。在模拟器里和不用模拟器各跑一次，都通过：`model_requested` = `deepseek-chat`，`model_returned` = `deepseek-flash`，prompt 11 / completion 1 token，延迟约 1.3–1.5 秒 | 通过 |
 | 原有测试 | `arm_test`、`llm_flags_test`、`memory_test`、`arm_emulator_test`、`memory_emulator_test`、其余规则测试 | 全部通过 |
 
 Lint（`functions/` 的 `npx eslint .`）：
@@ -94,9 +95,26 @@ Lint（`functions/` 的 `npx eslint .`）：
 
 没有跑 Flutter 测试：这次没有改 App 代码。
 
+**怎么手动跑真实调用的冒烟测试**（在 `functions/` 目录）：
+
+```bash
+# 有真实密钥时
+DEEPSEEK_API_KEY=<密钥> node test/llm_live_smoke.js
+
+# Claude Code 云端会话：代理会自动换上真实密钥，代码里用占位值；
+# Node 原生 fetch 要加 NODE_USE_ENV_PROXY=1 才走代理
+NODE_USE_ENV_PROXY=1 DEEPSEEK_API_KEY=placeholder node test/llm_live_smoke.js
+
+# 想确认真的写进 Firestore：在仓库根目录用模拟器跑
+firebase emulators:exec --only firestore --project loneliness-pilot-dev \
+  "cd functions && NODE_USE_ENV_PROXY=1 DEEPSEEK_API_KEY=placeholder node test/llm_live_smoke.js"
+```
+
+文件名不以 `_test.js` 结尾，所以 `tool/ci_backend_tests.sh` 不会跑它（CI 没有密钥）。它只打印日志那一行，不打印密钥。
+
 ## 4. 没做的和限制
 
-- **真实返回的 `model` 值未在本环境验证。** 本环境没有 DeepSeek 密钥，也连不到 api.deepseek.com。代码按 OpenAI 兼容格式读响应顶层的 `model` 和 `usage`（推断：和现有 `proxyDeepSeek` 返回 `data.model` 的写法一致）。部署后建议先看几条真实记录。
+- 真实调用只在本环境用 `llm_live_smoke.js` 验证过 `deepSeekChat` 这一层；部署后的 `proxyDeepSeek` 等函数没有对真实 DeepSeek 跑过（函数层用的是假响应）。部署后建议先看几条真实记录。
 - `llm_calls` 没有加进盲法导出 `blindedDataExport`（`functions/index.js` 约第 1114 行 `_EXPORT_BLINDED_COLLECTIONS`）。已记入 backlog 第 21 项。
 - 代码里未找到删除用户数据的脚本或函数，所以 `llm_calls` 也没有删除逻辑。已记入 backlog 第 21 项。
 - 每次调用多一次 Firestore 写入（推断：几十毫秒），在回复返回前完成。

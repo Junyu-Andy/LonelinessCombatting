@@ -38,7 +38,7 @@ function fakeFetch(status, body) {
 }
 
 const OK_BODY = {
-  model: "deepseek-chat-v3-test",
+  model: "deepseek-flash", // what the live API returns for deepseek-chat
   choices: [{message: {content: "你好呀，今日點呀？"}}],
   usage: {prompt_tokens: 120, completion_tokens: 15},
 };
@@ -95,7 +95,7 @@ test("success: one row with the returned model and token counts", async () => {
   assert.strictEqual(row.agent_id, "siu_yan");
   assert.strictEqual(row.uid, "u1");
   assert.strictEqual(row.model_requested, "deepseek-chat");
-  assert.strictEqual(row.model_returned, "deepseek-chat-v3-test");
+  assert.strictEqual(row.model_returned, "deepseek-flash");
   assert.strictEqual(row.prompt_tokens, 120);
   assert.strictEqual(row.completion_tokens, 15);
   assert.strictEqual(row.error, false);
