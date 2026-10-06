@@ -57,7 +57,9 @@ function memoryDb() {
   }
 
   const body = {
-    model: "deepseek-chat",
+    // As index.js sends it (decision 0017).
+    model: "deepseek-flash",
+    thinking: {type: "disabled"},
     messages: [{role: "user", content: "Reply with the single word: ok"}],
     max_tokens: 5,
     temperature: 0,
@@ -66,6 +68,10 @@ function memoryDb() {
     apiKey,
     log: {callType: "chat", agentId: null, uid: "smoke_test"},
     body,
+    timeoutMs: 30000,
+    // This script's first Firestore write is cold (the functions read
+    // Firestore before calling DeepSeek, so theirs is warm); allow for it.
+    logTimeoutMs: 15000,
   });
   const rows = await readBack();
   console.log("HTTP status:", res.status);

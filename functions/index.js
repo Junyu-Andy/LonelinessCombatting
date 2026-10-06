@@ -19,6 +19,15 @@ const SMTP_USER = defineSecret("SMTP_USER");
 const SMTP_PASS = defineSecret("SMTP_PASS");
 const PI_EMAIL = defineSecret("PI_EMAIL");
 
+// `deepseek-chat` is a legacy alias; on 2026-10-06 DeepSeek resolved it to
+// `deepseek-flash` (DeepSeek-V4.1-Flash) with thinking off.  Naming the model
+// directly would turn thinking on by default: reasoning tokens then eat
+// max_tokens (the 200-token JSON calls came back empty) and temperature /
+// top_p stop applying.  So every call sends both fields below, which keeps
+// the exact behaviour the alias had.  Decision record 0017.
+const DEEPSEEK_MODEL = "deepseek-flash";
+const DEEPSEEK_THINKING = {type: "disabled"};
+
 // ---------------------------------------------------------------------------
 // Prompt resolution (Dev Req §3.2, §8 – prompts live server-side so the
 // client cannot tamper with them).
@@ -336,13 +345,16 @@ exports.proxyDeepSeek = onCall(
       apiKey: DEEPSEEK_API_KEY.value(),
       // No HKU email / IP in headers; pseudonymous session tag only.
       headers: {"X-Session-Code": codedSession},
+      // Under the 55 s function timeout, so a hung call is still logged.
+      timeoutMs: 50000,
       log: {
         callType: llmLog.callTypeForModule(moduleId),
         agentId,
         uid: request.auth.uid,
       },
       body: {
-        model: "deepseek-chat",
+        model: DEEPSEEK_MODEL,
+        thinking: DEEPSEEK_THINKING,
         messages: [
           {role: "system", content: systemPrompt},
           ...scrubbed,
@@ -514,13 +526,15 @@ agent 聲音寫邀請；其他情況留空>"}`;
 
     const response = await llmLog.deepSeekChat(admin.firestore(), {
       apiKey: DEEPSEEK_API_KEY.value(),
+      timeoutMs: 17000, // function timeout is 20 s
       log: {
         callType: "referral_judgement",
         agentId: sourceAgentId,
         uid: request.auth.uid,
       },
       body: {
-        model: "deepseek-chat",
+        model: DEEPSEEK_MODEL,
+        thinking: DEEPSEEK_THINKING,
         messages: [
           {role: "system", content: sourcePrompt},
           ...messages,
@@ -1322,9 +1336,13 @@ function callDeepSeekJsonFor(uid, agentId) {
   return async (prompt) => {
     const response = await llmLog.deepSeekChat(admin.firestore(), {
       apiKey: DEEPSEEK_API_KEY.value(),
+      // memoryEndSession allows 60 s, including the Firestore reads and
+      // writes around this call.
+      timeoutMs: 45000,
       log: {callType: "memory_extraction", agentId, uid},
       body: {
-        model: "deepseek-chat",
+        model: DEEPSEEK_MODEL,
+        thinking: DEEPSEEK_THINKING,
         messages: [
           {role: "system", content: prompt.system},
           {role: "user", content: stripPII(prompt.user)},

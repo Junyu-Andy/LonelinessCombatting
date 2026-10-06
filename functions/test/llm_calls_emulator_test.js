@@ -22,9 +22,15 @@ process.env.GCLOUD_PROJECT = process.env.GCLOUD_PROJECT ||
   "loneliness-pilot-dev";
 process.env.DEEPSEEK_API_KEY = "test-key";
 
+// The model index.js requests (decision 0017), read from its source so this
+// test follows a future rename.
+const DEEPSEEK_MODEL = require("fs")
+    .readFileSync(require("path").join(__dirname, "..", "index.js"), "utf8")
+    .match(/const DEEPSEEK_MODEL = "([^"]+)";/)[1];
+
 // --- DeepSeek stub ---------------------------------------------------------
-// Mirrors the live API as seen on 2026-10-06: asked for "deepseek-chat", it
-// answers with model "deepseek-flash".  The log must keep both names.
+// Mirrors the live API as seen on 2026-10-06: it answers with model
+// "deepseek-flash" and a system_fingerprint.
 const STUB_MODEL = "deepseek-flash";
 const REPLY = "STUB_REPLY_好開心同你傾偈";
 const USER_TEXT = "STUB_USER_今日去咗飲茶";
@@ -32,7 +38,7 @@ let fetchCalls = [];
 let nextStatus = 200;
 global.fetch = async (url, init) => {
   const body = JSON.parse(init.body);
-  fetchCalls.push({url, body});
+  fetchCalls.push({url, body, hasSignal: !!init.signal});
   let content = REPLY;
   if (body.response_format) {
     // referralJudgement and memory extraction both ask for JSON.
@@ -113,9 +119,10 @@ const chat = (uid, moduleId, agentId) => fns.proxyDeepSeek.run({
 });
 
 const FIELDS = [
-  "agent_id", "call_type", "completion_tokens", "error", "latency_ms",
-  "model_requested", "model_returned", "prompt_tokens", "reasoning_tokens",
-  "system_fingerprint", "ts", "uid",
+  "agent_id", "call_type", "completion_tokens", "error",
+  "http_status", "latency_ms", "model_requested", "model_returned",
+  "prompt_tokens", "reasoning_tokens", "system_fingerprint", "ts",
+  "uid",
 ];
 
 function assertRow(row, want) {
@@ -124,10 +131,7 @@ function assertRow(row, want) {
     assert.strictEqual(row[k], v, `${k}: ${row[k]} != ${v}`);
   }
   assert.strictEqual(row.uid, want.uid || UID_A);
-  assert.strictEqual(row.model_requested, "deepseek-chat");
-  if (row.model_returned !== null) {
-    assert.notStrictEqual(row.model_returned, row.model_requested);
-  }
+  assert.strictEqual(row.model_requested, DEEPSEEK_MODEL);
   assert.ok(row.ts instanceof admin.firestore.Timestamp, "ts is a Timestamp");
   assert.ok(Math.abs(row.ts.toMillis() - Date.now()) < 60000, "ts is now");
   assert.ok(typeof row.latency_ms === "number" && row.latency_ms >= 0);
@@ -138,7 +142,8 @@ function assertRow(row, want) {
 
 const okRow = {
   model_returned: STUB_MODEL, prompt_tokens: 321, completion_tokens: 21,
-  system_fingerprint: "fp_stub_flash", reasoning_tokens: 0, error: false,
+  system_fingerprint: "fp_stub_flash", reasoning_tokens: 0, http_status: 200,
+  error: false,
 };
 
 const tests = [];
@@ -218,8 +223,28 @@ test("upstream error is logged with error: true", async () => {
   assert.strictEqual(r.length, 1);
   assertRow(r[0], {call_type: "chat", agent_id: "siu_yan", error: true,
     model_returned: null, prompt_tokens: null, completion_tokens: null,
-    system_fingerprint: null, reasoning_tokens: null});
+    system_fingerprint: null, reasoning_tokens: null, http_status: 500});
 });
+
+test("every request: DEEPSEEK_MODEL, thinking off, a timeout signal",
+    async () => {
+      await reset();
+      await seedBuffer(UID_A, "tung_tung", false);
+      await chat(UID_A, "m2_check_in", "siu_yan");
+      await fns.referralJudgement.run({
+        auth: {uid: UID_A},
+        data: {sourceAgentId: "siu_yan", targetAgentId: "tung_tung"},
+      });
+      await fns.memoryEndSession.run({
+        auth: {uid: UID_A}, data: {agentId: "tung_tung"},
+      });
+      assert.strictEqual(fetchCalls.length, 3);
+      for (const c of fetchCalls) {
+        assert.strictEqual(c.body.model, DEEPSEEK_MODEL);
+        assert.deepStrictEqual(c.body.thinking, {type: "disabled"});
+        assert.ok(c.hasSignal, "request has no timeout signal");
+      }
+    });
 
 test("Arm B: no LLM call, no llm_calls row, from any entry point",
     async () => {

@@ -11,7 +11,7 @@
 | 2 | 记忆和入口的 P0 | `docs/dev/memory-and-entry-spec.md` 第 3 节 | 等负责人调研完记忆架构 |
 | 3 | `meta/arm_counter` 改为客户端不可读、不可写 | 决策 0003（W1） | 分组已在服务器做，客户端不再需要它。可以和第 1 项一起做 |
 | 4 | 每次分组写审计日志（时间、层、当时计数、结果、硬币） | `arm_assignment_scheme_v1.md` W2 | 建议和第 1 项一起做 |
-| 21 | `llm_calls` 加进盲法导出（`blindedDataExport`）；数据删除时一起删 | 决策 0016 | C04 PR 只做了记录，没有导出和删除 |
+| 21 | `llm_calls` 加进盲法导出（`blindedDataExport`）；数据删除时一起删 | 决策 0016 | C04 PR 只做了记录，没有导出和删除。**注意**：只有 Hybrid 组有记录，揭盲前原样导出就等于揭盲 |
 
 ## 2. 上线前必须做（负责人操作）
 
@@ -21,6 +21,8 @@
 | 6 | `main` 分支保护 | Settings → Branches：必须走 PR、CI 通过才能合并 |
 | 7 | 部署 | 顺序见 `docs/dev/architecture.md` 第 9 节 |
 | 8 | ICF 修订 | 记忆强制开启、发给 DeepSeek、查看和删除、保留 3 年。负责人在改 |
+| 23 | 研究文件里的模型名 | 登记表 C03、protocol、ICF、DMP、HREC 材料里的「DeepSeek-V3」「deepseek-chat」改为 DeepSeek-V4.1-Flash（`deepseek-flash`，思考关闭）。见决策 0017 |
+| 24 | 部署决策 0017 的改动 | 现在线上的 Functions 还在请求旧名 `deepseek-chat`，DeepSeek 停用旧名当天 Hybrid 组会全部报错。合并后尽快部署 Functions |
 
 ## 3. 待决定
 

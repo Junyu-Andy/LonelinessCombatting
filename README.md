@@ -5,7 +5,7 @@
 
 A Flutter + Firebase research app helping **Hong Kong older adults (60+) gently push back against loneliness**. It is the Phase A pilot deliverable for a stratified 4-cell RCT:
 
-- **Arm A (Hybrid)** — three named LLM companions (DeepSeek-V3) layered over deterministic tools.
+- **Arm A (Hybrid)** — three named LLM companions (DeepSeek-V4.1-Flash, `deepseek-flash` with thinking off) layered over deterministic tools.
 - **Arm B (Rule-based)** — identical UI shell with static pools and rule-based dialogue.
 
 Surface widgets are **pixel-identical between arms** except for two sanctioned exceptions (M8 "問通通呢篇" Q&A button, M9 weekly LLM summary card). Phase A runs `forceArmA = true` for the pilot cohort.

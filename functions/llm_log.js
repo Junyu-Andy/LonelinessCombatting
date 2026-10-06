@@ -1,8 +1,9 @@
 /**
  * C04 — model version log.
  *
- * DeepSeek's `deepseek-chat` alias cannot be pinned to a model version, so
- * every call records the `model` field the API actually returned.  One doc
+ * DeepSeek model names cannot be pinned to a dated version (decision 0017:
+ * we request `deepseek-flash` with thinking off), so every call records the
+ * `model` and `system_fingerprint` the API actually returned.  One doc
  * per call goes to the top-level `llm_calls` collection (admin-only in
  * firestore.rules), never into a conversation collection.
  *
@@ -15,9 +16,12 @@
 "use strict";
 
 const admin = require("firebase-admin");
+const {AGENTS} = require("./memory");
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const LLM_CALLS = "llm_calls";
+/** Upper bound on the log write; past it the reply goes out unlogged. */
+const LOG_WRITE_TIMEOUT_MS = 2000;
 
 /** call_type values, one per kind of LLM use. */
 const CALL_TYPES = [
@@ -86,7 +90,8 @@ function buildLogRow(p) {
   return {
     ts: admin.firestore.Timestamp.fromMillis(p.startedMs),
     call_type: p.callType,
-    agent_id: p.agentId || null,
+    // Only the three known agents; anything else the client sent is null.
+    agent_id: AGENTS.indexOf(p.agentId) >= 0 ? p.agentId : null,
     uid: p.uid || null,
     model_requested: p.modelRequested || null,
     model_returned: stringField(p.data, "model"),
@@ -95,17 +100,41 @@ function buildLogRow(p) {
     prompt_tokens: usage.prompt,
     completion_tokens: usage.completion,
     reasoning_tokens: usage.reasoning,
+    http_status: typeof p.httpStatus === "number" ? p.httpStatus : null,
     latency_ms: p.latencyMs,
     error: p.error === true,
   };
 }
 
 /**
+ * Adds one row, giving up after `timeoutMs`.  Never throws.
+ * @param {object} db
+ * @param {object} row
+ * @param {number} timeoutMs
+ * @return {Promise<void>}
+ */
+async function writeLog(db, row, timeoutMs) {
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(
+        () => reject(new Error(`timed out after ${timeoutMs} ms`)), timeoutMs);
+  });
+  try {
+    await Promise.race([db.collection(LLM_CALLS).add(row), timeout]);
+  } catch (err) {
+    console.error("llm_calls write failed", {err: String(err)});
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * POSTs one chat completion to DeepSeek and logs it to `llm_calls`.
  *
- * Network errors and unparseable bodies are logged (error: true) and then
- * rethrown; a non-2xx status is logged and returned so the caller keeps
- * its own error handling.  A failed log write never fails the call.
+ * Network errors, timeouts and unparseable bodies are logged (error: true)
+ * and then rethrown; a non-2xx status is logged and returned so the caller
+ * keeps its own error handling.  A failed or slow log write never fails or
+ * holds up the call beyond LOG_WRITE_TIMEOUT_MS.
  *
  * @param {object} db Firestore instance
  * @param {object} opts
@@ -113,6 +142,9 @@ function buildLogRow(p) {
  * @param {object} opts.body request body; body.model is the requested model
  * @param {object=} opts.headers extra request headers
  * @param {{callType: string, agentId: ?string, uid: ?string}} opts.log
+ * @param {number=} opts.timeoutMs abort the request after this long; set it
+ *   below the calling function's own timeout
+ * @param {number=} opts.logTimeoutMs defaults to LOG_WRITE_TIMEOUT_MS
  * @param {function=} opts.fetchImpl defaults to global fetch
  * @return {Promise<{ok: boolean, status: number, data: *, errorBody: string}>}
  */
@@ -121,15 +153,20 @@ async function deepSeekChat(db, opts) {
   const startedMs = Date.now();
   let result = null;
   let thrown = null;
+  let httpStatus = null;
   try {
-    const response = await fetchImpl(DEEPSEEK_URL, {
+    const init = {
       method: "POST",
       headers: Object.assign({
         "Content-Type": "application/json",
         "Authorization": `Bearer ${opts.apiKey}`,
       }, opts.headers || {}),
       body: JSON.stringify(opts.body),
-    });
+    };
+    // The signal also bounds reading the body, not just the headers.
+    if (opts.timeoutMs) init.signal = AbortSignal.timeout(opts.timeoutMs);
+    const response = await fetchImpl(DEEPSEEK_URL, init);
+    httpStatus = response.status;
     if (response.ok) {
       result = {ok: true, status: response.status,
         data: await response.json(), errorBody: ""};
@@ -155,13 +192,10 @@ async function deepSeekChat(db, opts) {
     // call sites is logged without touching this module.
     modelRequested: opts.body && opts.body.model,
     data: result ? result.data : null,
+    httpStatus,
     error: thrown !== null || !result.ok,
   });
-  try {
-    await db.collection(LLM_CALLS).add(row);
-  } catch (err) {
-    console.error("llm_calls write failed", {err: String(err)});
-  }
+  await writeLog(db, row, opts.logTimeoutMs || LOG_WRITE_TIMEOUT_MS);
   if (thrown) throw thrown;
   return result;
 }
@@ -170,6 +204,7 @@ module.exports = {
   CALL_TYPES,
   DEEPSEEK_URL,
   LLM_CALLS,
+  LOG_WRITE_TIMEOUT_MS,
   buildLogRow,
   callTypeForModule,
   deepSeekChat,
