@@ -1,6 +1,6 @@
 # 干预内容原样导出（T3，2026-10-06）
 
-**结论**：两组老人实际看到的内容、以及 Hybrid 组发给 AI 的全部 prompt，已从源码逐字导出到本目录，共 11 个文件。
+**结论**：两组老人实际看到的内容、以及 Hybrid 组发给 AI 的全部 prompt，已从源码逐字导出到本目录，共 12 个文件。
 关键数字：Hybrid 组 3 个陪伴者 persona + 12 个功能 prompt；规则组通通 20 条开场 + 10 类关键词 / 27 条话题回应 + 6 条通用回应，
 社交建议 16 条，规则组**没有**每周小结模板；共用 4 周怀旧课程、15 篇文章、3 种推送；DJG 是 **6 条版**；App 内**没有** UCLA 题目。
 
@@ -23,6 +23,7 @@
 | [09-shared-push-notifications.md](09-shared-push-notifications.md) | 两组共用 | 两组共用：推送文案和时间表 | 服务器推送种类 3；排程任务（含不推送的） 6 |
 | [10-shared-questionnaires.md](10-shared-questionnaires.md) | 两组共用 | 两组共用：App 内问卷题目和选项 | Brief PR 4；Weekly PR 12；每周孤独探针 1；ADA 特质 4；ADA 情境（只第 4 周） 5；ADA 使用频率题 3；ADA 开放题 1；PGIC 1；DJG 6；UCLA（App 内题目） 0；每日心情 1 |
 | [11-shared-safety-and-fallback-copy.md](11-shared-safety-and-fallback-copy.md) | 补充 | 补充：安全回应、热线和 AI 失败时的后备文字 | 安全回应模板 6；AI 后备句 4 |
+| [12-fixed-ui-copy.md](12-fixed-ui-copy.md) | 补充（按组） | 补充：老人可见的固定界面文字（按组） | 小欣签到开场白（Hybrid） 11；Action Loop 提问（Hybrid） 5；通通固定开场白（Hybrid） 3；阿珍/阿伯反思固定句（Hybrid） 5；onboarding 记忆告知（只 Hybrid） 1；转介卡文字（Hybrid） 1；安全弹窗按钮（两组） 3；孤单时段选项（两组） 9 |
 
 每个文件开头都有「条数」表，写明每个数字是怎么数的。
 
@@ -32,10 +33,10 @@
 2. **抽取**：用 Python 脚本按「文件 + 行号范围」或「整个文件」原样复制，放进代码块，每段上方写「来源：路径 第 X–Y 行」。
    没有任何内容是手打或改写的；中英文、注释、变量占位符（如 `$themeTitle`、`${…}`、`{{VARIANT_NAME}}`、`〈AGENT〉`）都保留原样。
    为了让审阅者看到上下文，Dart 页面的摘录会带一些界面代码；需要看的是引号里的文字。
-3. **核对**：脚本最后把输出里的 119 段摘录逐一和源文件重新比对，全部一字不差才写出。
+3. **核对**：脚本最后把输出里的 136 段摘录逐一和源文件重新比对，全部一字不差才写出。
 4. **数条数**：用脚本数源码里的列表项（如 `(id: 'tt` 、`SocialSuggestion(`、`EducationArticle(`、`DjgEsItem(`、`(zh:` 出现次数），
    个别是人工数的（如 Brief PR 的题卡、Action Loop 选项），每个数字的数法写在各文件的「条数」表里。
-5. **代码版本**：分支 `docs/T3-export-20261006`（基于 `cec5698`）。这个提交和 `main`（`475b796`）相比，`lib/`、`functions/`、`assets/` 没有任何差别，所以导出内容等于 `main` 当前的内容。
+5. **代码版本**：导出的代码版本是 `27113ca`（分支 `docs/T3-export-20261006` 的起点）。它和 `main`（`475b796`）相比，`lib/`、`functions/`、`assets/` 没有任何差别，所以导出内容等于 `main` 当前的内容。
 6. 生成脚本没有提交进仓库（只提交本目录）；如需重跑，可以按各文件的「来源」行号复核。
 
 ## 来源文件（SHA-256 前 16 位）
@@ -57,12 +58,16 @@
 | `lib/core/agents/agent_registry.dart` | `e324f597f555e4fe` |
 | `lib/core/agents/persona_resolver.dart` | `44d932977f51c731` |
 | `lib/core/config/phase_a_config.dart` | `38fc2980cc264258` |
+| `lib/core/cross_referral/referral_suggestion_card.dart` | `6c37c980d6f5202a` |
 | `lib/core/cross_referral/triggers_config.dart` | `55e5a5d3294f3597` |
 | `lib/core/llm/agent_greeting_service.dart` | `f632870ecda30478` |
 | `lib/core/llm/llm_gateway.dart` | `78a71e2f08c5341b` |
 | `lib/core/memory/cross_module_memory.dart` | `fab578e1dd4e208f` |
 | `lib/core/reminders/reminder_service.dart` | `0828ae0e5527f533` |
+| `lib/core/safety/distress_detector.dart` | `079af7a774161450` |
+| `lib/core/safety/distress_router.dart` | `628f3a283becb60f` |
 | `lib/core/safety/safety_copy.dart` | `6df027aea43a8e2e` |
+| `lib/core/safety/safety_overlay.dart` | `a5c6b4e4cb073dcd` |
 | `lib/core/scheduling/pending_prompts_service.dart` | `4bb6639e57daf594` |
 | `lib/core/survey/likert_scale.dart` | `331d1555e0321d34` |
 | `lib/features/action_loop/presentation/pages/action_loop_arm_a_page.dart` | `443d4c83ad9742f5` |
@@ -90,6 +95,7 @@
 | `lib/features/education/presentation/pages/education_library_page.dart` | `e0473a8bc1d3b2fa` |
 | `lib/features/loneliness_probe/presentation/loneliness_probe_page.dart` | `0d1d24b94b903e04` |
 | `lib/features/my_story/data/my_story_progress.dart` | `040396abf428cc62` |
+| `lib/features/onboarding/presentation/pages/agent_onboarding_page.dart` | `b924501db2d09861` |
 | `lib/features/onboarding/presentation/pages/intake_flow_page.dart` | `6ca124c5d40bb903` |
 | `lib/features/ppr/data/ppr_scale.dart` | `61785edecaa62338` |
 | `lib/features/progress/presentation/pages/progress_page.dart` | `be177d423c197df5` |
@@ -109,6 +115,8 @@
 | `lib/features/weekly_pr/data/weekly_pr_response.dart` | `3c7703ded366538a` |
 | `lib/features/weekly_pr/data/weekly_pr_window.dart` | `a5e913f0377b041d` |
 | `lib/features/weekly_pr/presentation/pages/weekly_pr_page.dart` | `a529b04b0971cf56` |
+| `lib/l10n/app_en.arb` | `662baa475b4cb9ab` |
+| `lib/l10n/app_zh.arb` | `8498930f129735d0` |
 | `lib/theme/app_mood_encoding.dart` | `8b35030e760f0320` |
 
 ## 要带回研究侧的发现
@@ -124,7 +132,8 @@
 7. **规则组没有反思（M5）、没有每周小结、没有个性化问候**；规则组签到和回忆是表单，没有对话回应。
 8. **Hybrid 组首页个性化开场白只为阿珍/阿伯和通通生成**，没有小欣的版本（`agent_greeting_service.dart`）。
 9. **「安全标记」没有 LLM prompt**：安全检测是关键词词库；「5 个 LLM 机制标记」是模型回复后用代码规则算的，不调用模型。
-10. **两套心情文字**：签到/每日心情用「好差 / 差 / 麻麻地 / 幾好 / 好好」，`app_mood_encoding.dart` 另有「好辛苦 / 差啲 / 一般 / 好 / 好開心」，在首页等处使用。
+10. **心情文字只有一套在用**：首页、签到、每日心情都用「好差 / 差 / 麻麻地 / 幾好 / 好好」（`check_in_shared.dart`）。`app_mood_encoding.dart` 里的「好辛苦 / 差啲 / 一般 / 好 / 好開心」没有显示出来：进度图只用了它的颜色和形状（`progress_page.dart` 第 278–290 行）。
 11. PGIC 写入的集合是 `pgic`，但数据模型注释（`pgic_response.dart` 第 3 行）写成 `pgic_responses`。
 12. 旧版 PPR 量表（12 题 + 2 题）仍在代码里，只能从测试工具进入，参与者看不到。
 13. 推送只有中文版、标题都是「陪住」；两组文案和时间完全相同。
+14. **onboarding 记忆告知只给 Hybrid 组**（组间差异）：Phase B 记忆模式的用户在介绍三个夥伴时多看到一句「佢哋會記得你講過嘅嘢……你隨時可以喺「設定 → 我記得嘅嘢」睇返同刪走。」（`agent_onboarding_page.dart` 第 372–386 行）。规则组看不到。ICF 和组间差异清单要写进去。
