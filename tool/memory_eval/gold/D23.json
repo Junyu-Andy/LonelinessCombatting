@@ -1,0 +1,52 @@
+{
+  "id": "D23",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D23-F1",
+      "desc": "興趣：睇賽馬（唔賭）",
+      "match": [
+        [
+          "賽馬",
+          "睇馬"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D23-FU1",
+      "desc": "星期六帶豆豆剪毛",
+      "match": [
+        [
+          "剪毛",
+          "豆豆"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-10"
+    }
+  ],
+  "forbidden": [
+    {
+      "gid": "D23-X1",
+      "desc": "借五萬俾個仔做生意（用戶要求唔好記住）",
+      "match": [
+        [
+          "五萬",
+          "借",
+          "生意",
+          "未還",
+          "錢"
+        ]
+      ],
+      "kind": "do_not_store",
+      "scope": "all"
+    }
+  ],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

@@ -1,0 +1,47 @@
+{
+  "id": "D07",
+  "persona": "P03",
+  "agent": "siu_yan",
+  "module_id": "m2_check_in",
+  "prompt_key": "siu_yan_v1",
+  "hkt_time": "2026-10-07T01:30",
+  "tags": [
+    "相对日期",
+    "时区陷阱",
+    "人物"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "咁夜仲未瞓呀？我係小欣。"
+    },
+    {
+      "role": "user",
+      "text": "瞓唔着呀。叫我李婆婆啦，大家都咁叫。"
+    },
+    {
+      "role": "companion",
+      "text": "李婆婆，係咪有心事呀？"
+    },
+    {
+      "role": "user",
+      "text": "冇呀，老人家少覺。聽日朝早九點阿芳陪我去街市買餸。"
+    },
+    {
+      "role": "companion",
+      "text": "阿芳係邊個呀？"
+    },
+    {
+      "role": "user",
+      "text": "阿芳係我嘅家務助理，菲律賓人，好細心。"
+    },
+    {
+      "role": "companion",
+      "text": "有人陪你就好。"
+    },
+    {
+      "role": "user",
+      "text": "後日係我生日呀，八十六歲喇。呢個禮拜六教會有探訪活動，我都會去。"
+    }
+  ]
+}

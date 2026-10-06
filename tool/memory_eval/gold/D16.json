@@ -1,0 +1,83 @@
+{
+  "id": "D16",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D16-F1",
+      "desc": "稱呼：華叔（劉國華）",
+      "match": [
+        [
+          "華叔",
+          "劉國華"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D16-F2",
+      "desc": "細佬兩個月前過身",
+      "match": [
+        [
+          "細佬",
+          "弟弟",
+          "弟"
+        ]
+      ],
+      "sensitive": true,
+      "required": true
+    },
+    {
+      "gid": "D16-F3",
+      "desc": "後生做海員",
+      "match": [
+        [
+          "海員",
+          "船"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D16-F4",
+      "desc": "興趣：捉象棋",
+      "match": [
+        [
+          "象棋"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D16-F5",
+      "desc": "孫：俊仔",
+      "match": [
+        [
+          "俊仔"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D16-FU1",
+      "desc": "下個禮拜日俊仔嚟飲茶",
+      "match": [
+        [
+          "俊仔",
+          "飲茶"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-18"
+    }
+  ],
+  "forbidden": [],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

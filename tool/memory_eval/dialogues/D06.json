@@ -1,0 +1,47 @@
+{
+  "id": "D06",
+  "persona": "P02",
+  "agent": "tung_tung",
+  "module_id": "tung_tung_chat",
+  "prompt_key": "tung_tung_v1",
+  "hkt_time": "2026-10-07T16:20",
+  "tags": [
+    "唔好記住",
+    "敏感-家庭矛盾",
+    "相对日期"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "黃伯你好！我係通通，今日有咩新鮮事呀？"
+    },
+    {
+      "role": "user",
+      "text": "冇乜嘢，日日都係聽收音機，我最鍾意聽商台嘅懷舊金曲節目。"
+    },
+    {
+      "role": "companion",
+      "text": "懷舊金曲好正！你最鍾意邊個歌手？"
+    },
+    {
+      "role": "user",
+      "text": "許冠傑囉。講起啲歌又諗起個大仔志強。"
+    },
+    {
+      "role": "companion",
+      "text": "志強點呀？"
+    },
+    {
+      "role": "user",
+      "text": "我同佢上個禮拜喺電話度嗌咗交，佢話今年唔返嚟過年。呢件事你唔好記住呀，當我冇講過。"
+    },
+    {
+      "role": "companion",
+      "text": "好，我明白。"
+    },
+    {
+      "role": "user",
+      "text": "禮拜五我要去銀行攞錢交水費。"
+    }
+  ]
+}

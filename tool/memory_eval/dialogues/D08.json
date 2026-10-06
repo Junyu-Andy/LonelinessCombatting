@@ -1,0 +1,47 @@
+{
+  "id": "D08",
+  "persona": "P03",
+  "agent": "ah_jan_ah_bak",
+  "module_id": "m3_reminiscence_w1",
+  "prompt_key": "ah_jan_ah_bak_v1",
+  "hkt_time": "2026-10-07T10:00",
+  "tags": [
+    "前后矛盾",
+    "陪伴者自己说的内容",
+    "人物"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "李婆婆，今個禮拜傾下你細個嘅事好唔好？"
+    },
+    {
+      "role": "user",
+      "text": "好呀。我細個喺順德出世，十二歲先落嚟香港。"
+    },
+    {
+      "role": "companion",
+      "text": "順德！我以前都喺工廠做過，好辛苦㗎。"
+    },
+    {
+      "role": "user",
+      "text": "我後生都喺製衣廠做車衣，做咗三十年。"
+    },
+    {
+      "role": "companion",
+      "text": "三十年真係好勤力。你老公做咩嘅？"
+    },
+    {
+      "role": "user",
+      "text": "我老公以前揸的士，日日夜晚先返屋企。"
+    },
+    {
+      "role": "companion",
+      "text": "你喺香港大，對香港一定好有感情。"
+    },
+    {
+      "role": "user",
+      "text": "係呀，我喺香港出世，成世都喺香港。"
+    }
+  ]
+}

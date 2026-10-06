@@ -1,0 +1,47 @@
+{
+  "id": "D09",
+  "persona": "P03",
+  "agent": "tung_tung",
+  "module_id": "tung_tung_chat",
+  "prompt_key": "tung_tung_v1",
+  "hkt_time": "2026-10-07T13:00",
+  "tags": [
+    "玩笑或假设句",
+    "相对日期-月尾",
+    "兴趣"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "李婆婆午安！今日做咗咩呀？"
+    },
+    {
+      "role": "user",
+      "text": "我今朝去公園影花，用部手機影咗好多張紫荊花。"
+    },
+    {
+      "role": "companion",
+      "text": "嘩，你鍾意影相？"
+    },
+    {
+      "role": "user",
+      "text": "係呀，個孫教我用手機影，我好鍾意。如果我後生三十年，一定去學跳舞添。"
+    },
+    {
+      "role": "companion",
+      "text": "哈哈，跳舞好好玩㗎！"
+    },
+    {
+      "role": "user",
+      "text": "我個孫成日話我煮飯好食過酒樓，佢講笑啫。"
+    },
+    {
+      "role": "companion",
+      "text": "你有冇計劃去邊度玩呀？"
+    },
+    {
+      "role": "user",
+      "text": "月尾社區中心有長者旅行團去大澳，我報咗名。"
+    }
+  ]
+}

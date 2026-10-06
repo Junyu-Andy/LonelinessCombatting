@@ -1,0 +1,52 @@
+{
+  "id": "D29",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D29-F1",
+      "desc": "興趣：聽京劇（梅蘭芳）",
+      "match": [
+        [
+          "京劇",
+          "梅蘭芳"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D29-FU1",
+      "desc": "後日老人中心防騙講座",
+      "match": [
+        [
+          "講座",
+          "防騙"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-09"
+    }
+  ],
+  "forbidden": [
+    {
+      "gid": "D29-X1",
+      "desc": "今朝跌親撞到頭（用戶要求唔好記住）",
+      "match": [
+        [
+          "跌",
+          "撞",
+          "頭痛",
+          "頭部",
+          "受傷"
+        ]
+      ],
+      "kind": "do_not_store",
+      "scope": "all"
+    }
+  ],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

@@ -1,0 +1,84 @@
+{
+  "id": "D26",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D26-F1",
+      "desc": "個女升職",
+      "match": [
+        [
+          "升職",
+          "升咗職"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D26-F2",
+      "desc": "逢禮拜五去長者中心做義工教整餅",
+      "match": [
+        [
+          "義工"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D26-F3",
+      "desc": "早醒／少覺",
+      "match": [
+        [
+          "醒",
+          "冇覺瞓",
+          "少覺"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D26-FU1",
+      "desc": "今晚個女請食飯",
+      "match": [
+        [
+          "食飯",
+          "吃飯",
+          "晚飯",
+          "飯"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-07"
+    },
+    {
+      "gid": "D26-FU2",
+      "desc": "禮拜五做義工",
+      "match": [
+        [
+          "義工"
+        ]
+      ],
+      "required": false,
+      "due": "2026-10-09"
+    },
+    {
+      "gid": "D26-FU3",
+      "desc": "下個月十號覆診",
+      "match": [
+        [
+          "覆診"
+        ]
+      ],
+      "required": true,
+      "due": "2026-11-10"
+    }
+  ],
+  "forbidden": [],
+  "superseded": [],
+  "contradictions": [],
+  "notes": "香港時間 05:45（UTC 仍係 10-06）。"
+}

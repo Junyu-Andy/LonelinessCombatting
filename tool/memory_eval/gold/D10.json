@@ -1,0 +1,96 @@
+{
+  "id": "D10",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D10-F1",
+      "desc": "稱呼：張伯／阿張",
+      "match": [
+        [
+          "張伯",
+          "阿張"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D10-F2",
+      "desc": "居住：將軍澳，同老婆兩個住",
+      "match": [
+        [
+          "將軍澳"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D10-F3",
+      "desc": "老婆阿玲",
+      "match": [
+        [
+          "阿玲"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D10-F4",
+      "desc": "興趣：行山",
+      "match": [
+        [
+          "行山"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D10-F5",
+      "desc": "外甥結婚",
+      "match": [
+        [
+          "外甥"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D10-FU1",
+      "desc": "下個禮拜一行麥理浩徑",
+      "match": [
+        [
+          "麥理浩徑",
+          "行山"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-12"
+    },
+    {
+      "gid": "D10-FU2",
+      "desc": "兩個禮拜後去深圳飲喜酒",
+      "match": [
+        [
+          "喜酒",
+          "婚",
+          "深圳"
+        ]
+      ],
+      "required": true,
+      "due_range": [
+        "2026-10-19",
+        "2026-10-25"
+      ]
+    }
+  ],
+  "forbidden": [],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

@@ -1,0 +1,81 @@
+{
+  "id": "D06",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D06-F1",
+      "desc": "興趣：聽收音機（商台懷舊金曲）",
+      "match": [
+        [
+          "收音機",
+          "懷舊金曲",
+          "商台"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D06-F2",
+      "desc": "鍾意許冠傑",
+      "match": [
+        [
+          "許冠傑"
+        ]
+      ],
+      "sensitive": false,
+      "required": false
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D06-FU1",
+      "desc": "禮拜五去銀行攞錢交水費",
+      "match": [
+        [
+          "銀行",
+          "水費"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-09"
+    }
+  ],
+  "forbidden": [
+    {
+      "gid": "D06-X1",
+      "desc": "同志強嗌交（用戶要求唔好記住）",
+      "match": [
+        [
+          "嗌交",
+          "吵架",
+          "爭吵",
+          "衝突",
+          "不和",
+          "鬧翻",
+          "口角",
+          "吵"
+        ]
+      ],
+      "kind": "do_not_store",
+      "scope": "all"
+    },
+    {
+      "gid": "D06-X2",
+      "desc": "志強唔返嚟過年（用戶要求唔好記住）",
+      "match": [
+        [
+          "過年",
+          "唔返",
+          "不回",
+          "不返"
+        ]
+      ],
+      "kind": "do_not_store",
+      "scope": "all"
+    }
+  ],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}

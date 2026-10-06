@@ -1,0 +1,38 @@
+{
+  "id": "D14",
+  "persona": "P05",
+  "agent": "tung_tung",
+  "module_id": "tung_tung_chat",
+  "prompt_key": "tung_tung_v1",
+  "hkt_time": "2026-10-07T12:30",
+  "tags": [
+    "唔好记住",
+    "相对日期"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "何太你好！我係通通，今日點呀？"
+    },
+    {
+      "role": "user",
+      "text": "幾好，我啱啱喺露台淋花，我種咗好多蘭花。"
+    },
+    {
+      "role": "companion",
+      "text": "嘩，蘭花好難種㗎！"
+    },
+    {
+      "role": "user",
+      "text": "慢慢學啫。不過講真，有時照顧老公好攰，好想一個人離開屋企一排……你唔好記住我講過呢句呀。"
+    },
+    {
+      "role": "companion",
+      "text": "明白，我唔會記住。你辛苦喇。"
+    },
+    {
+      "role": "user",
+      "text": "十號街坊會有義賣，我會拎幾盆蘭花去賣。"
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "id": "D03",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D03-F1",
+      "desc": "居住（更新）：上個月搬去沙田同阿欣住",
+      "match": [
+        [
+          "沙田"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D03-F2",
+      "desc": "年齡：八十歲",
+      "match": [
+        [
+          "八十",
+          "80"
+        ]
+      ],
+      "sensitive": null,
+      "required": true
+    },
+    {
+      "gid": "D03-F3",
+      "desc": "以前喺深水埗住咗四十年",
+      "match": [
+        [
+          "四十年",
+          "40年"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D03-F4",
+      "desc": "北河街買餸，檔主叫佢陳姑娘",
+      "match": [
+        [
+          "北河街",
+          "陳姑娘"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [],
+  "forbidden": [
+    {
+      "gid": "D03-X1",
+      "desc": "年齡七十九（已即時更正）",
+      "match": [
+        [
+          "七十九",
+          "79"
+        ]
+      ],
+      "kind": "wrong_value",
+      "scope": "items"
+    }
+  ],
+  "superseded": [
+    {
+      "gid": "D03-S1",
+      "desc": "舊居住：一個人住深水埗（應被取代）",
+      "match": [
+        [
+          "深水埗"
+        ],
+        [
+          "一個",
+          "獨居",
+          "自己",
+          "獨自",
+          "一人"
+        ]
+      ]
+    }
+  ],
+  "contradictions": [],
+  "notes": "跨陪伴者更新：居住屬基本事實（共享），阿珍/阿伯應睇得到小欣記低嘅舊居住並更新。"
+}

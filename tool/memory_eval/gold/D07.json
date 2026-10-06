@@ -1,0 +1,108 @@
+{
+  "id": "D07",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D07-F1",
+      "desc": "稱呼：李婆婆",
+      "match": [
+        [
+          "李婆婆"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D07-F2",
+      "desc": "家務助理阿芳（菲律賓人）",
+      "match": [
+        [
+          "阿芳"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D07-F3",
+      "desc": "後日生日，八十六歲",
+      "match": [
+        [
+          "生日",
+          "八十六",
+          "86"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D07-F4",
+      "desc": "參加教會活動",
+      "match": [
+        [
+          "教會"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D07-F5",
+      "desc": "瞓唔着／少覺",
+      "match": [
+        [
+          "瞓唔着",
+          "失眠",
+          "少覺",
+          "睡不著",
+          "睡唔着"
+        ]
+      ],
+      "sensitive": true,
+      "required": false
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D07-FU1",
+      "desc": "聽日朝早九點同阿芳去街市",
+      "match": [
+        [
+          "街市",
+          "買餸"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-08"
+    },
+    {
+      "gid": "D07-FU2",
+      "desc": "後日生日",
+      "match": [
+        [
+          "生日"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-09"
+    },
+    {
+      "gid": "D07-FU3",
+      "desc": "呢個禮拜六教會探訪",
+      "match": [
+        [
+          "教會",
+          "探訪"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-10"
+    }
+  ],
+  "forbidden": [],
+  "superseded": [],
+  "contradictions": [],
+  "notes": "香港時間 2026-10-07 01:30（UTC 仍係 10-06）。如果用 UTC 日期，聽日會錯成 10-07。"
+}

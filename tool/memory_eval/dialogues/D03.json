@@ -1,0 +1,47 @@
+{
+  "id": "D03",
+  "persona": "P01",
+  "agent": "ah_jan_ah_bak",
+  "module_id": "m3_reminiscence_w2",
+  "prompt_key": "ah_jan_ah_bak_v1",
+  "hkt_time": "2026-10-07T15:30",
+  "tags": [
+    "更新已有事实",
+    "纠正",
+    "前后矛盾"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "陳太，今個禮拜我哋傾下舊時屋企附近嘅街坊生活好唔好？"
+    },
+    {
+      "role": "user",
+      "text": "好呀。我以前喺深水埗住咗四十年，北河街街市好熱鬧。"
+    },
+    {
+      "role": "companion",
+      "text": "以前嘅街市一定好多人情味。你而家仲住喺嗰度？"
+    },
+    {
+      "role": "user",
+      "text": "冇喇，我上個月搬咗去沙田同阿欣一齊住，佢話我自己住唔放心。"
+    },
+    {
+      "role": "companion",
+      "text": "有個女照顧真係好。你今年貴庚呀？"
+    },
+    {
+      "role": "user",
+      "text": "我今年七十九……唔係唔係，八十先啱，人老咗記性差。"
+    },
+    {
+      "role": "companion",
+      "text": "八十歲仲咁精神！"
+    },
+    {
+      "role": "user",
+      "text": "以前喺北河街買餸，個個檔主都識我，叫我「陳姑娘」。"
+    }
+  ]
+}

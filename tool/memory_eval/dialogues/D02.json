@@ -1,0 +1,47 @@
+{
+  "id": "D02",
+  "persona": "P01",
+  "agent": "tung_tung",
+  "module_id": "tung_tung_chat",
+  "prompt_key": "tung_tung_v1",
+  "hkt_time": "2026-10-07T11:00",
+  "tags": [
+    "陪伴者自己说的内容",
+    "玩笑或假设句",
+    "相对日期"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "陳太你好呀！我係通通。我最鍾意睇足球㗎，你呢？你鍾意睇乜嘢？"
+    },
+    {
+      "role": "user",
+      "text": "我唔睇波㗎，我鍾意睇粵劇，任白嗰啲最好睇。"
+    },
+    {
+      "role": "companion",
+      "text": "嘩，任劍輝白雪仙！你係咪仲好鍾意行山呀？"
+    },
+    {
+      "role": "user",
+      "text": "冇喎，我腳唔好，行唔到山㗎。"
+    },
+    {
+      "role": "companion",
+      "text": "明白明白。咁你最近有冇去睇大戲呀？"
+    },
+    {
+      "role": "user",
+      "text": "後日同樓下街坊陳師奶去高山劇場睇大戲。"
+    },
+    {
+      "role": "companion",
+      "text": "好嘢！如果有錢你最想做咩呀？"
+    },
+    {
+      "role": "user",
+      "text": "如果我中咗六合彩呀，就買間大屋俾阿欣住，哈哈。"
+    }
+  ]
+}

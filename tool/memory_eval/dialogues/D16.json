@@ -1,0 +1,56 @@
+{
+  "id": "D16",
+  "persona": "P06",
+  "agent": "ah_jan_ah_bak",
+  "module_id": "reflective_dialogue",
+  "prompt_key": "ah_jan_ah_bak_v1",
+  "hkt_time": "2026-10-07T10:10",
+  "tags": [
+    "敏感-丧亲",
+    "人物",
+    "兴趣",
+    "相对日期"
+  ],
+  "turns": [
+    {
+      "role": "companion",
+      "text": "你好呀，我係阿伯。點稱呼你？"
+    },
+    {
+      "role": "user",
+      "text": "我叫劉國華，不過大家都叫我華叔。"
+    },
+    {
+      "role": "companion",
+      "text": "華叔你好！今日想傾咩？"
+    },
+    {
+      "role": "user",
+      "text": "我兩個月前個細佬過咗身，佢細我三年，心入面好唔舒服。"
+    },
+    {
+      "role": "companion",
+      "text": "失去細佬一定好難過。"
+    },
+    {
+      "role": "user",
+      "text": "我哋後生一齊做海員，跟船去過好多地方，日本、新加坡都去過。"
+    },
+    {
+      "role": "companion",
+      "text": "好多故事呀！你平時有咩消遣？"
+    },
+    {
+      "role": "user",
+      "text": "我好鍾意捉象棋，以前日日喺公園同人捉。"
+    },
+    {
+      "role": "companion",
+      "text": "好呀。"
+    },
+    {
+      "role": "user",
+      "text": "我個孫俊仔下個禮拜日會嚟同我飲茶。"
+    }
+  ]
+}

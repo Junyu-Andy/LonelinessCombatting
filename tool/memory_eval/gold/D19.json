@@ -1,0 +1,106 @@
+{
+  "id": "D19",
+  "today_hkt": "2026-10-07",
+  "facts": [
+    {
+      "gid": "D19-F1",
+      "desc": "稱呼：吳婆婆",
+      "match": [
+        [
+          "吳婆婆"
+        ]
+      ],
+      "sensitive": false,
+      "required": true
+    },
+    {
+      "gid": "D19-F2",
+      "desc": "老公快九十歲",
+      "match": [
+        [
+          "九十",
+          "90"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D19-F3",
+      "desc": "有契女",
+      "match": [
+        [
+          "契女"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    },
+    {
+      "gid": "D19-F4",
+      "desc": "有班姊妹",
+      "match": [
+        [
+          "姊妹",
+          "姐妹"
+        ]
+      ],
+      "sensitive": null,
+      "required": false
+    }
+  ],
+  "followups": [
+    {
+      "gid": "D19-FU1",
+      "desc": "大後日飲契女喜酒",
+      "match": [
+        [
+          "喜酒",
+          "契女"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-10"
+    },
+    {
+      "gid": "D19-FU2",
+      "desc": "下星期二睇眼科",
+      "match": [
+        [
+          "眼科",
+          "眼"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-13"
+    },
+    {
+      "gid": "D19-FU3",
+      "desc": "下個禮拜六去長洲",
+      "match": [
+        [
+          "長洲"
+        ]
+      ],
+      "required": true,
+      "due": "2026-10-17"
+    },
+    {
+      "gid": "D19-FU4",
+      "desc": "十一月三號老公九十大壽聚會",
+      "match": [
+        [
+          "大壽",
+          "聚會",
+          "九十"
+        ]
+      ],
+      "required": true,
+      "due": "2026-11-03"
+    }
+  ],
+  "forbidden": [],
+  "superseded": [],
+  "contradictions": [],
+  "notes": ""
+}
