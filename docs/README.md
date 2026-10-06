@@ -31,6 +31,10 @@
 | `safety/` | 安全词库各版本、性能评估 | 新版本新建文件 |
 | `prompts/`、`privacy/` | prompt 全文、个人信息清洗规则 | 随代码更新 |
 | `release/` | Phase A 基线（pilot 期）的交接和评审 | 不再更新 |
+| `spec/feature-registry.md` | 研究侧功能登记表（C01–C22），规格的唯一来源 | 只由研究侧改，开发侧不改 |
+| `spec/audit-YYYYMMDD.md` | 按登记表逐项核对代码的结果 | 每轮核对新建一份 |
+| `dev-tasks/` | 交给 Claude Code 的开发任务单 | 一批任务一份，按日期命名 |
+| `dev-reports/` | 任务单产出的报告（文件名带任务号和日期） | 每次新建，不覆盖 |
 
 `validation/`、`config-snapshots/` 和 `tool/export_config.js` **还没有**，Phase B 冻结前建立。
 
