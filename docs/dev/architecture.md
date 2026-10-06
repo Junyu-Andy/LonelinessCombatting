@@ -168,7 +168,7 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | `meta/arm_counter` | 4 个层各自的 A/B 人数 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开 |
 | `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列 |
-| `llm_calls` | 每次调用 DeepSeek 一条：时间、调用类型、agent、uid、请求和返回的模型名、token 数、延迟、是否出错。不存原文。只有服务器写，App 不能读写（决策 0016） |
+| `llm_calls` | 每次调用 DeepSeek 一条：时间、调用类型、agent、uid、请求和返回的模型名、`system_fingerprint`、token 数（含思考 token）、延迟、是否出错。不存原文。只有服务器写，App 不能读写（决策 0016） |
 | `export_blind_keys` | 盲法导出时组别 → Group_X / Group_Y 的对照 |
 
 ## 9. Cloud Functions

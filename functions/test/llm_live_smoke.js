@@ -56,15 +56,16 @@ function memoryDb() {
     readBack = async () => db.rows;
   }
 
+  const body = {
+    model: "deepseek-chat",
+    messages: [{role: "user", content: "Reply with the single word: ok"}],
+    max_tokens: 5,
+    temperature: 0,
+  };
   const res = await deepSeekChat(db, {
     apiKey,
     log: {callType: "chat", agentId: null, uid: "smoke_test"},
-    body: {
-      model: "deepseek-chat",
-      messages: [{role: "user", content: "Reply with the single word: ok"}],
-      max_tokens: 5,
-      temperature: 0,
-    },
+    body,
   });
   const rows = await readBack();
   console.log("HTTP status:", res.status);
@@ -74,13 +75,17 @@ function memoryDb() {
   assert.strictEqual(rows.length, 1, "expected exactly one log row");
   const row = rows[0];
   assert.strictEqual(row.error, false);
-  assert.strictEqual(row.model_requested, "deepseek-chat");
+  assert.strictEqual(row.model_requested, body.model);
   assert.ok(typeof row.model_returned === "string" && row.model_returned,
       "model_returned missing");
   assert.strictEqual(row.model_returned, res.data.model);
   assert.ok(row.prompt_tokens > 0 && row.completion_tokens > 0, "tokens");
+  assert.strictEqual(row.system_fingerprint,
+      res.data.system_fingerprint || null);
   console.log(`\nOK: requested ${row.model_requested}, ` +
-    `returned ${row.model_returned}`);
+    `returned ${row.model_returned}, ` +
+    `fingerprint ${row.system_fingerprint}, ` +
+    `reasoning_tokens ${row.reasoning_tokens}`);
   process.exit(0);
 })().catch((err) => {
   console.error("FAIL", err.message);

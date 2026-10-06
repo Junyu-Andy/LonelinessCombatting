@@ -12,6 +12,7 @@
 - 新增 Firestore 规则：`llm_calls` 客户端不能读写。
 - 新增测试：`functions/test/llm_log_test.js`、`functions/test/llm_calls_emulator_test.js`、`test/rules/llm_calls_rules.test.js`。
 - 真实调用冒烟测试（`functions/test/llm_live_smoke.js`，手动跑）：请求 `deepseek-chat`，返回 `model` 为 `deepseek-flash`，正确写进日志。
+- 按统筹会话补充：日志加 `system_fingerprint` 和 `reasoning_tokens`；`model_requested` 从实际请求体读，模型名改为 `deepseek-flash` 时不用改这里。
 - 报告：`docs/dev-reports/T5-model-logging-20261006.md`。
 
 ## 2026-10-04 规则组 Brief PR

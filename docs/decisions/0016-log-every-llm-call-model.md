@@ -12,7 +12,7 @@
 ## 决定
 
 - 服务器上所有 DeepSeek 请求都走同一个函数 `deepSeekChat`（`functions/llm_log.js`），每次调用后写一条 `llm_calls`。出错也写。
-- 字段只有：时间（UTC）、调用类型、agent、研究编号（Firebase uid）、请求的模型名、返回的 `model`、prompt / completion token 数、延迟、是否出错。**不存 prompt 和回复原文。**
+- 字段只有：时间（UTC）、调用类型、agent、研究编号（Firebase uid）、请求的模型名（从实际请求体读）、返回的 `model`、`system_fingerprint`（用来发现同名模型被换）、prompt / completion / 思考 token 数、延迟、是否出错。**不存 prompt 和回复原文。**
 - `llm_calls` 是独立的顶层集合，只有服务器能写，App 不能读也不能写。
 - 规则组的服务器防线不变：被拒绝的请求根本到不了 DeepSeek，所以也不写记录。
 

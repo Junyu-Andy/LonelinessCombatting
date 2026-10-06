@@ -63,10 +63,12 @@ App 没传 `agentId` 的调用，`llm_calls.agent_id` 为 null。没有在服务
 | `call_type` | string | `chat` / `greeting` / `session_summary` / `weekly_summary` / `article_qa` / `suggestions` / `memory_summary` / `referral_judgement` / `memory_extraction` |
 | `agent_id` | string 或 null | `siu_yan` / `ah_jan_ah_bak` / `tung_tung`；转介判断记发起方；App 没传时为 null |
 | `uid` | string | 研究编号。代码里没有单独的研究编号，各集合都用 Firebase uid 作参与者编号（如 `lib/core/session/chat_session_recorder.dart` 的 `participantId`），这里沿用 |
-| `model_requested` | string | 请求体里的模型名，目前都是 `deepseek-chat` |
+| `model_requested` | string | 从实际发出的请求体 `body.model` 读，不写死。目前都是 `deepseek-chat`；负责人已决定改为 `deepseek-flash`（统筹会话在另一分支改），改后这里自动跟着变 |
 | `model_returned` | string 或 null | DeepSeek 响应里的 `model` 字段；出错时为 null |
+| `system_fingerprint` | string 或 null | 响应里的 `system_fingerprint`。同一个模型名背后换了模型时它会变，用来发现悄悄更换（`docs/dev/memory-and-entry-spec.md` 8.2 第 1 条）。实测有值 |
 | `prompt_tokens` | number 或 null | 响应 `usage.prompt_tokens` |
 | `completion_tokens` | number 或 null | 响应 `usage.completion_tokens` |
+| `reasoning_tokens` | number 或 null | 响应 `usage.completion_tokens_details.reasoning_tokens`。大于 0 说明开了思考模式。响应里没有这一项时存 null（2026-10-06 实测请求 `deepseek-chat` 时没有） |
 | `latency_ms` | number | 从发请求到读完响应的毫秒数 |
 | `error` | boolean | 网络失败、非 2xx、响应无法解析时为 true |
 
@@ -81,10 +83,10 @@ App 没传 `agentId` 的调用，`llm_calls.agent_id` 为 null。没有在服务
 
 | 测试 | 内容 | 结果 |
 |---|---|---|
-| `functions/test/llm_log_test.js`（新，无需模拟器） | `moduleId` → `call_type` 映射；成功一条、字段齐全、不含原文；非 2xx 记 `error: true`；网络失败记录后再抛出；写日志失败不影响调用 | 5/5 |
-| `functions/test/llm_calls_emulator_test.js`（新，模拟器） | 直接运行真实的函数（`proxyDeepSeek` 10 种 `moduleId`、`referralJudgement`、`memoryEndSession`、`memorySweep`），DeepSeek 用假响应（替换 `fetch`），按真实情况设成「请求 `deepseek-chat`、返回 `deepseek-flash`」，断言两个字段分别存下且不相同；每类各写一条，字段和值正确，不含原文；上游 500 记 `error: true`；规则组从所有入口调用都被拒，DeepSeek 没被调用，`llm_calls` 零条 | 15/15 |
+| `functions/test/llm_log_test.js`（新，无需模拟器） | `moduleId` → `call_type` 映射；成功一条、字段齐全、不含原文；非 2xx 记 `error: true`；网络失败记录后再抛出；写日志失败不影响调用；`system_fingerprint`、`reasoning_tokens` 有就存、没有存 null；`model_requested` 取自请求体（请求 `deepseek-flash` + `thinking` 时也照实记录） | 6/6 |
+| `functions/test/llm_calls_emulator_test.js`（新，模拟器） | 直接运行真实的函数（`proxyDeepSeek` 10 种 `moduleId`、`referralJudgement`、`memoryEndSession`、`memorySweep`），DeepSeek 用假响应（替换 `fetch`），按真实情况设成「请求 `deepseek-chat`、返回 `deepseek-flash`」，断言两个字段分别存下且不相同，`system_fingerprint` 和 `reasoning_tokens` 也存下；每类各写一条，字段和值正确，不含原文；上游 500 记 `error: true`；规则组从所有入口调用都被拒，DeepSeek 没被调用，`llm_calls` 零条 | 15/15 |
 | `test/rules/llm_calls_rules.test.js`（新，规则） | 本人不能读自己的记录；任何客户端不能新建、覆盖、删除；未登录也不能读 | 3/3（规则测试共 34 项通过） |
-| `functions/test/llm_live_smoke.js`（新，**手动跑，不在 CI 里**） | 真实调用 DeepSeek 一次（一句合成英文，`max_tokens` 5），经 `deepSeekChat` 写日志再读回。在模拟器里和不用模拟器各跑一次，都通过：`model_requested` = `deepseek-chat`，`model_returned` = `deepseek-flash`，prompt 11 / completion 1 token，延迟约 1.3–1.5 秒 | 通过 |
+| `functions/test/llm_live_smoke.js`（新，**手动跑，不在 CI 里**） | 真实调用 DeepSeek 一次（一句合成英文，`max_tokens` 5），经 `deepSeekChat` 写日志再读回。在模拟器里和不用模拟器各跑一次，都通过：`model_requested` = `deepseek-chat`，`model_returned` = `deepseek-flash`，`system_fingerprint` = `aeb56401ca74e127821c4f9126dcb669`，`reasoning_tokens` = null（响应里没有这一项），prompt 11 / completion 1 token，延迟约 1.1–1.5 秒 | 通过 |
 | 原有测试 | `arm_test`、`llm_flags_test`、`memory_test`、`arm_emulator_test`、`memory_emulator_test`、其余规则测试 | 全部通过 |
 
 Lint（`functions/` 的 `npx eslint .`）：
@@ -138,6 +140,8 @@ firebase emulators:exec --only firestore --project loneliness-pilot-dev \
 ### (2) 会影响 ICF、DMP、研究方案的事实
 
 - **请求的模型名和实际返回的不一样**：2026-10-06 实测，请求 `deepseek-chat`，返回 `model` = `deepseek-flash`。统筹会话另外看到 DeepSeek 的 `/models` 列出的是 DeepSeek-V4.1-Flash，列表里没有 `deepseek-chat`（这一点本会话没有自己查）。研究方案、注册和 ICF 里如果写的是「DeepSeek-V3」或「deepseek-chat」，需要核对措辞。`docs/dev/architecture.md` 第 2 节目前也写着 DeepSeek-V3。
+- **模型可能被悄悄更换**：现在每条记录都有 `system_fingerprint`（实测有值）。研究期间可以按日期看它有没有变，变了就查是不是换了模型、要不要记为 protocol deviation。它是否真的随模型升级变化，要等 DeepSeek 下一次升级才能确认。
+- **思考模式**：负责人已决定请求时关掉 thinking（统筹会话在另一分支改）。`reasoning_tokens` 大于 0 就说明意外开了思考，可以据此检查。
 
 - `llm_calls` 是新的研究数据集合，含 Firebase uid，不含对话原文。DMP 需要写明：存在哪里（Firestore，与其他数据同一项目）、保存多久、退出研究时是否删除。
 - 研究方案 / 论文 Methods 可以写：「每次调用记录 DeepSeek 返回的模型标识、token 数和延迟」。模型版本无法锁定，建议在局限中说明。

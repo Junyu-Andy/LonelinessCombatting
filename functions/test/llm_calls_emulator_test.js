@@ -44,7 +44,9 @@ global.fetch = async (url, init) => {
   const resp = {
     model: STUB_MODEL,
     choices: [{message: {role: "assistant", content}}],
-    usage: {prompt_tokens: 321, completion_tokens: 21, total_tokens: 342},
+    system_fingerprint: "fp_stub_flash",
+    usage: {prompt_tokens: 321, completion_tokens: 21, total_tokens: 342,
+      completion_tokens_details: {reasoning_tokens: 0}},
   };
   return {
     ok: nextStatus === 200,
@@ -112,7 +114,8 @@ const chat = (uid, moduleId, agentId) => fns.proxyDeepSeek.run({
 
 const FIELDS = [
   "agent_id", "call_type", "completion_tokens", "error", "latency_ms",
-  "model_requested", "model_returned", "prompt_tokens", "ts", "uid",
+  "model_requested", "model_returned", "prompt_tokens", "reasoning_tokens",
+  "system_fingerprint", "ts", "uid",
 ];
 
 function assertRow(row, want) {
@@ -135,7 +138,7 @@ function assertRow(row, want) {
 
 const okRow = {
   model_returned: STUB_MODEL, prompt_tokens: 321, completion_tokens: 21,
-  error: false,
+  system_fingerprint: "fp_stub_flash", reasoning_tokens: 0, error: false,
 };
 
 const tests = [];
@@ -214,7 +217,8 @@ test("upstream error is logged with error: true", async () => {
   const r = await rows();
   assert.strictEqual(r.length, 1);
   assertRow(r[0], {call_type: "chat", agent_id: "siu_yan", error: true,
-    model_returned: null, prompt_tokens: null, completion_tokens: null});
+    model_returned: null, prompt_tokens: null, completion_tokens: null,
+    system_fingerprint: null, reasoning_tokens: null});
 });
 
 test("Arm B: no LLM call, no llm_calls row, from any entry point",

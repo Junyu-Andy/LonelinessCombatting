@@ -40,7 +40,9 @@ function fakeFetch(status, body) {
 const OK_BODY = {
   model: "deepseek-flash", // what the live API returns for deepseek-chat
   choices: [{message: {content: "你好呀，今日點呀？"}}],
-  usage: {prompt_tokens: 120, completion_tokens: 15},
+  system_fingerprint: "fp_test_0001",
+  usage: {prompt_tokens: 120, completion_tokens: 15,
+    completion_tokens_details: {reasoning_tokens: 0}},
 };
 const LOG = {callType: "chat", agentId: "siu_yan", uid: "u1"};
 
@@ -89,7 +91,8 @@ test("success: one row with the returned model and token counts", async () => {
   assert.strictEqual(name, "llm_calls");
   assert.deepStrictEqual(Object.keys(row).sort(), [
     "agent_id", "call_type", "completion_tokens", "error", "latency_ms",
-    "model_requested", "model_returned", "prompt_tokens", "ts", "uid",
+    "model_requested", "model_returned", "prompt_tokens", "reasoning_tokens",
+    "system_fingerprint", "ts", "uid",
   ]);
   assert.strictEqual(row.call_type, "chat");
   assert.strictEqual(row.agent_id, "siu_yan");
@@ -98,6 +101,8 @@ test("success: one row with the returned model and token counts", async () => {
   assert.strictEqual(row.model_returned, "deepseek-flash");
   assert.strictEqual(row.prompt_tokens, 120);
   assert.strictEqual(row.completion_tokens, 15);
+  assert.strictEqual(row.system_fingerprint, "fp_test_0001");
+  assert.strictEqual(row.reasoning_tokens, 0);
   assert.strictEqual(row.error, false);
   assert.ok(row.latency_ms >= 0);
   assert.ok(Math.abs(row.ts.toMillis() - Date.now()) < 5000);
@@ -119,7 +124,23 @@ test("non-2xx: logged as error, returned to the caller", async () => {
   assert.strictEqual(row.error, true);
   assert.strictEqual(row.model_returned, null);
   assert.strictEqual(row.prompt_tokens, null);
+  assert.strictEqual(row.system_fingerprint, null);
+  assert.strictEqual(row.reasoning_tokens, null);
 });
+
+test("model_requested comes from the request body, not a constant",
+    async () => {
+      const db = fakeDb();
+      await log.deepSeekChat(db, {
+        apiKey: "k", log: LOG, fetchImpl: fakeFetch(200, {model: "x"}),
+        body: {model: "deepseek-flash", thinking: {type: "disabled"}},
+      });
+      const row = db.rows[0].row;
+      assert.strictEqual(row.model_requested, "deepseek-flash");
+      // Optional fields absent from the response are stored as null.
+      assert.strictEqual(row.system_fingerprint, null);
+      assert.strictEqual(row.reasoning_tokens, null);
+    });
 
 test("network failure: logged as error, then rethrown", async () => {
   const db = fakeDb();

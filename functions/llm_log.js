@@ -50,13 +50,30 @@ function callTypeForModule(moduleId) {
 
 /**
  * Token counts from the OpenAI-style `usage` block, null when absent.
+ * `reasoning` is usage.completion_tokens_details.reasoning_tokens: non-zero
+ * means thinking mode was on.
  * @param {*} data parsed response body
- * @return {{prompt: ?number, completion: ?number}}
+ * @return {{prompt: ?number, completion: ?number, reasoning: ?number}}
  */
 function usageOf(data) {
   const u = (data && data.usage) || {};
+  const details = u.completion_tokens_details || {};
   const num = (v) => (typeof v === "number" ? v : null);
-  return {prompt: num(u.prompt_tokens), completion: num(u.completion_tokens)};
+  return {
+    prompt: num(u.prompt_tokens),
+    completion: num(u.completion_tokens),
+    reasoning: num(details.reasoning_tokens),
+  };
+}
+
+/**
+ * A string field of the response body, null when absent.
+ * @param {*} data parsed response body
+ * @param {string} key
+ * @return {?string}
+ */
+function stringField(data, key) {
+  return (data && typeof data[key] === "string") ? data[key] : null;
 }
 
 /**
@@ -72,10 +89,12 @@ function buildLogRow(p) {
     agent_id: p.agentId || null,
     uid: p.uid || null,
     model_requested: p.modelRequested || null,
-    model_returned: (p.data && typeof p.data.model === "string") ?
-      p.data.model : null,
+    model_returned: stringField(p.data, "model"),
+    // Changes when DeepSeek swaps the model behind the same name.
+    system_fingerprint: stringField(p.data, "system_fingerprint"),
     prompt_tokens: usage.prompt,
     completion_tokens: usage.completion,
+    reasoning_tokens: usage.reasoning,
     latency_ms: p.latencyMs,
     error: p.error === true,
   };
@@ -132,6 +151,8 @@ async function deepSeekChat(db, opts) {
     callType: opts.log.callType,
     agentId: opts.log.agentId,
     uid: opts.log.uid,
+    // Taken from the body actually sent, so a model-name change at the
+    // call sites is logged without touching this module.
     modelRequested: opts.body && opts.body.model,
     data: result ? result.data : null,
     error: thrown !== null || !result.ok,
