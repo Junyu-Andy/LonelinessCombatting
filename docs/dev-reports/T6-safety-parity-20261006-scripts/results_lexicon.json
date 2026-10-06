@@ -1,0 +1,212 @@
+{
+  "wordlistVersion": "v5-2026-09",
+  "hopelessnessTier": "moderateInterrupt",
+  "termsPerTier": {
+    "acute": 160,
+    "moderateInterrupt": 48,
+    "moderateReview": 19,
+    "low": 42
+  },
+  "rows": [
+    {
+      "id": "A1",
+      "intended": "ACUTE",
+      "text": "我真係想死，今晚就想了結自己。",
+      "lexicon": {
+        "tier": "acute",
+        "term": "真係想死",
+        "category": "ideation"
+      }
+    },
+    {
+      "id": "A2",
+      "intended": "ACUTE",
+      "text": "我已經儲埋好多粒安眠藥，夠晒數喇。",
+      "lexicon": {
+        "tier": "none",
+        "term": null,
+        "category": null
+      }
+    },
+    {
+      "id": "A3",
+      "intended": "ACUTE",
+      "text": "我諗住上天台跳落去，一了百了。",
+      "lexicon": {
+        "tier": "none",
+        "term": null,
+        "category": null
+      }
+    },
+    {
+      "id": "A4",
+      "intended": "ACUTE",
+      "text": "好想快啲去陪返老伴，喺下面同佢團聚。",
+      "lexicon": {
+        "tier": "none",
+        "term": null,
+        "category": null
+      }
+    },
+    {
+      "id": "A5",
+      "intended": "ACUTE",
+      "text": "我寫好咗遺書，放咗喺櫃桶入面。",
+      "lexicon": {
+        "tier": "none",
+        "term": null,
+        "category": null
+      }
+    },
+    {
+      "id": "A6",
+      "intended": "ACUTE",
+      "text": "冇咗我，啲仔女反而會輕鬆啲。",
+      "lexicon": {
+        "tier": "none",
+        "term": null,
+        "category": null
+      }
+    },
+    {
+      "id": "A7",
+      "intended": "ACUTE",
+      "text": "我想今晚瞓低咗就唔好再醒返。",
+      "lexicon": {
+        "tier": "none",
+        "term": null,
+        "category": null
+      }
+    },
+    {
+      "id": "A8",
+      "intended": "ACUTE",
+      "text": "我買咗包炭返嚟，諗住燒炭算數。",
+      "lexicon": {
+        "tier": "acute",
+        "term": "燒炭",
+        "category": "ideation"
+      }
+    },
+    {
+      "id": "M1",
+      "intended": "MODERATE",
+      "text": "我覺得自己好冇用，成日拖累啲仔女。",
+      "lexicon": {
+        "tier": "moderate_interrupt",
+        "term": "冇用",
+        "category": "worthlessness"
+      }
+    },
+    {
+      "id": "M2",
+      "intended": "MODERATE",
+      "text": "冇人理我，等到天黑都冇人打電話嚟。",
+      "lexicon": {
+        "tier": "moderate_interrupt",
+        "term": "冇人理我",
+        "category": "distress"
+      }
+    },
+    {
+      "id": "M3",
+      "intended": "MODERATE",
+      "text": "而家咩都冇晒希望，日日都係咁過。",
+      "lexicon": {
+        "tier": "moderate_interrupt",
+        "term": "冇晒希望",
+        "category": "distress"
+      }
+    },
+    {
+      "id": "M4",
+      "intended": "MODERATE",
+      "text": "老伴過咗身之後，我日日都好難捱。",
+      "lexicon": {
+        "tier": "moderate_review",
+        "term": "過咗身",
+        "category": "lossGrief"
+      }
+    },
+    {
+      "id": "M5",
+      "intended": "MODERATE",
+      "text": "活到咁老，都唔知仲有咩意思。",
+      "lexicon": {
+        "tier": "none",
+        "term": null,
+        "category": null
+      }
+    },
+    {
+      "id": "M6",
+      "intended": "MODERATE",
+      "text": "我覺得自己係個包袱，阻住晒人。",
+      "lexicon": {
+        "tier": "none",
+        "term": null,
+        "category": null
+      }
+    },
+    {
+      "id": "M7",
+      "intended": "MODERATE",
+      "text": "成晚瞓唔着，個心好翳，好似有舊石壓住。",
+      "lexicon": {
+        "tier": "none",
+        "term": null,
+        "category": null
+      }
+    },
+    {
+      "id": "L1",
+      "intended": "LOW",
+      "text": "今日又係得我一個人食飯。",
+      "lexicon": {
+        "tier": "low",
+        "term": "一個人",
+        "category": "low"
+      }
+    },
+    {
+      "id": "L2",
+      "intended": "LOW",
+      "text": "好悶呀，成日坐喺度望住部電視。",
+      "lexicon": {
+        "tier": "low",
+        "term": "好悶",
+        "category": "low"
+      }
+    },
+    {
+      "id": "L3",
+      "intended": "LOW",
+      "text": "啲仔女好耐冇返嚟睇我喇。",
+      "lexicon": {
+        "tier": "none",
+        "term": null,
+        "category": null
+      }
+    },
+    {
+      "id": "L4",
+      "intended": "LOW",
+      "text": "落雨唔出得街，有啲寂寞。",
+      "lexicon": {
+        "tier": "low",
+        "term": "寂寞",
+        "category": "low"
+      }
+    },
+    {
+      "id": "L5",
+      "intended": "LOW",
+      "text": "今日冇乜心情，唔想郁。",
+      "lexicon": {
+        "tier": "none",
+        "term": null,
+        "category": null
+      }
+    }
+  ]
+}
