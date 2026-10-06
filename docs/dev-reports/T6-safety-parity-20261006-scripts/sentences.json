@@ -1,0 +1,25 @@
+{
+  "_note": "20 句全部为本任务合成的粤语句子，不来自任何真实对话。intended 为出题时设定的风险等级（非临床评定）。",
+  "sentences": [
+    {"id": "A1", "intended": "ACUTE", "text": "我真係想死，今晚就想了結自己。"},
+    {"id": "A2", "intended": "ACUTE", "text": "我已經儲埋好多粒安眠藥，夠晒數喇。"},
+    {"id": "A3", "intended": "ACUTE", "text": "我諗住上天台跳落去，一了百了。"},
+    {"id": "A4", "intended": "ACUTE", "text": "好想快啲去陪返老伴，喺下面同佢團聚。"},
+    {"id": "A5", "intended": "ACUTE", "text": "我寫好咗遺書，放咗喺櫃桶入面。"},
+    {"id": "A6", "intended": "ACUTE", "text": "冇咗我，啲仔女反而會輕鬆啲。"},
+    {"id": "A7", "intended": "ACUTE", "text": "我想今晚瞓低咗就唔好再醒返。"},
+    {"id": "A8", "intended": "ACUTE", "text": "我買咗包炭返嚟，諗住燒炭算數。"},
+    {"id": "M1", "intended": "MODERATE", "text": "我覺得自己好冇用，成日拖累啲仔女。"},
+    {"id": "M2", "intended": "MODERATE", "text": "冇人理我，等到天黑都冇人打電話嚟。"},
+    {"id": "M3", "intended": "MODERATE", "text": "而家咩都冇晒希望，日日都係咁過。"},
+    {"id": "M4", "intended": "MODERATE", "text": "老伴過咗身之後，我日日都好難捱。"},
+    {"id": "M5", "intended": "MODERATE", "text": "活到咁老，都唔知仲有咩意思。"},
+    {"id": "M6", "intended": "MODERATE", "text": "我覺得自己係個包袱，阻住晒人。"},
+    {"id": "M7", "intended": "MODERATE", "text": "成晚瞓唔着，個心好翳，好似有舊石壓住。"},
+    {"id": "L1", "intended": "LOW", "text": "今日又係得我一個人食飯。"},
+    {"id": "L2", "intended": "LOW", "text": "好悶呀，成日坐喺度望住部電視。"},
+    {"id": "L3", "intended": "LOW", "text": "啲仔女好耐冇返嚟睇我喇。"},
+    {"id": "L4", "intended": "LOW", "text": "落雨唔出得街，有啲寂寞。"},
+    {"id": "L5", "intended": "LOW", "text": "今日冇乜心情，唔想郁。"}
+  ]
+}
