@@ -83,7 +83,7 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 
 **防护**：
 
-- `arm` 写入后不能改、不能删（Firestore 规则）；客户端不能写 `armAssignmentMode` / `armAssignedBy` / `armAssignedAt`。
+- 分组字段（`arm`、`strataCell`、`armAssignmentMode`、`armAssignedBy`、`armAssignedAt`）只有服务器能写：客户端建档时不能带，之后不能改、不能删；客户端也不能删自己的用户文档，免得删档重建换组（Firestore 规则，决策 0022）。
 - `proxyDeepSeek`、`referralJudgement`、`webSearch` 每次先查分组，B 组直接拒绝。即使 App 哪里判断错了，B 组也拿不到 LLM。
 - 分组还没拿到（`arm` 为空）时 App 显示 B 组界面（决策 0004），下次登录自动重试分组。
 
@@ -158,13 +158,14 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | `agent_greetings` | 每天预生成的个性化开场白（只 A 组） | App |
 | `mem_facts` / `mem_summaries` / `mem_followups` | v1 记忆 | 服务器；App 只能读、删、确认 |
 | `mem_injections` / `mem_extractions` | v1 注入日志、抽取记录 | 服务器；App 不能读 |
-| `action_plans`、`thought_records`、`reminders`、`fcm_tokens` 等 | 各功能自己的数据 | App |
+| `action_plans`、`thought_records`、`reminders`、`fcm_tokens` 等 | 各功能自己的数据。`reminders` 由 App 写入，服务器 `dispatchReminders` 发送后写回 `delivered`、`dispatchStatus` 等 | App；发送状态由服务器写 |
 
 **全局**
 
 | 位置 | 内容 |
 |---|---|
 | `app_config/arm_assignment` | `{randomise: bool}`：是否随机分组 |
+| `app_config/reminders` | `{m7FollowupPushEnabled: bool}`：行动计划提醒发不发，默认关（决策 0022） |
 | `meta/arm_counter` | 4 个层各自的 A/B 人数 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开 |
 | `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列 |
@@ -190,12 +191,13 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | `dailyMoodReminder` | 周一至六 19:00 | 每日情绪提醒 |
 | `weeklySurveyReminder` | 周日 20:00 | 周问卷提醒 |
 | `week2Push` | 每天 10:00 | 第二周推送 |
+| `dispatchReminders` | 每天 08:00–21:45，每 15 分钟 | 发送到时间的行动计划提醒（两组相同，开关 `app_config/reminders.m7FollowupPushEnabled` 默认关；超时 12 小时不补发；失败最多重试 3 次；见 `functions/reminders.js`、决策 0022） |
 | `sendTestPush` | App 调用 | 测试推送（测试人员） |
 
 **部署顺序**（新版本上线时）：
 
 1. 部署 Cloud Functions 和 Firestore 规则（Actions →「Deploy Firebase」）；
-2. 写 Firestore 配置：`app_config/arm_assignment`、`meta/memory_config`；打开随机前先清零 `meta/arm_counter`；
+2. 写 Firestore 配置：`app_config/arm_assignment`、`meta/memory_config`；打开随机前先清零 `meta/arm_counter`。可用 `tool/prelaunch_config.js`（默认只对模拟器执行），完整清单见 `docs/release/prelaunch-checklist.md`；
 3. 发布 App。
 
 顺序反了，新用户注册时分不到组，或者分组方式被记错，而分组写入后不能改。

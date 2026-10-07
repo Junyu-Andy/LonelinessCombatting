@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-07 T13 小修与上线配置（PR 草稿，未合并）
+
+- **C01**：Firestore 规则改成分组字段（`arm`、`strataCell` 和三个 `armAssigned*`）只有服务器能写；客户端不能删自己的用户文档（决策 0022）。App 正常注册走 `assignArm`，不受影响；规则测试按新规则改写并补了用例。
+- **C07**：新增定时函数 `dispatchReminders`，把 App 写进 `reminders` 的行动计划提醒推送出去，两组相同，开关默认关（决策 0022）。
+- **上线配置**：新增 `tool/prelaunch_config.js`（写 `meta/memory_config`、`app_config/arm_assignment`，可选清零计数器；默认只对模拟器执行）和 `docs/release/prelaunch-checklist.md`。
+- **C06**：怀旧入口「6 個主題、6 個禮拜」改为按实际主题数显示（4），单独一个提交，等研究侧确认文案。
+- 报告：`docs/dev-reports/T13-prelaunch-20261007.md`。
+
 ## 2026-10-06 开发任务 T1–T6；DeepSeek 模型名
 
 - 研究侧功能登记表（C01–C22）放进 `docs/spec/feature-registry.md`，任务单放进 `docs/dev-tasks/dev-tasks-1006.md`。T1–T6 分六个云端会话并行执行，报告写到 `docs/dev-reports/`、`docs/spec/`、`docs/export/`。

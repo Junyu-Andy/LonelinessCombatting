@@ -1,8 +1,12 @@
 /**
- * Firestore security-rules tests for the write-once RCT arm on
- * `users/{uid}`. Once a participant has an arm ('A' | 'B') no client write
- * may change or erase it; ordinary profile merge-writes must still pass,
- * and subcollections keep plain owner-only access.
+ * Firestore security-rules tests for the RCT assignment fields on
+ * `users/{uid}` (decision 0003 / 0022, SPEC:C01). Only the assignArm
+ * Cloud Function (admin SDK) writes `arm`, `strataCell` and the
+ * armAssigned* fields; no client may set, change or erase them, nor
+ * delete the profile to be re-randomised. Ordinary profile merge-writes
+ * — including the app's signup and backfill writes, which repeat or omit
+ * the stored arm — must still pass, and subcollections keep plain
+ * owner-only access.
  *
  * Run inside the emulator (see README.md).
  */
@@ -13,7 +17,7 @@ const {
   assertFails,
   assertSucceeds,
 } = require('@firebase/rules-unit-testing');
-const { doc, setDoc, updateDoc, getDoc, deleteField } =
+const { doc, setDoc, updateDoc, getDoc, deleteDoc, deleteField } =
   require('firebase/firestore');
 
 const PROJECT_ID = 'loneliness-pilot-dev';
@@ -49,11 +53,22 @@ async function seed(data) {
   });
 }
 
-describe('users/{uid} write-once arm', () => {
-  it('ALLOWS signup create with an arm', async () => {
-    await assertSucceeds(
-      setDoc(profile(owner()), { uid: 'u1', arm: 'B' }),
-    );
+describe('users/{uid} server-only arm', () => {
+  it('DENIES signup create with an arm', async () => {
+    await assertFails(setDoc(profile(owner()), { uid: 'u1', arm: 'B' }));
+    await assertFails(setDoc(profile(owner()), { uid: 'u1', arm: 'A' }));
+  });
+
+  it('DENIES signup create with a strataCell', async () => {
+    await assertFails(setDoc(profile(owner()), { uid: 'u1', strataCell: 2 }));
+  });
+
+  it('ALLOWS the app signup create (no assignment fields)', async () => {
+    // Mirrors AuthService.signUp: profile.toMap() omits null arm/strataCell.
+    await assertSucceeds(setDoc(profile(owner()), {
+      uid: 'u1', displayName: 'x', ageGroup: '70-74',
+      baselineUclaScore: 50, consent: {}, memory_enabled: false,
+    }, { merge: true }));
   });
 
   it('ALLOWS create without an arm (assignment failed at signup)', async () => {
@@ -64,12 +79,38 @@ describe('users/{uid} write-once arm', () => {
     await assertFails(setDoc(profile(owner()), { uid: 'u1', arm: 'C' }));
   });
 
-  it('ALLOWS the arm==null backfill', async () => {
+  it('DENIES a client-side arm==null backfill (server only now)', async () => {
     await seed({ uid: 'u1', arm: null });
-    await assertSucceeds(
+    await assertFails(
       setDoc(profile(owner()), { arm: 'A', strataCell: 0 }, { merge: true }),
     );
+    await seed({ uid: 'u1' });
+    await assertFails(setDoc(profile(owner()), { arm: 'B' }, { merge: true }));
   });
+
+  it('DENIES changing or erasing strataCell', async () => {
+    await seed({ uid: 'u1', arm: 'A', strataCell: 1 });
+    await assertFails(
+      setDoc(profile(owner()), { strataCell: 3 }, { merge: true }));
+    await assertFails(updateDoc(profile(owner()), { strataCell: deleteField() }));
+    await seed({ uid: 'u1' });
+    await assertFails(
+      setDoc(profile(owner()), { strataCell: 0 }, { merge: true }));
+  });
+
+  it('ALLOWS rewriting the same strataCell', async () => {
+    await seed({ uid: 'u1', arm: 'A', strataCell: 1 });
+    await assertSucceeds(setDoc(profile(owner()),
+      { arm: 'A', strataCell: 1, displayName: 'y' }, { merge: true }));
+  });
+
+  it('DENIES deleting the profile (delete + re-create would re-randomise)',
+    async () => {
+      await seed({ uid: 'u1', arm: 'B', strataCell: 0 });
+      await assertFails(deleteDoc(profile(owner())));
+      await seed({ uid: 'u1' });
+      await assertFails(deleteDoc(profile(owner())));
+    });
 
   it('ALLOWS a profile merge-write that omits arm', async () => {
     await seed({ uid: 'u1', arm: 'B', displayName: 'x' });

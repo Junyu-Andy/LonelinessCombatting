@@ -10,11 +10,13 @@ import 'reminiscence_arm_a_page.dart';
 import 'reminiscence_arm_b_page.dart';
 import 'reminiscence_memories_page.dart';
 
-/// M3 entry point. Lists the 6 weekly themes with a "completed" check
-/// per week (any saved entry for that theme counts). Same UI in both
+/// M3 entry point. Lists the [ReminiscenceTheme.totalWeeks] weekly themes
+/// with a "completed" check per week (any saved entry for that theme counts). Same UI in both
 /// arms — only the session experience that opens differs.
 class ReminiscenceLandingPage extends StatelessWidget {
   const ReminiscenceLandingPage({super.key});
+
+  static const _weeks = ReminiscenceTheme.totalWeeks;
 
   @override
   Widget build(BuildContext context) {
@@ -31,12 +33,14 @@ class ReminiscenceLandingPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           children: [
+            // SPEC:C06 — the count follows the real theme list (4), not a
+            // hard-coded 6.  Wording pending research-side sign-off (T13).
             Text(
               isEn
-                  ? 'A weekly 15–25 minute session. Six themes across six '
-                      'weeks. There\'s no right answer — just what you '
-                      'remember.'
-                  : '每星期一節，15-25 分鐘。6 個主題、6 個禮拜。冇標準答案，記得幾多都得。',
+                  ? 'A weekly 15–25 minute session. $_weeks themes across '
+                      '$_weeks weeks. There\'s no right answer — just what '
+                      'you remember.'
+                  : '每星期一節，15-25 分鐘。$_weeks 個主題、$_weeks 個禮拜。冇標準答案，記得幾多都得。',
               style: theme.textTheme.bodyLarge,
             ),
             const SizedBox(height: 12),
