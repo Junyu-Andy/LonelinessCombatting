@@ -108,18 +108,30 @@ class LlmGateway {
     // crisis surface.
     final point = SafetyInputPoint.forModule(moduleId);
     final turnId = SafetyService.newTurnId();
+    // T8 — the classifier slot is asked only when its switch is on; off,
+    // this stays the synchronous lexicon check (same timing as before).
     final inputFlag = skipSafetyScan
         ? const DistressMatch(DistressLevel.none)
-        : _safety
-            .checkUserText(
-              userInput,
-              point: point,
-              uid: uid,
-              agentId: agentId,
-              sessionId: sessionId,
-              turnId: turnId,
-            )
-            .match;
+        : _safety.classifierActiveFor(point)
+            ? (await _safety.checkUserTextClassified(
+                userInput,
+                point: point,
+                uid: uid,
+                agentId: agentId,
+                sessionId: sessionId,
+                turnId: turnId,
+              ))
+                .match
+            : _safety
+                .checkUserText(
+                  userInput,
+                  point: point,
+                  uid: uid,
+                  agentId: agentId,
+                  sessionId: sessionId,
+                  turnId: turnId,
+                )
+                .match;
 
     // Acute distress: short-circuit. The module is responsible for showing
     // the crisis surface; we never let an LLM be the only thing standing

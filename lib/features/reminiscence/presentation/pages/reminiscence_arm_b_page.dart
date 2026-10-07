@@ -93,13 +93,26 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
     // Decision 0023 — read once so one submission never mixes paths.
     final ruleReplies = _ruleReplies;
     // T7 — same shared safety check + PI event as Arm A (arm-invariant).
-    final distress = core.safety
-        .checkUserText(body,
-            point: SafetyInputPoint.reminiscenceNote,
-            uid: profile?.uid,
-            agentId: AgentRegistry.ahJanAhBakId)
-        .match;
-    setState(() => _busy = true);
+    // T8 — the classifier is asked only when its switch is on (same rule
+    // as Arm A's gateway); off, this stays the synchronous check.
+    const point = SafetyInputPoint.reminiscenceNote;
+    final DistressMatch distress;
+    if (core.safety.classifierActiveFor(point)) {
+      setState(() => _busy = true);
+      distress = (await core.safety.checkUserTextClassified(body,
+              point: point,
+              uid: profile?.uid,
+              agentId: AgentRegistry.ahJanAhBakId))
+          .match;
+    } else {
+      distress = core.safety
+          .checkUserText(body,
+              point: point,
+              uid: profile?.uid,
+              agentId: AgentRegistry.ahJanAhBakId)
+          .match;
+    }
+    if (mounted) setState(() => _busy = true);
     if (profile != null) {
       final store = M3SessionStore(available: auth.available);
       await store.startSession(

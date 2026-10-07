@@ -15,6 +15,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import 'distress_detector.dart';
+import 'safety_classifier.dart';
 
 /// `safety_events.source` — the three analysis buckets (T7, decision 0018).
 ///
@@ -52,6 +53,10 @@ class SafetyEventWriter {
   ///
   /// [inputText] is hashed (SHA-256) on the client; the text itself is
   /// never written.
+  ///
+  /// T8: [detector] (`lexicon` / `classifier` / `both`) and the
+  /// [classifier] fields are added only when the classifier path ran
+  /// (switch on); with the switch off the doc is exactly as before.
   Future<void> maybeWrite({
     String? uid,
     required SafetySource source,
@@ -61,6 +66,8 @@ class SafetyEventWriter {
     String? turnId,
     String? agentId,
     String? sessionId,
+    String? detector,
+    ClassifierVerdict? classifier,
   }) async {
     if (!available) return;
     if (!match.isEscalation) return;
@@ -89,6 +96,13 @@ class SafetyEventWriter {
         'agentId': agentId,
         'sessionId': sessionId,
         'createdAt': FieldValue.serverTimestamp(),
+        if (detector != null) 'detector': detector,
+        if (classifier != null) ...{
+          'classifierStatus': classifier.status.code,
+          'classifierLevel': classifier.level?.tierCode,
+          'classifierScore': classifier.score,
+          'classifierVersion': classifier.modelVersion,
+        },
       });
     } catch (e) {
       if (kDebugMode) debugPrint('[safety_event] write failed: $e');

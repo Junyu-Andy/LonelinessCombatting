@@ -4,6 +4,7 @@
 
 | 日期 | Tag | 改动 | 影响（cohort × 组别） | 生效方式 | 决策记录 |
 |---|---|---|---|---|---|
+| 2026-10-07 | — | （T8，PR 草稿）安全分类器（LoRA）接口：两组共用，词库之后再问分类器，取较高级别（只升不降），超时 1.5 秒或失败只用词库；分类器只返回级别和分数，不返回文字；经新的 Cloud Function `classifySafety`，不经过 `proxyDeepSeek`，`assertLlmAllowed` 不变。调用记录在 `safety_classifier_calls`，不存原文。**两个开关默认关，关着时参与者和测量都没有任何变化**；打开前要研究侧和 PI 确认决策 0025 | 开关打开后：所有 cohort × 两组（规则组多一条外发路径）；关着时无影响 | 合并部署后仍不生效，直到 `app_config/phase_a.safetyClassifierEnabled` 和 `meta/safety_config.classifierEnabled` 都设为 true，打开当天在这里补一行 | 0025 |
 | 2026-10-07 | — | 通通 prompt 改为 v2（`tung_tung.v2.txt`，`promptVersion` = `tung_tung_v2@2026-10`）：不再邀请老人"幫你查"或"一齊查下"；不确定就老实说，不编日期、价钱、地址，可建议问家人或社工。其余不变。**待 PI 审核** | 所有 cohort × Hybrid 组（规则组不用 prompt） | 随合并后的下一次 Functions 部署 | 0019 |
 | 2026-10-07 | — | 搜一搜和语音输入改由 `app_config/feature_flags` 控制，默认关：所有页面的麦克风按钮不显示、服务器拒绝 `webSearch` 和 `transcribeAudio`。搜一搜在 App 里 2026-07-20 起已关，参与者看不到变化；语音按钮消失是参与者能看到的变化。通通固定回应另有开关，默认关，文字未定稿 | 所有 cohort × 两组（搜一搜只涉及 Hybrid 组） | 合并后：Functions 部署后服务器拒绝；新版 App 发布后麦克风消失 | 0019 |
 | 待定 | `phaseB-v1.0.0` | Phase B 冻结版本：v1 记忆、分组标记、版本追溯字段、「我的資料」页面 | phase_b × 两组 | 第一位 phase_b 参与者入组前 | 0001 |

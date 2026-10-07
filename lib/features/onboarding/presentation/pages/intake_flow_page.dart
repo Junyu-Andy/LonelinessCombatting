@@ -183,25 +183,39 @@ class _IntakeFlowPageState extends State<IntakeFlowPage> {
           .where((x) => x != null && x.trim().isNotEmpty)
           .map((x) => x!.trim())
           .join('\n');
-      final results = [
-        safety.checkUserText(_onMind,
-            point: SafetyInputPoint.intakeOnMind, uid: profile.uid),
-        safety.checkUserText(_avoidTopics,
-            point: SafetyInputPoint.intakeAvoidTopics, uid: profile.uid),
-        safety.checkUserText(
-            join([
-              _mainGoalOtherText,
-              _typicalMorning,
-              _typicalAfternoon,
-              _typicalEvening,
-              _activitiesOtherText,
-              _topicsOtherText,
-              for (final m in [..._importantPeople, ..._reconnectPeople])
-                m['extra'],
-            ]),
-            point: SafetyInputPoint.intakeOtherText,
-            uid: profile.uid),
-      ];
+      final otherText = join([
+        _mainGoalOtherText,
+        _typicalMorning,
+        _typicalAfternoon,
+        _typicalEvening,
+        _activitiesOtherText,
+        _topicsOtherText,
+        for (final m in [..._importantPeople, ..._reconnectPeople])
+          m['extra'],
+      ]);
+      final List<SafetyCheckResult> results;
+      // T8 — the classifier is asked only when its switch is on; off, the
+      // three checks stay synchronous, as before.
+      if (safety.classifierActiveFor(SafetyInputPoint.intakeOnMind)) {
+        results = await Future.wait([
+          safety.checkUserTextClassified(_onMind,
+              point: SafetyInputPoint.intakeOnMind, uid: profile.uid),
+          safety.checkUserTextClassified(_avoidTopics,
+              point: SafetyInputPoint.intakeAvoidTopics, uid: profile.uid),
+          safety.checkUserTextClassified(otherText,
+              point: SafetyInputPoint.intakeOtherText, uid: profile.uid),
+        ]);
+        if (!mounted) return;
+      } else {
+        results = [
+          safety.checkUserText(_onMind,
+              point: SafetyInputPoint.intakeOnMind, uid: profile.uid),
+          safety.checkUserText(_avoidTopics,
+              point: SafetyInputPoint.intakeAvoidTopics, uid: profile.uid),
+          safety.checkUserText(otherText,
+              point: SafetyInputPoint.intakeOtherText, uid: profile.uid),
+        ];
+      }
       await safety.route(context, results);
       if (!mounted) return;
     }

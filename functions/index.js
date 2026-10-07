@@ -13,6 +13,7 @@ const llmLog = require("./llm_log");
 const reminders = require("./reminders");
 const hotline = require("./hotline_filter");
 const {safetyConfig} = require("./safety_config");
+const safetyClassifier = require("./safety_classifier");
 const featureFlags = require("./feature_flags");
 const blinding = require("./blinding");
 
@@ -514,6 +515,41 @@ function withRuleVersion(personaVersion, ruleVersion) {
   if (!personaVersion || !ruleVersion) return personaVersion;
   return `${personaVersion}+${ruleVersion}`;
 }
+
+// ---------------------------------------------------------------------------
+// classifySafety — T8 safety-classifier relay (SPEC C13, decision 0025,
+// proposed; off unless meta/safety_config.classifierEnabled).  Both arms:
+// it returns only {status, level, score, modelVersion}, never text, and it
+// is not a chat-model call — so on purpose it neither goes through
+// proxyDeepSeek nor calls assertLlmAllowed (that guard is unchanged and
+// still keeps Arm B away from every chat-model endpoint).  Logic and
+// logging: safety_classifier.js.  The model address lives in
+// meta/safety_config (clients cannot read it); an optional bearer token
+// comes from the SAFETY_CLASSIFIER_TOKEN environment variable until the
+// research team settles the auth method.
+// ---------------------------------------------------------------------------
+
+exports.classifySafety = onCall(
+  {
+    region: "asia-east2",
+    enforceAppCheck: false,
+    maxInstances: 10,
+    timeoutSeconds: 10,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+    const db = admin.firestore();
+    return safetyClassifier.classify({
+      db: db,
+      cfg: await safetyConfig(db),
+      stripPII: stripPII,
+      token: process.env.SAFETY_CLASSIFIER_TOKEN || null,
+      serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+    }, request.auth.uid, request.data || {});
+  },
+);
 
 // ---------------------------------------------------------------------------
 // safetyAcknowledgement – returns the templated per-agent safety text.

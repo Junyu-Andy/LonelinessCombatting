@@ -624,13 +624,27 @@ class _TungTungPageState extends State<TungTungPage> {
     await _recorder?.ensureStarted();
 
     // T7 — the shared entry point, same as Arm A's gateway input scan.
-    final flag = core.safety
-        .checkUserText(text,
-            point: SafetyInputPoint.chatTungTung,
-            uid: profile?.uid,
-            agentId: AgentRegistry.tungTungId,
-            sessionId: _recorder?.sessionId)
-        .match;
+    // T8 — the classifier is asked only when its switch is on (same rule
+    // as Arm A's gateway); off, this stays the synchronous check.
+    const point = SafetyInputPoint.chatTungTung;
+    final DistressMatch flag;
+    if (core.safety.classifierActiveFor(point)) {
+      flag = (await core.safety.checkUserTextClassified(text,
+              point: point,
+              uid: profile?.uid,
+              agentId: AgentRegistry.tungTungId,
+              sessionId: _recorder?.sessionId))
+          .match;
+      if (!mounted) return;
+    } else {
+      flag = core.safety
+          .checkUserText(text,
+              point: point,
+              uid: profile?.uid,
+              agentId: AgentRegistry.tungTungId,
+              sessionId: _recorder?.sessionId)
+          .match;
+    }
 
     TurnRecord record(String reply, {required bool acute, bool ack = false}) =>
         TurnRecord(
