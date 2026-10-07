@@ -1,0 +1,22 @@
+{
+  "_comment": "Shared by test/safety_lexicon_export_test.dart (App, DistressDetector) and functions/test/safety_lexicon_test.js (server, functions/safety_lexicon.json). Both must give the same tier and matched term for every line. T10 / decision 0024.",
+  "cases": [
+    {"text": "今日去咗街市買餸，遇到舊鄰居傾咗幾句。", "tier": "none", "term": null},
+    {"text": "", "tier": "none", "term": null},
+    {"text": "我好孤獨", "tier": "low", "term": "孤獨"},
+    {"text": "I feel LONELY today", "tier": "low", "term": "lonely"},
+    {"text": "我覺得自己係個拖累", "tier": "moderate_interrupt", "term": "拖累"},
+    {"text": "成世人都夠喇，冇乜好留戀，唔想再拖累個女", "tier": "moderate_interrupt", "term": "拖累"},
+    {"text": "我真係想死", "tier": "acute", "term": "真係想死"},
+    {"text": "有時諗住不如死咗算，活落去都冇意思", "tier": "acute", "term": "不如死咗"},
+    {"text": "有時我真係想跳樓一了百了", "tier": "acute", "term": "想跳樓"},
+    {"text": "我覺得冇晒希望", "tier": "moderate_interrupt", "term": "冇晒希望"},
+    {"text": "老伴走咗之後好難過", "tier": "moderate_review", "term": "老伴走咗"},
+    {"text": "My husband passed away last year", "tier": "moderate_review", "term": "passed away"},
+    {"text": "I want to KILL MYSELF", "tier": "acute", "term": "kill myself"},
+    {"text": "我啲安眠藥儲埋咗好多粒，有時諗住一次過食晒佢", "tier": "none", "term": null},
+    {"text": "冇人理我，我係個負擔", "tier": "moderate_interrupt", "term": "冇人理我"},
+    {"text": "我好想死呀", "tier": "acute", "term": "好想死"},
+    {"text": "想死咁攰", "tier": "moderate_interrupt", "term": "想死"}
+  ]
+}

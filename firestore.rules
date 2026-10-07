@@ -61,16 +61,19 @@ service cloud.firestore {
     //     doc would let assignArm re-randomise the participant.
     //     Whole-person deletion runs server-side (admin SDK).
     // ============================================================
+    // memoryWithdrawnAt (T10, decision 0024) is server-only the same way:
+    // tool/delete_memory.js sets it and memory v1 then stops for good, so
+    // a client must not be able to set or clear it.
     function assignmentFields() {
       return ['arm', 'strataCell', 'armAssignmentMode', 'armAssignedBy',
-              'armAssignedAt'];
+              'armAssignedAt', 'memoryWithdrawnAt'];
     }
 
     function createLeavesAssignmentEmpty(data) {
       return data.get('arm', null) == null
         && data.get('strataCell', null) == null
         && !data.keys().hasAny(['armAssignmentMode', 'armAssignedBy',
-                                'armAssignedAt']);
+                                'armAssignedAt', 'memoryWithdrawnAt']);
     }
 
     function updateLeavesAssignmentUntouched() {

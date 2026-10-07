@@ -15,6 +15,13 @@
  *
  * Dry run by default: prints what it would delete. Add --confirm to delete.
  *
+ * With --confirm it also turns memory off for the user: memory_enabled
+ * false and memoryWithdrawnAt (T10, decision 0024). The server honours
+ * memoryWithdrawnAt even for Phase B Arm A, where memory is otherwise
+ * mandatory, so nothing new is recorded afterwards (meta/memory_config
+ * .honourMemoryWithdrawal, default on). To clear memory but keep it
+ * running (e.g. test accounts), add --keep-memory-on.
+ *
  * Usage:
  *   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
  *   node tool/delete_memory.js --uid=abc123            # dry run, one user
@@ -84,14 +91,17 @@ async function memoryRefs(userRef) {
   return {refs, counts};
 }
 
-async function forUser(db, uid, confirm) {
+async function forUser(db, uid, confirm, keepOn) {
   const userRef = db.collection('users').doc(uid);
   const {refs, counts} = await memoryRefs(userRef);
   const n = await deleteDocs(db, refs, confirm);
-  if (confirm) {
+  if (confirm && keepOn) {
+    await userRef.set({memoryDeletedAt: new Date()}, {merge: true});
+  } else if (confirm) {
     // Turn memory off so nothing new is extracted for a withdrawn user.
-    await userRef.set({memory_enabled: false, memoryDeletedAt: new Date()},
-        {merge: true});
+    const now = new Date();
+    await userRef.set({memory_enabled: false, memoryDeletedAt: now,
+      memoryWithdrawnAt: now}, {merge: true});
   }
   console.log(`${confirm ? 'deleted' : 'would delete'} ${n} docs for ${uid}`,
       JSON.stringify(counts));
@@ -120,7 +130,9 @@ async function main() {
   }
 
   let total = 0;
-  for (const uid of uids) total += await forUser(db, uid, confirm);
+  for (const uid of uids) {
+    total += await forUser(db, uid, confirm, args['keep-memory-on'] === true);
+  }
   console.log(`${confirm ? 'Deleted' : 'Dry run — would delete'} ${total} ` +
       `docs across ${uids.length} participant(s).` +
       (confirm ? '' : ' Re-run with --confirm to delete.'));

@@ -37,6 +37,19 @@ node tool/memory_eval/score.js --run=run3          # 缺人工判定时会列出
 - 聊天回复（`proxyDeepSeek`）**不会**真的发出去：脚本只截下要发送的 system prompt 来检查记忆块，然后本地回一句假回复。
 - 每次改抽取 prompt 或换模型都应重跑（见 `docs/dev/memory-and-entry-spec.md` 3.1）。
 
+## T10 重跑（2026-10-07）
+
+- 结果：`results/t10_run1`–`t10_run4`（真实 DeepSeek），`t10_run3_replay`、`t10_run4_replay`（用第 3、4 轮录下的模型输出重放，不联网）。报告 `docs/dev-reports/T10-memory-fix-20261007.md`。
+- 调用次数另记在 `results/ledger_t10.json`（第 1、2 轮）和 `ledger_t10_final.json`（第 3、4 轮），每段每批不超过 3 次。
+- 新参数：`--ledger=<文件名>`；`--mode=replay --from=<run>`。`score.js --review-summaries` 要求每条摘要都有人工判定（摘要层也评）；编造按类型分开（`hypothetical_joke` 假设或玩笑、`misattributed` 陪伴者的话或被否认的猜测、`invented` 凭空）。
+- 给第二位判定人的表：`second_rater_t10.csv`，由 `make_rater_csv.js` 生成，每条记忆一行，判定栏留空，不含第一位判定人的结果。
+
+```bash
+NODE_USE_ENV_PROXY=1 firebase emulators:exec --only firestore --project demo-t4memeval \
+  "node tool/memory_eval/run_eval.js --mode=live --run=t10_run5 --ledger=ledger_t10_next.json"
+node tool/memory_eval/score.js --run=t10_run5 --review-summaries
+```
+
 ## 不进 CI 的原因
 
 它会真实调用 DeepSeek，而且有一部分要人工判定。不需要模型的那几项（规则组零抽取零注入、分层共享不泄露、删除后不注入、香港日期）另写成 `functions/test/memory_acceptance_emulator_test.js`，CI 会跑。

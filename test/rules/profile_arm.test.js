@@ -175,6 +175,18 @@ describe('users/{uid} server-only arm', () => {
       { armAssignedBy: 'client' }));
   });
 
+  it('DENIES a client setting or clearing memoryWithdrawnAt (T10)',
+      async () => {
+    await assertFails(setDoc(profile(owner()),
+      { uid: 'u1', memoryWithdrawnAt: new Date() }));
+    await seed({ uid: 'u1', arm: 'A', armAssignmentMode: 'randomise',
+      memoryWithdrawnAt: new Date() });
+    await assertFails(setDoc(profile(owner()),
+      { memoryWithdrawnAt: null }, { merge: true }));
+    await assertSucceeds(setDoc(profile(owner()),
+      { displayName: 'y', memory_enabled: false }, { merge: true }));
+  });
+
   it('ALLOWS ordinary writes to a server-assigned profile', async () => {
     await seed({ uid: 'u1', arm: 'A', armAssignmentMode: 'randomise',
       armAssignedBy: 'server' });

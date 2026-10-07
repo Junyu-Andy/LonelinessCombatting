@@ -8,6 +8,9 @@
  *
  *   --mode=stub  the extraction model is an oracle built from gold/ (no
  *                network). Use this to check the harness and the scorer.
+ *   --mode=replay --from=<run>  the extraction model answers with what it
+ *                answered in results/<run>/raw.json (no network). For
+ *                re-checking a server-side change on the same model output.
  *   --mode=live  the extraction call goes to DeepSeek through the real
  *                callDeepSeekJson in index.js. Needs NODE_USE_ENV_PROXY=1.
  *                Chat replies (proxyDeepSeek) are never sent: the request is
@@ -28,6 +31,12 @@
  *     --project demo-t4memeval \
  *     "node tool/memory_eval/run_eval.js --mode=live --run=run1"
  * Then: node tool/memory_eval/score.js --run=run1
+ *
+ * T10 (2026-10-07) reruns: --ledger=ledger_t10.json keeps a fresh call
+ * count (≤3 per dialogue) for the post-fix runs; calls are attributed by
+ * any user line (a screened-out first line no longer breaks it); page
+ * deletions also run the summary-delete trigger's handler; after the
+ * deletion script a new session must not be recorded.
  */
 "use strict";
 /* eslint-disable require-jsdoc, max-len */
@@ -49,6 +58,8 @@ function arg(name, dflt) {
 const MODE = arg("mode", "stub");
 const RUN = arg("run", MODE);
 const ONLY = arg("only", ""); // comma list of persona ids, for debugging
+const LEDGER_FILE = arg("ledger", "ledger.json");
+const FROM = arg("from", "");
 
 if (!process.env.FIRESTORE_EMULATOR_HOST) {
   console.error("FIRESTORE_EMULATOR_HOST not set — run inside the emulator.");
@@ -86,10 +97,12 @@ const GOLD = Object.fromEntries(ids.map((f) => {
   return [g.id, g];
 }));
 const hkt = (local) => new Date(`${local}:00+08:00`);
+const REPLAY = MODE === "replay" ? JSON.parse(fs.readFileSync(
+    path.join(HERE, "results", FROM, "raw.json"), "utf8")).extraction : [];
 
 // --- call ledger (enforces ≤3 extraction calls per dialogue, all runs) ----
 const RESULTS = path.join(HERE, "results");
-const LEDGER = path.join(RESULTS, "ledger.json");
+const LEDGER = path.join(RESULTS, LEDGER_FILE);
 const ledger = fs.existsSync(LEDGER) ?
   JSON.parse(fs.readFileSync(LEDGER, "utf8")) : {calls: {}};
 const saveLedger = () => fs.writeFileSync(LEDGER,
@@ -153,14 +166,28 @@ global.fetch = async (url, init) => {
   // Attribute the call by its transcript, not by timing: a sweep retry may
   // pick up another dialogue's failed extraction.
   const userMsg = body.messages[1] ? String(body.messages[1].content) : "";
-  const dlg = DIALOGUES.find((d) => {
-    const first = d.turns.find((t) => t.role === "user");
-    return first && userMsg.includes(first.text);
-  });
+  let dlg = null;
+  let best = 0;
+  for (const d of DIALOGUES) {
+    const n = d.turns.filter((t) => t.role === "user" &&
+      userMsg.includes(t.text)).length;
+    if (n > best) {
+      best = n;
+      dlg = d;
+    }
+  }
   if (!dlg) throw new Error("extraction call for an unknown transcript");
   if (MODE === "stub") {
     CTX.calls.push({dialogue: dlg.id, mode: "stub", requested_model: body.model});
     return stubResponse(oracle(dlg));
+  }
+  if (MODE === "replay") {
+    const src = REPLAY.find((x) => x.id === dlg.id);
+    const text = src && src.extraction ? src.extraction.raw_output : "";
+    if (!text) throw new Error(`no recorded output for ${dlg.id} in ${FROM}`);
+    CTX.calls.push({dialogue: dlg.id, mode: "replay", from: FROM,
+      requested_model: body.model});
+    return stubResponse(text, "replay");
   }
   const used = ledger.calls[dlg.id] || 0;
   if (used >= MAX_CALLS_PER_DIALOGUE) {
@@ -354,8 +381,11 @@ async function extractAll() {
   const perDialogue = [];
   for (const p of personas) {
     const uid = `eval_${p}`;
+    // Decision 0020: existing accounts are migrated to sharedContextUse
+    // true; without it every user runs as policy B (T10 runs 1–2 did).
     await db.collection("users").doc(uid).set({arm: "A",
-      armAssignmentMode: "randomise", strataCell: 0, memory_enabled: false});
+      armAssignmentMode: "randomise", strataCell: 0, memory_enabled: false,
+      consent: {sharedContextUse: true}});
     for (const dlg of DIALOGUES.filter((d) => d.persona === p)) {
       const now = hkt(dlg.hkt_time);
       CLOCK.now = now;
@@ -404,6 +434,10 @@ async function extractAll() {
         extraction: ext[0] ? {id: ext[0].id, status: ext[0].status,
           attempts: ext[0].attempts, error: ext[0].error || null,
           dropped: ext[0].dropped || [], counts: ext[0].counts || null,
+          outcome: ext[0].outcome || null,
+          excluded_safety_turns: ext[0].excluded_safety_turns || 0,
+          forget: ext[0].forget || null,
+          prompt_version: ext[0].prompt_version || null,
           raw_output: ext[0].raw_output || ""} : null,
         facts, followups, summaries,
       }));
@@ -530,7 +564,13 @@ async function deletionCheck(personas) {
     }
     const injSum = sums.find((s) => targets.includes(s.id));
     if (injSum) pick.push({col: "mem_summaries", doc: injSum});
-    for (const t of pick) await uref.collection(t.col).doc(t.doc.id).delete();
+    for (const t of pick) {
+      await uref.collection(t.col).doc(t.doc.id).delete();
+      // What the memoryFactDeleted trigger does once the page deletes.
+      if (t.col === "mem_facts") {
+        await memory.deleteSummaryForItem(db, uid, t.doc);
+      }
+    }
     for (const a of AGENTS) {
       const r = await chatPrompt(uid, a, now);
       const ids = (r.injection || {}).memory_ids || [];
@@ -569,7 +609,26 @@ async function deletionCheck(personas) {
     // chatPrompt above logs nothing when the block is empty, so the
     // injection log stays empty too.
     const user = (await uref.get()).data();
+    // A new session after the deletion must not be recorded (T10).
+    const dlg = DIALOGUES.find((d) => d.persona === p);
+    CLOCK.now = now;
+    await seedBuffer(uid, dlg.agent, dlg, now);
+    CTX.phase = "deny";
+    const deniedBefore = CTX.denied.length;
+    let after;
+    try {
+      after = (await endSession({data: {agentId: dlg.agent},
+        auth: {uid}})).status;
+    } catch (e) {
+      after = `error:${e.message}`;
+    }
+    CTX.phase = "setup";
+    const newCounts = {};
+    for (const col of MEM_COLS) newCounts[col] = (await docs(uid, col)).length;
     out.full.push({persona: p, exit: res.status,
+      newSessionStatus: after, newSessionModelCalls: CTX.denied.length - deniedBefore,
+      countsAfterNewSession: newCounts,
+      memoryWithdrawnAt: user.memoryWithdrawnAt ? "set" : null,
       stdout: (res.stdout || "").trim().slice(-300),
       stderr: (res.stderr || "").trim().slice(-300),
       countsAfter: counts, blockCharsAfter: blocks,
