@@ -13,6 +13,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../config/usage_copy.dart';
+
 /// Reis PPR (Perceived Partner Responsiveness) sub-components, per the
 /// 3-agent → 3-component design mapping (Design Rationale §5).
 enum PprSubcomponent {
@@ -100,9 +102,21 @@ class AgentDefinition {
   /// [AgentGenderVariant].
   final List<AgentDisplayVariant> variants;
 
-  /// Short one-line description shown on the Home tile.
-  final String tileSubtitleZh;
-  final String tileSubtitleEn;
+  /// Short one-line description shown on the Home tile — as written in
+  /// the registry.  Read [tileSubtitleZh] / [tileSubtitleEn], which let
+  /// `app_config/usage_copy` replace Siu Yan's line (T20).
+  final String defaultTileSubtitleZh;
+  final String defaultTileSubtitleEn;
+
+  String get tileSubtitleZh => _tileSubtitle(isEn: false);
+  String get tileSubtitleEn => _tileSubtitle(isEn: true);
+
+  String _tileSubtitle({required bool isEn}) {
+    final fallback = isEn ? defaultTileSubtitleEn : defaultTileSubtitleZh;
+    if (id != AgentRegistry.siuYanId) return fallback;
+    return UsageCopy.current.text(UsageCopy.siuYanTileSubtitle,
+        isEn: isEn, fallback: fallback);
+  }
 
   const AgentDefinition({
     required this.id,
@@ -113,9 +127,10 @@ class AgentDefinition {
     required this.systemPromptKey,
     required this.introTextKey,
     required this.variants,
-    required this.tileSubtitleZh,
-    required this.tileSubtitleEn,
-  });
+    required String tileSubtitleZh,
+    required String tileSubtitleEn,
+  })  : defaultTileSubtitleZh = tileSubtitleZh,
+        defaultTileSubtitleEn = tileSubtitleEn;
 
   bool get hasGenderVariants => variants.length > 1;
   /// Resolve the display variant for the given selection. Falls back
@@ -257,7 +272,19 @@ class AgentRegistry {
     return null;
   }
 
-  static AgentIntroText? introTextFor(String key) => _firstIntroTexts[key];
+  /// Siu Yan's line says "day by day", so `app_config/usage_copy` may
+  /// replace it (T20); otherwise the text below is returned unchanged.
+  static AgentIntroText? introTextFor(String key) {
+    final intro = _firstIntroTexts[key];
+    if (intro == null || key != 'siu_yan_v1') return intro;
+    final copy = UsageCopy.current;
+    return AgentIntroText(
+      zh: copy.text(UsageCopy.siuYanFirstIntro,
+          isEn: false, fallback: intro.zh),
+      en: copy.text(UsageCopy.siuYanFirstIntro,
+          isEn: true, fallback: intro.en),
+    );
+  }
 
   /// Ah Jan / Ah Bak display name resolved for the user's chosen gender
   /// variant (阿珍 feminine / 阿伯 masculine). Use this everywhere the

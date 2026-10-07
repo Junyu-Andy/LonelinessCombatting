@@ -23,6 +23,7 @@ rules_version = '2';
 //   users/{uid}/shared_context/current           -> cross-agent shared state
 //   users/{uid}/mem_*/{id}                       -> memory v1 (server-written; owner read/delete)
 //   meta/memory_config                           -> memory v1 kill switch + policy (admin only)
+//   app_config/usage_copy                        -> T20 usage-frequency copy (signed-in read, no client write)
 //   users/{uid}/fcm_tokens/{deviceId}            -> *new* B.12 FCM push tokens
 //   meta/arm_counter                             -> *new* 4-cell A/B balance counter
 //   safety_events/{eventId}                      -> *new* B.7 distress events (client-write, admin-read)
@@ -129,7 +130,8 @@ service cloud.firestore {
     // and patches the doc with dedup_key.
     // ============================================================
     // Phase A baseline — runtime parameters (PhaseAConfig).  Clients read,
-    // never write; the research team edits from the console.
+    // never write; the research team edits from the console.  Also holds
+    // app_config/usage_copy (T20, usage-frequency copy, both arms).
     match /app_config/{doc} {
       allow read: if isAuthed();
       allow write: if false;
