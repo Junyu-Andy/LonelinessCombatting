@@ -524,16 +524,17 @@ async function loadConfig(db) {
     enabled: d.enabled === true,
     policy,
     phaseBArmA: d.phaseBArmA === true,
-    // C20 / decision 0020: same key the App reads (PhaseAConfig).
-    enforceSharedContextConsent: app.enforceSharedContextConsent === true,
+    // C20 / decision 0020: same key the App reads (PhaseAConfig); on
+    // unless explicitly false.
+    enforceSharedContextConsent: app.enforceSharedContextConsent !== false,
   };
 }
 
 /**
  * The sharing policy for one user. With app_config/phase_a
- * .enforceSharedContextConsent on, a user whose consent.sharedContextUse
- * is not true gets policy B: each agent sees only its own items
- * (decision 0020). Otherwise the configured policy.
+ * .enforceSharedContextConsent on (the default), a user whose
+ * consent.sharedContextUse is not true gets policy B: each agent sees
+ * only its own items (decision 0020). Otherwise the configured policy.
  * @param {{policy: string, enforceSharedContextConsent: boolean}} cfg
  * @param {object} user profile doc data
  * @return {string} A | B | C

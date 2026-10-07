@@ -31,7 +31,10 @@ async function reset({enabled = true, optIn = true, arm = "A"} = {}) {
     await Promise.all(docs.map((d) => d.delete()));
   }
   await db.doc("meta/memory_config").set({enabled, policy: "C"});
-  await user().set({memory_enabled: optIn, arm});
+  // Decision 0020: sharing is enforced by default; existing accounts are
+  // migrated to sharedContextUse: true.
+  await user().set({memory_enabled: optIn, arm,
+    consent: {sharedContextUse: true}});
 }
 
 async function seedBuffer(agentId, lines) {
@@ -260,12 +263,14 @@ test("sharedContextUse consent: enforced + off → only own items (C20)",
       const setUser = (shared) => user().set({memory_enabled: true,
         arm: "A", consent: {sharedContextUse: shared}});
       try {
-        // Switch off (no app_config/phase_a): consent ignored, as before.
+        // Switch explicitly off: consent ignored.
+        await db.doc("app_config/phase_a").set(
+            {enforceSharedContextConsent: false});
         await setUser(false);
         assert.ok((await m.injectMemory(db, args)).includes("陳太"));
-        // Switch on, consent off: Tung Tung's shared fact stays with it.
-        await db.doc("app_config/phase_a").set(
-            {enforceSharedContextConsent: true});
+        // Default (no app_config/phase_a) is on: consent off → Tung Tung's
+        // shared fact stays with it.
+        await db.doc("app_config/phase_a").delete();
         assert.strictEqual(await m.injectMemory(db, args), "");
         const own = await m.injectMemory(db, {...args,
           agentId: "tung_tung", moduleId: "tung_tung_chat"});

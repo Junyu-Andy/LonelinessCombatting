@@ -140,7 +140,9 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 - 接下来要改成什么样：`docs/dev/memory-and-entry-spec.md`
 - 研究上为什么这样设计：`docs/research/memory-in-hybrid-arm.md`
 
-**同意开关（决策 0020）**：`app_config/phase_a.enforceSharedContextConsent`（默认关）打开后，`users/{uid}.consent.sharedContextUse` 不是 `true` 的人，陪伴者之间不共享：v1 共享策略按 B（`functions/memory.js` `effectivePolicy`，注入和抽取都是）；v0 里小欣不引用阿珍/阿伯的回忆摘要，转介不存原话（`lib/core/privacy/shared_context_consent.dart`）。开关关时不看这个同意。
+**共享同意（决策 0020）**：`app_config/phase_a.enforceSharedContextConsent` 默认开（服务器上没写 `false` 就算开）。`users/{uid}.consent.sharedContextUse` 不是 `true` 的人，陪伴者之间不共享：v1 共享策略按 B（`functions/memory.js` `effectivePolicy`，注入和抽取都是）；v0 里小欣不引用阿珍/阿伯的回忆摘要，转介不存原话（`lib/core/privacy/shared_context_consent.dart`）。新账号在同意页写 `true`；之后只有 `tool/set_shared_context_consent.js` 改它（`--all` 迁移现有账号，`--uid=X --off` 按人关闭）。App 保存资料时不写这个字段（`UserProfile.toMap` 默认不带），防止旧值盖掉后台的修改。**上线顺序**：先在正式项目跑 `--all --confirm --production`，再部署。
+
+**保留对话**：设置页「保留對話紀錄」开关（两组都有，默认开）同时改全局和三个陪伴者各自的开关（`lib/core/privacy/transcript_retention.dart`）。
 
 **v1 生效需要服务器开关**：Firestore `meta/memory_config` = `{enabled: true, policy: "C", phaseBArmA: true}`。没有这个文档时 v1 不工作；而 App 对 Phase B A 组已经不再做 v0 摘要，所以**这时 A 组两套记忆都没有**。上线时这个文档必须写。
 
@@ -167,7 +169,7 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | 位置 | 内容 |
 |---|---|
 | `app_config/arm_assignment` | `{randomise: bool}`：是否随机分组 |
-| `app_config/phase_a` | App 运行参数（`PhaseAConfig`）的远端覆盖；含同意相关的 `transcriptRetentionDefault`（默认 true）、`sharedContextUseDefault`（默认 false）、`enforceSharedContextConsent`（默认 false，服务器也读）。不建就用默认值 |
+| `app_config/phase_a` | App 运行参数（`PhaseAConfig`）的远端覆盖；含同意相关的 `transcriptRetentionDefault`（默认 true）、`sharedContextUseDefault`（默认 true）、`enforceSharedContextConsent`（默认 true，服务器也读）。不建就用默认值 |
 | `meta/arm_counter` | 4 个层各自的 A/B 人数 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开 |
 | `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列 |

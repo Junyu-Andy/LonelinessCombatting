@@ -141,7 +141,7 @@ class _ConsentPageState extends State<ConsentPage> {
     settings.profile = updated;
     unawaited(() async {
       try {
-        await auth.updateProfile(updated);
+        await auth.updateProfile(updated, includeSharedContextUse: true);
       } on AuthUnavailableException {
         // Guest mode — keep state in memory only.
       } catch (_) {}

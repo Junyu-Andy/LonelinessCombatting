@@ -15,14 +15,14 @@ UserProfile _profile({required bool shared}) => UserProfile(
     );
 
 void main() {
-  const off = PhaseAConfig();
-  const on = PhaseAConfig(enforceSharedContextConsent: true);
+  const off = PhaseAConfig(enforceSharedContextConsent: false);
+  const on = PhaseAConfig();
 
-  group('C20 config defaults keep current behaviour', () {
+  group('C20 config defaults (decision 0020)', () {
     test('compile-time defaults', () {
-      expect(off.transcriptRetentionDefault, isTrue);
-      expect(off.sharedContextUseDefault, isFalse);
-      expect(off.enforceSharedContextConsent, isFalse);
+      expect(on.transcriptRetentionDefault, isTrue);
+      expect(on.sharedContextUseDefault, isTrue);
+      expect(on.enforceSharedContextConsent, isTrue);
     });
 
     test('remote override merges; wrong types are ignored', () {
@@ -33,8 +33,22 @@ void main() {
       });
       expect(c.transcriptRetentionDefault, isFalse);
       expect(c.enforceSharedContextConsent, isTrue);
-      expect(c.sharedContextUseDefault, isFalse);
+      expect(c.sharedContextUseDefault, isTrue, reason: 'non-bool ignored');
       expect(PhaseAConfig.fromMap({}).transcriptRetentionDefault, isTrue);
+    });
+
+    test('only the consent page writes sharedContextUse', () {
+      final p = _profile(shared: false);
+      final consent = p.toMap()['consent'] as Map<String, dynamic>;
+      expect(consent.containsKey('sharedContextUse'), isFalse,
+          reason: 'a stale in-memory value must not overwrite the server');
+      final withIt = p.toMap(includeSharedContextUse: true)['consent']
+          as Map<String, dynamic>;
+      expect(withIt['sharedContextUse'], isFalse);
+      // Reading still works.
+      final round = UserProfile.fromMap('u1',
+          {...p.toMap(), 'consent': withIt});
+      expect(round.consent.sharedContextUse, isFalse);
     });
   });
 

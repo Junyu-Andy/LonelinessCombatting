@@ -6,18 +6,20 @@
 
 ## 0. 结论先看
 
-1. **所有新行为默认关，部署后线上行为不变。** 新加 3 个配置键，都在 Firestore `app_config/phase_a`，不建就用默认值：
+> 2026-10-07 第二轮：负责人确认了共享同意统一打开、设置页放回开关、导出保留、隐私页改写。本节和第 1.3、2、6 节已按最新状态改写。
+
+1. **三位陪伴者默认共享基本信息。** 配置键都在 Firestore `app_config/phase_a`，不建就用默认值：
 
    | 配置键 | 默认值 | 作用 |
    |---|---|---|
    | `transcriptRetentionDefault` | `true`（= 现状） | 新账号点「繼續」和完成陪伴者介绍时写入的「保留对话」值 |
-   | `sharedContextUseDefault` | `false`（= 现状） | 新账号点「繼續」时写入的 `sharedContextUse` 值 |
-   | `enforceSharedContextConsent` | `false`（= 现状，不生效） | 打开后 `sharedContextUse` 才真正控制跨陪伴者共享 |
+   | `sharedContextUseDefault` | `true` | 新账号点「繼續」时写入的 `sharedContextUse` 值 |
+   | `enforceSharedContextConsent` | `true`（服务器：没写 `false` 就算开） | `sharedContextUse` 真正控制跨陪伴者共享 |
 
-2. **「共享上下文」同意现在可以生效了，但要研究侧打开开关。** 打开后，`sharedContextUse` 不是 `true` 的人，每个陪伴者只用自己的记忆（记忆 v1 和 v0 都改了）。**注意**：现有账号的 `sharedContextUse` 全是 `false`，打开开关等于所有人的跨陪伴者共享一起关掉。
-3. **新发现：老人在 App 里关不掉「保留对话」。** 设置页的开关组件写好了，但没有放进页面（`settings_page.dart:891` 的 `_TranscriptRetentionTile` 没有任何地方使用）。同意页注释和 T2 报告都说「可以去设置里关」，实际做不到。
+2. **现有账号用迁移脚本统一改为同意；不愿意的由研究团队按人关闭**（`tool/set_shared_context_consent.js`）。**上线顺序**：先在正式项目跑 `--all --confirm --production`，再部署。反过来的话，部署当天现有账号全是 `false`，所有人的共享一起关掉。同时修了一个会让后台修改失效的问题：App 保存资料时会把手机上的旧值写回去（2.3 节）。
+3. **设置页放回「保留對話紀錄」开关**（原组件和原文字，两组都有，默认开）。关的时候全局和三个陪伴者一起关（1.3 节）。
 4. **整人删除脚本 `tool/delete_participant.js` 写好了**，在 emulator（Auth + Firestore + Storage）上用合成用户测过：试运行只列不删；`--confirm` 删干净后自动再扫一遍，零残留；存证清单只有数量，没有原文。已加进 `tool/ci_backend_tests.sh`。
-5. **周度盲法导出文件删不到「只删一个人」，除非重写文件。** 脚本默认只数出这个人有几行、不改文件；加 `--rewrite-exports` 才重写。怎么处理由研究侧定（见 4.4）。
+5. **周度盲法导出文件保留不动**（负责人选方案 2，见 4.4）。脚本默认只数出这个人有几行、不改文件。
 6. **隐私页 6 段里有 5 段与实际不符**。负责人 2026-10-07 决定直接改 App：新页面只讲大方向，细节交给同意书（3.3 节）。这一提交单独放，等负责人确认文案。
 
 ---
@@ -40,11 +42,12 @@
 - **只影响之后新点同意页的账号**。已经同意过的账号不会被改。
 - 「要唔要我記得返」弹窗（`transcript_consent_prompter.dart`）是老人自己选「好，开返」才写 `true`，不是默认值，没有改。
 
-### 1.3 新发现：设置页没有关闭开关
+### 1.3 设置页的关闭开关（已放回）
 
-- `lib/features/settings/presentation/pages/settings_page.dart:891` 定义了 `_TranscriptRetentionTile`（「保留對話紀錄」开关），但整个 `lib/` 里没有地方用它。
-- 代码里能把 `transcriptRetention` 设成 `false` 的地方：**没有**（搜索 `transcriptRetention: false` 只在测试里）。
-- 所以现在老人只能请研究团队帮忙改。本任务没有把开关放回页面：这是老人看得到的新界面，按共同规则第 5 条要研究侧先定文案和位置。见第 6 节第 2 条。
+- 发现：`settings_page.dart` 里定义了 `_TranscriptRetentionTile`（「保留對話紀錄」开关），但没有地方用它，代码里也没有地方能把 `transcriptRetention` 设成 `false`。老人在 App 里关不掉。
+- 负责人 2026-10-07 确认放回。现在放在设置页「個人資料」一组的最后（「人生回顧」下面），两组都显示，用原组件和原文字：「保留對話紀錄」/「熄咗之後，我下次就唔記得返你之前傾過嘅內容，每次都係由零開始。」
+- 关的时候**全局和三个陪伴者一起关**（`lib/core/privacy/transcript_retention.dart`）。原因：陪伴者介绍页给三位都单独写了 `true`，聊天页先读各陪伴者自己的值；只关全局的话，关了也不生效。开关显示「开」，要求全局和三位都开。
+- 测试（`test/transcript_retention_switch_test.dart`）：默认是开；在设置页点开关，全局和三位都变成关，再点恢复；关掉后写会话摘要被跳过（`MemoryStore.writeSummary` 不碰数据库）；任一位关就显示关。
 
 ## 2. 「共享上下文」同意（`sharedContextUse`）
 
@@ -78,7 +81,12 @@
   - `memoryActive` 返回这个策略（`:579`），所以 `mem_injections.policy` 会记成 `B`，事后能查；
   - `processExtraction` 用同一个策略（`:736-746`）。
 - App 和服务器读**同一个**键（`app_config/phase_a.enforceSharedContextConsent`），避免两边不一致。规则已允许登录用户读 `app_config/*`（`firestore.rules:119-122`），没有改规则。
-- `sharedContextUseDefault`：同意页现在把这个值写进 `sharedContextUse`（`consent_page.dart:133`），默认 `false`，和以前存的一样。
+- `sharedContextUseDefault`：同意页把这个值写进 `sharedContextUse`（`consent_page.dart:133`）。第一轮默认 `false`，第二轮按负责人决定改为 `true`（见下）。
+
+**第二轮（负责人确认统一打开）**：
+- 默认值：`sharedContextUseDefault`、`enforceSharedContextConsent` 都改为 `true`（`phase_a_config.dart`）；服务器 `loadConfig` 改为 `enforceSharedContextConsent !== false`（`functions/memory.js`）。
+- 新脚本 `tool/set_shared_context_consent.js`：`--all` 把所有账号改为 `true`；`--uid=X --off` / `--on` 改一个人。已经是目标值的账号不动。只写 `consent.sharedContextUse` 和两个记录字段（`sharedContextUseSetBy`、`sharedContextUseSetAt`）。默认试运行，`--confirm` 才写，不在 emulator 上还要 `--production`。没对正式项目执行。
+- **修了旧值写回的问题**：App 只在登录时读一次资料（`auth_service.dart` 登录流程），之后每次保存资料都用 `set(merge)` 把整份 `consent` 写回去。迁移脚本或后台关掉之后，老人手机上的旧值会在下次保存时把它改回去。现在 `UserProfile.toMap` 默认不写 `sharedContextUse`，只有同意页（`includeSharedContextUse: true`）写。
 
 ### 2.4 测试
 
@@ -86,6 +94,7 @@
 |---|---|---|
 | `test/shared_context_consent_test.dart` | 默认值保持现状；远端配置能覆盖、类型不对时忽略；开关关时一律允许；开关开时只有 `true` 才共享，原话片段变空 | 通过 |
 | `functions/test/memory_test.js` 新增 1 条 | `effectivePolicy` 四种组合 | 通过（29/29） |
+| `test/delete_participant/set_shared_context_consent_test.js` | 迁移：试运行不写；`--confirm` 把没有字段的和 `false` 的都改为 `true`，其他同意字段不变，已是 `true` 的不动；`--uid --off` 只改一个人，重复执行不再改；不存在的 uid 报出来、不新建 | 通过（4/4） |
 | `functions/test/memory_emulator_test.js` 新增 2 条 | ① 开关关：小欣能看到通通的共享事实（和以前一样）；开关开 + 未同意：小欣看不到，通通自己仍看得到；同意后恢复；`mem_injections` 记下 B 和 C。② 开关开 + 未同意：抽取时模型看不到小欣的事实 | 通过 |
 
 ## 3. 隐私页（`lib/features/settings/presentation/pages/privacy_policy_page.dart`）
@@ -291,14 +300,10 @@ Dry run — would delete 0 item(s) for synthCliDemoUser00000000001; 1 export row
 
 ## 6. 要带回研究侧的发现
 
-1. **对话保留默认开启**，现在可以改配置 `app_config/phase_a.transcriptRetentionDefault`，不用发版。默认值按 ICF 定。只影响以后新同意的账号。
-2. **老人在 App 里关不掉「保留对话」**（`settings_page.dart:891` 的开关没放进页面）。ICF 如果写「可以随时在设置里关」，现在做不到。要不要把开关放回设置页、文案怎么写，请研究侧定（新界面，本任务没做）。
-3. **共享同意开关打开前要先定三件事**：
-   - ICF 怎么写「陪伴者之间共享什么」；
-   - 新账号默认同意还是不同意（`sharedContextUseDefault`）；
-   - **现有账号怎么办**：现在全是 `false`，打开开关当天所有人的共享一起关掉。如果要保留现有人的共享，需要先补写他们的 `sharedContextUse`（要另写脚本，本任务没做）。
-   - 打开开关会改变 Hybrid 组干预内容，要写进 STUDY_CHANGELOG（cohort、组别、生效日期）。
-4. **共享同意在 App 里没有入口**：同意页不问这个问题，设置页也没有。打开开关后，老人没法自己改。如果要让老人选，要加新界面（研究侧定文案）。
+1. **ICF 要写明「三位陪伴者默认共享基本信息，不愿意的可联系研究团队关闭」**（负责人已定）。
+2. **上线顺序**：先在正式项目跑 `tool/set_shared_context_consent.js --all --confirm --production`，再部署 Functions 和新 App。顺序反了，部署当天所有现有账号的共享一起关掉。
+3. 有人要求关闭共享时：`tool/set_shared_context_consent.js --uid=<uid> --off --confirm --production`。之后这个人的三位陪伴者各用各的记忆。建议记下处理日期，fidelity 部分要用。
+4. **「保留对话」**：默认开，老人现在可以在设置里关（开关已放回）。ICF 的说法要对上。默认值以后要改，改配置 `transcriptRetentionDefault` 即可，不用发版。
 5. **隐私页 12 句里 8 句不符、2 句不完整**（3.1 节）。App 已改成简短版（3.3 节），等负责人确认文案。同意书要写清页面上省略的细节：哪些公司（DeepSeek、Brave、手机系统语音识别、Google）、服务器在哪、哪些数据删不到。
 6. **盲法导出：已定保留不动**（4.4）。ICF 写「已经用于分析的去识别数据不会删除」，但要等 T12 把导出改成研究编号之后才成立；现在导出里还是原始 uid（T2 3.3）。
 7. **删不到的数据**要写进 ICF/DMP：Cloud Logging、DeepSeek/Brave 那边、研究员本机导出、手机缓存。
@@ -308,9 +313,9 @@ Dry run — would delete 0 item(s) for synthCliDemoUser00000000001; 1 export row
 
 ## 7. 本任务改动的文件
 
-- App：`lib/core/config/phase_a_config.dart`、`lib/core/privacy/shared_context_consent.dart`（新）、`lib/features/consent/presentation/pages/consent_page.dart`、`lib/features/onboarding/presentation/pages/agent_onboarding_page.dart`、`lib/core/cross_referral/referral_routing_service.dart`、`lib/features/context/presentation/pages/check_in_arm_a.dart`（只改一行条件和一行 import；T7 也会改这个文件的检测调用，冲突应很小）
+- App：`lib/core/config/phase_a_config.dart`、`lib/core/privacy/shared_context_consent.dart`（新）、`lib/core/privacy/transcript_retention.dart`（新）、`lib/features/settings/presentation/pages/settings_page.dart`、`lib/features/settings/presentation/pages/privacy_policy_page.dart`、`lib/features/auth/data/user_profile.dart`、`lib/features/auth/data/auth_service.dart`、`lib/features/consent/presentation/pages/consent_page.dart`、`lib/features/onboarding/presentation/pages/agent_onboarding_page.dart`、`lib/core/cross_referral/referral_routing_service.dart`、`lib/features/context/presentation/pages/check_in_arm_a.dart`（只改一行条件和一行 import；T7 也会改这个文件的检测调用，冲突应很小）
 - 服务器：`functions/memory.js`（只动 `loadConfig`、新加 `effectivePolicy`、`memoryActive`、`processExtraction` 的策略两处；T10 会改记忆的其他部分）
-- 脚本：`tool/delete_participant.js`（新）、`tool/ci_backend_tests.sh`
-- 测试：`test/shared_context_consent_test.dart`、`functions/test/memory_test.js`、`functions/test/memory_emulator_test.js`、`test/delete_participant/`（新）
+- 脚本：`tool/delete_participant.js`（新）、`tool/set_shared_context_consent.js`（新）、`tool/ci_backend_tests.sh`
+- 测试：`test/shared_context_consent_test.dart`、`test/transcript_retention_switch_test.dart`、`test/privacy_policy_page_test.dart`、`functions/test/memory_test.js`、`functions/test/memory_emulator_test.js`、`test/delete_participant/`（新）
 - 文档：决策 0020、本报告、`docs/STUDY_CHANGELOG.md`、`docs/dev/architecture.md`、`docs/history.md`、`docs/dev/backlog.md`
-- 没有改：`firestore.rules`、`firebase.json`、隐私页文字、任何 prompt、安全检测代码。
+- 没有改：`firestore.rules`、`firebase.json`、任何 prompt、安全检测代码。

@@ -1,11 +1,12 @@
 /// C20 / decision 0020 — does `consent.sharedContextUse` let one agent
 /// use what the participant told another agent?
 ///
-/// Behind [PhaseAConfig.enforceSharedContextConsent] (default OFF).  While
-/// the switch is off nothing changes: sharing works as before, whatever
-/// the stored consent says.  With the switch on, sharing needs
-/// `consent.sharedContextUse == true`; otherwise each agent only uses its
-/// own memory.
+/// Behind [PhaseAConfig.enforceSharedContextConsent] (default ON).  With
+/// the switch on, sharing needs `consent.sharedContextUse == true` (the
+/// default for new accounts; existing accounts are migrated by
+/// tool/set_shared_context_consent.js); otherwise each agent only uses
+/// its own memory.  With the switch off, sharing works whatever the
+/// stored consent says.
 ///
 /// App-side (memory v0) places it gates:
 ///   - Siu Yan's weekly callback to Ah Jan/Ah Bak's reminiscence summary
