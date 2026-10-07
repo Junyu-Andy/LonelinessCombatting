@@ -155,7 +155,11 @@ test("normal: level + score only; model text dropped; row has no text",
       assert.strictEqual(row.turn_id, "turn-1");
       assert.strictEqual(row.text_length, "我想死咗佢 電話 91234567".length);
       assert.ok(!("arm" in row), "no arm in the log");
-      const flat = JSON.stringify(row);
+      // Without the timestamp: its seconds / nanoseconds can contain the
+      // digits being searched for (flaky "999" / "2382" hits).
+      const noTs = Object.assign({}, row);
+      delete noTs.ts;
+      const flat = JSON.stringify(noTs);
       assert.ok(!/想死|91234567|MODEL WROTE|rationale/.test(flat), flat);
     });
 
