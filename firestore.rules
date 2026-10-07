@@ -25,7 +25,10 @@ rules_version = '2';
 //   meta/memory_config                           -> memory v1 kill switch + policy (admin only)
 //   app_config/usage_copy                        -> T20 usage-frequency copy (signed-in read, no client write)
 //   users/{uid}/fcm_tokens/{deviceId}            -> *new* B.12 FCM push tokens
-//   meta/arm_counter                             -> *new* 4-cell A/B balance counter
+//   meta/arm_counter                             -> retired minimisation counter (T19: closed)
+//   randomization_sequences|state, enrollments,
+//   arm_assignment_log, llm_denied_log,
+//   meta/randomization_config                    -> T19 allocation (server only, no client access)
 //   safety_events/{eventId}                      -> *new* B.7 distress events (client-write, admin-read)
 //   safety_event_dedup/{dedupKey}                -> *new* B.7 dedup sentinel (admin-write only)
 //   pi_alerts/{alertId}                          -> *new* B.7 acute alert queue (admin-write only)
@@ -47,11 +50,15 @@ service cloud.firestore {
       return isAuthed() && request.auth.uid == uid;
     }
 
-    // T12 (decision 0021): roles are Auth custom claims set by
-    // tool/provision_researcher.js.  role == 'pi' is the unblinded role;
-    // role == 'researcher' is blinded.  Participants have no role.
+    // Roles are Auth custom claims set by tool/provision_researcher.js
+    // (T12 decision 0021; renamed in T19 decision 0029):
+    //   role == 'unblinded' — the unblinded researcher (Keran): registers,
+    //                         allocates, sees arms, uploads the sequence;
+    //   role == 'blinded'   — blinded staff incl. the PI / assessor.
+    // The old names 'pi' and 'researcher' grant nothing any more.
+    // Participants have no role.
     function isUnblinded() {
-      return isAuthed() && request.auth.token.role == 'pi';
+      return isAuthed() && request.auth.token.role == 'unblinded';
     }
 
     // ============================================================
@@ -69,16 +76,22 @@ service cloud.firestore {
     // memoryWithdrawnAt (T10, decision 0024) is server-only the same way:
     // tool/delete_memory.js sets it and memory v1 then stops for good, so
     // a client must not be able to set or clear it.
+    // T19 (decision 0029): w0Date, armAssignmentMethod and armCorrectedAt
+    // are written by enrollParticipant / tool/correct_arm_assignment.js
+    // only, like the arm.
     function assignmentFields() {
       return ['arm', 'strataCell', 'armAssignmentMode', 'armAssignedBy',
-              'armAssignedAt', 'memoryWithdrawnAt'];
+              'armAssignedAt', 'memoryWithdrawnAt', 'w0Date',
+              'armAssignmentMethod', 'armCorrectedAt'];
     }
 
     function createLeavesAssignmentEmpty(data) {
       return data.get('arm', null) == null
         && data.get('strataCell', null) == null
         && !data.keys().hasAny(['armAssignmentMode', 'armAssignedBy',
-                                'armAssignedAt', 'memoryWithdrawnAt']);
+                                'armAssignedAt', 'memoryWithdrawnAt',
+                                'w0Date', 'armAssignmentMethod',
+                                'armCorrectedAt']);
     }
 
     function updateLeavesAssignmentUntouched() {
@@ -321,49 +334,33 @@ service cloud.firestore {
     }
 
     // ============================================================
-    // C.2 stratified RCT arm-balance counter (Sprint 1.4).
-    //
-    // Schema: { cell_0: {aCount, bCount}, cell_1: ..., cell_2: ...,
-    //           cell_3: ..., updatedAt }
-    //
-    // Invariant per cell: each individual cell's (aCount, bCount)
-    // may each increment by at most 1 per write, and neither may
-    // decrease.  Exactly one cell must change; the other three must
-    // be untouched.
-    //
-    // This is the highest-concurrency write surface in the system
-    // (concurrent signups); keep the rule tight.
+    // T19 (decision 0029) — allocation.  Written by enrollParticipant /
+    // tool/randomization_sequence.js / tool/correct_arm_assignment.js
+    // (admin SDK) only.  No client — participant, blinded or unblinded —
+    // reads or writes any of these; the unblinded researcher sees an arm
+    // only in the enrollParticipant reply.
+    //   meta/arm_counter (retired minimisation counter) is closed too.
     // ============================================================
+    match /randomization_sequences/{stratum} {
+      allow read, write: if false;
+    }
+    match /randomization_state/{stratum} {
+      allow read, write: if false;
+    }
+    match /enrollments/{uid} {
+      allow read, write: if false;
+    }
+    match /arm_assignment_log/{id} {
+      allow read, write: if false;
+    }
+    match /llm_denied_log/{id} {
+      allow read, write: if false;
+    }
+    match /meta/randomization_config {
+      allow read, write: if false;
+    }
     match /meta/arm_counter {
-      // T12: per-arm counts are unblinding information.  The app no
-      // longer reads this doc (assignArm runs on the server), so only
-      // the unblinded role may.
-      allow read: if isUnblinded();
-
-      // Written as per-count deltas: the previous nested-helper form
-      // (cellPrior/cellNext/validIncrement/cellUnchanged over 4 × 4
-      // alternatives) exceeded the rules engine's 1,000-expression limit
-      // and DENIED every legitimate increment, including the first write.
-      // Missing cells / counts read as 0 via map.get defaults.
-      function count(data, cell, key) {
-        return data.get(cell, {}).get(key, 0);
-      }
-      function delta(cell, key) {
-        return count(request.resource.data, cell, key)
-             - count(resource == null ? {} : resource.data, cell, key);
-      }
-
-      // No count may decrease, and exactly one count across all four
-      // cells rises by exactly 1 (so one cell changes, the rest don't).
-      allow create, update: if isAuthed()
-        && delta('cell_0', 'aCount') >= 0 && delta('cell_0', 'bCount') >= 0
-        && delta('cell_1', 'aCount') >= 0 && delta('cell_1', 'bCount') >= 0
-        && delta('cell_2', 'aCount') >= 0 && delta('cell_2', 'bCount') >= 0
-        && delta('cell_3', 'aCount') >= 0 && delta('cell_3', 'bCount') >= 0
-        && delta('cell_0', 'aCount') + delta('cell_0', 'bCount')
-         + delta('cell_1', 'aCount') + delta('cell_1', 'bCount')
-         + delta('cell_2', 'aCount') + delta('cell_2', 'bCount')
-         + delta('cell_3', 'aCount') + delta('cell_3', 'bCount') == 1;
+      allow read, write: if false;
     }
 
     // Everything else is denied by default.

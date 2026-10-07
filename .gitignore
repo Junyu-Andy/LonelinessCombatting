@@ -46,3 +46,10 @@ app.*.map.json
 
 # Rules-test dependencies (npm install in tool/ci_backend_tests.sh)
 /test/rules/node_modules/
+
+# T19 (decision 0029): randomisation seed and sequence files never go into
+# the repository.  tool/randomization_sequence.js writes them here.
+randomization-private/
+randomization_sequence_*.json
+*.seed
+*seed*.txt

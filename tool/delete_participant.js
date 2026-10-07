@@ -18,7 +18,8 @@
  *              te_audit_queue, stt_usage, safety_classifier_calls (T8,
  *              may not exist yet), pending_loneliness_probes (doc id or
  *              uid field), hotline_filter_log (T7), research_id_map
- *              (doc id) and research_ids (T12).
+ *              (doc id) and research_ids (T12), enrollments (doc id) and
+ *              llm_denied_log (T19).
  *   Storage    any file under users/{uid}/ (the App writes none today);
  *              rows in the weekly blinded exports exports/{date}/*.ndjson
  *              — see "Exports" below.
@@ -26,7 +27,8 @@
  * Not reachable from here (listed in the receipt as "not covered"):
  * Cloud Logging lines, data DeepSeek / Brave keep on their side, local
  * copies made with tool/admin_dump.js, the phone's Firestore cache,
- * meta/arm_counter (counts only, kept as the randomisation record).
+ * arm_assignment_log and the used sequence position (T19 allocation
+ * record, kept for trial integrity).
  * There is no vector index in this codebase, so nothing to delete there.
  *
  * Exports: each weekly export is one file per collection holding every
@@ -76,6 +78,10 @@ const TOP_LEVEL = [
   // T12 (decision 0021): research-ID lookup, both directions.
   {collection: 'research_id_map', field: 'uid', docIdIsUid: true},
   {collection: 'research_ids', field: 'uid'},
+  // T19 (decision 0029): registration record (W0 score, pairing) and the
+  // LLM-refusal log.  The allocation log is kept (NOT_COVERED).
+  {collection: 'enrollments', field: 'uid', docIdIsUid: true},
+  {collection: 'llm_denied_log', field: 'uid'},
 ];
 
 const NOT_COVERED = [
@@ -84,7 +90,9 @@ const NOT_COVERED = [
   'DeepSeek / Brave Search copies (provider terms)',
   'local JSON made with tool/admin_dump.js on researcher machines',
   'Firestore offline cache on the participant\'s phone (uninstall the App)',
-  'meta/arm_counter (counts only, kept as the randomisation record)',
+  'arm_assignment_log and the used sequence position (T19 allocation ' +
+      'record: research ID, stratum, position, arm; kept for trial ' +
+      'integrity)',
   'vector index: none exists in this codebase',
 ];
 

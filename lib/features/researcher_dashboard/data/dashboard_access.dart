@@ -2,12 +2,14 @@
 /// they may see.
 ///
 /// Roles are Firebase Auth custom claims set by
-/// `tool/provision_researcher.js`:
-///   * `role: researcher` — blinded.  Sees only arm-neutral sections.
-///   * `role: pi`         — unblinded.  Sees everything, incl. per-arm
-///                          counts.
-/// Anyone else (participants) is denied.  The same roles gate the
-/// research-ID lookup in `firestore.rules` (`isUnblinded()`).
+/// `tool/provision_researcher.js` (renamed in T19, decision 0029):
+///   * `role: blinded`   — blinded staff, including the PI as blinded
+///                         assessor.  Sees only arm-neutral sections.
+///   * `role: unblinded` — the unblinded researcher.  Sees everything,
+///                         incl. per-arm counts.
+/// Anyone else (participants, and the pre-T19 names `pi` / `researcher`)
+/// is denied.  The same roles gate the research-ID lookup in
+/// `firestore.rules` (`isUnblinded()`).
 library;
 
 enum DashboardAccess {
@@ -17,9 +19,9 @@ enum DashboardAccess {
 
   static DashboardAccess fromClaims(Map<String, dynamic>? claims) {
     switch (claims?['role']) {
-      case 'pi':
+      case 'unblinded':
         return DashboardAccess.unblinded;
-      case 'researcher':
+      case 'blinded':
         return DashboardAccess.blinded;
       default:
         return DashboardAccess.denied;

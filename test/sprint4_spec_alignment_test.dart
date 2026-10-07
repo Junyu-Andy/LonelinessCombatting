@@ -10,7 +10,6 @@
 ///   - Phase B probes (unblinding / dependency / distinguishability)
 library;
 
-import 'package:app_demo/features/auth/data/arm_assigner.dart';
 import 'package:app_demo/features/curious_companion/data/tung_tung_rule_pool.dart';
 import 'package:app_demo/features/llm_features/data/llm_turn_features.dart';
 import 'package:app_demo/features/phase_b_probes/data/phase_b_probes.dart';
@@ -97,20 +96,6 @@ void main() {
         'mixed_content_routing',
         'generative_summary',
       });
-    });
-  });
-
-  // ---------- C.2 strata = UCLA × age band -------------------------------
-  group('ArmAssigner strata: UCLA × age band (Phase B §4.4)', () {
-    test('4-cell layout', () {
-      expect(ArmAssigner.strataCell(uclaScore: 30, ageYears: 60), 0);
-      expect(ArmAssigner.strataCell(uclaScore: 30, ageYears: 70), 1);
-      expect(ArmAssigner.strataCell(uclaScore: 60, ageYears: 60), 2);
-      expect(ArmAssigner.strataCell(uclaScore: 60, ageYears: 70), 3);
-    });
-    test('median split at 44 — exactly 44 is "low"', () {
-      expect(ArmAssigner.strataCell(uclaScore: 44, ageYears: 65), 0);
-      expect(ArmAssigner.strataCell(uclaScore: 45, ageYears: 65), 2);
     });
   });
 

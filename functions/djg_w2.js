@@ -166,13 +166,19 @@ function addDays(key, n) {
 
 /**
  * The W0 (enrolment) date, Hong Kong calendar day.  THE single place the
- * server decides W0: today it is the account's createdAt (the same field
- * week2Push and the App use).  T19 swaps this for the date the researcher
- * registers.
+ * server decides W0: the date the researcher entered at registration
+ * (users/{uid}.w0Date, T19), else the account's createdAt.
  * @param {object} user users/{uid} data
  * @return {?string} YYYY-MM-DD, or null when unknown
  */
 function w0DateKey(user) {
+  // T19 (decision 0029): the W0 date entered at registration wins; the
+  // account's createdAt is the fallback (lib/core/scheduling/w0_date.dart).
+  const registered = user && user.w0Date;
+  if (typeof registered === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(registered)) {
+    return registered;
+  }
   const raw = user && user.createdAt;
   if (!raw) return null;
   if (typeof raw === "string") {

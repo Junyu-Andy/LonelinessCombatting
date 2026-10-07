@@ -65,7 +65,7 @@ async function clear(name) {
 
 async function reset(safetyCfg) {
   for (const n of ["hotline_filter_log", "llm_calls", "safety_events",
-    "safety_event_dedup", "pi_alerts"]) {
+    "safety_event_dedup", "pi_alerts", "llm_denied_log"]) {
     await clear(n);
   }
   await db.doc(`users/${UID}`).set({arm: "A"});
@@ -179,6 +179,15 @@ test("Arm B still refused before anything else", async () => {
     data: {promptKey: "siu_yan_v1", moduleId: "m2_check_in",
       messages: [{role: "user", content: "hi"}]},
   }), /permission-denied|not part of this study arm/);
+  // T19: the refusal is logged (no text, no arm field); no model call.
+  const denied = (await db.collection("llm_denied_log").get()).docs
+      .map((d) => d.data());
+  assert.strictEqual(denied.length, 1);
+  assert.strictEqual(denied[0].uid, "t7_b");
+  assert.strictEqual(denied[0].endpoint, "proxyDeepSeek");
+  assert.strictEqual(denied[0].arm, undefined);
+  assert.strictEqual((await db.collection("llm_calls")
+      .where("uid", "==", "t7_b").get()).size, 0);
 });
 
 // --- safety_events dedup ---------------------------------------------------
@@ -239,7 +248,29 @@ test("acute input then acute output → still one alert", async () => {
     tier: "acute"});
   const alerts = (await db.collection("pi_alerts").get()).docs;
   assert.strictEqual(alerts.length, 1);
-  assert.strictEqual(alerts[0].data().inputPoint, "chat_check_in");
+  const primary = (await events()).find((e) => !e.isDuplicate);
+  assert.strictEqual(alerts[0].data().eventPath, primary.path);
+});
+
+test("T19: the PI alert carries no arm-revealing field", async () => {
+  await reset();
+  for (const [source, inputPoint, agentId, turnId] of [
+    ["gateway_input", "chat_reflective", "siu_yan", "ta"],
+    ["rule_turn", "check_in_note", "tung_tung", "tb"],
+  ]) {
+    await fire({source, inputPoint, agentId, turnId, level: "acute",
+      tier: "acute"});
+  }
+  const alerts = (await db.collection("pi_alerts").get()).docs
+      .map((d) => d.data());
+  assert.strictEqual(alerts.length, 2, "both arms still alert");
+  for (const a of alerts) {
+    for (const k of ["source", "inputPoint", "agentId", "arm"]) {
+      assert.strictEqual(a[k], undefined, k);
+    }
+  }
+  const keys = alerts.map((a) => Object.keys(a).sort().join(","));
+  assert.strictEqual(keys[0], keys[1], "same fields for both arms");
 });
 
 test("different turns are never merged", async () => {

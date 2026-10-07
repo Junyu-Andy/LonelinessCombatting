@@ -19,15 +19,13 @@ with rules disabled, then assert allow/deny for each write shape.
 
 ## What's covered
 
-`arm_counter.test.js` — the stratified RCT arm-balance counter invariant:
-- unauthenticated write → denied
-- first-ever write (empty counter) → allowed  *(bare-key-bug regression)*
-- first write into an empty cell → allowed
-- single valid +1 in one cell → allowed
-- two cells changed at once → denied
-- a count decreasing → denied
-- an increment > +1 → denied
-- aCount and bCount of one cell raised together → denied
+`randomization_rules.test.js` (T19, decision 0029) — the allocation
+collections (`randomization_sequences`, `randomization_state`,
+`enrollments`, `arm_assignment_log`, `llm_denied_log`,
+`meta/randomization_config`) and the retired `meta/arm_counter`: no client
+(participant, blinded, unblinded, anonymous) reads or writes them; the
+participant cannot set `w0Date` or the other assignment fields.
+(`arm_counter.test.js` was removed with the minimisation counter.)
 
 `memory_rules.test.js` — memory v1 (`users/{uid}/mem_*`): owner may read,
 delete and confirm a pending sensitive fact, never create or edit; injection

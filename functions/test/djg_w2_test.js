@@ -109,6 +109,15 @@ test("W0 date: createdAt string, Timestamp-like, Date; HK calendar day",
       assert.strictEqual(djg.w0DateKey({createdAt: "soon"}), null);
     });
 
+test("W0 date: the registered w0Date wins over createdAt (T19)", () => {
+  assert.strictEqual(djg.w0DateKey({w0Date: "2026-10-05",
+    createdAt: "2026-10-01T09:00:00"}), "2026-10-05");
+  // Malformed registered date → fall back to createdAt.
+  assert.strictEqual(djg.w0DateKey({w0Date: "5/10/2026",
+    createdAt: "2026-10-01T09:00:00"}), "2026-10-01");
+  assert.strictEqual(djg.w0DateKey({w0Date: "2026-10-05"}), "2026-10-05");
+});
+
 test("Phase B participant and week2Push hand-over", () => {
   const on = djg.configFromData({djgW2InAppEnabled: true});
   const off = djg.configFromData({});

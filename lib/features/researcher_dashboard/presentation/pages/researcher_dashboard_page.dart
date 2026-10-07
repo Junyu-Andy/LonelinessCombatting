@@ -4,9 +4,9 @@
 /// pending distress flags, transcript audit queue, per-agent PPR
 /// aggregates, and cross-referral statistics.
 ///
-/// Gated by the Firebase custom claim `role` (T12, decision 0021):
-/// `researcher` is blinded and sees only arm-neutral sections; `pi` is
-/// unblinded and sees everything (see [DashboardAccess]). The auth
+/// Gated by the Firebase custom claim `role` (T12 decision 0021, renamed
+/// in T19 decision 0029): `blinded` (incl. the PI) sees only arm-neutral
+/// sections; `unblinded` sees everything (see [DashboardAccess]). The auth
 /// check is intentionally strict — if the claim is missing the page
 /// renders an "access denied" state rather than degraded data.
 /// Provision the claim via Firebase Admin SDK (a one-off script on
@@ -89,9 +89,9 @@ class _ResearcherDashboardPageState extends State<ResearcherDashboardPage> {
                 padding: const EdgeInsets.all(24),
                 child: Text(
                   isEn
-                      ? 'Access denied. This dashboard requires the '
-                          'researcher role. Ask the admin to provision it.'
-                      : '冇權限。呢個儀錶板需要 researcher 角色，請聯絡管理員。',
+                      ? 'Access denied. This dashboard requires a '
+                          'research-staff role. Ask the admin to provision it.'
+                      : '冇權限。呢個儀錶板需要研究人員角色，請聯絡管理員。',
                   textAlign: TextAlign.center,
                 ),
               ),

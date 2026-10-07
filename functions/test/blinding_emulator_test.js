@@ -18,6 +18,7 @@ const path = require("path");
 const {spawnSync} = require("child_process");
 const admin = require("firebase-admin");
 const {assignArm} = require("../arm");
+const randomization = require("../randomization");
 const blinding = require("../blinding");
 
 if (!process.env.FIRESTORE_EMULATOR_HOST) {
@@ -49,7 +50,9 @@ async function wipe(ref) {
 
 async function reset() {
   for (const name of ["users", "meta", "app_config", "research_id_map",
-    "research_ids", "export_blind_keys", "safety_events"]) {
+    "research_ids", "export_blind_keys", "safety_events",
+    "randomization_sequences", "randomization_state", "enrollments",
+    "arm_assignment_log"]) {
     const docs = await db.collection(name).listDocuments();
     for (const d of docs) {
       await wipe(d);
@@ -186,25 +189,33 @@ test("assignArm, switch off (default): no research ID", async () => {
   assert.strictEqual((await db.collection("research_ids").get()).size, 0);
 });
 
-test("assignArm, switch on: research ID in both lookup collections, " +
-    "never on the profile", async () => {
+test("T19: registration writes the entered research ID to both lookup " +
+    "collections, never to the profile; assignArm generates none",
+async () => {
   await reset();
   await db.doc(blinding.CONFIG_DOC).set({enabled: true});
-  await db.doc("app_config/arm_assignment").set({randomise: true});
+  await db.doc(randomization.CONFIG_DOC).set({enabled: true});
+  const seqs = randomization.generateSequences("blinding-test-seed-0001");
+  await db.doc("randomization_sequences/low").set({arms: seqs.low.arms,
+    blocks: seqs.low.blocks, length: seqs.low.length});
   await db.doc("users/u1").set({ageGroup: "60-64"});
-  await assignArm(db, "u1");
+  await db.doc("users/u2").set({ageGroup: "60-64"});
+  await assignArm(db, "u2");
+  assert.strictEqual((await db.doc("research_id_map/u2").get()).exists,
+      false, "assignArm no longer generates research IDs");
+  await randomization.enrol(db, {uid: "k1", email: null, role: "unblinded"},
+      {uid: "u1", researchId: "B001", w0DjgEmotional: 1,
+        companionVariant: "feminine", confirmed: true});
   const map = (await db.doc("research_id_map/u1").get()).data();
-  assert.ok(blinding.RID_PATTERN.test(map.researchId), map.researchId);
-  assert.strictEqual(map.via, "assign_arm");
-  const back = (await db.doc(`research_ids/${map.researchId}`).get()).data();
+  assert.strictEqual(map.researchId, "B001");
+  assert.strictEqual(map.via, "enrollment");
+  const back = (await db.doc("research_ids/B001").get()).data();
   assert.strictEqual(back.uid, "u1");
   const profile = (await db.doc("users/u1").get()).data();
-  assert.strictEqual(JSON.stringify(profile).indexOf(map.researchId), -1);
-  // A second call (already assigned) keeps the same ID.
-  await assignArm(db, "u1");
+  assert.strictEqual(JSON.stringify(profile).indexOf("B001"), -1);
+  // The export backfill keeps the registered ID.
+  assert.strictEqual(await blinding.ensureResearchId(db, "u1"), "B001");
   assert.strictEqual((await db.collection("research_ids").get()).size, 1);
-  assert.strictEqual(await blinding.ensureResearchId(db, "u1"),
-      map.researchId);
 });
 
 test("a taken research ID is skipped", async () => {

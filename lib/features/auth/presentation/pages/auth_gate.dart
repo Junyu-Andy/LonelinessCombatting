@@ -5,6 +5,7 @@ import '../../../../app/main_shell.dart';
 import '../../../../shared/widgets/app_loading_indicator.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../consent/presentation/consent_gate.dart';
+import '../../../enrollment/presentation/staff_gate.dart';
 import '../../data/auth_service.dart';
 import '../../data/user_profile.dart';
 import 'login_page.dart';
@@ -77,7 +78,13 @@ class _AuthGateState extends State<AuthGate> {
         if (profile == null) {
           return LoginPage(authService: widget.authService);
         }
-        return const ConsentGate(child: MainShell());
+        // T19: the unblinded researcher's account opens the registration
+        // page; everyone else gets the participant App.
+        return StaffGate(
+          uid: profile.uid,
+          onSignOut: widget.authService.signOut,
+          child: const ConsentGate(child: MainShell()),
+        );
       },
     );
   }

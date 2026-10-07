@@ -73,23 +73,35 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 ## 4. 分组和 cohort
 
-**分组（arm）**：注册时 App 调 Cloud Function `assignArm`（`functions/arm.js`）。服务器在一个事务里：
+**分组（arm），T19 起（决策 0029）**：Phase B 的分组由非盲研究员登记触发，不再在注册时自动分。
 
-1. 按 UCLA 基线分（>44 算高）× 年龄（≥70 算高）分到 4 个层（`strataCell` 0–3）；
-2. 读 `meta/arm_counter` 里这一层的 A/B 人数，少的那组优先，一样多就抛硬币；
-3. 写入 `users/{uid}`：`arm`、`strataCell`、`armAssignedBy: "server"`、`armAssignedAt`、`armAssignmentMode`。
+1. 老人先在自己手机上注册（研究员在旁协助）。这时 `arm` 为空，App 显示规则组界面（决策 0004）。
+2. 非盲研究员（Auth 角色 `unblinded`）用自己的账号登录同一个 App，登录后直接进「研究員登記」页（`lib/features/enrollment/`）。填老人的登入电邮、研究编号、W0 纸本 DJG 情感分（0–3）、阿珍/阿伯、W0 日期 → 「檢查」（服务器试运行：找到账号、显示名字，不显示组别）→ 确认框里再选一次情感分，两次一致才能提交。
+3. Cloud Function `enrollParticipant`（`functions/randomization.js`）在一个事务里：按情感分分层（0–1 低层、2–3 高层），取该层分配序列的下一个未用位置，写入 `users/{uid}`：`arm`、`strataCell`（0 低 / 1 高）、`armAssignmentMode: "randomise"`、`armAssignmentMethod: "permuted_block_v1"`、`armAssignedBy: "server"`、`armAssignedAt`、`w0Date`、`ahJanAhBakVariant`；同时写登记记录 `enrollments/{uid}`、研究编号对照表、分配日志 `arm_assignment_log`（研究编号、层、序列位置、时间、操作的研究员）。
+4. 组别只在研究员的登记页显示，用于按组引导。老人完全关闭 App 再打开后，新组别生效。
 
-随机开关在 `app_config/arm_assignment.randomise`。不是 `true` 时一律分到 A，`armAssignmentMode` 记 `force_a`。
+**分配序列**：每层一条，1:1 置换区组，区组大小 2 和 4 随机混用，每层至少 60 个位置。由非盲研究员用自己选的种子运行 `tool/randomization_sequence.js` 生成，上传到 `randomization_sequences/{low,high}`；种子和序列文件只存在本地 `randomization-private/`（不进仓库），交导师离线保存。上传不带种子。
+
+**重复提交**：同一个账号再提交，返回原来的组别，不再随机，记一条 `resubmit` 日志。**更正**：只能用 `tool/correct_arm_assignment.js`，必须写理由，记 `correction` 日志。
+
+**`assignArm`**（`functions/arm.js`）：App 注册和登录时仍会调用。T19 起它只做两件事：有组别就返回；`meta/randomization_config.enabled` 关着时给 Phase A / pilot 账号 A 组（`force_a`）。开关开着时什么都不分。旧的最小化分配（UCLA × 年龄 4 层、`meta/arm_counter` 计数）已删除；`app_config/arm_assignment.randomise` 已停用（开关关着时它为 true 会拒绝分组，免得把 Phase B 的人误分进 A 组）。
 
 **防护**：
 
-- 分组字段（`arm`、`strataCell`、`armAssignmentMode`、`armAssignedBy`、`armAssignedAt`）只有服务器能写：客户端建档时不能带，之后不能改、不能删；客户端也不能删自己的用户文档，免得删档重建换组（Firestore 规则，决策 0022）。
-- `proxyDeepSeek`、`referralJudgement`、`webSearch` 每次先查分组，B 组直接拒绝。即使 App 哪里判断错了，B 组也拿不到 LLM。
-- 分组还没拿到（`arm` 为空）时 App 显示 B 组界面（决策 0004），下次登录自动重试分组。
+- 分组字段（`arm`、`strataCell`、`armAssignmentMode`、`armAssignedBy`、`armAssignedAt`，T19 加 `w0Date`、`armAssignmentMethod`、`armCorrectedAt`）只有服务器能写：客户端建档时不能带，之后不能改、不能删；客户端也不能删自己的用户文档，免得删档重建换组（Firestore 规则，决策 0022）。
+- `proxyDeepSeek`、`referralJudgement`、`webSearch` 每次先查分组，B 组直接拒绝，并在 `llm_denied_log` 记一条（uid、哪个接口、时间；不存文字）。即使 App 哪里判断错了，B 组也拿不到 LLM。服务器的分组缓存 10 分钟过期，更正后最迟 10 分钟生效。
+- 分组还没拿到（`arm` 为空）时 App 显示 B 组界面（决策 0004），下次登录自动重试。登记前的这段时间服务器不拒绝 LLM（App 不会调用），见决策 0029。
+- 序列、指针、登记记录、分配日志、`meta/randomization_config`、`meta/arm_counter`：客户端（老人、盲法、非盲人员）一律不能读写。
+
+**角色**（Auth custom claims，`tool/provision_researcher.js`，T19 改名）：`unblinded` = 非盲研究员（Keran）：登记、看组别、读研究编号对照表、后台看两组人数、生成和上传序列。`blinded` = 盲法人员，包括 PI（Junyu，盲法评估者）：后台不显示两组人数和只有一组才有的板块，只用盲法导出。旧名字 `pi`、`researcher` 不再有任何权限。
+
+**给 PI 的告警**（T19）：`pi_alerts` 和发给 `PI_EMAIL` 的邮件不再带 `source`、`inputPoint`、`agentId`（这些值有的只有一组才有），只带研究编号、级别、时间、告警编号；两组完全相同，每条 acute 事件照旧告警（`functions/pi_alert.js`）。
 
 **编译开关**：现在 Phase B 界面靠 `--dart-define=PHASE_B=true` 打开，不加就是「所有人显示 A 组」的 Phase A 包。决策 0011 定了要改成 `cohort` 字段并删掉这个开关，**还没做**。
 
-**cohort（已决定，未实现，决策 0011）**：`users/{uid}.cohort` = `pilot`（现有全部账号）/ `phase_a` / `phase_b`，由 `assignArm` 写入。
+**cohort（已决定，未实现，决策 0011）**：`users/{uid}.cohort` = `pilot`（现有全部账号）/ `phase_a` / `phase_b`。T21 会在登记时写研究期字段；登记记录里已留 `studyPeriod`（现在固定 `B`）。
+
+**W0 日期**：App 的 `w0DateFor`（`lib/core/scheduling/w0_date.dart`）和服务器的 `w0DateKey`（`functions/djg_w2.js`）先用登记时写的 `w0Date`，没有再用账号的 `createdAt`。
 
 ## 5. 一条消息的旅程（A 组）
 
@@ -186,22 +198,27 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 
 | 位置 | 内容 |
 |---|---|
-| `app_config/arm_assignment` | `{randomise: bool}`：是否随机分组 |
+| `app_config/arm_assignment` | 已停用（T19）。以前是 `{randomise: bool}` 最小化分配开关 |
 | `app_config/reminders` | `{m7FollowupPushEnabled: bool}`：行动计划提醒发不发，默认关（决策 0022） |
 | `app_config/feature_flags` | 搜一搜、语音、通通固定回应三个开关（第 12 节）。没有这份文档 = 全关 |
 | `app_config/usage_copy` | 提到使用频率的 7 处文字（决策 0028，键名见 `lib/core/config/usage_copy.dart`）。没有文档、字段为空或带【占位】= 显示原文；两组相同；客户端只读 |
 | `app_config/phase_b` | **只属于 Phase B** 的参数（`PhaseBConfig`，服务器 `functions/djg_w2.js` 也读）：`djgW2InAppEnabled`（默认关）、`djgW2DayOffset`（14）、`djgW2WindowDays`（7）、`djgW2PushHour`（10）、`djgW2ReminderHours`（24）。不建 = 关 |
 | `app_config/phaseA_schedule` | **只属于 Phase A**：`adaEnabled`、`adaAllowSkip`、`adaTimepoints`、`day7OpenEndedEnabled`、`day7OpenEndedDayFrom`、`day7OpenEndedDayTo`、`day7OpenEndedAllowSkip`（第 6.1 节）。没有这份文档 = 都关。Phase B 包不读 |
 | `app_config/phase_a` | App 运行参数（`PhaseAConfig`）的远端覆盖；含同意相关的 `transcriptRetentionDefault`（默认 true）、`sharedContextUseDefault`（默认 true）、`enforceSharedContextConsent`（默认 true，服务器也读）。不建就用默认值 |
-| `meta/arm_counter` | 4 个层各自的 A/B 人数。只有非盲角色能读 |
+| `meta/arm_counter` | 已停用（T19）：旧最小化分配的计数器。客户端一律不能读写 |
+| `meta/randomization_config` | T19 登记分组开关：`enabled`（默认 false = 不能登记，`assignArm` 照旧给 Phase A 分 A 组）。其余字段（分层、方法）只做记录。客户端不能读写 |
+| `randomization_sequences/{low,high}`、`randomization_state/{low,high}` | T19 分配序列（`arms`、`blocks`、`length`、`sha256`，不含种子）和下一个未用位置 `next`。只有服务器和上传脚本写，客户端不能读写 |
+| `enrollments/{uid}` | T19 登记记录：研究编号、W0 情感分、层、阿珍/阿伯、W0 日期、组别、序列位置、`studyPeriod`、登记时间和研究员。客户端不能读写 |
+| `arm_assignment_log` | T19 分配日志：`allocate` / `resubmit` / `correction`，研究编号、层、序列位置、组别、时间、操作人；更正带理由和原组别。客户端不能读写 |
+| `llm_denied_log` | T19：规则组调用 LLM 接口被拒的记录（uid、接口、时间）。客户端不能读写 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开 |
-| `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列。事件字段：`source`（user_input / ai_output_scan / form）、`inputPoint`、`turnId`、级别、命中词、文字的哈希；服务器补 `dedup_key`、`isDuplicate`、`duplicateOf`、`escalatedBy`。分析只数 `isDuplicate == false`（决策 0018） |
+| `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列（T19 起 `pi_alerts` 只有 uid、研究编号、级别、`dedupKey`、`isTester`、`eventPath`、时间）。事件字段：`source`（user_input / ai_output_scan / form）、`inputPoint`、`turnId`、级别、命中词、文字的哈希；服务器补 `dedup_key`、`isDuplicate`、`duplicateOf`、`escalatedBy`。分析只数 `isDuplicate == false`（决策 0018） |
 | `hotline_filter_log` | Hybrid 组 AI 回复里被替换的电话号码：时间、uid、模块、个数、种类、是否在批准清单里。不存原文和号码。只有服务器写 |
 | `meta/safety_config` | 热线规则和热线过滤的开关（`hotlinePromptRule`、`hotlineOutputFilter`），没有这个文档 = 都开。T8 分类器：`classifierEnabled`（默认关）、`classifierUrl`、`classifierTimeoutMs`、`classifierMaxChars` |
 | `safety_classifier_calls` | 安全分类器的调用记录（两组）：时间、uid、写入方（server / app）、结果状态、级别、分数、延迟、模型版本、输入点、`turn_id`、文字长度。不存原文，不存组别。服务器每次中转写一条；App 只补写请求没回来的（超时、离线）。客户端不能读 |
 | `llm_calls` | 每次调用 DeepSeek 一条：时间、调用类型、agent、uid、请求和返回的模型名、`system_fingerprint`、token 数（含思考 token）、HTTP 状态码、延迟、是否出错。不存原文。只有服务器写，App 不能读写（决策 0016） |
 | `export_blind_keys` | 盲法导出时组别 → Group_X / Group_Y 的对照。新版用固定的 `stable_v2`，不再每周换 |
-| `research_id_map/{uid}`、`research_ids/{researchId}` | 研究编号对照表（决策 0021）。只有服务器写，只有非盲角色（`role: pi`）能读 |
+| `research_id_map/{uid}`、`research_ids/{researchId}` | 研究编号对照表（决策 0021）。T19 起 Phase B 的编号是登记时研究员输入的（`via: "enrollment"`）。只有服务器写，只有非盲角色（`role: unblinded`）能读 |
 | `meta/blinding_config` | 盲法开关：`enabled`、`includeBriefPr`、`includeUsageSummary`，都默认 false。客户端不能读写 |
 
 **删除**：`tool/delete_memory.js` 只删记忆（保留研究数据）；`tool/delete_participant.js` 删整个参与者（Auth 账号、`users/{uid}` 整棵树（含 `djg_es`、`djg_responses`）、顶层集合里按 `uid` 找到的记录、Storage `users/{uid}/`），默认试运行，`--confirm` 才删，删完复查并写存证（只有数量）。周度导出 `exports/` 默认只数不改，`--rewrite-exports` 才重写。详见 T11 报告。
@@ -211,7 +228,8 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | 函数 | 触发 | 做什么 |
 |---|---|---|
 | `proxyDeepSeek` | App 调用 | 所有 LLM 对话；拼 prompt 和记忆 |
-| `assignArm` | App 调用（注册、登录补分） | 分组；盲法开关开时同时生成研究编号 |
+| `assignArm` | App 调用（注册、登录补分） | 返回已有组别；`meta/randomization_config.enabled` 关着时给 Phase A / pilot 分 A 组，开着时不分（T19） |
+| `enrollParticipant` | 研究员登记页调用 | T19：只有 `role: unblinded` 能用。登记并按置换区组序列分组（`functions/randomization.js`）；试运行只核对账号，不显示组别；重复提交返回原组别 |
 | `memoryEndSession` | App 调用（离开聊天页） | v1：整理这次对话的记忆 |
 | `memorySweep` | 每 15 分钟 | v1：补整理 30 分钟没有新消息的对话 |
 | `memoryFactDeleted`、`memoryFollowupDeleted` | 删除一条记忆事实或跟进时 | v1：连带删除来源会话的摘要和同样措辞的条目（T10） |
@@ -220,7 +238,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `transcribeAudio` | App 调用（目前 App 没有调用） | 语音转文字（两组）。`voiceInputEnabled` 不是 `true` 时直接拒绝 |
 | `safetyAcknowledgement` | App 调用 | 按陪伴者返回安全回应模板 |
 | `classifySafety` | App 调用（两组） | T8：把一句话转给安全分类器，只返回级别和分数，记 `safety_classifier_calls`。`meta/safety_config.classifierEnabled` 关着时直接返回 disabled。不调用 DeepSeek，不经过 `assertLlmAllowed`（决策 0025） |
-| `onSafetyEventCreated` | 新安全事件 | 通知 PI |
+| `onSafetyEventCreated` | 新安全事件 | 通知 PI。告警和邮件内容两组相同，不带能看出组别的字段（T19，`functions/pi_alert.js`） |
 | `onThoughtExerciseCreated` | 新思维练习 | 写入研究员审计队列 `te_audit_queue` |
 | `weeklyLonelinessProbe` | 每周日 9:00（香港时间，下同） | 生成周度孤独感问卷队列（App 端默认不显示） |
 | `blindedDataExport` | 每周日 2:00 | 盲法数据导出。`meta/blinding_config.enabled` 开：新版（`functions/blinding.js`，研究编号、结局量表白名单，含 W2 DJG `djg_responses`），写到 `exports_v2/{日期}/`，可用 `tool/check_blinded_export.js` 检查；关：旧版 `exports/{日期}/` |
@@ -235,10 +253,10 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 **部署顺序**（新版本上线时）：
 
 1. 部署 Cloud Functions 和 Firestore 规则（Actions →「Deploy Firebase」）；
-2. 写 Firestore 配置：`app_config/arm_assignment`、`meta/memory_config`；打开随机前先清零 `meta/arm_counter`。可用 `tool/prelaunch_config.js`（默认只对模拟器执行），完整清单见 `docs/release/prelaunch-checklist.md`；
+2. 非盲研究员生成并上传分配序列（`tool/randomization_sequence.js`）；写 Firestore 配置：`meta/memory_config`、`meta/randomization_config`。可用 `tool/prelaunch_config.js`（默认只对模拟器执行；它也检查序列已上传），完整清单见 `docs/release/prelaunch-checklist.md`；
 3. 发布 App。
 
-顺序反了，新用户注册时分不到组，或者分组方式被记错，而分组写入后不能改。
+顺序反了，研究员登记会被拒绝，或者开关没开时 Phase B 的人被当作 Phase A 分进 A 组，而分组写入后不能改。
 
 ## 10. 安全
 

@@ -25,8 +25,22 @@ const silent = () => {};
 const SCRIPT = path.resolve(__dirname, "../../tool/prelaunch_config.js");
 
 async function reset() {
-  for (const p of ["users", "meta", "app_config"]) {
+  for (const p of ["users", "meta", "app_config", "randomization_sequences",
+    "randomization_state"]) {
     await db.recursiveDelete(db.collection(p));
+  }
+}
+
+const randomization = require("../randomization");
+
+async function uploadSequences() {
+  const seqs = randomization.generateSequences("prelaunch-test-seed-0001");
+  for (const s of randomization.STRATA) {
+    await db.doc(`randomization_sequences/${s}`).set({
+      arms: seqs[s].arms, blocks: seqs[s].blocks, length: seqs[s].length,
+      sha256: seqs[s].sha256,
+    });
+    await db.doc(`randomization_state/${s}`).set({next: 0});
   }
 }
 
@@ -70,22 +84,44 @@ test("guard: the CLI exits 2 off the emulator and writes nothing", () => {
 
 test("dry run writes nothing", async () => {
   await reset();
+  await uploadSequences();
   const ok = await tool.run(db, {phase: "b"}, silent);
   assert.strictEqual(ok, true);
   assert.strictEqual(await data("meta/memory_config"), undefined);
-  assert.strictEqual(await data("app_config/arm_assignment"), undefined);
+  assert.strictEqual(await data("meta/randomization_config"), undefined);
 });
+
+test("missing sequences fail the check; arms are never printed (T19)",
+    async () => {
+      await reset();
+      const lines = [];
+      assert.strictEqual(await tool.run(db, {phase: "b"},
+          (l) => lines.push(l)), false);
+      assert.ok(lines.some((l) => /randomization_sequences\/low: not/
+          .test(l)), lines.join("\n"));
+      await uploadSequences();
+      const out = [];
+      assert.strictEqual(await tool.run(db, {phase: "b"},
+          (l) => out.push(l)), true);
+      const text = out.join("\n");
+      assert.match(text, /low: \d+ positions, 0 used/);
+      // No arm list in any form ("A","B",… or ABAB…).
+      assert.doesNotMatch(text, /"[AB]"|\b[AB]{4,}\b/);
+    });
 
 test("--apply creates both docs with the values the server reads",
     async () => {
       await reset();
+      await uploadSequences();
       await tool.run(db, {phase: "b", apply: true}, silent);
       const m = await data("meta/memory_config");
       assert.strictEqual(m.enabled, true);
       assert.strictEqual(m.policy, "C");
       assert.strictEqual(m.phaseBArmA, true);
-      assert.strictEqual((await data("app_config/arm_assignment")).randomise,
-          true);
+      const r = await data("meta/randomization_config");
+      assert.strictEqual(r.enabled, true);
+      assert.strictEqual(r.strata, "low=0-1,high=2-3");
+      assert.strictEqual(await data("app_config/arm_assignment"), undefined);
       // Re-run is a no-op.
       const lines = [];
       await tool.run(db, {phase: "b", apply: true}, (l) => lines.push(l));
@@ -94,6 +130,7 @@ test("--apply creates both docs with the values the server reads",
 
 test("a differing doc is not replaced without --overwrite", async () => {
   await reset();
+  await uploadSequences();
   await db.doc("meta/memory_config").set({enabled: false, policy: "B"});
   const ok = await tool.run(db, {phase: "b", apply: true}, silent);
   assert.strictEqual(ok, false);
@@ -101,23 +138,6 @@ test("a differing doc is not replaced without --overwrite", async () => {
   await tool.run(db, {phase: "b", apply: true, overwrite: true}, silent);
   assert.strictEqual((await data("meta/memory_config")).policy, "C");
 });
-
-test("--reset-arm-counter zeroes it, but never after randomisation",
-    async () => {
-      await reset();
-      await db.doc("meta/arm_counter").set({cell_0: {aCount: 5, bCount: 0}});
-      await tool.run(db, {"phase": "b", "apply": true,
-        "reset-arm-counter": true}, silent);
-      assert.deepStrictEqual((await data("meta/arm_counter")).cell_0,
-          {aCount: 0, bCount: 0});
-      await db.doc("meta/arm_counter").set({cell_0: {aCount: 1, bCount: 1}});
-      await db.doc("users/u1").set({arm: "B", armAssignmentMode: "randomise"});
-      const ok = await tool.run(db, {"phase": "b", "apply": true,
-        "reset-arm-counter": true}, silent);
-      assert.strictEqual(ok, false);
-      assert.deepStrictEqual((await data("meta/arm_counter")).cell_0,
-          {aCount: 1, bCount: 1});
-    });
 
 (async () => {
   let failed = 0;
