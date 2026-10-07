@@ -36,7 +36,7 @@ import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/safety/safety_copy.dart';
-import '../../../../core/safety/safety_event_writer.dart';
+import '../../../../core/safety/safety_check.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
@@ -298,7 +298,12 @@ class _TungTungPageState extends State<TungTungPage> {
 
     // If the user armed search, run it before the LLM call so the
     // results are part of this turn's contextSuffix.
-    if (searchThisTurn && _searchRepo != null) {
+    // T7 — the words go through the shared safety check before anything
+    // is sent to the search provider; a flagged message is never searched.
+    // Detect only: the gateway call below writes this turn's event.
+    final searchSafe = !SafetyService.isScanned(SafetyInputPoint.searchQuery) ||
+        !CoreServicesScope.of(context).safety.detect(text).isEscalation;
+    if (searchThisTurn && searchSafe && _searchRepo != null) {
       final resp = await _searchRepo!.search(text);
       if (!mounted) return;
       setState(() {
@@ -521,7 +526,6 @@ class _TungTungPageState extends State<TungTungPage> {
   Future<void> _sendRuleBased(String text) async {
     final core = CoreServicesScope.of(context);
     final analytics = AnalyticsScope.of(context);
-    final authAvailable = AuthServiceScope.of(context).available;
     final profile = AppSettingsScope.read(context).profile;
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final userTurnIndex = _turns.where((t) => t.fromUser).length;
@@ -537,17 +541,14 @@ class _TungTungPageState extends State<TungTungPage> {
     });
     await _recorder?.ensureStarted();
 
-    final flag = core.distress.analyze(text);
-    if (flag.isEscalation && profile != null) {
-      unawaited(SafetyEventWriter(available: authAvailable).maybeWrite(
-        uid: profile.uid,
-        source: SafetySource.ruleTurn,
-        match: flag,
-        inputText: text,
-        agentId: AgentRegistry.tungTungId,
-        sessionId: _recorder?.sessionId,
-      ));
-    }
+    // T7 — the shared entry point, same as Arm A's gateway input scan.
+    final flag = core.safety
+        .checkUserText(text,
+            point: SafetyInputPoint.chatTungTung,
+            uid: profile?.uid,
+            agentId: AgentRegistry.tungTungId,
+            sessionId: _recorder?.sessionId)
+        .match;
 
     TurnRecord record(String reply, {required bool acute, bool ack = false}) =>
         TurnRecord(

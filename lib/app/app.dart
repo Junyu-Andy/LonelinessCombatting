@@ -18,6 +18,7 @@ import '../core/memory/memory_store.dart';
 import '../core/safety/distress_detector.dart';
 import '../core/safety/distress_router.dart';
 import '../core/safety/distress_state.dart';
+import '../core/safety/safety_check.dart';
 import '../core/safety/safety_overlay.dart';
 import '../core/session/chat_session_recorder.dart';
 import '../core/telemetry/screen_dwell_observer.dart';
@@ -42,6 +43,7 @@ class MyApp extends StatefulWidget {
   final DistressDetector distress;
   final DistressState distressState;
   final DistressRouter distressRouter;
+  final SafetyService? safety;
   final CrossModuleMemoryService crossModuleMemory;
   final AgentContextService agentContext;
   final SharedContextService sharedContext;
@@ -61,6 +63,7 @@ class MyApp extends StatefulWidget {
     required this.distress,
     required this.distressState,
     required this.distressRouter,
+    this.safety,
     required this.crossModuleMemory,
     required this.agentContext,
     required this.sharedContext,
@@ -194,6 +197,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           distress: widget.distress,
           distressState: widget.distressState,
           distressRouter: widget.distressRouter,
+          safety: widget.safety,
           crossModuleMemory: widget.crossModuleMemory,
           agentContext: widget.agentContext,
           sharedContext: widget.sharedContext,

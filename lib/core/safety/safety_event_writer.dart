@@ -1,28 +1,37 @@
 /// B.7 — writes distress detections to the global `safety_events` collection
 /// so the CF onCreate trigger can dedup and alert PI.
 ///
-/// This class is the single write-point for every source: `gateway_input`,
-/// `gateway_output`, `m3_turn`, and `rule_turn` (Arm B surfaces).  Arm B
-/// callers use the same writer — safety checks are arm-invariant by design.
+/// The single write-point for every surface in both arms.  Callers do not
+/// use it directly any more: they go through [SafetyService] in
+/// `safety_check.dart` (T7), which picks [SafetySource], the input point
+/// and the turn id.
 library;
 
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import 'distress_detector.dart';
 
-/// One of the three paths that can write a safety event.
+/// `safety_events.source` — the three analysis buckets (T7, decision 0018).
+///
+/// Pre-T7 codes, still accepted by the rules for old builds:
+/// `gateway_input` / `rule_turn` → [userInput]; `gateway_output` →
+/// [aiOutputScan]; `m3_turn` was never written.
 enum SafetySource {
-  gatewayInput('gateway_input'),
-  gatewayOutput('gateway_output'),
-  m3Turn('m3_turn'),
+  /// Something the participant typed or said in a conversation (chat,
+  /// check-in note, reminiscence entry, search words) — both arms.
+  userInput('user_input'),
 
-  /// Arm B (rule-based) surfaces — no gateway in the loop, so the page
-  /// writes the event itself to keep PI alerting arm-invariant.
-  ruleTurn('rule_turn');
+  /// The deterministic scan of an AI reply (Hybrid arm only).
+  aiOutputScan('ai_output_scan'),
+
+  /// A free-text field in a form (Thought Exercise, intake, agent
+  /// comparison, feedback, action plan, weekly questionnaire, edits).
+  form('form');
 
   const SafetySource(this.code);
   final String code;
@@ -33,32 +42,43 @@ class SafetyEventWriter {
 
   final bool available;
 
-  /// Write a safety event for [match] when its level is at least [moderate].
+  /// Write a safety event for [match] when its level is at least moderate.
   ///
-  /// [textHash] is the SHA-256 of the matched text (or the full input if no
-  /// specific term was isolated).  Pre-hashing on the client keeps PII out of
-  /// Firestore rule comparisons and limits what the client writes to hashes.
+  /// [uid] may be null or empty: the signed-in user is used instead (before
+  /// T7 seven AI calls passed no uid, so the rules silently rejected their
+  /// events).  [turnId] ties every scan of one conversational turn together
+  /// so the server counts the turn once.  [inputPoint] is the
+  /// [SafetyInputPoint] code.
   ///
-  /// The CF trigger computes the minute-bucket dedup server-side, so no clock
-  /// synchronisation is required here.
+  /// [inputText] is hashed (SHA-256) on the client; the text itself is
+  /// never written.
   Future<void> maybeWrite({
-    required String uid,
+    String? uid,
     required SafetySource source,
     required DistressMatch match,
     required String inputText,
+    String? inputPoint,
+    String? turnId,
     String? agentId,
     String? sessionId,
   }) async {
     if (!available) return;
     if (!match.isEscalation) return;
 
-    final textHash = _sha256(inputText);
-
     try {
+      final resolvedUid = (uid != null && uid.isNotEmpty)
+          ? uid
+          : FirebaseAuth.instance.currentUser?.uid;
+      if (resolvedUid == null || resolvedUid.isEmpty) {
+        if (kDebugMode) debugPrint('[safety_event] no signed-in user; skipped');
+        return;
+      }
       await FirebaseFirestore.instance.collection('safety_events').add({
-        'uid': uid,
+        'uid': resolvedUid,
         'source': source.code,
-        'textHash': textHash,
+        'inputPoint': inputPoint,
+        'turnId': turnId,
+        'textHash': _sha256(inputText),
         // `level` keeps the legacy 4-band label the Firestore rule and CF
         // trigger validate against; `tier` carries the S-1 split.
         'level': match.level.legacyLevelCode,

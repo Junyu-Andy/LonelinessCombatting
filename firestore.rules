@@ -126,9 +126,21 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasAll(['uid', 'source', 'textHash', 'level'])
         && request.resource.data.level in ['none', 'low', 'moderate',
-            'moderate_review', 'moderate_interrupt', 'acute'];
+            'moderate_review', 'moderate_interrupt', 'acute']
+        // T7: source is one of the three analysis buckets; the pre-T7
+        // codes stay valid so an old build's events are not lost.
+        && request.resource.data.source in ['user_input', 'ai_output_scan',
+            'form', 'gateway_input', 'gateway_output', 'm3_turn', 'rule_turn']
+        // Dedup / escalation fields are the trigger's, never the client's.
+        && !request.resource.data.keys().hasAny(['dedup_key', 'isDuplicate',
+            'duplicateOf', 'escalatedBy']);
       // Reads + updates come only from service accounts.
       allow read, update, delete: if false;
+    }
+
+    // T7 hotline outbound filter log — Cloud Functions only (no text).
+    match /hotline_filter_log/{id} {
+      allow read, write: if false;
     }
 
     // ============================================================

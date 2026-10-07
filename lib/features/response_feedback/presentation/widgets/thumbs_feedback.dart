@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/safety/safety_check.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/response_feedback.dart';
@@ -187,6 +188,18 @@ class _ThumbsFeedbackState extends State<ThumbsFeedback> {
       reasons: result.reasons,
       otherText: result.otherText,
     );
+    // T7 — the "other" text goes through the shared safety check (both
+    // arms; this widget is under rule replies too).
+    final other = result.otherText;
+    if (other != null && mounted) {
+      await SafetyService.of(context).checkAndRoute(
+        context,
+        other,
+        point: SafetyInputPoint.feedbackOther,
+        uid: AppSettingsScope.read(context).profile?.uid,
+        agentId: widget.agentId,
+      );
+    }
   }
 
   @override

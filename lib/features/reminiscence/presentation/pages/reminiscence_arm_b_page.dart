@@ -6,7 +6,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/safety/distress_detector.dart';
-import '../../../../core/safety/safety_event_writer.dart';
+import '../../../../core/safety/safety_check.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
@@ -68,17 +68,13 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
     final agent = AgentRegistry.byId(AgentRegistry.ahJanAhBakId);
     final displayName =
         agent.resolveVariant(profile?.ahJanAhBakVariant).displayNameZh;
-    // Same deterministic safety check + PI alert as Arm A (arm-invariant).
-    final distress = core.distress.analyze(body);
-    if (distress.isEscalation && profile != null) {
-      unawaited(SafetyEventWriter(available: auth.available).maybeWrite(
-        uid: profile.uid,
-        source: SafetySource.ruleTurn,
-        match: distress,
-        inputText: body,
-        agentId: AgentRegistry.ahJanAhBakId,
-      ));
-    }
+    // T7 — same shared safety check + PI event as Arm A (arm-invariant).
+    final distress = core.safety
+        .checkUserText(body,
+            point: SafetyInputPoint.reminiscenceNote,
+            uid: profile?.uid,
+            agentId: AgentRegistry.ahJanAhBakId)
+        .match;
     setState(() => _busy = true);
     if (profile != null) {
       final store = M3SessionStore(available: auth.available);

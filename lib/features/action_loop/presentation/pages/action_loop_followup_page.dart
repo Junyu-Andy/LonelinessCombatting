@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../core/safety/safety_check.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
@@ -101,6 +102,7 @@ counts. Do not suggest other modules or new plans.
         moduleId: 'm7_action_loop_followup',
         systemPrompt: isEn ? _systemPromptEn : _systemPromptZh,
         history: const [],
+        uid: AppSettingsScope.read(context).profile?.uid,
         userInput: [
           'plan: ${widget.plan.action}',
           'outcome: ${_outcome!.name}',
@@ -120,6 +122,15 @@ counts. Do not suggest other modules or new plans.
           await core.distressRouter.route(escalation, context: context);
         }
       }
+    } else if (_noteCtrl.text.trim().isNotEmpty) {
+      // T7 — Arm B: the note goes through the shared safety check (Arm A's
+      // goes through the gateway above).
+      await core.safety.checkAndRoute(
+        context,
+        _noteCtrl.text.trim(),
+        point: SafetyInputPoint.actionFollowup,
+        uid: profile?.uid,
+      );
     }
     if (!mounted) return;
     setState(() {

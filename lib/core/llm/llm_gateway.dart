@@ -4,7 +4,10 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../features/llm_features/data/llm_turn_features.dart';
+import '../config/phase_a_config.dart';
 import '../safety/distress_detector.dart';
+import '../safety/hotline_filter.dart';
+import '../safety/safety_check.dart';
 import '../safety/safety_event_writer.dart';
 import 'turn_metadata.dart';
 
@@ -24,22 +27,28 @@ export 'turn_metadata.dart';
 /// Arm B modules MUST NOT call this gateway. They use static templates
 /// and write [TurnMetadata.armB] directly when persisting turns.
 class LlmGateway {
+  /// Pass [safety] (T7, the shared entry point).  [detector] /
+  /// [safetyWriter] are the pre-T7 parameters, used only when [safety] is
+  /// null.
   LlmGateway({
+    SafetyService? safety,
     DistressDetector? detector,
     LlmClient? client,
     SafetyEventWriter? safetyWriter,
     LlmTurnFeaturesRepository? featuresRepo,
-  })  : _detector = detector ?? const DistressDetector(),
+  })  : _safety = safety ??
+            SafetyService(
+              detector: detector ?? const DistressDetector(),
+              writer: safetyWriter,
+            ),
         _client = client ?? const DeepseekLlmClient(),
-        _safetyWriter = safetyWriter,
         _featuresRepo = featuresRepo;
 
-  final DistressDetector _detector;
+  /// Detection + `safety_events` writes.  Its writer is null when Firebase
+  /// is unavailable (guest mode): events are skipped, detection still runs
+  /// so the app can short-circuit.
+  final SafetyService _safety;
   final LlmClient _client;
-
-  /// Null when Firebase is unavailable (guest mode). Safety events are
-  /// silently skipped; detection still runs so the app can short-circuit.
-  final SafetyEventWriter? _safetyWriter;
 
   /// B.1 — when set, the gateway writes a [LlmTurnFeatures] doc for every
   /// successful Arm A response.  Null disables the persistence (e.g. guest
@@ -91,28 +100,26 @@ class LlmGateway {
       'LlmGateway.send requires either systemPrompt or promptKey',
     );
 
+    // T7 — one turn id ties the input scan and the reply scan together so
+    // the server counts the turn once.  The event write inside
+    // checkUserText is fire-and-forget on purpose: offline, a Firestore
+    // write future waits for server ack, and awaiting it here would let a
+    // dropped connection stand between an acutely distressed user and the
+    // crisis surface.
+    final point = SafetyInputPoint.forModule(moduleId);
+    final turnId = SafetyService.newTurnId();
     final inputFlag = skipSafetyScan
         ? const DistressMatch(DistressLevel.none)
-        : _detector.analyze(userInput);
-
-    if (inputFlag.isEscalation) {
-      // Fire-and-forget on purpose: offline, a Firestore write future
-      // waits for server ack, and awaiting it here would let a dropped
-      // connection stand between an acutely distressed user and the
-      // crisis surface.  The SDK queues the event locally and syncs it
-      // when the network returns; the UI routing below must never wait.
-      final w = _safetyWriter;
-      if (w != null) {
-        unawaited(w.maybeWrite(
-          uid: uid ?? '',
-          source: SafetySource.gatewayInput,
-          match: inputFlag,
-          inputText: userInput,
-          agentId: agentId,
-          sessionId: sessionId,
-        ));
-      }
-    }
+        : _safety
+            .checkUserText(
+              userInput,
+              point: point,
+              uid: uid,
+              agentId: agentId,
+              sessionId: sessionId,
+              turnId: turnId,
+            )
+            .match;
 
     // Acute distress: short-circuit. The module is responsible for showing
     // the crisis surface; we never let an LLM be the only thing standing
@@ -128,6 +135,7 @@ class LlmGateway {
           sessionId: sessionId,
         ),
         status: LlmStatus.shortCircuited,
+        turnId: turnId,
       );
     }
 
@@ -156,25 +164,22 @@ class LlmGateway {
     sw.stop();
     final latencyMs = sw.elapsedMilliseconds;
 
+    // The reply scan writes an event only when it is above the input's
+    // level (otherwise the input event already stands for this turn).
     final outputFlag = skipSafetyScan
         ? const DistressMatch(DistressLevel.none)
-        : _detector.analyze(raw.text);
-    final filtered = _postFilter(raw.text);
-
-    if (outputFlag.isEscalation) {
-      // Same non-blocking rationale as the input-side write above.
-      final w = _safetyWriter;
-      if (w != null) {
-        unawaited(w.maybeWrite(
-          uid: uid ?? '',
-          source: SafetySource.gatewayOutput,
-          match: outputFlag,
-          inputText: raw.text,
-          agentId: agentId,
-          sessionId: sessionId,
-        ));
-      }
-    }
+        : _safety
+            .checkAiOutput(
+              raw.text,
+              turnId: turnId,
+              inputMatch: inputFlag,
+              point: point,
+              uid: uid,
+              agentId: agentId,
+              sessionId: sessionId,
+            )
+            .match;
+    final (filtered, clientReplaced) = _postFilter(raw.text);
 
     // B.1 — persist features for Arm A successful turns.  Arm B turns
     // never reach this codepath (per design), but the armCode guard keeps
@@ -223,10 +228,20 @@ class LlmGateway {
       latencyMs: latencyMs,
       temperature: raw.temperature,
       promptVersion: raw.promptVersion,
+      turnId: turnId,
+      hotlineReplaced: raw.hotlineReplaced + clientReplaced,
     );
   }
 
-  String _postFilter(String text) => text.trim();
+  /// Trim, then (T7) the App-side hotline pass: any phone number the server
+  /// filter missed becomes [kHotlineToken].  Returns the text and how many
+  /// numbers this pass replaced.
+  (String, int) _postFilter(String text) {
+    final trimmed = text.trim();
+    if (!PhaseAConfig.current.hotlineFilterClient) return (trimmed, 0);
+    final r = filterHotlines(trimmed);
+    return (r.text, r.count);
+  }
 
   /// V-2 — pure helper (unit-tested) that appends the two injection lines.
   static String? injectThemeAndModule({
@@ -303,6 +318,12 @@ class LlmResponse {
   /// `siu_yan_v1@2026-06`-style prompt version echoed by the CF.
   final String? promptVersion;
 
+  /// T7 — id shared by this turn's input and reply safety scans.
+  final String? turnId;
+
+  /// T7 — phone numbers replaced by the hotline filters (server + App).
+  final int hotlineReplaced;
+
   const LlmResponse({
     required this.text,
     required this.inputFlag,
@@ -316,6 +337,8 @@ class LlmResponse {
     this.latencyMs,
     this.temperature,
     this.promptVersion,
+    this.turnId,
+    this.hotlineReplaced = 0,
   });
 
   /// True when the page should show the per-agent S-6 fallback line
@@ -346,6 +369,9 @@ class LlmRawResponse {
   final double? temperature;
   final String? promptVersion;
 
+  /// T7 — numbers the server's hotline filter replaced.
+  final int hotlineReplaced;
+
   const LlmRawResponse({
     required this.text,
     this.systemPromptHash,
@@ -354,6 +380,7 @@ class LlmRawResponse {
     this.model,
     this.temperature,
     this.promptVersion,
+    this.hotlineReplaced = 0,
   });
 }
 
@@ -448,6 +475,7 @@ class DeepseekLlmClient implements LlmClient {
           model: data['model'] as String?,
           temperature: (data['temperature'] as num?)?.toDouble(),
           promptVersion: data['promptVersion'] as String?,
+          hotlineReplaced: (data['hotlineReplaced'] as num?)?.toInt() ?? 0,
         );
       }
       // Unexpected response shape — log so it's visible.
