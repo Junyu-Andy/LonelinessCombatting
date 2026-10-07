@@ -1,7 +1,7 @@
 # 待办与待决定
 
 > 随时更新。做完的移到 `docs/history.md`，划掉或删掉这里的条目。
-> 最后更新：2026-10-06
+> 最后更新：2026-10-07
 
 ## 1. 已决定、待开发
 
@@ -24,7 +24,7 @@
 | 23 | 研究文件里的模型名 | 登记表 C03、protocol、ICF、DMP、HREC 材料里的「DeepSeek-V3」「deepseek-chat」改为 DeepSeek-V4.1-Flash（`deepseek-flash`，思考关闭）。见决策 0017 |
 | 24 | 部署决策 0017 的改动 | 现在线上的 Functions 还在请求旧名 `deepseek-chat`，DeepSeek 停用旧名当天 Hybrid 组会全部报错。合并后尽快部署 Functions |
 | 25 | PI 核对危机页热线号码 | `functions/prompts/crisis_resources.json` 的 `verifiedDate` 还是空的。见 T6 报告 |
-| 26 | 手动建两份配置 | `meta/memory_config` 和 `app_config/arm_assignment`。不建的话 Hybrid 组没有记忆、所有人都分到 A 组。见 T1 报告 C05、C01 |
+| 26 | 手动建两份配置 | `meta/memory_config` 和 `app_config/arm_assignment`。不建的话 Hybrid 组没有记忆、所有人都分到 A 组。可用 `tool/prelaunch_config.js`；逐项核对见 `docs/release/prelaunch-checklist.md`（T13） |
 
 ## 3. 待决定
 
@@ -49,8 +49,10 @@
 | 32 | 安全检测覆盖缺口：Thought Exercise、入组开放题、陪伴者比较页、「其他」反馈框、规则组行动计划都不检测；7 处 AI 调用不带 uid，安全事件被规则拒收；词库对间接自杀表达召回低（合成 8 句中 2 句） | T6 | 负责人 / PI |
 | 33 | 通通「搜一搜」把原话发给 Brave，在安全检测之前，且不去个人信息 | T2 | 负责人 |
 | 34 | 同意与删除：对话保留默认开启；`sharedContextUse` 从不生效；没有整人删除；`stripPII` 不去人名；App 隐私页写「冇雲端同步」与实际不符 | T2 | 负责人 |
-| 35 | 安全规则允许本人在分组为空时写 `arm` | T1 C01 | 负责人 |
 | 36 | 登记表要更新的行：C03 模型名、C12 词库版本（v5）、C14 量表（1–7 点选）、C15 DJG 版本（6 条） | T1 | 研究侧 |
+| 49 | 行动计划提醒要不要打开；推送里要不要带计划原文（现在只发「件事點呀？」） | T13，决策 0022。开关 `app_config/reminders.m7FollowupPushEnabled` 默认关 | 研究侧 |
+| 50 | 怀旧入口文案定稿（草稿：「4 個主題、4 個禮拜」） | T13 报告；PR 里单独的提交 | 研究侧 |
+| 51 | `meta/arm_counter` 客户端仍可写（规则只限增量格式），能影响后来者的分组；分组用的 `ageGroup`、`baselineUclaScore` 也是参与者自己填的 | T13 报告。计数器的处理见第 3 项 | 负责人 |
 
 ## 4. 暂缓或以后再做
 

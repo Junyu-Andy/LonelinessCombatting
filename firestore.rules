@@ -8,7 +8,7 @@ rules_version = '2';
 // which bypass these rules.
 //
 // Collections this app uses (Sprint 1 additions marked *new*):
-//   users/{uid}                                  -> profile (incl. write-once arm, consent,
+//   users/{uid}                                  -> profile (incl. server-written arm, consent,
 //                                                   close_contacts, interests,
 //                                                   firstIntroSeen, per-agent
 //                                                   transcript flags,
@@ -42,34 +42,40 @@ service cloud.firestore {
     }
 
     // ============================================================
-    // Profile doc.  The owner reads/writes it, except that the RCT
-    // arm is write-once: it may go from absent/null to 'A' or 'B'
-    // (signup, or the arm==null backfill) and never change after.
-    // A merge-write that omits `arm` keeps the stored value, so
-    // ordinary profile updates pass.
+    // Profile doc.  The owner reads and writes it, except the RCT
+    // assignment fields, which only the assignArm Cloud Function
+    // (admin SDK, bypasses rules) may write — decision 0003 / 0022:
+    //   - create: `arm` and `strataCell` must be absent or null;
+    //   - update: none of the assignment fields may change.  A
+    //     merge-write that repeats the stored value (or omits it)
+    //     changes nothing, so ordinary profile updates pass;
+    //   - delete: never from a client.  Deleting and re-creating the
+    //     doc would let assignArm re-randomise the participant.
+    //     Whole-person deletion runs server-side (admin SDK).
     // ============================================================
-    function armValid(data) {
-      return data.get('arm', null) == null || data.arm in ['A', 'B'];
+    function assignmentFields() {
+      return ['arm', 'strataCell', 'armAssignmentMode', 'armAssignedBy',
+              'armAssignedAt'];
     }
 
-    // Written only by the assignArm Cloud Function. armAssignmentMode
-    // also decides who gets mandatory memory v1 (Phase B Arm A), so a
-    // client must never set or change these.
-    function serverAssignmentUntouched() {
-      return !request.resource.data.diff(
-          resource == null ? {} : resource.data).affectedKeys()
-        .hasAny(['armAssignmentMode', 'armAssignedBy', 'armAssignedAt']);
+    function createLeavesAssignmentEmpty(data) {
+      return data.get('arm', null) == null
+        && data.get('strataCell', null) == null
+        && !data.keys().hasAny(['armAssignmentMode', 'armAssignedBy',
+                                'armAssignedAt']);
+    }
+
+    function updateLeavesAssignmentUntouched() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(assignmentFields());
     }
 
     match /users/{uid} {
-      allow read, delete: if isOwner(uid);
-      allow create: if isOwner(uid) && armValid(request.resource.data)
-        && serverAssignmentUntouched();
-      allow update: if isOwner(uid)
-        && armValid(request.resource.data)
-        && serverAssignmentUntouched()
-        && (resource.data.get('arm', null) == null
-            || request.resource.data.get('arm', null) == resource.data.arm);
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && createLeavesAssignmentEmpty(request.resource.data);
+      allow update: if isOwner(uid) && updateLeavesAssignmentUntouched();
+      allow delete: if false;
     }
 
     // ============================================================
