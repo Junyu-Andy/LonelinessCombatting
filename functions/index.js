@@ -1,6 +1,7 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const {onDocumentCreated, onDocumentDeleted} =
-  require("firebase-functions/v2/firestore");
+const {
+  onDocumentCreated, onDocumentDeleted, onDocumentWritten,
+} = require("firebase-functions/v2/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
@@ -16,6 +17,7 @@ const hotline = require("./hotline_filter");
 const {safetyConfig} = require("./safety_config");
 const featureFlags = require("./feature_flags");
 const blinding = require("./blinding");
+const djgW2 = require("./djg_w2");
 
 admin.initializeApp();
 
@@ -1325,6 +1327,7 @@ const _EXPORT_BLINDED_COLLECTIONS = [
   "weekly_pr",
   "pgic",
   "djg_es",
+  "djg_responses",
   "agent_diff",
   "daily_mood",
   "response_feedback",
@@ -1431,7 +1434,7 @@ exports.blindedDataExport = onSchedule(
         "events", "ppr_responses", "llm_turn_features",
         "thought_exercise", "loneliness_probes",
         "turns", "sessions", "brief_pr", "weekly_pr", "pgic", "djg_es",
-        "agent_diff", "daily_mood", "response_feedback",
+        "djg_responses", "agent_diff", "daily_mood", "response_feedback",
       ]) {
         const sub = await userDoc.ref.collection(subName).get();
         for (const d of sub.docs) {
@@ -1810,6 +1813,9 @@ exports.week2Push = onSchedule(
   async (_event) => {
     const db = admin.firestore();
     const cfg = await phaseAConfig(db);
+    // T18 (decision 0027): with the in-app W2 DJG on, djgW2Dispatch owns
+    // the Week 2 push for Phase B participants — one push, not two.
+    const djgCfg = await djgW2.readConfig(db);
     const today = hkDateKey(new Date());
     const usersSnap = await db.collection("users").get();
     let sent = 0;
@@ -1817,6 +1823,7 @@ exports.week2Push = onSchedule(
       const data = userDoc.data() || {};
       if (data.isTester === true) continue;
       if (data.w2PushSentAt) continue;
+      if (djgW2.week2PushShouldSkip(djgCfg, data)) continue;
       const createdRaw = data.createdAt;
       if (!createdRaw) continue;
       const createdIso = typeof createdRaw === "string" ?
@@ -1862,6 +1869,40 @@ exports.week2Push = onSchedule(
       sent++;
     }
     console.log(`week2Push: ${sent} users notified`);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// T18 — Week 2 DJG in the App, 6 items (SPEC:C15, decision 0027).  Phase B
+// only, both arms identical, no LLM.  Off unless
+// app_config/phase_b.djgW2InAppEnabled === true (functions/djg_w2.js).
+//   djgW2Dispatch: hourly 08:00–21:00 HKT — the day-14 push (at
+//     djgW2PushHour), one reminder 24 h later if not submitted, and the
+//     missed mark once the window has closed.
+//   onDjgResponseWritten: scores a submitted response server-side.
+// ---------------------------------------------------------------------------
+exports.djgW2Dispatch = onSchedule(
+  {
+    schedule: "0 8-21 * * *",
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    retryCount: 0,
+  },
+  async (_event) => {
+    await djgW2.dispatchDjgW2(admin.firestore(), admin.messaging());
+  },
+);
+
+exports.onDjgResponseWritten = onDocumentWritten(
+  {
+    document: "users/{uid}/djg_responses/{timepoint}",
+    region: "asia-east2",
+  },
+  async (event) => {
+    const after = event.data && event.data.after && event.data.after.exists ?
+      event.data.after.data() : null;
+    await djgW2.scoreSubmission(admin.firestore(), event.params.uid,
+        event.params.timepoint, after);
   },
 );
 

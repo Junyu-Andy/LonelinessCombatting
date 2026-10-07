@@ -16,9 +16,14 @@ import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/scheduling/pending_prompts_service.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/time/app_clock.dart';
+import '../../../../core/config/phase_a_schedule_config.dart';
+import '../../../ada/presentation/ada_page.dart';
+import '../../../ada/presentation/day7_open_page.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
+import '../../../assessment/data/djg_w2.dart';
 import '../../../assessment/presentation/pages/djg_es_page.dart';
+import '../../../assessment/presentation/pages/djg_w2_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../weekly_pr/data/weekly_pr_trigger.dart';
 import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
@@ -143,11 +148,57 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
     if (mounted) setState(() => _pending = null);
   }
 
+  /// T18 — Phase B in-app W2 DJG (6 items).  Same page for both arms.
+  Future<void> _openDjgW2() async {
+    final profile = AppSettingsScope.read(context).profile;
+    if (profile == null) return;
+    final analytics = AnalyticsScope.of(context);
+    unawaited(analytics.logEvent('djg_w2_opened'));
+    final done = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => DjgW2Page(store: FirestoreDjgW2Store(profile.uid)),
+      ),
+    );
+    if (done == true) unawaited(analytics.logEvent('djg_w2_submitted'));
+    if (mounted) setState(() => _pending = null);
+  }
+
   Future<void> _openAgentDiff(int wave) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => AgentDiffPage(wave: wave)),
     );
     if (mounted) setState(() => _pending = null);
+  }
+
+  /// T17 — Phase A ADA (decision 0026).
+  Future<void> _openAda(AdaTimepoint tp) async {
+    final p = _pending;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AdaPage(
+          timepoint: tp,
+          allowSkip: PhaseAScheduleConfig.current.adaAllowSkip,
+          enrolmentDay: p?.enrolmentDay,
+        ),
+      ),
+    );
+    if (mounted) setState(() => _pending = null);
+    _maybeLoad();
+  }
+
+  /// T17 — Phase A day-7 open questions.
+  Future<void> _openDay7Open() async {
+    final p = _pending;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Day7OpenPage(
+          allowSkip: PhaseAScheduleConfig.current.day7OpenEndedAllowSkip,
+          enrolmentDay: p?.enrolmentDay,
+        ),
+      ),
+    );
+    if (mounted) setState(() => _pending = null);
+    _maybeLoad();
   }
 
   @override
@@ -179,10 +230,23 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
       tiles.add(_BannerTile(
         icon: Icons.assessment_outlined,
         title: isEn ? 'Week 2 questions' : '第 2 週問卷',
-        subtitle: isEn
-            ? 'A few minutes: how things feel, and the three companions.'
-            : '幾分鐘：最近嘅感受，同三個夥伴嘅比較。',
+        // T17 — without the old companion comparison (Phase B default)
+        // the subtitle drops its second half.  Draft wording.
+        subtitle: p.agentDiffW2
+            ? (isEn
+                ? 'A few minutes: how things feel, and the three companions.'
+                : '幾分鐘：最近嘅感受，同三個夥伴嘅比較。')
+            : (isEn ? 'A few minutes: how things feel.' : '幾分鐘：最近嘅感受。'),
         onTap: _openWeek2,
+      ));
+    }
+    if (p.djgW2) {
+      // T18 — draft copy, research team to sign off.
+      tiles.add(_BannerTile(
+        icon: Icons.assignment_outlined,
+        title: '第 2 週問卷',
+        subtitle: '6 條短問題，幾分鐘就答完。',
+        onTap: _openDjgW2,
       ));
     }
     if (p.agentDiffW4) {
@@ -193,6 +257,28 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
             ? 'A few minutes to compare the three companions.'
             : '請花幾分鐘比較三個夥伴。',
         onTap: () => _openAgentDiff(4),
+      ));
+    }
+    // T17 — Phase A only; wording is a draft for the research team.
+    final ada = p.ada;
+    if (ada != null) {
+      tiles.add(_BannerTile(
+        icon: Icons.groups_2_outlined,
+        title: isEn ? 'About the three companions' : '三個夥伴嘅幾條問題',
+        subtitle: isEn
+            ? 'A few minutes: how you see the three companions.'
+            : '幾分鐘，講下你點睇三個夥伴。',
+        onTap: () => _openAda(ada),
+      ));
+    }
+    if (p.day7Open) {
+      tiles.add(_BannerTile(
+        icon: Icons.edit_note_outlined,
+        title: isEn ? 'A few open questions' : '幾條開放問題',
+        subtitle: isEn
+            ? 'After a week, we would like to hear what you think.'
+            : '用咗一個禮拜，想聽下你嘅諗法。',
+        onTap: _openDay7Open,
       ));
     }
 

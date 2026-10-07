@@ -108,8 +108,27 @@ test("checker passes a clean export", () => {
     brief_pr: [{researchId: "P0ZAHQ5", groupCode: "Group_X",
       agentId: "siu_yan", understanding: 6, status: "completed",
       respondedAt: "2026-10-07T01:02:03.000Z"}],
+    djg_responses: [{researchId: "P0ZAHQ5", groupCode: "Group_X",
+      timepoint: "W2", itemsVersion: "djg6_pkg3_v1",
+      answers: {q1: "yes", q2: "mostly", q3: "no", q4: "no", q5: "skipped",
+        q6: "yes"},
+      status: "submitted", scores: {emotional: 2, social: null, total: null},
+      scoringVersion: "djg6_pkg3_v1", outsideWindow: false,
+      w0Date: "2026-10-01", windowStartDate: "2026-10-14",
+      windowEndDate: "2026-10-20", pushSentAt: "2026-10-14T02:00:00.000Z",
+      submittedAt: "2026-10-14T02:08:00.000Z"}],
   });
   assert.deepStrictEqual(checker.checkExport([dir]).findings, []);
+});
+
+test("T17: Phase A ADA never enters the Phase B blinded export", () => {
+  for (const n of ["ada_responses", "day7_open_responses"]) {
+    assert.ok(!(n in blinding.OUTCOME_COLLECTIONS), n);
+    assert.ok(checker.ALLOWED_FILES.indexOf(n) < 0, n);
+    const dir = writeExport({[n]: [{researchId: "P0ZAHQ5",
+      groupCode: "Group_X", formVersion: "short"}]});
+    assert.strictEqual(checker.checkExport([dir]).findings.length, 1, n);
+  }
 });
 
 test("checker flags every kind of leak", () => {
@@ -131,6 +150,8 @@ test("checker flags every kind of leak", () => {
     safety_events: [Object.assign({source: "gateway_output"}, rid)],
     agent_diff: [Object.assign({personality: {siu_yan: {x: "長".repeat(80)}}},
         rid)],
+    djg_responses: [Object.assign({timepoint: "W2", arm: "A",
+      source: "cf_djgW2Dispatch"}, rid)],
     random_new_collection: [rid],
   });
   const findings = checker.checkExport([dir]).findings;
@@ -150,6 +171,8 @@ test("checker flags every kind of leak", () => {
   has(/brief_pr:3\.agentId: .* raw Firebase uid/);
   has(/safety_events:1\.source: field not allowed/);
   has(/agent_diff:1\.personality\.siu_yan\.x: 80-character string/);
+  has(/djg_responses:1\.arm: field not allowed/);
+  has(/djg_responses:1\.source: field not allowed/);
 });
 
 test("checker CLI: exit 0 clean, 1 on findings, 2 on nothing", () => {

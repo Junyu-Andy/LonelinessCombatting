@@ -69,6 +69,16 @@ class FeatureFlags {
   static bool get ruleTemplateRepliesAllowPlaceholder =>
       _ruleTemplateRepliesAllowPlaceholderDefine == 'true';
 
+  static const _legacyAgentDiffPhaseBDefine =
+      String.fromEnvironment('LEGACY_AGENT_DIFF_PHASE_B', defaultValue: 'false');
+
+  /// T17 (decision 0026) — the old W2/W4 companion assessment (agent_diff)
+  /// in a `PHASE_B=true` build.  Default OFF: registry v2 C15 has no ADA in
+  /// Phase B.  True restores the pre-T17 Phase B behaviour.  Ignored in
+  /// Phase A builds (see [AdaGate]).
+  static bool get legacyAgentDiffInPhaseB =>
+      _legacyAgentDiffPhaseBDefine == 'true';
+
 
   /// C.3 — Hybrid-only affordances that must NOT mount in Phase A or for
   /// an Arm B participant.  The arm tutorial / education surface keys
