@@ -14,6 +14,7 @@ import '../../context/presentation/pages/check_in_page.dart';
 import '../../curious_companion/presentation/pages/tung_tung_page.dart';
 import '../../reminiscence/presentation/pages/reminiscence_landing.dart';
 import '../data/agent_profile_content.dart';
+import '../data/agent_profile_usage_copy.dart';
 
 class AgentProfileResolution {
   final AgentDefinition agent;
@@ -60,7 +61,7 @@ class AgentProfileController {
       agent: agent,
       variant: variant,
       header: header,
-      intro: intro,
+      intro: withUsageCopy(agent.id, intro),
     );
   }
 
