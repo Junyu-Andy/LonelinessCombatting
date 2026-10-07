@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-07 T7 安全加固（PR 草稿，未合并）
+
+- **做了**：所有自由输入两组都经同一个安全检测入口 `SafetyService`；补上 7 处没带用户编号的 AI 调用；`safety_events` 每条带 `source`、`inputPoint`、`turnId`，一轮对话只算一条；Hybrid 组 AI 回复里的电话号码在服务器和 App 各过滤一次，换成危机页链接，并记 `hotline_filter_log`；prompt 加「不写电话号码」规则 `hotline_rule.v1`；搜一搜命中安全词时不发出搜索。决策 0018。
+- **开关**：`safetyScanAllInputs`、`hotlineFilterClient`（`app_config/phase_a`），`hotlinePromptRule`、`hotlineOutputFilter`（`meta/safety_config`），默认都开。
+- 报告：`docs/dev-reports/T7-safety-hardening-20261007.md`。
+
 ## 2026-10-06 开发任务 T1–T6；DeepSeek 模型名
 
 - 研究侧功能登记表（C01–C22）放进 `docs/spec/feature-registry.md`，任务单放进 `docs/dev-tasks/dev-tasks-1006.md`。T1–T6 分六个云端会话并行执行，报告写到 `docs/dev-reports/`、`docs/spec/`、`docs/export/`。
