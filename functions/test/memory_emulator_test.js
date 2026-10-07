@@ -48,7 +48,8 @@ async function seedBuffer(agentId, lines) {
 }
 
 const GOOD = {
-  summary: "陳太講起下星期四會去睇醫生，又講鍾意飲早茶。",
+  // Neutral: a sensitive summary (睇醫生) is not kept since T10.
+  summary: "陳太講起鍾意飲早茶。",
   facts: [
     {op: "add", category: "name", key: "稱呼", value: "陳太",
       quote: "叫我陳太"},
@@ -309,6 +310,171 @@ test("sharedContextUse consent: extractor sees only own facts (C20)",
       } finally {
         await db.doc("app_config/phase_a").delete();
       }
+    });
+
+// ------------------------------------------------- T10 (decision 0024)
+async function extractWith(agentId, lines, modelOut) {
+  await seedBuffer(agentId, lines);
+  const id = await m.claimBuffer(db, UID, agentId);
+  const prompts = [];
+  const status = await m.processExtraction(db, UID, id, async (p) => {
+    prompts.push(JSON.stringify(p));
+    return JSON.stringify(modelOut);
+  }, NOW);
+  const ext = (await user().collection("mem_extractions").doc(id).get())
+      .data();
+  return {id, status, prompts, ext};
+}
+
+const docsOf = async (col) =>
+  (await user().collection(col).get()).docs.map((d) => ({id: d.id,
+    ...d.data()}));
+
+test("T10: flagged turns never reach the model, the summary is skipped",
+    async () => {
+      await reset();
+      const r = await extractWith("siu_yan", [
+        [true, "大家都叫我陳太。"],
+        [false, "陳太你好"],
+        [true, "有時諗住不如死咗算，活落去都冇意思。"],
+        [false, "我好擔心你"],
+        [true, "我鍾意飲早茶。"],
+      ], {summary: "陳太講起飲早茶。", facts: [
+        {op: "add", category: "name", key: "稱呼", value: "陳太",
+          quote: "叫我陳太"}], followups: []});
+      assert.strictEqual(r.status, "done");
+      assert.strictEqual(r.prompts.length, 1);
+      assert.ok(!r.prompts[0].includes("死咗算"), "flagged turn not sent");
+      assert.ok(!r.prompts[0].includes("我好擔心你"), "reply not sent");
+      assert.strictEqual(r.ext.excluded_safety_turns, 1);
+      assert.strictEqual(r.ext.prompt_version, "memory_extraction.v2");
+      assert.strictEqual((await docsOf("mem_summaries")).length, 0);
+      assert.strictEqual((await docsOf("mem_facts")).length, 1);
+    });
+
+test("T10: the flagged turn is not even copied into mem_extractions",
+    async () => {
+      await reset();
+      await seedBuffer("siu_yan", [[true, "我真係想死"], [true, "飲咗茶"]]);
+      const id = await m.claimBuffer(db, UID, "siu_yan");
+      const ext = (await user().collection("mem_extractions").doc(id).get())
+          .data();
+      assert.deepStrictEqual(ext.turns.map((t) => t.text), ["飲咗茶"]);
+      assert.strictEqual(ext.screened_safety_turns, 1);
+    });
+
+test("T10: only flagged turns → no model call", async () => {
+  await reset();
+  const r = await extractWith("siu_yan", [[true, "我覺得自己係個負擔"]],
+      {summary: "x", facts: [], followups: []});
+  assert.strictEqual(r.status, "done");
+  assert.strictEqual(r.prompts.length, 0);
+  assert.strictEqual(r.ext.outcome, "nothing_left");
+});
+
+test("T10: 「唔好記住」 → no model call, nothing stored, related items gone",
+    async () => {
+      await reset();
+      // An earlier session stored the loan, with its summary.
+      await user().collection("mem_facts").doc("loan").set({
+        agent_id: "ah_jan_ah_bak", category: "event", key: "借錢",
+        value: "借咗五萬蚊俾個仔做生意", quote: "借咗五萬蚊俾個仔",
+        status: "active", visibility: "agent", sensitivity: "sensitive",
+        source_session_id: "old1"});
+      await user().collection("mem_summaries").doc("old1").set({
+        agent_id: "ah_jan_ah_bak", summary: "講起屋企", day_key: "2026-09-20",
+        sensitivity: "normal", source_session_id: "old1"});
+      await user().collection("mem_facts").doc("tea").set({
+        agent_id: "siu_yan", category: "hobby", key: "飲茶",
+        value: "鍾意飲早茶", quote: "鍾意飲早茶", status: "active",
+        visibility: "agent", sensitivity: "normal",
+        source_session_id: "old2"});
+      const r = await extractWith("siu_yan", [
+        [true, "我借咗五萬蚊俾個仔，到而家都未還。"],
+        [false, "噢，咁你點諗？"],
+        [true, "你唔好記住呢件事呀，當我冇講過。"],
+      ], {summary: "借錢", facts: [], followups: []});
+      assert.strictEqual(r.status, "done");
+      assert.strictEqual(r.prompts.length, 0, "no model call");
+      assert.strictEqual(r.ext.outcome, "forget_request");
+      assert.deepStrictEqual(r.ext.turns, []);
+      assert.deepStrictEqual(r.ext.forget.deleted,
+          {facts: 1, followups: 0, summaries: 1});
+      const facts = await docsOf("mem_facts");
+      assert.deepStrictEqual(facts.map((f) => f.id), ["tea"]);
+      assert.strictEqual((await docsOf("mem_summaries")).length, 0);
+    });
+
+test("T10: forget off → extracted as before", async () => {
+  await reset();
+  await db.doc("meta/memory_config").set({honourForgetRequests: false},
+      {merge: true});
+  const r = await extractWith("siu_yan", [[true, "唔好記住，我鍾意飲早茶。"]],
+      {summary: "飲茶", facts: [], followups: []});
+  assert.strictEqual(r.prompts.length, 1);
+  assert.notStrictEqual(r.ext.outcome, "forget_request");
+});
+
+test("T10: deleting a fact deletes its session's summary and its twin",
+    async () => {
+      await reset();
+      const r = await extractWith("siu_yan", [
+        [true, "大家都叫我陳太。"], [true, "我鍾意飲早茶。"]],
+      {summary: "陳太講起飲早茶。", facts: [
+        {op: "add", category: "hobby", key: "飲早茶", value: "鍾意飲早茶",
+          quote: "我鍾意飲早茶"}], followups: []});
+      const [f] = await docsOf("mem_facts");
+      assert.strictEqual((await docsOf("mem_summaries")).length, 1);
+      await user().collection("mem_facts").doc(f.id).delete();
+      // The same sentence stored a second time (another category).
+      await user().collection("mem_facts").doc("twin").set({...f,
+        category: "living"});
+      // What the onDocumentDeleted trigger in index.js runs.
+      assert.strictEqual(await m.deleteSummaryForItem(db, UID, f), 2);
+      assert.strictEqual((await docsOf("mem_summaries")).length, 0);
+      assert.strictEqual((await docsOf("mem_facts")).length, 0, "twin gone");
+      assert.strictEqual(f.source_session_id, r.id);
+      // Off: the summary stays.
+      await reset();
+      await db.doc("meta/memory_config").set({deleteSummaryWithItem: false},
+          {merge: true});
+      await user().collection("mem_summaries").doc("s1").set({
+        agent_id: "siu_yan", summary: "x", source_session_id: "s1"});
+      assert.strictEqual(await m.deleteSummaryForItem(db, UID,
+          {source_session_id: "s1"}), 0);
+      assert.strictEqual((await docsOf("mem_summaries")).length, 1);
+    });
+
+test("T10: withdrawal (tool/delete_memory.js) stops Phase B Arm A memory",
+    async () => {
+      await reset({optIn: false});
+      await db.doc("meta/memory_config").set({phaseBArmA: true},
+          {merge: true});
+      await user().set({arm: "A", armAssignmentMode: "randomise",
+        memory_enabled: false}, {merge: true});
+      assert.ok(await m.memoryActive(db, UID), "mandatory for Phase B Arm A");
+      await user().set({memory_enabled: false, memoryDeletedAt: new Date(),
+        memoryWithdrawnAt: new Date()}, {merge: true});
+      assert.strictEqual(await m.memoryActive(db, UID), null);
+      await user().collection("mem_facts").doc("x").set({agent_id: "siu_yan",
+        category: "name", key: "稱呼", value: "陳太", status: "active",
+        visibility: "shared", sensitivity: "normal"});
+      assert.strictEqual(await m.injectMemory(db, {uid: UID,
+        agentId: "siu_yan", moduleId: "m2_check_in",
+        messages: [{role: "user", content: "你好"}], now: NOW}), "");
+    });
+
+test("T10: after whole-participant deletion the profile is gone → inactive",
+    async () => {
+      await reset();
+      await db.doc("meta/memory_config").set({phaseBArmA: true},
+          {merge: true});
+      await user().delete();
+      assert.strictEqual(await m.memoryActive(db, UID), null);
+      // A stale App re-creating the profile cannot set an arm (rules), so
+      // it stays out of scope.
+      await user().set({displayName: "x", memory_enabled: false});
+      assert.strictEqual(await m.memoryActive(db, UID), null);
     });
 
 (async () => {

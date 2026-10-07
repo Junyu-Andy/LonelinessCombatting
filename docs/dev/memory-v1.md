@@ -73,7 +73,9 @@ flowchart TD
 ## 规则（规则为主，模型只负责分类建议）
 
 - **只记老人说过的话**：每条事实和待跟进都要附原话，服务器核对原话确实出现在老人自己的发言里（忽略空格和标点）。对不上的单条丢弃，并记录原因。
-- **安全**：命中自杀、自残等关键词的内容，任何一层都不写。这是在客户端缓冲区排除之外，服务器再加的一道防线。
+- **安全**（T10，决策 0024）：服务器先用 **App 同一份安全词库**（`functions/safety_lexicon.json`，由 `DistressDetector` 生成，测试保证一致）查老人原话。命中 moderate 或 acute 的那一轮和陪伴者的回复不发给模型、不存；这次会话不写摘要。模型另报 `safety_concern`（词库认不出的隐晦说法），为 true 时也不写摘要和敏感条目。模型写出来的东西仍用原来 17 个词再查一次，摘要另外再用 App 词库查一次。
+- **「唔好記住」**（T10）：老人说了「唔好記住」「當我冇講過」「唔好話畀人知」等（`functions/memory_forget.js`），这次会话整段不记、不调用模型；以前存下、和这件事字面相近的条目（任何陪伴者）一并删除。陪伴者的确认句有开关 `forgetAckReply`，默认关，文字待定稿。
+- **摘要不写敏感内容**（T10）：抽取 prompt v2 要求摘要只写中性内容；服务器判为敏感的摘要不存，以前存的敏感摘要不注入。
 - **敏感**：健康类一律算敏感；其余类别由模型标注，再叠加关键词规则。**敏感事实先放在「等你确认」，老人在页面上点「好，记住」之后才会被使用。**
 - **可见范围**：称呼、家人、居住算「基本事实」，三个 agent 共享；其余只给来源 agent。敏感内容永远不共享。
 - **纠正**：老人纠正时，旧说法标为 superseded（不删除），新说法记 `user_corrected`。同一事实改动 3 次以上会标 `needs_review`，不再注入，等研究者人工查看。
@@ -86,7 +88,7 @@ flowchart TD
   1. 到期的待跟进事项：每次最多 1 条，只在一次对话的第一轮，问过就标记「已问」，过期 7 天不再提；
   2. 基本资料，最多 20 条；
   3. 最近 3 天的摘要，同一天多次对话合并成一行；
-  4. 已确认的敏感事实：附带「只可以在对方自己提起时用」。
+  4. 已确认的敏感事实：附带「只可以在对方自己提起时用」。T10 起至少有 5 个名额（`sensitiveFactQuota`），之前是「20 减普通事实条数」，普通事实满了就一条都进不去。
 - 整块封顶 2,000 字（约 1,500 tokens）。超长时按顺序裁剪：先裁敏感，再裁摘要，再裁事实。
 - 注入块后面附带 v0 文档里的 6 条使用规则（留余地、一次只提一样、敏感不主动提、被纠正不争辩、不编造、不透露其他 agent）。
 
@@ -103,7 +105,7 @@ flowchart TD
 | MEM-7 切块、向量化与检索（RAG） | ❌ 未做 | 按计划最后评估：需要另选 embedding 服务（DeepSeek 不提供），会多一个第三方拿到数据 |
 | MEM-8 注入组装与共享策略 | ✅ | 测试覆盖：策略 C 下其他 agent 的私有记忆出现次数 = 0，长度不超限 |
 | MEM-9 主动跟进开场 | ✅ | 与 FCM 推送联动未做（待讨论） |
-| MEM-10 「我記得嘅嘢」页面与注入日志 | ✅ 页面、删除、确认、日志 / ❌ 口头删除 | 「唔好記住呢件事」口头删除需要意图识别，未做 |
+| MEM-10 「我記得嘅嘢」页面与注入日志 | ✅ 页面、删除、确认、日志、口头删除（T10） | 「唔好記住」用规则 + 关键词识别，见决策 0024 |
 
 ## 测试
 
@@ -131,7 +133,9 @@ flutter test --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
 
 ## 删除记忆（退出研究 / 研究结束后 3 年）
 
-`tool/delete_memory.js` 删除 `mem_*` 五个集合，以及 v0 的 `agent_contexts`、`memory/*`、`shared_context`、`agent_greetings`、`cross_module_callbacks`。**不碰**研究数据（turns、sessions、问卷、情绪、安全事件）。默认只演示（dry run），加 `--confirm` 才真删；真删后把该用户 `memory_enabled` 设为 false，并记 `memoryDeletedAt`。
+`tool/delete_memory.js` 删除 `mem_*` 五个集合，以及 v0 的 `agent_contexts`、`memory/*`、`shared_context`、`agent_greetings`、`cross_module_callbacks`。**不碰**研究数据（turns、sessions、问卷、情绪、安全事件）。默认只演示（dry run），加 `--confirm` 才真删；真删后把该用户 `memory_enabled` 设为 false，并记 `memoryDeletedAt` 和 `memoryWithdrawnAt`（T10）。只清不停（测试账号）加 `--keep-memory-on`。
+
+**单条删除也连带**（T10）：页面上删一条事实或跟进，服务器触发器 `memoryFactDeleted` / `memoryFollowupDeleted` 同时删掉它来源那次会话的摘要，以及措辞完全相同的其他事实或跟进（开关 `deleteSummaryWithItem`）。
 
 ```bash
 cd functions && npm ci && cd ..
@@ -141,6 +145,6 @@ NODE_PATH=functions/node_modules node tool/delete_memory.js --email=x@hku.hk --c
 NODE_PATH=functions/node_modules node tool/delete_memory.js --all --confirm             # 研究结束后 3 年
 ```
 
-注意：对 Phase B A 组参与者，删除后服务器仍会按「强制开」继续记新的内容。退出研究的参与者不会再使用 App，所以没有影响；如果是「留在研究里但要求删除」，需要另议。
+T10 起，服务器见到 `memoryWithdrawnAt` 就不再记录和注入，Phase B A 组的「强制开」也让位（开关 `honourMemoryWithdrawal`，默认开）。这个字段只有服务器能写。`tool/delete_participant.js` 删掉整个人后用户文档不存在，本来就不会再记录。
 - **合成粤语测试对话集（建议 30 段）**：MEM-4、MEM-6 的准确率评估依赖它。
 - **成本**：每次会话结束多 1 次 DeepSeek 调用（约 1–2k tokens）；每轮对话的 prompt 最多多约 1,500 tokens。

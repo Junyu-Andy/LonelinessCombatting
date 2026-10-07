@@ -1,6 +1,6 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {
-  onDocumentCreated, onDocumentWritten,
+  onDocumentCreated, onDocumentDeleted, onDocumentWritten,
 } = require("firebase-functions/v2/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {defineSecret} = require("firebase-functions/params");
@@ -1621,7 +1621,9 @@ exports.memorySweep = onSchedule(
     }
     for (const user of byId.values()) {
       const uid = user.id;
-      if (user.get("arm") === "B") continue;
+      // Same scope rule as memoryEndSession: never Arm B, never a user
+      // whose memory was withdrawn (T10).
+      if (!memory.inScope(cfg, user.data())) continue;
       try {
         for (const agentId of memory.AGENTS) {
           const ctx = await user.ref.collection("agent_contexts")
@@ -1658,6 +1660,26 @@ exports.memorySweep = onSchedule(
     }
   },
 );
+
+// T10 (decision 0024, deleteSummaryWithItem): deleting a fact or a
+// follow-up on the 「我記得嘅嘢」 page also deletes the summary of the
+// session it came from and any item with exactly the same wording, so
+// the content cannot come back that way.
+for (const [name, col] of [["memoryFactDeleted", "mem_facts"],
+  ["memoryFollowupDeleted", "mem_followups"]]) {
+  exports[name] = onDocumentDeleted(
+      {document: `users/{uid}/${col}/{itemId}`, region: "asia-east2"},
+      async (event) => {
+        const item = event.data ? event.data.data() : null;
+        try {
+          await memory.deleteSummaryForItem(admin.firestore(),
+              event.params.uid, item);
+        } catch (err) {
+          console.error("summary delete after item delete failed",
+              {uid: event.params.uid, err: String(err)});
+        }
+      });
+}
 
 exports.dailyMoodReminder = onSchedule(
   {
