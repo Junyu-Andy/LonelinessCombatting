@@ -267,13 +267,18 @@ enum LlmStatus {
   shortCircuited,
 
   /// Arm B: the reply came from rule templates; no model was called.
-  ruleBased;
+  ruleBased,
+
+  /// Either arm: a fixed line was shown and no model was called (Tung
+  /// Tung's search-off reply, decision 0019).
+  fixedReply;
 
   String get code => switch (this) {
         LlmStatus.ok => 'ok',
         LlmStatus.fallback => 'fallback',
         LlmStatus.shortCircuited => 'short_circuited',
         LlmStatus.ruleBased => 'rule_based',
+        LlmStatus.fixedReply => 'fixed_reply',
       };
 }
 

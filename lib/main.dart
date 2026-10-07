@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'app/app.dart';
 import 'app/app_settings.dart';
 import 'core/config/phase_a_config.dart';
+import 'core/feature_flags/remote_feature_flags.dart';
 import 'core/safety/safety_copy.dart';
 import 'core/agent_context/agent_context_service.dart';
 import 'core/agent_context/shared_context_service.dart';
@@ -66,6 +67,9 @@ Future<void> main() async {
   // are loaded before the first frame so a crisis surface is never blank.
   await SafetyCopy.load();
   await PhaseAConfig.load(available: firebaseReady);
+  // C18 — search / voice switches (all off unless app_config/feature_flags
+  // says true; decision 0019).
+  await RemoteFeatureFlags.load(available: firebaseReady);
 
   const detector = DistressDetector();
   final distressState = DistressState();

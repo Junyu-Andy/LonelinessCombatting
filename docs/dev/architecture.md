@@ -1,6 +1,6 @@
 # 陪住 App 技术文档
 
-> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
 ## 1. 一句话
@@ -38,7 +38,7 @@ flowchart LR
 | 服务器 | Firebase Cloud Functions v2，Node 24，区域 `asia-east2` | `functions/` |
 | 数据库 | Firestore，项目 `loneliness-pilot-dev` | 规则 `firestore.rules` |
 | 大模型 | DeepSeek-V4.1-Flash（请求 `deepseek-flash`，`thinking` 关闭，决策 0017），经 `proxyDeepSeek` 调用，API key 只在服务器上 | `functions/index.js` 的 `DEEPSEEK_MODEL` |
-| 语音转文字 | Google Speech（chirp_2，失败退回 long） | `transcribeAudio` |
+| 语音转文字 | App 用手机系统识别（`speech_to_text`）；服务器另有 Google Speech（chirp_2，失败退回 long），App 没有调用。**Phase B 默认关**（第 12 节） | `lib/core/voice/voice_input_button.dart`、`transcribeAudio` |
 | iOS 发布 | Codemagic | `codemagic.yaml` |
 | 测试和部署 | GitHub Actions | `.github/workflows/` |
 
@@ -50,7 +50,7 @@ flowchart LR
 | 阿珍 / 阿伯 `ah_jan_ah_bak` | 回忆、倾偈（老人在 onboarding 选性别版本） | M3 回忆（每周主题）、自由对话 |
 | 通通 `tung_tung` | 好奇、闲聊、资讯 | 通通聊天、M8 文章问答 |
 
-Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`。
+Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；通通用 `tung_tung.v2.txt`（App 仍发 `tung_tung_v1`，服务器按 `functions/index.js` 的 `PROMPT_FILES` 换成 v2，决策 0019）。旧文件保留不改。
 
 **两组各模块对照**
 
@@ -59,7 +59,7 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | M2 小欣签到 | LLM 对话 + 记忆 | 心情脸 + 3 道选择题 + 一段文字（`check_in_arm_b.dart`） |
 | M3 阿珍/阿伯回忆 | LLM 对话 + 周摘要 | 固定主题开场 + 一个输入框（`reminiscence_arm_b_page.dart`） |
 | 阿珍/阿伯自由对话 | LLM | **入口隐藏**（决策 0006） |
-| 通通 | LLM 闲聊 + 文章问答 + 网络搜索 | 同一页面，开场题库每天换一条，回应按 10 类话题从模板选（`tung_tung_rule_responder.dart`，决策 0005） |
+| 通通 | LLM 闲聊 + 文章问答（网络搜索默认关，决策 0019） | 同一页面，开场题库每天换一条，回应按 10 类话题从模板选（`tung_tung_rule_responder.dart`，决策 0005） |
 | M5 反思 | 按上下文生成题目 | 固定题库轮换 |
 | M6 社交建议 | 个性化 | 16 条建议池 |
 | M7 行动计划 | LLM 辅助 | 模板 |
@@ -93,7 +93,7 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 
 ## 5. 一条消息的旅程（A 组）
 
-1. 老人在聊天页输入（文字或语音）。
+1. 老人在聊天页输入（文字；语音默认关，见第 12 节）。
 2. `LlmGateway` 先用统一入口 `SafetyService`（`lib/core/safety/safety_check.dart`，内部是 `DistressDetector`）查输入：
    - **acute（急性）**：不调模型，显示热线，打开紧急支援页；
    - **moderate_interrupt**：照常回复，同时打断显示支援模板；
@@ -168,6 +168,7 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 |---|---|
 | `app_config/arm_assignment` | `{randomise: bool}`：是否随机分组 |
 | `app_config/reminders` | `{m7FollowupPushEnabled: bool}`：行动计划提醒发不发，默认关（决策 0022） |
+| `app_config/feature_flags` | 搜一搜、语音、通通固定回应三个开关（第 12 节）。没有这份文档 = 全关 |
 | `meta/arm_counter` | 4 个层各自的 A/B 人数 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开 |
 | `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列。事件字段：`source`（user_input / ai_output_scan / form）、`inputPoint`、`turnId`、级别、命中词、文字的哈希；服务器补 `dedup_key`、`isDuplicate`、`duplicateOf`、`escalatedBy`。分析只数 `isDuplicate == false`（决策 0018） |
@@ -185,8 +186,8 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | `memoryEndSession` | App 调用（离开聊天页） | v1：整理这次对话的记忆 |
 | `memorySweep` | 每 15 分钟 | v1：补整理 30 分钟没有新消息的对话 |
 | `referralJudgement` | App 调用 | 跨陪伴者转介的第二层判断（只 A 组） |
-| `webSearch` | App 调用 | 通通的网络搜索（只 A 组） |
-| `transcribeAudio` | App 调用 | 语音转文字（两组） |
+| `webSearch` | App 调用 | 通通的网络搜索（只 A 组）。`webSearchEnabled` 不是 `true` 时直接拒绝 |
+| `transcribeAudio` | App 调用（目前 App 没有调用） | 语音转文字（两组）。`voiceInputEnabled` 不是 `true` 时直接拒绝 |
 | `safetyAcknowledgement` | App 调用 | 按陪伴者返回安全回应模板 |
 | `onSafetyEventCreated` | 新安全事件 | 通知 PI |
 | `onThoughtExerciseCreated` | 新思维练习 | 写入研究员审计队列 `te_audit_queue` |
@@ -243,6 +244,15 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | `--dart-define=WEEKLY_PROBE=true` | 显示周度孤独感问卷 |
 
 运行时开关（不用重新编译）：`app_config/phase_a` 的 `safetyScanAllInputs`（新增输入点的安全检测）、`hotlineFilterClient`（App 端号码过滤），默认都开；服务器的 `meta/safety_config` 见第 8 节。
+**运行时开关**（不用重新打包）：Firestore `app_config/feature_flags`，研究侧在控制台改。字段必须是布尔值 `true` 才算开；没有文档、读不到都算关。App 启动时读一次（老人重开 App 才生效），服务器每次调用都读（决策 0019）。
+
+| 字段 | 默认 | 作用 |
+|---|---|---|
+| `webSearchEnabled` | 关 | 通通"幫我查"按钮（只 Hybrid 组）；服务器 `webSearch` |
+| `voiceInputEnabled` | 关 | 所有页面的麦克风按钮（两组）；服务器 `transcribeAudio` |
+| `searchOffReplyEnabled` | 关 | 搜一搜关闭时，通通对"要上网查"的问题回固定一句（文字未定稿） |
+
+> ⚠️ **重要功能：HREC 批准 STT 后开启 `voiceInputEnabled`。** 开之前先定是否允许系统云端识别（`voice_input_button.dart` 的 `_onDeviceOnly`）。打开属于行为改动，要在 `docs/STUDY_CHANGELOG.md` 写明生效日期和组别。
 
 本地跑和 CI 一样的测试：
 

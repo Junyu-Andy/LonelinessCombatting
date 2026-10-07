@@ -13,6 +13,7 @@ const llmLog = require("./llm_log");
 const reminders = require("./reminders");
 const hotline = require("./hotline_filter");
 const {safetyConfig} = require("./safety_config");
+const featureFlags = require("./feature_flags");
 
 admin.initializeApp();
 
@@ -43,10 +44,23 @@ const DEEPSEEK_THINKING = {type: "disabled"};
 const PROMPT_DIR = path.join(__dirname, "prompts");
 const _promptCache = {};
 
+// Prompt registry (memory-and-entry-spec 3.10): the key the app sends →
+// the versioned file the server loads.  Installed apps keep sending the
+// old key, so the swap happens here.  Old files are never overwritten.
+//   tung_tung_v1 → tung_tung.v2: no "幫你查" invitation (decision 0019).
+const PROMPT_FILES = {
+  tung_tung_v1: "tung_tung.v2",
+};
+
+function promptFileFor(key) {
+  return Object.prototype.hasOwnProperty.call(PROMPT_FILES, key) ?
+    PROMPT_FILES[key] : key;
+}
+
 function loadPrompt(key) {
   if (_promptCache[key] !== undefined) return _promptCache[key];
   try {
-    const file = path.join(PROMPT_DIR, `${key}.txt`);
+    const file = path.join(PROMPT_DIR, `${promptFileFor(key)}.txt`);
     _promptCache[key] = fs.readFileSync(file, "utf8");
   } catch (err) {
     _promptCache[key] = null;
@@ -77,7 +91,7 @@ function promptVersionFor(key) {
   let label = null;
   if (text) {
     const m = text.split("\n")[0].match(/v(\d+)\s*\(rev\s*([0-9-]+)\)/);
-    if (m) label = `${key.replace(/_v\d+$/, "")}_v${m[1]}@${m[2]}`;
+    if (m) label = `${key.replace(/[._]v\d+$/, "")}_v${m[1]}@${m[2]}`;
   }
   _promptVersionCache[key] = label;
   return label;
@@ -683,6 +697,10 @@ exports.webSearch = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in required");
     }
+    // Phase B: off unless app_config/feature_flags.webSearchEnabled is
+    // true (decision 0019).  Checked before anything is sent to Brave.
+    await featureFlags.assertFeatureEnabled(
+        admin.firestore(), "webSearchEnabled");
     await assertLlmAllowed(request.auth.uid);
     const payload = request.data || {};
     const query = (payload.query || "").trim();
@@ -771,6 +789,11 @@ exports.transcribeAudio = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in required");
     }
+    // Phase B: off unless app_config/feature_flags.voiceInputEnabled is
+    // true (decision 0019).  Important: switch back on once HREC approves
+    // the STT amendment.
+    await featureFlags.assertFeatureEnabled(
+        admin.firestore(), "voiceInputEnabled");
 
     const payload = request.data || {};
     const audioBase64 = payload.audioBase64;
