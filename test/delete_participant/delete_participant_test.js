@@ -75,6 +75,9 @@ async function seedUser(uid) {
     'mem_injections/i1': {memory_ids: ['f1']},
     'mem_extractions/x1': {raw_output: SECRET},
     'fcm_tokens/dev1': {token: 'synthetic'},
+    'djg_es/d1': {timepoint: 'week2', score: 3},
+    'djg_responses/W2': {timepoint: 'W2', answers: {q1: 'yes'},
+      scores: {emotional: null, social: null, total: null}},
   };
   for (const [path, data] of Object.entries(sub)) {
     await u.collection(path.split('/')[0]).doc(path.split('/').slice(1)
@@ -170,7 +173,7 @@ test('--confirm deletes everything of that person, nothing else', async () => {
   // The other participant is untouched.
   const again = await tool.run(ctx({uid: OTHER}));
   const n = again.found.firestore.reduce((s, g) => s + g.count, 0);
-  assert.strictEqual(n, 27);
+  assert.strictEqual(n, 29); // incl. djg_es + djg_responses (T18)
   assert.strictEqual(again.found.auth, 1);
   // Exports are only counted by default.
   assert.strictEqual(r.exportsPolicy, 'counted only, files not modified');

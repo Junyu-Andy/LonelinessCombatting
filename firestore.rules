@@ -31,6 +31,7 @@ rules_version = '2';
 //   pi_alerts/{alertId}                          -> *new* B.7 acute alert queue (admin-write only)
 //   llm_calls/{callId}                           -> C04 per-call model log (Cloud Functions only)
 //   research_id_map/{uid}, research_ids/{rid}    -> T12 research-ID lookup (server-write; unblinded role read)
+//   users/{uid}/djg_responses/{timepoint}        -> T18 W2 DJG (client: raw answers only; server: scores, push, missed)
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -91,7 +92,52 @@ service cloud.firestore {
     // The owner reads/writes anything under their own user doc.
     // ============================================================
     match /users/{uid}/{collection}/{document=**} {
-      allow read, write: if isOwner(uid) && !collection.matches('mem_.*');
+      allow read, write: if isOwner(uid) && !collection.matches('mem_.*')
+        && collection != 'djg_responses';
+    }
+
+    // ============================================================
+    // T18 (decision 0027) — W2 DJG, users/{uid}/djg_responses/W2.
+    // The owner writes only the raw answers, status (in_progress →
+    // submitted) and the start / submit times.  Scores, outsideWindow,
+    // the window dates, push / reminder times and the missed mark are
+    // written by Cloud Functions only (admin SDK).  Once submitted or
+    // missed the doc is frozen for the client; no client deletes.
+    // ============================================================
+    function djgClientKeys() {
+      return ['timepoint', 'itemsVersion', 'answers', 'status', 'startedAt',
+              'startedAtLocal', 'submittedAt', 'submittedAtLocal',
+              'updatedAt'];
+    }
+
+    function djgAnswerOk(a, k) {
+      return !(k in a) || a[k] in ['yes', 'mostly', 'no', 'skipped'];
+    }
+
+    function djgValid(d) {
+      return d.timepoint == 'W2'
+        && d.status in ['in_progress', 'submitted']
+        && d.answers is map
+        && d.answers.keys().hasOnly(['q1', 'q2', 'q3', 'q4', 'q5', 'q6'])
+        && djgAnswerOk(d.answers, 'q1') && djgAnswerOk(d.answers, 'q2')
+        && djgAnswerOk(d.answers, 'q3') && djgAnswerOk(d.answers, 'q4')
+        && djgAnswerOk(d.answers, 'q5') && djgAnswerOk(d.answers, 'q6')
+        && (d.status == 'submitted'
+              ? d.submittedAt == request.time
+              : !('submittedAt' in d));
+    }
+
+    match /users/{uid}/djg_responses/{timepoint} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && timepoint == 'W2'
+        && request.resource.data.keys().hasOnly(djgClientKeys())
+        && djgValid(request.resource.data);
+      allow update: if isOwner(uid)
+        && resource.data.status in ['pending', 'in_progress']
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(djgClientKeys())
+        && djgValid(request.resource.data);
+      allow delete: if false;
     }
 
     // ============================================================

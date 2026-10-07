@@ -13,6 +13,10 @@
 ///   • M-4 Week 2 battery: DJG-ES + Agent Differentiation from enrolment
 ///     day [PhaseAConfig.w2DayOffset] for [PhaseAConfig.w2WindowDays] days.
 ///   • Week 4 Agent Differentiation (pre-baseline behaviour kept).
+///   • T18 (decision 0027) — Phase B in-app W2 DJG, 6 items: when
+///     [DjgW2Gate.active], the `djg_es` part above is replaced by
+///     [PendingPrompts.djgW2] (window from [PhaseBConfig], W0 from
+///     [w0DateFor]; hidden once the doc is submitted or missed).
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,9 +25,12 @@ import '../../features/analytics/data/analytics_service.dart';
 import '../../features/auth/data/user_profile.dart';
 import '../../features/weekly_pr/data/weekly_pr_trigger.dart';
 import '../../features/weekly_pr/data/weekly_pr_window.dart';
+import '../../features/assessment/data/djg_w2.dart';
 import '../config/phase_a_config.dart';
+import '../config/phase_b_config.dart';
 import '../time/app_clock.dart';
 import 'enrolment_day.dart';
+import 'w0_date.dart';
 
 class PendingPrompts {
   final bool pgic;
@@ -42,6 +49,9 @@ class PendingPrompts {
   final bool agentDiffW2;
   final bool agentDiffW4;
 
+  /// T18 — Phase B in-app W2 DJG (6 items) still open.
+  final bool djgW2;
+
   const PendingPrompts({
     required this.pgic,
     required this.weeklyPr,
@@ -50,10 +60,11 @@ class PendingPrompts {
     required this.djgEsW2,
     required this.agentDiffW2,
     required this.agentDiffW4,
+    this.djgW2 = false,
   });
 
   bool get w2Any => djgEsW2 || agentDiffW2;
-  bool get any => pgic || weeklyPr || w2Any || agentDiffW4;
+  bool get any => pgic || weeklyPr || w2Any || agentDiffW4 || djgW2;
 }
 
 class PendingPromptsService {
@@ -105,6 +116,7 @@ class PendingPromptsService {
     bool djgEsW2 = false;
     bool agentDiffW2 = false;
     bool agentDiffW4 = false;
+    final djgW2On = DjgW2Gate.active;
     final createdAt = profile?.createdAt;
     if (createdAt != null) {
       // 1-based calendar day (「入組第 N 天」); mirrored in CF week2Push.
@@ -112,13 +124,18 @@ class PendingPromptsService {
       final inW2Window =
           day >= cfg.w2DayOffset && day < cfg.w2DayOffset + cfg.w2WindowDays;
       if (inW2Window) {
-        if (!await _hasDoc(uid, 'djg_es', 'timepoint', 'week2')) djgEsW2 = true;
+        // T18: the Phase B in-app 6-item version replaces this part.
+        if (!djgW2On && !await _hasDoc(uid, 'djg_es', 'timepoint', 'week2')) {
+          djgEsW2 = true;
+        }
         if (!await _hasDoc(uid, 'agent_diff', 'timepoint', 'week2')) agentDiffW2 = true;
       }
       if (day >= 28 && !await _hasDoc(uid, 'agent_diff', 'timepoint', 'week4')) {
         agentDiffW4 = true;
       }
     }
+
+    final djgW2 = djgW2On && await djgW2Due(uid, w0DateFor(profile), t);
 
     return PendingPrompts(
       pgic: pgic,
@@ -128,7 +145,28 @@ class PendingPromptsService {
       djgEsW2: djgEsW2,
       agentDiffW2: agentDiffW2,
       agentDiffW4: agentDiffW4,
+      djgW2: djgW2,
     );
+  }
+
+  /// T18 — the W2 DJG card shows inside the window until the doc is
+  /// submitted or marked missed.  A read error hides it (fail closed, as
+  /// [_hasDoc]).
+  Future<bool> djgW2Due(String uid, DateTime? w0, DateTime now,
+      {PhaseBConfig? config}) async {
+    if (w0 == null) return false;
+    if (!DjgW2Window.isOpen(w0, now, config ?? PhaseBConfig.current)) return false;
+    try {
+      final snap = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('djg_responses')
+          .doc(DjgW2Items.timepoint)
+          .get();
+      return !DjgW2Saved.fromMap(snap.data()).isClosed;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool> _noPgicForWeek(String uid, DateTime ratedMonday, String weekIso) async {

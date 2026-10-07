@@ -32,8 +32,9 @@ const fs = require("fs");
 const path = require("path");
 
 const ALLOWED_FILES = [
-  "participants", "brief_pr", "weekly_pr", "pgic", "djg_es", "agent_diff",
-  "daily_mood", "loneliness_probes", "safety_events", "usage_weekly",
+  "participants", "brief_pr", "weekly_pr", "pgic", "djg_es", "djg_responses",
+  "agent_diff", "daily_mood", "loneliness_probes", "safety_events",
+  "usage_weekly",
 ];
 
 // Collections that reveal the arm by existing at all, or carry

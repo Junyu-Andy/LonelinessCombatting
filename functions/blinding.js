@@ -194,6 +194,14 @@ const OUTCOME_COLLECTIONS = {
   djg_es: [
     "timepoint", "itemsVersion", "answers", "score", "status", "answeredAt",
   ],
+  // T18 (decision 0027): W2 DJG, 6 items.  Raw answers + server scores;
+  // nothing in it differs by arm.
+  djg_responses: [
+    "timepoint", "itemsVersion", "answers", "status", "scores",
+    "scoringVersion", "outsideWindow", "w0Date", "windowStartDate",
+    "windowEndDate", "pushSentAt", "reminderSentAt", "startedAt",
+    "submittedAt", "missedAt",
+  ],
   agent_diff: [
     "wave", "timepoint", "usageFreq", "personality", "function", "answeredAt",
   ],

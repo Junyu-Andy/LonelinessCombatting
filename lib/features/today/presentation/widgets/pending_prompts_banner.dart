@@ -18,7 +18,9 @@ import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/time/app_clock.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
+import '../../../assessment/data/djg_w2.dart';
 import '../../../assessment/presentation/pages/djg_es_page.dart';
+import '../../../assessment/presentation/pages/djg_w2_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../weekly_pr/data/weekly_pr_trigger.dart';
 import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
@@ -143,6 +145,21 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
     if (mounted) setState(() => _pending = null);
   }
 
+  /// T18 — Phase B in-app W2 DJG (6 items).  Same page for both arms.
+  Future<void> _openDjgW2() async {
+    final profile = AppSettingsScope.read(context).profile;
+    if (profile == null) return;
+    final analytics = AnalyticsScope.of(context);
+    unawaited(analytics.logEvent('djg_w2_opened'));
+    final done = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => DjgW2Page(store: FirestoreDjgW2Store(profile.uid)),
+      ),
+    );
+    if (done == true) unawaited(analytics.logEvent('djg_w2_submitted'));
+    if (mounted) setState(() => _pending = null);
+  }
+
   Future<void> _openAgentDiff(int wave) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => AgentDiffPage(wave: wave)),
@@ -183,6 +200,15 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
             ? 'A few minutes: how things feel, and the three companions.'
             : '幾分鐘：最近嘅感受，同三個夥伴嘅比較。',
         onTap: _openWeek2,
+      ));
+    }
+    if (p.djgW2) {
+      // T18 — draft copy, research team to sign off.
+      tiles.add(_BannerTile(
+        icon: Icons.assignment_outlined,
+        title: '第 2 週問卷',
+        subtitle: '6 條短問題，幾分鐘就答完。',
+        onTap: _openDjgW2,
       ));
     }
     if (p.agentDiffW4) {

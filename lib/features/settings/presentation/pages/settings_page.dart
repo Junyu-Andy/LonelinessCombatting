@@ -21,6 +21,8 @@ import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
 import '../../../assessment/presentation/pages/djg_es_page.dart';
+import '../../../assessment/data/djg_w2.dart';
+import '../../../assessment/presentation/pages/djg_w2_page.dart';
 import '../../../ppr/presentation/pages/ppr_brief_page.dart';
 import '../../../weekly_pr/data/weekly_pr_trigger.dart';
 import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
@@ -1108,6 +1110,11 @@ class _SurveyPreviewButtons extends StatelessWidget {
         btn(
           isEn ? 'DJG-ES (Week 2, 6 items)' : 'DJG-ES（第 2 週，6 題）',
           const DjgEsPage(timepoint: 'week2'),
+        ),
+        // T18 — Phase B W2 DJG preview for reviewers; saves nothing.
+        btn(
+          isEn ? 'DJG W2 (Phase B, 6 items, preview — not saved)' : 'DJG W2（Phase B，6 題，預覽，不儲存）',
+          DjgW2Page(store: PreviewDjgW2Store()),
         ),
         btn(
           isEn ? 'Crisis page (S-4)' : '危機頁面（S-4）',

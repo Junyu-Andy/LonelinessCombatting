@@ -160,6 +160,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | `sessions` / `turns` | 每次会话、每一轮对话（含模型、`promptVersion`、延迟、安全等级） | App |
 | `events` | 行为事件（打开页面、推送、按钮等） | App |
 | `brief_pr`、`weekly_pr`、`daily_mood`、`djg_es`、`pgic`、`ppr_responses`、`loneliness_probes`、`check_in_responses` | 问卷和量表 | App |
+| `djg_responses/W2` | Phase B 第 2 周 DJG（6 题，决策 0027）：原始答案（q1–q6 → yes / mostly / no / skipped）、状态、开始和提交时间；服务器补 `scores`（情感、社交、总分，跳题的分量表为空）、`outsideWindow`、窗口日期、`pushSentAt`、`reminderSentAt`、缺失标记。开关打开后取代 Phase B 的 `djg_es`（旧集合保留） | App 写答案；分数等由服务器写，App 不能改；提交或缺失后 App 不能再改 |
 | `agent_contexts/{agentId}` | v0 记忆：对话缓冲区 + 滚动摘要 | App |
 | `memory/{moduleId}/entries` | 各模块的会话摘要（回忆、反思、社交建议、行动计划） | App |
 | `shared_context` | 三个陪伴者共用：最近情绪、安全标记、行动计划 | App |
@@ -176,6 +177,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | `app_config/reminders` | `{m7FollowupPushEnabled: bool}`：行动计划提醒发不发，默认关（决策 0022） |
 | `app_config/feature_flags` | 搜一搜、语音、通通固定回应三个开关（第 12 节）。没有这份文档 = 全关 |
 | `app_config/usage_copy` | 提到使用频率的 7 处文字（决策 0028，键名见 `lib/core/config/usage_copy.dart`）。没有文档、字段为空或带【占位】= 显示原文；两组相同；客户端只读 |
+| `app_config/phase_b` | **只属于 Phase B** 的参数（`PhaseBConfig`，服务器 `functions/djg_w2.js` 也读）：`djgW2InAppEnabled`（默认关）、`djgW2DayOffset`（14）、`djgW2WindowDays`（7）、`djgW2PushHour`（10）、`djgW2ReminderHours`（24）。不建 = 关 |
 | `app_config/phase_a` | App 运行参数（`PhaseAConfig`）的远端覆盖；含同意相关的 `transcriptRetentionDefault`（默认 true）、`sharedContextUseDefault`（默认 true）、`enforceSharedContextConsent`（默认 true，服务器也读）。不建就用默认值 |
 | `meta/arm_counter` | 4 个层各自的 A/B 人数。只有非盲角色能读 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开 |
@@ -187,7 +189,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | `research_id_map/{uid}`、`research_ids/{researchId}` | 研究编号对照表（决策 0021）。只有服务器写，只有非盲角色（`role: pi`）能读 |
 | `meta/blinding_config` | 盲法开关：`enabled`、`includeBriefPr`、`includeUsageSummary`，都默认 false。客户端不能读写 |
 
-**删除**：`tool/delete_memory.js` 只删记忆（保留研究数据）；`tool/delete_participant.js` 删整个参与者（Auth 账号、`users/{uid}` 整棵树、顶层集合里按 `uid` 找到的记录、Storage `users/{uid}/`），默认试运行，`--confirm` 才删，删完复查并写存证（只有数量）。周度导出 `exports/` 默认只数不改，`--rewrite-exports` 才重写。详见 T11 报告。
+**删除**：`tool/delete_memory.js` 只删记忆（保留研究数据）；`tool/delete_participant.js` 删整个参与者（Auth 账号、`users/{uid}` 整棵树（含 `djg_es`、`djg_responses`）、顶层集合里按 `uid` 找到的记录、Storage `users/{uid}/`），默认试运行，`--confirm` 才删，删完复查并写存证（只有数量）。周度导出 `exports/` 默认只数不改，`--rewrite-exports` 才重写。详见 T11 报告。
 
 ## 9. Cloud Functions
 
@@ -204,10 +206,12 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | `onSafetyEventCreated` | 新安全事件 | 通知 PI |
 | `onThoughtExerciseCreated` | 新思维练习 | 写入研究员审计队列 `te_audit_queue` |
 | `weeklyLonelinessProbe` | 每周日 9:00（香港时间，下同） | 生成周度孤独感问卷队列（App 端默认不显示） |
-| `blindedDataExport` | 每周日 2:00 | 盲法数据导出。`meta/blinding_config.enabled` 开：新版（`functions/blinding.js`，研究编号、结局量表白名单），写到 `exports_v2/{日期}/`，可用 `tool/check_blinded_export.js` 检查；关：旧版 `exports/{日期}/` |
+| `blindedDataExport` | 每周日 2:00 | 盲法数据导出。`meta/blinding_config.enabled` 开：新版（`functions/blinding.js`，研究编号、结局量表白名单，含 W2 DJG `djg_responses`），写到 `exports_v2/{日期}/`，可用 `tool/check_blinded_export.js` 检查；关：旧版 `exports/{日期}/` |
 | `dailyMoodReminder` | 周一至六 19:00 | 每日情绪提醒 |
 | `weeklySurveyReminder` | 周日 20:00 | 周问卷提醒 |
-| `week2Push` | 每天 10:00 | 第二周推送 |
+| `week2Push` | 每天 10:00 | 第二周推送（Phase A 的 DJG + 陪伴者比较）。`djgW2InAppEnabled` 开时跳过 Phase B 参与者，由 `djgW2Dispatch` 推 |
+| `djgW2Dispatch` | 每天 08:00–21:00，每小时 | Phase B 第 2 周 DJG（决策 0027）：W0 起第 14 天 10:00 推送一次、24 小时未交提醒一次、窗口（第 14–20 天）过后记缺失。只处理 Phase B 参与者，两组相同。开关 `app_config/phase_b.djgW2InAppEnabled` 默认关；推送文字带【占位】时不发 |
+| `onDjgResponseWritten` | `djg_responses` 文档写入 | 提交后由服务器算分（情感 0–3、社交 0–3、总分；跳题记缺失）并标 `outsideWindow` |
 | `dispatchReminders` | 每天 08:00–21:45，每 15 分钟 | 发送到时间的行动计划提醒（两组相同，开关 `app_config/reminders.m7FollowupPushEnabled` 默认关；超时 12 小时不补发；失败最多重试 3 次；见 `functions/reminders.js`、决策 0022） |
 | `sendTestPush` | App 调用 | 测试推送（测试人员） |
 
@@ -249,7 +253,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 | 开关 | 作用 |
 |---|---|
-| `--dart-define=PHASE_B=true` | 按分组显示界面（不加 = 全员显示 A 组）。计划删除（决策 0011） |
+| `--dart-define=PHASE_B=true` | 按分组显示界面（不加 = 全员显示 A 组）。计划删除（决策 0011）。也是 App 内 W2 DJG 的前提之一（另需 `app_config/phase_b.djgW2InAppEnabled`；T21 改为按参与者研究期） |
 | `--dart-define=FORCE_ARM=A` / `B` | 本地调试强制组别，**不能用于发布** |
 | `--dart-define=MEMORY_V1=true` | 测试人员可在设置里自愿开启记忆 v1 |
 | `--dart-define=TESTER_PIN=…` | 解锁测试工具（日程模拟器、测试推送） |
