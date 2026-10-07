@@ -30,6 +30,8 @@ rules_version = '2';
 //   pi_alerts/{alertId}                          -> *new* B.7 acute alert queue (admin-write only)
 //   llm_calls/{callId}                           -> C04 per-call model log (Cloud Functions only)
 //   research_id_map/{uid}, research_ids/{rid}    -> T12 research-ID lookup (server-write; unblinded role read)
+//   users/{uid}/ada_responses/{timepoint}        -> T17 Phase A ADA (owner only; frozen once submitted)
+//   users/{uid}/day7_open_responses/{timepoint}  -> T17 Phase A day-7 open questions (same rule)
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -90,7 +92,40 @@ service cloud.firestore {
     // The owner reads/writes anything under their own user doc.
     // ============================================================
     match /users/{uid}/{collection}/{document=**} {
-      allow read, write: if isOwner(uid) && !collection.matches('mem_.*');
+      allow read, write: if isOwner(uid) && !collection.matches('mem_.*')
+        && !(collection in phaseASurveyCollections());
+    }
+
+    // ============================================================
+    // T17 (decision 0026) — Phase A ADA and day-7 open questions.
+    // One doc per timepoint, saved on every screen.  Only the owner
+    // reads or writes it; the doc must carry the owner's uid and keep
+    // its timepoint; once status is "submitted" it is frozen.  No
+    // client deletes (whole-person deletion runs server-side).
+    // ============================================================
+    function phaseASurveyCollections() {
+      return ['ada_responses', 'day7_open_responses'];
+    }
+
+    function validPhaseASurvey(docId) {
+      return request.resource.data.uid == request.auth.uid
+        && request.resource.data.timepoint == docId
+        && request.resource.data.status in ['in_progress', 'submitted'];
+    }
+
+    match /users/{uid}/ada_responses/{docId} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validPhaseASurvey(docId);
+      allow update: if isOwner(uid) && validPhaseASurvey(docId)
+        && resource.data.status == 'in_progress';
+      allow delete: if false;
+    }
+    match /users/{uid}/day7_open_responses/{docId} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validPhaseASurvey(docId);
+      allow update: if isOwner(uid) && validPhaseASurvey(docId)
+        && resource.data.status == 'in_progress';
+      allow delete: if false;
     }
 
     // ============================================================

@@ -75,6 +75,11 @@ async function seedUser(uid) {
     'mem_injections/i1': {memory_ids: ['f1']},
     'mem_extractions/x1': {raw_output: SECRET},
     'fcm_tokens/dev1': {token: 'synthetic'},
+    // T17 (decision 0026): Phase A ADA + day-7 open questions.
+    'ada_responses/visit1': {uid, timepoint: 'visit1', formVersion: 'short',
+      freeText: SECRET, status: 'submitted'},
+    'day7_open_responses/day7': {uid, timepoint: 'day7',
+      answers: {q1: {text: SECRET}}, status: 'in_progress'},
   };
   for (const [path, data] of Object.entries(sub)) {
     await u.collection(path.split('/')[0]).doc(path.split('/').slice(1)
@@ -150,6 +155,8 @@ test('dry run lists everything and deletes nothing', async () => {
   assert.strictEqual(by['users/{uid}/memory/*/sessions/*'], 1);
   assert.strictEqual(by['users/{uid}/mem_facts/*'], 1);
   assert.strictEqual(by['users/{uid}/onboarding/*'], 1);
+  assert.strictEqual(by['users/{uid}/ada_responses/*'], 1);
+  assert.strictEqual(by['users/{uid}/day7_open_responses/*'], 1);
   for (const c of ['llm_calls', 'safety_events', 'safety_event_dedup',
     'pi_alerts', 'te_audit_queue', 'stt_usage',
     'pending_loneliness_probes']) {
@@ -170,7 +177,7 @@ test('--confirm deletes everything of that person, nothing else', async () => {
   // The other participant is untouched.
   const again = await tool.run(ctx({uid: OTHER}));
   const n = again.found.firestore.reduce((s, g) => s + g.count, 0);
-  assert.strictEqual(n, 27);
+  assert.strictEqual(n, 29);
   assert.strictEqual(again.found.auth, 1);
   // Exports are only counted by default.
   assert.strictEqual(r.exportsPolicy, 'counted only, files not modified');

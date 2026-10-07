@@ -75,6 +75,9 @@
 | 52 | 规则组模板回应（决策 0023）：写定模板正文（小欣签到 3 档 × 3 条；阿珍 4 周 × 4 档 × 2 条，占位格式见 T15 报告）、文化审阅；心情 5 档归 3 档是否可以 | T15 | 研究侧 |
 | 53 | 规则组模板回应：回忆 B 的心情选填还是必选；回忆里常见的哀伤内容（moderate_review）现在不给模板，是否改成照常给 | T15 | 研究侧 / PI |
 | 54 | 规则组模板回应：什么时候打开开关、只对新 cohort 还是所有规则组参与者；T7 合并后把 `rule_reply_safety.dart` 换成 `SafetyService` | T15 | 负责人 |
+| 61 | ADA 定稿：`docs/spec/instruments/ada.md` 的措辞（现为占位，`itemsVersion` = `ada-placeholder-20261007`）；Phase A 新版回忆窗口；哪个时间点用短版/全版；第 7 日窗口几天；跳过规则 | T17 报告第 3、8 节；决策 0026 | 研究侧（EA260417 批复后） |
+| 62 | 第 7 日 3 道开放题的题目（现为【占位】）；ADA、开放题横幅和第 2 周横幅新副标题的措辞 | T17 报告第 8 节 | 研究侧 |
+| 63 | T21 拆分配置时把 `app_config/phaseA_schedule` 整份归入 Phase A；`ada_responses`、`day7_open_responses` 按研究期筛选（文档里已有 `studyPhase: "A"`）；ADA 文档存的是 uid，Phase A 导出时要换成研究编号 | T17 报告第 4、6 节 | 开发（T21） |
 
 ## 4. 暂缓或以后再做
 

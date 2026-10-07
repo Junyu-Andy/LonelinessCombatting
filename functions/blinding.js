@@ -181,6 +181,8 @@ const OPTIONAL_COLLECTIONS = ["brief_pr"];
 // weekly_pr.sessionCountThisWeek/referentRule (usage-derived),
 // agent_diff.freeResponse (free text), daily_mood.source_surface,
 // every `arm` (replaced by groupCode).
+// Never here: ada_responses and day7_open_responses (T17, decision 0026)
+// are Phase A only and stay out of the Phase B blinded export.
 const OUTCOME_COLLECTIONS = {
   brief_pr: [
     "schemaVersion", "agentId", "understanding", "validation", "caring",

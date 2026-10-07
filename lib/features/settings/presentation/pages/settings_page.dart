@@ -19,6 +19,10 @@ import '../../../memory/presentation/pages/remembered_page.dart';
 import '../../../my_story/presentation/pages/my_story_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
+import '../../../../core/config/phase_a_schedule_config.dart';
+import '../../../ada/data/ada_gate.dart';
+import '../../../ada/presentation/ada_page.dart';
+import '../../../ada/presentation/day7_open_page.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
 import '../../../assessment/presentation/pages/djg_es_page.dart';
 import '../../../ppr/presentation/pages/ppr_brief_page.dart';
@@ -405,6 +409,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 MaterialPageRoute<void>(builder: (_) => const PgicPage()),
               ),
             ),
+            // T17 — old W2/W4 page: hidden where AdaGate says so (Phase B
+            // default, or Phase A once the new ADA is on).
+            if (AdaGate.legacyAgentDiffVisible()) ...[
             const SizedBox(height: 10),
             _NavTileCard(
               icon: Icons.people_alt_outlined,
@@ -418,6 +425,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
             ),
+            ],
 
             const SizedBox(height: 12),
             SizedBox(
@@ -1120,10 +1128,44 @@ class _SurveyPreviewButtons extends StatelessWidget {
             sessionTag: 'preview',
           ),
         ),
-        btn(
-          isEn ? 'Agent Diff (wave 2)' : 'Agent Diff（第 2 波）',
-          const AgentDiffPage(wave: 2),
-        ),
+        if (AdaGate.legacyAgentDiffVisible())
+          btn(
+            isEn ? 'Agent Diff (wave 2)' : 'Agent Diff（第 2 波）',
+            const AgentDiffPage(wave: 2),
+          ),
+        // T17 — Phase A ADA / day-7 previews; never in a Phase B build.
+        // Preview timepoints (unique per build of this list) don't block
+        // the real ones, and a submitted preview can be repeated.
+        if (!FeatureFlags.phaseB) ...[
+          btn(
+            isEn ? 'ADA (short: A+B+D)' : 'ADA（短版 A+B+D）',
+            AdaPage(
+              timepoint: AdaTimepoint(
+                  id: 'preview_short_${DateTime.now().millisecondsSinceEpoch}',
+                  form: AdaForm.short,
+                  dayFrom: 0,
+                  dayTo: 0),
+              allowSkip: PhaseAScheduleConfig.current.adaAllowSkip,
+            ),
+          ),
+          btn(
+            isEn ? 'ADA (full: A+B+C+D)' : 'ADA（全版 A+B+C+D）',
+            AdaPage(
+              timepoint: AdaTimepoint(
+                  id: 'preview_full_${DateTime.now().millisecondsSinceEpoch}',
+                  form: AdaForm.full,
+                  dayFrom: 0,
+                  dayTo: 0),
+              allowSkip: PhaseAScheduleConfig.current.adaAllowSkip,
+            ),
+          ),
+          btn(
+            isEn ? 'Day-7 open questions' : '第 7 日開放題',
+            Day7OpenPage(
+              allowSkip: PhaseAScheduleConfig.current.day7OpenEndedAllowSkip,
+            ),
+          ),
+        ],
       ],
     );
   }

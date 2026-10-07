@@ -4,6 +4,7 @@
 
 | 日期 | Tag | 改动 | 影响（cohort × 组别） | 生效方式 | 决策记录 |
 |---|---|---|---|---|---|
+| 2026-10-07 | — | （T17，PR 草稿）① **Phase B 构建不再出现旧的“陪伴者区分评估”**（agent_diff，第 14、28 天）：按登记表 v2 C15，Phase B 不含 ADA。第 2 周横幅只剩 DJG，副标题去掉“同三個夥伴嘅比較”（草稿措辞）。编译开关 `LEGACY_AGENT_DIFF_PHASE_B=true` 可恢复，默认关。已有的 agent_diff 数据不动。② 已写代码、未开启：Phase A 的 ADA（一屏一项，短版 A+B+D / 全版 A+B+C+D，可跳过，每屏保存）和第 7 日 3 道开放题，存 `ada_responses`、`day7_open_responses`；开关在 `app_config/phaseA_schedule`（`adaEnabled`、`day7OpenEndedEnabled`），默认关；题目都是占位。Phase A 打开 `adaEnabled` 后旧 agent_diff 让位。③ 两处文字新增安全检测输入点 `ada_free_text`、`day7_open_ended` | ① phase_b × 两组（相同）；② phase_a × 两组（相同）；③ 随 ② | ① 包含此提交的下一个 Phase B 安装包；② 研究侧打开开关时（日期另记） | 0026 |
 | 2026-10-07 | — | 通通 prompt 改为 v2（`tung_tung.v2.txt`，`promptVersion` = `tung_tung_v2@2026-10`）：不再邀请老人"幫你查"或"一齊查下"；不确定就老实说，不编日期、价钱、地址，可建议问家人或社工。其余不变。**待 PI 审核** | 所有 cohort × Hybrid 组（规则组不用 prompt） | 随合并后的下一次 Functions 部署 | 0019 |
 | 2026-10-07 | — | 搜一搜和语音输入改由 `app_config/feature_flags` 控制，默认关：所有页面的麦克风按钮不显示、服务器拒绝 `webSearch` 和 `transcribeAudio`。搜一搜在 App 里 2026-07-20 起已关，参与者看不到变化；语音按钮消失是参与者能看到的变化。通通固定回应另有开关，默认关，文字未定稿 | 所有 cohort × 两组（搜一搜只涉及 Hybrid 组） | 合并后：Functions 部署后服务器拒绝；新版 App 发布后麦克风消失 | 0019 |
 | 待定 | `phaseB-v1.0.0` | Phase B 冻结版本：v1 记忆、分组标记、版本追溯字段、「我的資料」页面 | phase_b × 两组 | 第一位 phase_b 参与者入组前 | 0001 |
