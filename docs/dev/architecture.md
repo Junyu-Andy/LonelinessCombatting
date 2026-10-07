@@ -56,8 +56,8 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 | 模块 | Hybrid 组（A） | 规则组（B） |
 |---|---|---|
-| M2 小欣签到 | LLM 对话 + 记忆 | 心情脸 + 3 道选择题 + 一段文字（`check_in_arm_b.dart`） |
-| M3 阿珍/阿伯回忆 | LLM 对话 + 周摘要 | 固定主题开场 + 一个输入框（`reminiscence_arm_b_page.dart`） |
+| M2 小欣签到 | LLM 对话 + 记忆 | 心情脸 + 3 道选择题 + 一段文字（`check_in_arm_b.dart`）；开关 `RULE_TEMPLATE_REPLIES` 开时，提交后按心情给一条模板回应（决策 0023，默认关） |
+| M3 阿珍/阿伯回忆 | LLM 对话 + 周摘要 | 固定主题开场 + 一个输入框（`reminiscence_arm_b_page.dart`）；开关开时多一个选填心情脸，提交后按心情 × 每周主题给一条模板回应（决策 0023，默认关） |
 | 阿珍/阿伯自由对话 | LLM | **入口隐藏**（决策 0006） |
 | 通通 | LLM 闲聊 + 文章问答（网络搜索默认关，决策 0019） | 同一页面，开场题库每天换一条，回应按 10 类话题从模板选（`tung_tung_rule_responder.dart`，决策 0005） |
 | M5 反思 | 按上下文生成题目 | 固定题库轮换 |
@@ -113,6 +113,8 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 6. 离开页面：会话结束 → 整理记忆 → 满足条件时弹 Brief PR（见第 6 节）。
 
 **B 组**：同样的页面外壳，第 2 步一样（同一个 `SafetyService`）；第 3 步换成本地规则选模板，`turns` 里标 `llmStatus: rule_based`。不调 LLM，不写记忆。
+
+**B 组签到、回忆的模板回应**（决策 0023，开关 `RULE_TEMPLATE_REPLIES`，默认关）：提交时先做安全检测；命中 moderate 或 acute 不给模板，走原来的安全流程；没命中就从 `lib/features/rule_replies/data/rule_reply_pool.dart` 按「陪伴者 × 主题 × 心情档」选一条，近 3 次不重复（记录在 `users/{uid}/rule_reply_history/{agentId}`），写进 `turns` 的回复，并记分析事件 `rule_template_reply`。模板现在都是【占位】文字；有占位文字时，即使开了开关也不生效，除非另加 `RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true`（只用于截图和测试）。
 
 ## 6. 会话和 Brief PR
 
@@ -251,6 +253,8 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | `--dart-define=MEMORY_V1=true` | 测试人员可在设置里自愿开启记忆 v1 |
 | `--dart-define=TESTER_PIN=…` | 解锁测试工具（日程模拟器、测试推送） |
 | `--dart-define=WEEKLY_PROBE=true` | 显示周度孤独感问卷 |
+| `--dart-define=RULE_TEMPLATE_REPLIES=true` | 规则组签到、回忆提交后给模板回应（决策 0023）。模板还有占位文字时不生效 |
+| `--dart-define=RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true` | 允许用占位模板，只用于截图和测试，**不能用于发布** |
 
 运行时开关（不用重新编译）：`app_config/phase_a` 的 `safetyScanAllInputs`（新增输入点的安全检测）、`hotlineFilterClient`（App 端号码过滤），默认都开；服务器的 `meta/safety_config` 见第 8 节。
 **运行时开关**（不用重新打包）：Firestore `app_config/feature_flags`，研究侧在控制台改。字段必须是布尔值 `true` 才算开；没有文档、读不到都算关。App 启动时读一次（老人重开 App 才生效），服务器每次调用都读（决策 0019）。
@@ -266,7 +270,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 本地跑和 CI 一样的测试：
 
 ```bash
-tool/ci_flutter_tests.sh     # Flutter：默认、Phase B 分组、B 组页面、记忆 v1 四套
+tool/ci_flutter_tests.sh     # Flutter：默认、Phase B 分组、B 组页面、记忆 v1、规则组模板回应（占位保护 / 开）六套
 tool/ci_backend_tests.sh     # Cloud Functions + Firestore 规则（需要 Firebase 模拟器）
 ```
 

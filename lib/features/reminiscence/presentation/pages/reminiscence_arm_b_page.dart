@@ -12,6 +12,12 @@ import '../../../../core/voice/voice_input_button.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/rule_submission_flow.dart';
+import '../../../context/presentation/pages/check_in_shared.dart';
+import '../../../rule_replies/data/rule_reply_history_store.dart';
+import '../../../rule_replies/data/rule_reply_pool.dart';
+import '../../../rule_replies/data/rule_reply_service.dart';
+import '../../../rule_replies/presentation/rule_reply_bubble.dart';
+import '../../../rule_replies/rule_reply_safety.dart';
 import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
 
@@ -32,9 +38,19 @@ import '../../data/reminiscence_themes.dart';
 ///   - end_summary_original = user's raw text
 ///   - end_summary_edited = null (user did not interact with an editor)
 ///   - end_summary_user_edited = false
+///
+/// Decision 0023 (flag RULE_TEMPLATE_REPLIES, default off): when on, an
+/// optional mood picker sits under the text field and a safe submission
+/// gets one template reply (mood × weekly theme) in the Arm A bubble
+/// style; the page then waits for 完成 instead of closing itself.
 class ReminiscenceArmBPage extends StatefulWidget {
   final ReminiscenceTheme theme;
-  const ReminiscenceArmBPage({super.key, required this.theme});
+
+  /// Test hook for the template-reply history; defaults to Firestore.
+  final RuleReplyHistoryStore? replyHistory;
+
+  const ReminiscenceArmBPage(
+      {super.key, required this.theme, this.replyHistory});
 
   @override
   State<ReminiscenceArmBPage> createState() => _ReminiscenceArmBPageState();
@@ -45,6 +61,12 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
   final _voice = VoiceInputController();
   bool _busy = false;
   bool _saved = false;
+
+  /// Decision 0023 — only used when [RuleReplyPool.enabled].
+  final bool _ruleReplies = RuleReplyPool.enabled;
+  MoodFace? _face; // optional
+  String? _ruleReply;
+  ChatSessionRecorder? _rec;
 
   @override
   void dispose() {
@@ -68,6 +90,8 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
     final agent = AgentRegistry.byId(AgentRegistry.ahJanAhBakId);
     final displayName =
         agent.resolveVariant(profile?.ahJanAhBakVariant).displayNameZh;
+    // Decision 0023 — read once so one submission never mixes paths.
+    final ruleReplies = _ruleReplies;
     // T7 — same shared safety check + PI event as Arm A (arm-invariant).
     final distress = core.safety
         .checkUserText(body,
@@ -105,6 +129,27 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
         userEdited: false,
       );
     }
+    // Decision 0023 — template reply only for a safe submission; a safety
+    // hit gets no reply and runs the safety flow below as before.
+    String? ruleReply;
+    if (ruleReplies && allowsTemplateReply(distress)) {
+      final entry = await RuleReplyService(
+        store: widget.replyHistory ??
+            FirestoreRuleReplyHistoryStore(available: auth.available),
+      ).next(
+        uid: profile?.uid,
+        agentId: AgentRegistry.ahJanAhBakId,
+        moduleId: 'm3_reminiscence_w${widget.theme.weekIndex}',
+        theme: RuleReplyPool.themeForWeek(widget.theme.weekIndex),
+        mood: _face?.rank,
+        analytics: analytics,
+      );
+      if (entry != null) {
+        final isEn = mounted &&
+            Localizations.localeOf(context).languageCode == 'en';
+        ruleReply = isEn ? entry.en : entry.zh;
+      }
+    }
     // Decision 0015 — the saved memory is one agent session, like a chat.
     final rec = await RuleSubmissionFlow.record(
       uid: profile?.uid,
@@ -118,21 +163,47 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
       userSent: submittedAt,
       modality: usedVoice ? InputModality.voice : InputModality.text,
       voiceDurationMs: voiceMs,
+      replyText: ruleReply ?? '',
     );
     if (!mounted) return;
     setState(() {
       _busy = false;
       _saved = true;
+      _ruleReply = ruleReply;
+      _rec = rec;
     });
+    // T7 already wrote the event (checkUserText above); route only.
     if (distress.level != DistressLevel.none) {
       await core.distressRouter.route(distress, context: context);
       // Acute pushes the crisis page; leave this page under it.
       if (distress.level == DistressLevel.acute) return;
     }
+    // Decision 0023 — leave the reply on screen until the user taps 完成.
+    if (ruleReply != null) return;
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
     nav.pop();
     if (profile == null) return;
+    await RuleSubmissionFlow.surfaceBriefPr(
+      nav,
+      rec: rec,
+      uid: profile.uid,
+      agentId: AgentRegistry.ahJanAhBakId,
+      agentDisplayName: displayName,
+    );
+  }
+
+  /// Decision 0023 — 完成 after a template reply: close, then Brief PR
+  /// exactly as the auto-close path does.
+  Future<void> _finish() async {
+    final nav = Navigator.of(context);
+    final profile = AppSettingsScope.read(context).profile;
+    final agent = AgentRegistry.byId(AgentRegistry.ahJanAhBakId);
+    final displayName =
+        agent.resolveVariant(profile?.ahJanAhBakVariant).displayNameZh;
+    final rec = _rec;
+    nav.pop();
+    if (profile == null || rec == null) return;
     await RuleSubmissionFlow.surfaceBriefPr(
       nav,
       rec: rec,
@@ -190,19 +261,53 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
                   textAlignVertical: TextAlignVertical.top,
                 ),
               ),
+              if (_ruleReplies && _ruleReply != null) ...[
+                const SizedBox(height: 12),
+                RuleReplyBubble(
+                  text: _ruleReply!,
+                  style: RuleReplyBubbleStyle.reminiscence,
+                ),
+              ] else if (_ruleReplies && !_saved) ...[
+                const SizedBox(height: 12),
+                // Placeholder copy — final wording from the research team
+                // (decision 0023; draft in the T15 report).
+                Text(
+                  isEn
+                      ? '[PLACEHOLDER] How do you feel now? (optional)'
+                      : '【占位】你而家心情點？（可以唔揀）',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                MoodFacePicker(
+                  value: _face,
+                  onChanged: (v) => setState(() => _face = v),
+                ),
+              ],
               const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _busy || _saved ? null : _save,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Text(
-                    _saved
-                        ? (isEn ? 'Saved' : '已儲存')
-                        : (isEn ? 'Save this memory' : '儲存呢段回憶'),
-                    style: const TextStyle(fontSize: 20),
+              if (_ruleReplies && _ruleReply != null)
+                FilledButton(
+                  onPressed: _finish,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      isEn ? 'Done' : '完成',
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                  ),
+                )
+              else
+                FilledButton(
+                  onPressed: _busy || _saved ? null : _save,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      _saved
+                          ? (isEn ? 'Saved' : '已儲存')
+                          : (isEn ? 'Save this memory' : '儲存呢段回憶'),
+                      style: const TextStyle(fontSize: 20),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

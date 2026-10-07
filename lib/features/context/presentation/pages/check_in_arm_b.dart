@@ -13,14 +13,26 @@ import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/rule_submission_flow.dart';
+import '../../../rule_replies/data/rule_reply_history_store.dart';
+import '../../../rule_replies/data/rule_reply_pool.dart';
+import '../../../rule_replies/data/rule_reply_service.dart';
+import '../../../rule_replies/presentation/rule_reply_bubble.dart';
+import '../../../rule_replies/rule_reply_safety.dart';
 import '../../../today/data/mood_recorder.dart';
 import 'check_in_shared.dart';
 
 /// M2 — rule-based check-in. No LLM. Six-face mood, three fixed
 /// multiple-choice items, optional free-text field that is stored but
 /// never sent to the model.
+///
+/// Decision 0023 (flag RULE_TEMPLATE_REPLIES, default off): when on, a
+/// safe submission is answered with one template reply picked by mood,
+/// shown in the same bubble style as Siu Yan's Arm A replies.
 class CheckInArmB extends StatefulWidget {
-  const CheckInArmB({super.key});
+  /// Test hook for the template-reply history; defaults to Firestore.
+  final RuleReplyHistoryStore? replyHistory;
+
+  const CheckInArmB({super.key, this.replyHistory});
 
   @override
   State<CheckInArmB> createState() => _CheckInArmBState();
@@ -36,6 +48,11 @@ class _CheckInArmBState extends State<CheckInArmB> {
   final _noteCtrl = TextEditingController();
   bool _saved = false;
   AnalyticsService? _analytics;
+
+  /// Decision 0023 — template reply shown after saving (flag on, safe
+  /// submission only).  Null keeps the original fixed line.
+  String? _ruleReply;
+  bool _picking = false;
 
   @override
   void didChangeDependencies() {
@@ -128,11 +145,18 @@ class _CheckInArmBState extends State<CheckInArmB> {
                       _talkedAnswer != null &&
                       _socialDayAnswer != null &&
                       _significantEventAnswer != null &&
-                      !_saved
+                      !_saved &&
+                      !_picking
                   ? _save
                   : null,
             ),
-            if (_saved) ...[
+            if (_saved && _ruleReply != null) ...[
+              const SizedBox(height: 12),
+              RuleReplyBubble(
+                text: _ruleReply!,
+                style: RuleReplyBubbleStyle.checkIn,
+              ),
+            ] else if (_saved) ...[
               const SizedBox(height: 12),
               Text(
                 isEn
@@ -155,6 +179,8 @@ class _CheckInArmBState extends State<CheckInArmB> {
     if (face == null) return;
     final note = _noteCtrl.text.trim();
     final core = CoreServicesScope.of(context);
+    // Decision 0023 — read once so one submission never mixes paths.
+    final ruleReplies = RuleReplyPool.enabled;
     final profile = AppSettingsScope.read(context).profile;
     // T7 — the shared entry point: detect + PI event (arm-invariant).
     final distress = core.safety
@@ -193,7 +219,30 @@ class _CheckInArmBState extends State<CheckInArmB> {
           socialEnergy: (_socialDayAnswer ?? 2) + 1,
         ) ??
         Future<void>.value());
-    setState(() => _saved = true);
+    // Decision 0023 — template reply only for a safe submission; a safety
+    // hit keeps the original line and runs the safety flow below.
+    String? ruleReply;
+    if (ruleReplies && allowsTemplateReply(distress)) {
+      setState(() => _picking = true);
+      final entry = await RuleReplyService(
+        store: widget.replyHistory ??
+            FirestoreRuleReplyHistoryStore(available: authAvailable),
+      ).next(
+        uid: profile?.uid,
+        agentId: AgentRegistry.siuYanId,
+        moduleId: 'm2_check_in',
+        theme: RuleReplyPool.themeCheckIn,
+        mood: face.rank,
+        analytics: analytics,
+      );
+      ruleReply = entry == null ? null : (isEn ? entry.en : entry.zh);
+      if (!mounted) return;
+    }
+    setState(() {
+      _saved = true;
+      _picking = false;
+      _ruleReply = ruleReply;
+    });
 
     // Decision 0015 — the submission is one agent session, like a chat.
     // The recorder's Firestore writes are fire-and-forget, so this never
@@ -207,12 +256,14 @@ class _CheckInArmBState extends State<CheckInArmB> {
       text: note,
       detector: distress,
       userSent: submittedAt,
-      replyText: isEn ? 'Saved. See you tomorrow.' : '收到喇。聽日再見。',
+      replyText:
+          ruleReply ?? (isEn ? 'Saved. See you tomorrow.' : '收到喇。聽日再見。'),
     );
     if (!mounted) return;
 
     // Same safety surfaces as every other page (crisis page for acute,
     // support sheet for moderate) — arm-invariant.
+    // T7 already wrote the event (checkUserText above); route only.
     if (distress.level != DistressLevel.none) {
       await core.distressRouter.route(distress, context: context);
       if (distress.level == DistressLevel.acute) return;
