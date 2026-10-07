@@ -10,6 +10,7 @@ const {computeLlmFlags} = require("./llm_flags");
 const arm = require("./arm");
 const memory = require("./memory");
 const llmLog = require("./llm_log");
+const featureFlags = require("./feature_flags");
 
 admin.initializeApp();
 
@@ -602,6 +603,10 @@ exports.webSearch = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in required");
     }
+    // Phase B: off unless app_config/feature_flags.webSearchEnabled is
+    // true (decision 0019).  Checked before anything is sent to Brave.
+    await featureFlags.assertFeatureEnabled(
+        admin.firestore(), "webSearchEnabled");
     await assertLlmAllowed(request.auth.uid);
     const payload = request.data || {};
     const query = (payload.query || "").trim();
@@ -690,6 +695,11 @@ exports.transcribeAudio = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in required");
     }
+    // Phase B: off unless app_config/feature_flags.voiceInputEnabled is
+    // true (decision 0019).  Important: switch back on once HREC approves
+    // the STT amendment.
+    await featureFlags.assertFeatureEnabled(
+        admin.firestore(), "voiceInputEnabled");
 
     const payload = request.data || {};
     const audioBase64 = payload.audioBase64;

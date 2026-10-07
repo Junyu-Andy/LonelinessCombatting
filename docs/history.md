@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-07 T9 关闭搜一搜和语音输入（SPEC:C18，PR 草稿，未合并）
+
+- **查清现状**：搜一搜在 App 里 2026-07-20 起写死关闭，老人触发不了；但服务器 `webSearch` 还开着，只拦规则组。语音两组都开着，没有开关。
+- **做了**：新建配置 `app_config/feature_flags`，三个开关全部默认关（决策 0019）。关时 App 不显示麦克风和"幫我查"按钮、不发请求；服务器 `webSearch`、`transcribeAudio` 直接拒绝。语音代码保留，HREC 批准后在控制台打开。
+- 通通遇到要上网查的问题有一句固定回应，两组条件相同，先过安全检测；文字是占位，开关默认关。
+- 报告：`docs/dev-reports/T9-flags-20261007.md`。待办第 40–42 项。
+
 ## 2026-10-06 开发任务 T1–T6；DeepSeek 模型名
 
 - 研究侧功能登记表（C01–C22）放进 `docs/spec/feature-registry.md`，任务单放进 `docs/dev-tasks/dev-tasks-1006.md`。T1–T6 分六个云端会话并行执行，报告写到 `docs/dev-reports/`、`docs/spec/`、`docs/export/`。

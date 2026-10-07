@@ -7,6 +7,8 @@ library;
 
 import 'package:cloud_functions/cloud_functions.dart';
 
+import '../../../core/feature_flags/remote_feature_flags.dart';
+
 class SearchResult {
   final String title;
   final String snippet;
@@ -30,7 +32,7 @@ class SearchResponse {
 
   /// Optional reason string when [unavailable] is true. Values:
   ///   `both_secrets_unset` · `search_api_key_unset` · `search_cx_unset`
-  ///   · `network_error` · `function_unavailable`
+  ///   · `network_error` · `function_unavailable` · `disabled` (C18 switch)
   final String? reason;
 
   const SearchResponse({
@@ -47,6 +49,15 @@ class SearchRepository {
   final bool available;
 
   Future<SearchResponse> search(String query) async {
+    // C18 (decision 0019): nothing leaves the phone while the switch is
+    // off.  The webSearch function refuses on the same switch.
+    if (!RemoteFeatureFlags.current.webSearchEnabled) {
+      return const SearchResponse(
+        results: [],
+        unavailable: true,
+        reason: 'disabled',
+      );
+    }
     if (!available || query.trim().isEmpty) {
       return const SearchResponse(
         results: [],

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../../features/analytics/presentation/analytics_scope.dart';
+import '../feature_flags/remote_feature_flags.dart';
 
 /// Handle a host page holds so it can stop in-progress dictation at a
 /// precise moment — specifically right before it snapshots the input and
@@ -84,6 +85,13 @@ class VoiceInputController {
 /// dictate; transcription must still succeed.  If you ever hear the
 /// engine "phone home" on the network, treat it as a protocol violation
 /// and stop recording immediately.
+///
+/// **C18 — Phase B switch (decision 0019).** The button renders nothing
+/// and never touches the platform recogniser (no permission prompt, no
+/// audio) unless `app_config/feature_flags.voiceInputEnabled` is true
+/// ([RemoteFeatureFlags.voiceInputEnabled], default off).  Every page's
+/// mic goes through this widget, so the one switch covers them all.
+/// Important feature: switch back on once HREC approves the STT amendment.
 class VoiceInputButton extends StatefulWidget {
   /// Called as new text arrives. The button replaces the *last
   /// recognised chunk* on each callback — the caller should treat this
@@ -110,6 +118,8 @@ class VoiceInputButton extends StatefulWidget {
 }
 
 class _VoiceInputButtonState extends State<VoiceInputButton> {
+  // Read once per mount: a flag change applies to newly opened pages.
+  final bool _enabled = RemoteFeatureFlags.current.voiceInputEnabled;
   final SpeechToText _stt = SpeechToText();
   bool _available = false;
   bool _initialising = true;
@@ -135,6 +145,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   @override
   void initState() {
     super.initState();
+    if (!_enabled) return;
     widget.controller?._bind(this);
     _init();
   }
@@ -425,6 +436,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_enabled) return const SizedBox.shrink();
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     if (_initialising) {
@@ -473,7 +485,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   void dispose() {
     widget.controller?._unbind(this);
     _warnTimer?.cancel();
-    _stt.stop();
+    if (_enabled) _stt.stop();
     super.dispose();
   }
 }

@@ -38,6 +38,7 @@ import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/safety/safety_copy.dart';
 import '../../../../core/safety/safety_event_writer.dart';
 import '../../../../core/session/chat_session_recorder.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
@@ -48,6 +49,7 @@ import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
 import '../../../onboarding/data/interest_labels.dart';
 import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/search_repository.dart';
+import '../../data/tung_tung_search_intent.dart';
 import '../../data/tung_tung_rule_pool.dart';
 import '../../data/tung_tung_rule_responder.dart';
 import '../../../../core/memory/memory_mode.dart';
@@ -99,9 +101,24 @@ class _TungTungPageState extends State<TungTungPage> {
   bool _searchArmed = false;
 
   /// Pilot decision: the web search (Brave API, no HK localisation) surfaced
-  /// too much low-quality / non-HK content, so it's disabled for now.  Flip
-  /// to true to bring the "幫我查" affordance back.
-  static const bool _searchEnabled = false;
+  /// too much low-quality / non-HK content, so it was hard-coded off.
+  /// C18 (decision 0019): now a runtime switch,
+  /// `app_config/feature_flags.webSearchEnabled` (default off); the
+  /// webSearch function refuses on the same switch.  Never for Arm B.
+  bool get _searchEnabled =>
+      !_ruleBased && RemoteFeatureFlags.current.webSearchEnabled;
+
+  /// C18 — while search is off, answer search-type questions with one
+  /// fixed line ([TungTungSearchIntent]) instead of the usual reply.
+  /// Behind `searchOffReplyEnabled` (default off).  Not in article mode:
+  /// there the question is about the article text.
+  bool _isSearchOffQuestion(String text) {
+    final flags = RemoteFeatureFlags.current;
+    return flags.searchOffReplyEnabled &&
+        !flags.webSearchEnabled &&
+        widget.articleContext == null &&
+        TungTungSearchIntent.matches(text);
+  }
 
   /// Map of search query → result snippets, accumulated this session.
   /// Tung Tung's next LLM call appends a `[SEARCH_RESULTS]` block
@@ -283,7 +300,7 @@ class _TungTungPageState extends State<TungTungPage> {
 
     // Snapshot + reset the search-armed flag now so a second send
     // doesn't accidentally re-search the same query.
-    final searchThisTurn = _searchArmed;
+    final searchThisTurn = _searchArmed && _searchEnabled;
     final userSentAt = DateTime.now();
     final (usedVoice, voiceMs) = _voice.takeModality();
     _recorder?.bumpActivity();
@@ -295,6 +312,24 @@ class _TungTungPageState extends State<TungTungPage> {
       _searchArmed = false;
     });
     await _recorder?.ensureStarted();
+    if (!mounted) return;
+
+    // C18 — search-off fixed reply.  Only when the distress check finds
+    // nothing; any safety hit takes the normal path below, which runs the
+    // full safety flow inside llm.send.
+    if (_isSearchOffQuestion(text)) {
+      final flag = CoreServicesScope.of(context).distress.analyze(text);
+      if (flag.level == DistressLevel.none) {
+        await _replySearchOff(
+          flag: flag,
+          userSentAt: userSentAt,
+          modality: usedVoice ? InputModality.voice : InputModality.text,
+          voiceMs: voiceMs,
+          charCount: text.length,
+        );
+        return;
+      }
+    }
 
     // If the user armed search, run it before the LLM call so the
     // results are part of this turn's contextSuffix.
@@ -515,6 +550,53 @@ class _TungTungPageState extends State<TungTungPage> {
     }
   }
 
+  /// Hybrid arm, C18: show the fixed search-off line; no LLM call and
+  /// nothing written to the memory buffer.  Logged as `fixed_reply`.
+  Future<void> _replySearchOff({
+    required DistressMatch flag,
+    required DateTime userSentAt,
+    required InputModality modality,
+    required int? voiceMs,
+    required int charCount,
+  }) async {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final analytics = AnalyticsScope.of(context);
+    final replyText = TungTungSearchIntent.reply(isEn: isEn);
+    setState(() {
+      _busy = false;
+      _turns.add(_Turn.bot(replyText));
+    });
+    await _recorder?.logTurn(TurnRecord(
+      agentId: AgentRegistry.tungTungId,
+      moduleId: 'tung_tung_chat',
+      userSent: userSentAt,
+      replyShown: DateTime.now(),
+      modality: modality,
+      voiceDurationMs: voiceMs,
+      charCount: charCount,
+      detector: flag,
+      shortCircuited: false,
+      ackShown: false,
+      response: LlmResponse(
+        text: replyText,
+        inputFlag: flag,
+        outputFlag: const DistressMatch(DistressLevel.none),
+        shortCircuited: false,
+        metadata: TurnMetadata(
+          agentId: AgentRegistry.tungTungId,
+          sessionId: _recorder?.sessionId,
+        ),
+        status: LlmStatus.fixedReply,
+      ),
+      tungTungMode: 'B',
+      tungTungSearchInvoked: false,
+    ));
+    unawaited(analytics.logEvent('tung_tung_search_off_reply', {
+      'arm': 'A',
+      'version': TungTungSearchIntent.version,
+    }));
+  }
+
   /// Arm B send path: same deterministic distress handling, PI alert,
   /// safety copy and turn logging as Arm A, but the reply is a rule
   /// template and nothing is written to the agent memory buffer.
@@ -592,11 +674,27 @@ class _TungTungPageState extends State<TungTungPage> {
     // bubble has settled.
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
-    final reply = TungTungRuleResponder.reply(
-      text,
-      userTurnIndex: userTurnIndex,
-      openerOffset: _openerOffset,
-    );
+    // C18 — same fixed search-off line as Arm A, under the same
+    // condition (flag on, search-type question, no distress hit).
+    final searchOff =
+        flag.level == DistressLevel.none && _isSearchOffQuestion(text);
+    final reply = searchOff
+        ? RuleReply(
+            id: TungTungSearchIntent.replyId,
+            zh: TungTungSearchIntent.reply(isEn: false),
+            en: TungTungSearchIntent.reply(isEn: true),
+          )
+        : TungTungRuleResponder.reply(
+            text,
+            userTurnIndex: userTurnIndex,
+            openerOffset: _openerOffset,
+          );
+    if (searchOff) {
+      unawaited(analytics.logEvent('tung_tung_search_off_reply', {
+        'arm': 'B',
+        'version': TungTungSearchIntent.version,
+      }));
+    }
     final replyText = reply.text(isEn: isEn);
     final moderateAck = flag.interrupts
         ? SafetyCopy.moderateAck(AgentRegistry.tungTungId, isEn: isEn)
