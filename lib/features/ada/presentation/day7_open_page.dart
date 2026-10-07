@@ -3,6 +3,8 @@
 /// when `voiceInputEnabled`).  Saved to
 /// `users/{uid}/day7_open_responses/day7` on every screen change; frozen
 /// after submit.  Question text is placeholder ([Day7OpenQuestions]).
+/// T17b: part 2 of the day-7 flow (`day7_flow_page.dart`); every screen
+/// has 「唔識填？打俾研究員」; `channel` records app / phone_by_staff.
 library;
 
 import 'package:flutter/material.dart';
@@ -13,6 +15,7 @@ import '../../../core/survey/long_text_answer.dart';
 import '../../../core/voice/voice_input_button.dart';
 import '../data/ada_items.dart';
 import '../data/survey_draft_store.dart';
+import 'ada_widgets.dart';
 import 'survey_nav_bar.dart';
 
 class Day7OpenPage extends StatefulWidget {
@@ -23,8 +26,12 @@ class Day7OpenPage extends StatefulWidget {
     this.store,
     this.uid,
     this.voiceEnabled,
+    this.channel = AdaChannel.app,
+    this.part,
   });
 
+  final String channel;
+  final (int, int)? part;
   final bool allowSkip;
   final int? enrolmentDay;
   final SurveyDraftStore? store;
@@ -59,6 +66,7 @@ class _Day7OpenPageState extends State<Day7OpenPage> {
   String? _uid;
 
   bool get _isEn => Localizations.localeOf(context).languageCode == 'en';
+  bool get _staff => widget.channel == AdaChannel.phoneByStaff;
   String get _qid => Day7OpenQuestions.ids[_index];
 
   @override
@@ -124,6 +132,7 @@ class _Day7OpenPageState extends State<Day7OpenPage> {
         'uid': _uid,
         'timepoint': kDay7OpenDocId,
         'itemsVersion': day7OpenItemsVersion,
+        'channel': widget.channel,
         'allowSkip': widget.allowSkip,
         'enrolmentDay': widget.enrolmentDay,
         'lastScreen': lastScreen,
@@ -163,6 +172,14 @@ class _Day7OpenPageState extends State<Day7OpenPage> {
     final text = cur.text.text.trim();
     if (text.isNotEmpty && text != cur.lastScanned && mounted) {
       cur.lastScanned = text;
+      if (_staff) {
+        // Scanned server-side on save (functions/ada.js).
+        final store = _store;
+        if (store is StaffSurveyDraftStore && store.takeSafetyFlag()) {
+          await showStaffSafetyNotice(context, isEn: _isEn);
+        }
+        return;
+      }
       await SafetyService.of(context).checkAndRoute(context, text,
           point: SafetyInputPoint.day7OpenEnded, uid: uid);
     }
@@ -212,7 +229,11 @@ class _Day7OpenPageState extends State<Day7OpenPage> {
     final isEn = _isEn;
     final n = Day7OpenQuestions.ids.length;
     return Scaffold(
-      appBar: AppBar(title: Text(isEn ? 'A few questions' : '幾條問題')),
+      appBar: AppBar(
+        title: Text(_staff
+            ? (isEn ? 'Phone completion (staff)' : '電話代填（研究員）')
+            : (isEn ? 'A few questions' : '幾條問題')),
+      ),
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
@@ -233,6 +254,7 @@ class _Day7OpenPageState extends State<Day7OpenPage> {
                         ),
                         const SizedBox(height: 24),
                         FilledButton(
+                          key: const ValueKey('survey_done_button'),
                           onPressed: () => Navigator.of(context).maybePop(true),
                           child: Text(isEn ? 'Done' : '完成'),
                         ),
@@ -241,18 +263,12 @@ class _Day7OpenPageState extends State<Day7OpenPage> {
                   )
                 : Column(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            isEn ? '${_index + 1} / $n' : '第 ${_index + 1} / $n 題',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
+                      SurveyTopBar(
+                        isEn: isEn,
+                        part: widget.part,
+                        progress: isEn
+                            ? '${_index + 1} / $n'
+                            : '第 ${_index + 1} / $n 題',
                       ),
                       Expanded(
                         child: SingleChildScrollView(
@@ -266,7 +282,8 @@ class _Day7OpenPageState extends State<Day7OpenPage> {
                             hint: isEn ? AdaFreeText.hintEn : AdaFreeText.hintZh,
                             controller: _answers[_qid]!.text,
                             voice: _voice,
-                            voiceEnabled: widget.voiceEnabled,
+                            voiceEnabled:
+                                _staff ? false : widget.voiceEnabled,
                           ),
                         ),
                       ),

@@ -19,6 +19,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/feature_flags/feature_flags.dart';
+import '../../../ada/presentation/ada_staff_page.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/dashboard_access.dart';
 
@@ -135,6 +137,25 @@ class _DashboardBody extends StatelessWidget {
             label: isEn ? 'Pending distress flags' : '未處理嘅 distress flags'),
         const _DistressFlagsList(),
         const SizedBox(height: 24),
+        // T17b (decision 0030) — Phase A day-7 status and phone
+        // completion; own page, never in a Phase B build.
+        if (!FeatureFlags.phaseB) ...[
+          Card(
+            child: ListTile(
+              key: const ValueKey('dashboard_ada_day7'),
+              leading: const Icon(Icons.fact_check_outlined),
+              title: Text(isEn ? 'Day-7 questions: status' : '第 7 日問卷完成情況'),
+              subtitle: Text(isEn
+                  ? 'Not started / in progress / completed / overdue; '
+                      'fill in by phone'
+                  : '未開始／進行中／已完成／已超時；電話代填'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const AdaStaffPage())),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
         _SectionHeader(label: isEn ? 'Engagement' : '參與度'),
         _EngagementSummary(showArmCounts: access.showsArmCounts),
         const SizedBox(height: 24),

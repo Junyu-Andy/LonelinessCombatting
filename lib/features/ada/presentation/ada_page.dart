@@ -1,8 +1,11 @@
-/// T17 (SPEC:C22, decision 0026) — ADA, Phase A only.
+/// T17 / T17b (SPEC:C22, decisions 0026, 0030) — ADA, Phase A only.
+/// Wording and forms: docs/spec/instruments/ada.md.
 ///
-/// One item per screen: intro → A (usage, 3 agents) → B (one screen per
-/// trait) → C (one screen per scenario, full form only) → D (long text).
-/// Back is always allowed.  Every screen change saves the draft to
+/// One item per screen: intro → A (usage, 3 companions; full form only)
+/// → B (one sentence per screen, 3 companions rated together) → C (one
+/// situation per screen; full form only) → D (long text) → at visit 1
+/// only, the day-7 reminder time.  Every companion name has its avatar;
+/// every screen has 「唔識填？打俾研究員」.  Back is always allowed.  Every screen change saves the draft to
 /// `users/{uid}/ada_responses/{timepoint}`; submit sets
 /// `status: "submitted"`, after which the rules freeze the document.
 /// When [allowSkip] is on, 跳過 stores `"skipped"` for every item on the
@@ -15,18 +18,18 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../app/app_settings_scope.dart';
-import '../../../core/agents/agent_registry.dart';
+import '../../../core/agents/agent_registry.dart' show AgentGenderVariant;
 import '../../../core/config/phase_a_schedule_config.dart';
 import '../../../core/safety/safety_check.dart';
 import '../../../core/survey/likert_scale.dart';
 import '../../../core/survey/long_text_answer.dart';
-import '../../../core/survey/survey_item_card.dart';
 import '../../../core/voice/voice_input_button.dart';
 import '../data/ada_items.dart';
 import '../data/survey_draft_store.dart';
+import 'ada_widgets.dart';
 import 'survey_nav_bar.dart';
 
-enum _Kind { intro, usage, trait, scenario, free }
+enum _Kind { intro, usage, trait, scenario, free, reminderTime }
 
 class _Screen {
   const _Screen(this.kind, [this.id = '']);
@@ -44,9 +47,22 @@ class AdaPage extends StatefulWidget {
     this.uid,
     this.variant,
     this.voiceEnabled,
+    this.channel = AdaChannel.app,
+    this.part,
+    this.askReminderTime,
   });
 
   final AdaTimepoint timepoint;
+
+  /// ada.md §5 — `app`, or `phone_by_staff` when a researcher fills it in
+  /// on the phone (then [store] is a [StaffSurveyDraftStore]).
+  final String channel;
+
+  /// Day-7 flow position (n, m) → 「第 n 部分，共 m 部分」.
+  final (int, int)? part;
+
+  /// End-of-visit-1 reminder time screen (ada.md §6.1).  Defaults to on
+  /// for the `visit1` timepoint in the App channel.
   final bool allowSkip;
   final int? enrolmentDay;
 
@@ -57,6 +73,11 @@ class AdaPage extends StatefulWidget {
   final String? uid;
   final AgentGenderVariant? variant;
   final bool? voiceEnabled;
+  final bool? askReminderTime;
+
+  bool get showsReminderTime =>
+      askReminderTime ??
+      (timepoint.id == kVisit1TimepointId && channel == AdaChannel.app);
 
   @override
   State<AdaPage> createState() => _AdaPageState();
@@ -67,11 +88,12 @@ class _AdaPageState extends State<AdaPage> {
       widget.store ?? FirestoreSurveyDraftStore();
   late final List<_Screen> _screens = [
     const _Screen(_Kind.intro),
-    const _Screen(_Kind.usage),
+    if (widget.timepoint.form.hasUsage) const _Screen(_Kind.usage),
     for (final t in AdaTraits.all) _Screen(_Kind.trait, t),
-    if (widget.timepoint.form == AdaForm.full)
+    if (widget.timepoint.form.hasScenarios)
       for (final s in AdaScenarios.all) _Screen(_Kind.scenario, s),
     const _Screen(_Kind.free),
+    if (widget.showsReminderTime) const _Screen(_Kind.reminderTime),
   ];
 
   final Map<String, Object> _usage = {};
@@ -82,6 +104,7 @@ class _AdaPageState extends State<AdaPage> {
   final _text = TextEditingController();
   final _voice = VoiceInputController();
   String? _freeTextStatus; // answered | skipped
+  String? _reminderTime; // "HH:MM" or "skipped"
   bool _usedVoice = false;
   int _voiceMs = 0;
   String _lastScanned = '';
@@ -141,6 +164,10 @@ class _AdaPageState extends State<AdaPage> {
         if (doc['freeText'] is String) _text.text = doc['freeText'] as String;
         _lastScanned = _text.text.trim();
         if (doc['freeTextInputMode'] == 'voice') _usedVoice = true;
+        if (doc['freeTextStatus'] == kSkipped) _freeTextStatus = kSkipped;
+        if (doc['day7ReminderTime'] is String) {
+          _reminderTime = doc['day7ReminderTime'] as String;
+        }
         final last = doc['lastScreen'];
         if (last is num && !_submitted) {
           _index = last.toInt().clamp(0, _screens.length - 1);
@@ -161,19 +188,7 @@ class _AdaPageState extends State<AdaPage> {
 
   bool get _isEn => Localizations.localeOf(context).languageCode == 'en';
 
-  String _agentLabel(String agentId) {
-    switch (agentId) {
-      case AdaAgents.siuYan:
-        return _isEn ? 'Siu Yan' : '小欣';
-      case AdaAgents.tungTung:
-        return _isEn ? 'Tung Tung' : '通通';
-      case AdaAgents.ahJanAhBak:
-        // Gender pairing from the participant's profile; unknown → both.
-        if (_variant == null) return _isEn ? 'Ah Jan / Ah Bak' : '阿珍／阿伯';
-        return AgentRegistry.ahJanAhBakName(_variant, isEn: _isEn);
-    }
-    return agentId;
-  }
+  bool get _staff => widget.channel == AdaChannel.phoneByStaff;
 
   /// Whether every item on [s] has an answer (skips count).
   bool _complete(_Screen s) {
@@ -187,7 +202,9 @@ class _AdaPageState extends State<AdaPage> {
       case _Kind.scenario:
         return _scenarios.containsKey(s.id);
       case _Kind.free:
-        return _text.text.trim().isNotEmpty;
+        return _text.text.trim().isNotEmpty || _freeTextStatus == kSkipped;
+      case _Kind.reminderTime:
+        return _reminderTime != null;
     }
   }
 
@@ -208,6 +225,9 @@ class _AdaPageState extends State<AdaPage> {
       case _Kind.free:
         // Text already written is kept: 跳過 then just submits it.
         if (_text.text.trim().isEmpty) _freeTextStatus = kSkipped;
+      case _Kind.reminderTime:
+        // No choice → the server uses adaDay7ReminderDefaultTime.
+        _reminderTime ??= kSkipped;
     }
   }
 
@@ -225,22 +245,24 @@ class _AdaPageState extends State<AdaPage> {
       'timepoint': widget.timepoint.id,
       'formVersion': widget.timepoint.form.code,
       'itemsVersion': adaItemsVersion,
-      'recallWindowZh': widget.timepoint.recallWindowZh,
+      'channel': widget.channel,
       'allowSkip': widget.allowSkip,
       'ahJanAhBakVariant': _variant?.code,
       'enrolmentDay': widget.enrolmentDay,
       'screenCount': _screens.length,
       'lastScreen': lastScreen,
-      'usage': Map<String, Object>.from(_usage),
+      if (widget.timepoint.form.hasUsage)
+        'usage': Map<String, Object>.from(_usage),
       'traits': {
         for (final e in _traits.entries) e.key: Map<String, Object>.from(e.value),
       },
-      if (widget.timepoint.form == AdaForm.full)
+      if (widget.timepoint.form.hasScenarios)
         'scenarios': Map<String, Object>.from(_scenarios),
       'freeText': hasText ? text : null,
       'freeTextStatus': hasText ? 'answered' : _freeTextStatus,
       'freeTextInputMode': hasText ? (_usedVoice ? 'voice' : 'typed') : null,
       'freeTextVoiceMs': hasText && _usedVoice ? _voiceMs : null,
+      if (widget.showsReminderTime) 'day7ReminderTime': _reminderTime,
       'status': status,
       if (!_startedAtStored) 'startedAt': _startedAt,
     };
@@ -267,11 +289,20 @@ class _AdaPageState extends State<AdaPage> {
   }
 
   /// Part D through the shared safety check (both arms, decision 0018);
-  /// once per distinct text.
+  /// once per distinct text.  Phone-by-staff answers are scanned by the
+  /// server when it saves them (functions/ada.js); the researcher sees a
+  /// notice here instead of the participant's crisis page.
   Future<void> _scanFreeText(String uid) async {
     final text = _text.text.trim();
     if (text.isEmpty || text == _lastScanned || !mounted) return;
     _lastScanned = text;
+    if (_staff) {
+      final store = _store;
+      if (store is StaffSurveyDraftStore && store.takeSafetyFlag()) {
+        await showStaffSafetyNotice(context, isEn: _isEn);
+      }
+      return;
+    }
     await SafetyService.of(context).checkAndRoute(
       context,
       text,
@@ -284,7 +315,14 @@ class _AdaPageState extends State<AdaPage> {
   String? _hintText;
 
   void _hint() {
-    final free = _screens[_index].kind == _Kind.free;
+    final kind = _screens[_index].kind;
+    if (kind == _Kind.reminderTime) {
+      setState(() => _hintText = _isEn
+          ? 'Please pick a time, or tap "Skip".'
+          : '請揀一個時間，或者撳「跳過」。');
+      return;
+    }
+    final free = kind == _Kind.free;
     setState(() => _hintText = _isEn
         ? (free
             ? (widget.allowSkip
@@ -318,14 +356,14 @@ class _AdaPageState extends State<AdaPage> {
       _hint();
       return;
     }
-    if (s.kind == _Kind.free) return _submit();
+    if (_index == _screens.length - 1) return _submit();
     await _go(1);
   }
 
   Future<void> _skip() async {
     final s = _screens[_index];
     setState(() => _markSkipped(s));
-    if (s.kind == _Kind.free) return _submit();
+    if (_index == _screens.length - 1) return _submit();
     await _go(1);
   }
 
@@ -344,10 +382,13 @@ class _AdaPageState extends State<AdaPage> {
   @override
   Widget build(BuildContext context) {
     final isEn = _isEn;
-    final theme = Theme.of(context);
     final s = _screens[_index];
     return Scaffold(
-      appBar: AppBar(title: Text(isEn ? 'About the companions' : '三個夥伴')),
+      appBar: AppBar(
+        title: Text(_staff
+            ? (isEn ? 'Phone completion (staff)' : '電話代填（研究員）')
+            : (isEn ? 'About the companions' : '三位陪伴者')),
+      ),
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
@@ -355,21 +396,13 @@ class _AdaPageState extends State<AdaPage> {
                 ? _DoneView(isEn: isEn)
                 : Column(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            isEn
-                                ? '${_index + 1} / ${_screens.length}'
-                                : '第 ${_index + 1} / ${_screens.length} 頁',
-                            key: const ValueKey('ada_progress'),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
+                      SurveyTopBar(
+                        isEn: isEn,
+                        part: widget.part,
+                        progressKey: const ValueKey('ada_progress'),
+                        progress: isEn
+                            ? '${_index + 1} / ${_screens.length}'
+                            : '第 ${_index + 1} / ${_screens.length} 頁',
                       ),
                       Expanded(
                         child: SingleChildScrollView(
@@ -385,7 +418,7 @@ class _AdaPageState extends State<AdaPage> {
                         showSkip: widget.allowSkip && s.kind != _Kind.intro,
                         nextLabel: s.kind == _Kind.intro
                             ? (isEn ? 'Start' : '開始')
-                            : s.kind == _Kind.free
+                            : _index == _screens.length - 1
                                 ? (isEn ? 'Submit' : '提交')
                                 : null,
                         busy: _saving,
@@ -415,9 +448,45 @@ class _AdaPageState extends State<AdaPage> {
           hint: _isEn ? AdaFreeText.hintEn : AdaFreeText.hintZh,
           controller: _text,
           voice: _voice,
-          voiceEnabled: widget.voiceEnabled,
+          // Staff type what they hear: no mic on the staff phone.
+          voiceEnabled: _staff ? false : widget.voiceEnabled,
         );
+      case _Kind.reminderTime:
+        return _reminderView();
     }
+  }
+
+  /// ada.md §6.1 — at the end of visit 1 the participant picks when the
+  /// day-7 reminder comes.  Wording is a draft.
+  Widget _reminderView() {
+    final opts = PhaseAScheduleConfig.current.adaDay7ReminderTimeOptions;
+    final dflt = PhaseAScheduleConfig.current.adaDay7ReminderDefaultTime;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _title(_isEn
+            ? 'On day 7 the App will remind you to answer a few questions '
+                'again. What time would you like the reminder?'
+            : '第 7 日 App 會提你再答一次問卷。你想幾點收到提醒？'),
+        Text(
+          _isEn
+              ? 'If you do not pick one, we will remind you at $dflt.'
+              : '唔揀都得，我哋會喺 $dflt 提你。',
+          style: Theme.of(context)
+              .textTheme
+              .bodyLarge
+              ?.copyWith(fontSize: 17, height: 1.5),
+        ),
+        const SizedBox(height: 14),
+        _OptionList(
+          keyPrefix: 'reminder_time_',
+          labels: opts,
+          values: opts,
+          selected: _reminderTime,
+          onSelect: (v) => setState(() => _reminderTime = v as String),
+        ),
+      ],
+    );
   }
 
   Widget _title(String text) => Padding(
@@ -433,19 +502,16 @@ class _AdaPageState extends State<AdaPage> {
       );
 
   Widget _usageView() {
-    final tp = widget.timepoint;
     final labels = _isEn ? AdaUsage.labelsEn : AdaUsage.labelsZh;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _title(_isEn
-            ? AdaUsage.questionEn(tp.recallWindowEn)
-            : AdaUsage.questionZh(tp.recallWindowZh)),
+        _title(_isEn ? AdaUsage.questionEn : AdaUsage.questionZh),
         for (final a in AdaAgents.all)
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
-            child: SurveyItemCard(
-              title: _agentLabel(a),
+            child: _AgentCard(
+              header: AdaAgentLabel(agentId: a, variant: _variant, isEn: _isEn),
               child: _OptionList(
                 keyPrefix: 'usage_${a}_',
                 labels: labels,
@@ -483,8 +549,8 @@ class _AdaPageState extends State<AdaPage> {
         for (final a in AdaAgents.all)
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
-            child: SurveyItemCard(
-              title: _agentLabel(a),
+            child: _AgentCard(
+              header: AdaAgentLabel(agentId: a, variant: _variant, isEn: _isEn),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -534,13 +600,43 @@ class _AdaPageState extends State<AdaPage> {
             for (final o in AdaScenarios.options)
               o == AdaScenarios.any
                   ? (_isEn ? AdaScenarios.anyEn : AdaScenarios.anyZh)
-                  : _agentLabel(o),
+                  : adaAgentName(o, _variant, isEn: _isEn, forOption: true),
+          ],
+          leading: [
+            for (final o in AdaScenarios.options)
+              o == AdaScenarios.any
+                  ? null
+                  : AdaAgentAvatar(agentId: o, variant: _variant, size: 40),
           ],
           values: AdaScenarios.options,
           selected: _scenarios[scenarioId],
           onSelect: (v) => setState(() => _scenarios[scenarioId] = v),
         ),
       ],
+    );
+  }
+}
+
+/// Card with an avatar + name header (A and B).
+class _AgentCard extends StatelessWidget {
+  const _AgentCard({required this.header, required this.child});
+  final Widget header;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [header, const SizedBox(height: 12), child],
+      ),
     );
   }
 }
@@ -554,6 +650,7 @@ class _OptionList extends StatelessWidget {
     required this.values,
     required this.selected,
     required this.onSelect,
+    this.leading,
   });
 
   final String keyPrefix;
@@ -561,6 +658,9 @@ class _OptionList extends StatelessWidget {
   final List<Object> values;
   final Object? selected;
   final ValueChanged<Object> onSelect;
+
+  /// Optional widget before each label (companion avatars in C).
+  final List<Widget?>? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -574,6 +674,7 @@ class _OptionList extends StatelessWidget {
             child: _OptionButton(
               key: ValueKey('$keyPrefix${values[i]}'),
               label: labels[i],
+              leading: leading?[i],
               selected: selected == values[i],
               onTap: () => onSelect(values[i]),
               theme: theme,
@@ -598,9 +699,11 @@ class _OptionButton extends StatelessWidget {
     required this.selected,
     required this.onTap,
     required this.theme,
+    this.leading,
   });
 
   final String label;
+  final Widget? leading;
   final bool selected;
   final VoidCallback onTap;
   final ThemeData theme;
@@ -625,6 +728,7 @@ class _OptionButton extends StatelessWidget {
                 color: selected ? cs.onPrimary : cs.outline,
               ),
               const SizedBox(width: 12),
+              if (leading != null) ...[leading!, const SizedBox(width: 12)],
               Expanded(
                 child: Text(
                   label,
@@ -660,7 +764,7 @@ class _IntroView extends StatelessWidget {
               ? 'A few questions about how you see your three companions. '
                   'There are no right or wrong answers. You can go back at '
                   'any time.'
-              : '有幾條問題，想知你點睇三個夥伴。冇啱冇錯，照你嘅感覺答就得。'
+              : '有幾條問題，想知你點睇三位陪伴者。冇啱冇錯，照你嘅感覺答就得。'
                   '隨時可以返上一頁。',
           style: theme.textTheme.bodyLarge?.copyWith(fontSize: 18, height: 1.6),
         ),
@@ -693,6 +797,7 @@ class _DoneView extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             FilledButton(
+              key: const ValueKey('survey_done_button'),
               onPressed: () => Navigator.of(context).maybePop(true),
               child: Text(isEn ? 'Done' : '完成'),
             ),

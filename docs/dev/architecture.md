@@ -1,6 +1,6 @@
 # 陪住 App 技术文档
 
-> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
 ## 1. 一句话
@@ -129,12 +129,16 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 签到 B 和回忆 B 也写 `sessions` 和 `turns`（`llmStatus: rule_based`），`moduleId` 和 A 组相同，所以两组的使用量可以直接比较。
 
-### 6.1 Phase A 的 ADA 和第 7 日开放题（决策 0026，默认关）
+### 6.1 Phase A 的 ADA 和第 7 日问卷（决策 0026、0030，默认关）
 
-- **只在 Phase A 构建**：`PHASE_B=true` 的包里永远不出现（`lib/features/ada/data/ada_gate.dart`）。Phase A 包里也要研究侧在 `app_config/phaseA_schedule` 打开才出现。
-- **ADA**（`lib/features/ada/presentation/ada_page.dart`）：一屏一项。A 使用频率一屏；B 四个特质各一屏；C 五个情境各一屏（只有全版）；D 长文字一屏。可返回，每换一屏保存一次，默认可跳过（记 `"skipped"`）。阿珍/阿伯按资料里的 `ahJanAhBakVariant` 显示。
-- **时间点**：`adaTimepoints` 列出每次施测的编号、短版/全版、入组第几天到第几天、回忆窗口文字。默认（占位）：`visit1` 第 1 天短版；`day7` 第 7–9 天全版。首页横幅在窗口内、还没提交时出现。
-- **第 7 日开放题**（`day7_open_page.dart`）：3 题各一屏，和 ADA 的 D 用同一个长文字组件（`lib/core/survey/long_text_answer.dart`）。麦克风只在 `voiceInputEnabled` 开时出现。
+- **只在 Phase A 构建**：`PHASE_B=true` 的包里永远不出现（`lib/features/ada/data/ada_gate.dart`）。Phase A 包里也要研究侧在 `app_config/phaseA_schedule` 打开（`adaEnabled`、`day7OpenEndedEnabled`）才出现。
+- **ADA**（`lib/features/ada/presentation/ada_page.dart`）：题目照抄 `docs/spec/instruments/ada.md`（`ada_items.dart`，版本 `ada-v1.0-20261007`）。一屏一项：A 一屏（只有全版）；B 每句一屏、三个陪伴者同屏打分；C 每个情境一屏（只有全版）；D 长文字一屏；第 1 次到访最后一屏选第 7 日提醒时间。名字旁有头像，阿珍/阿伯按 `ahJanAhBakVariant`。可返回，每屏保存，默认可跳过（记 `"skipped"`）。不算总分。
+- **时间点**：`adaTimepoints` 列出编号、短版/全版、入组第几天到第几天。默认 `visit1` 第 1 天短版（B + D），`day7` 第 7–9 天全版（A + B + C + D）。
+- **第 7 日流程**（`day7_flow_page.dart`）：一张首页卡"第 7 日問卷"。开头说明部分数和预计时间（`day7FlowMinutes`，没配置显示【占位】），然后第 1 部分 ADA 全版、第 2 部分开放题（`day7_open_page.dart`），每部分顶上"第 N 部分，共 M 部分"。每部分单独保存，下次从没交的部分、停下的那屏继续。窗口用 `day7` 时间点的天数。
+- **求助**：每屏"唔識填？打俾研究員"（`ada_widgets.dart`），号码 `adaHelpPhone`；没配置时不拨号，弹一句说明。
+- **推送**（`functions/ada.js`，定时函数 `adaDay7Dispatch`，每小时 08:00–21:00）：窗口第一天到老人选的整点推一次（visit1 文档 `day7ReminderTime`，没选用 `adaDay7ReminderDefaultTime`），`adaDay7ReminderHours`（24）小时后没做完再推一次，过窗口记已超时。推送文字带【占位】不发。只推 Phase A 参与者，不推测试账号。
+- **服务器状态** `ada_status/{uid}`：第 7 日状态（未开始 / 进行中 / 已完成 / 已超时）、推送和超时时间、研究编号（从 `research_id_map` 抄，只读不新建）。触发器 `onAdaResponseWritten`、`onDay7OpenResponseWritten` 保持最新。客户端不能读写。
+- **研究员页面**（`ada_staff_page.dart`，研究员后台进入）：callable `adaStaffDay7Status` 列出每个 Phase A 参与者的状态；"電話代填"用同样的页面，经 `adaStaffLoad` / `adaStaffSave` 读写，服务器盖 `channel: "phone_by_staff"` 和研究员 uid，并用词库检查代填文字、命中写 `safety_events`。要 `role: researcher` 或 `pi`；研究编号只给 `pi` 看。
 - **旧的“陪伴者区分评估”**（`agent_diff`，第 14、28 天）：Phase B 包默认不显示（开关 `LEGACY_AGENT_DIFF_PHASE_B`）；Phase A 包在 `adaEnabled` 打开后不显示，关着时和以前一样。旧数据不动。
 
 ## 7. 记忆
@@ -171,7 +175,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | `events` | 行为事件（打开页面、推送、按钮等） | App |
 | `brief_pr`、`weekly_pr`、`daily_mood`、`djg_es`、`pgic`、`ppr_responses`、`loneliness_probes`、`check_in_responses` | 问卷和量表 | App |
 | `djg_responses/W2` | Phase B 第 2 周 DJG（6 题，决策 0027）：原始答案（q1–q6 → yes / mostly / no / skipped）、状态、开始和提交时间；服务器补 `scores`（情感、社交、总分，跳题的分量表为空）、`outsideWindow`、窗口日期、`pushSentAt`、`reminderSentAt`、缺失标记。开关打开后取代 Phase B 的 `djg_es`（旧集合保留） | App 写答案；分数等由服务器写，App 不能改；提交或缺失后 App 不能再改 |
-| `ada_responses/{时间点}`、`day7_open_responses/day7` | Phase A 的 ADA 和第 7 日开放题（第 6.1 节）。只有本人能读写；`status` 变成 `submitted` 后不能再改；客户端不能删；不进盲法导出 | App |
+| `ada_responses/{时间点}`、`day7_open_responses/day7` | Phase A 的 ADA 和第 7 日开放题（第 6.1 节）。只有本人能读写；App 写的 `channel` 只能是 `app`；`status` 变成 `submitted` 后不能再改；客户端不能删；不进盲法导出。研究员电话代填由 `adaStaffSave` 写（`channel: phone_by_staff`、`staffUid`），之后老人不能改 | App；电话代填由服务器 |
 | `agent_contexts/{agentId}` | v0 记忆：对话缓冲区 + 滚动摘要 | App |
 | `memory/{moduleId}/entries` | 各模块的会话摘要（回忆、反思、社交建议、行动计划） | App |
 | `shared_context` | 三个陪伴者共用：最近情绪、安全标记、行动计划 | App |

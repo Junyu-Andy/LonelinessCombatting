@@ -4,6 +4,10 @@
  * Synthetic data only.  The owner saves a draft per screen, submits once,
  * and can't change or delete it afterwards; nobody else can read or write.
  *
+ * T17b (decision 0030): v1.0 fields (channel "app", day7ReminderTime);
+ * a client may not claim phone_by_staff or edit a phone completion;
+ * ada_status is server-only.
+ *
  * Run inside the emulator (see README.md).
  */
 const fs = require('fs');
@@ -60,14 +64,16 @@ function adaDoc(form, timepoint, status, extra) {
   traits.curious.tung_tung = 'skipped';
   const d = Object.assign({
     schemaVersion: 1, instrument: 'ada', studyPhase: 'A', uid: 'u1',
-    timepoint, formVersion: form, itemsVersion: 'ada-placeholder-20261007',
-    recallWindowZh: '喺過去兩個星期，正常一個禮拜入面', allowSkip: true,
-    ahJanAhBakVariant: 'masculine', usage, traits,
+    timepoint, formVersion: form, itemsVersion: 'ada-v1.0-20261007',
+    channel: 'app', allowSkip: true,
+    ahJanAhBakVariant: 'masculine', traits,
     freeText: '通通識好多嘢。', freeTextStatus: 'answered',
     freeTextInputMode: 'typed', status, lastScreen: 3,
     startedAt: new Date('2026-10-07T02:00:00Z'),
   }, extra || {});
+  if (form === 'short') d.day7ReminderTime = '19:00';
   if (form === 'full') {
+    d.usage = usage;
     d.scenarios = {};
     for (const s of SCENARIOS) d.scenarios[s] = 'ah_jan_ah_bak';
     d.scenarios.learn_new = 'any';
@@ -133,10 +139,59 @@ describe('ada_responses rules', () => {
   });
 });
 
+describe('T17b channel and staff fields', () => {
+  it('a client cannot claim phone_by_staff or set staffUid', async () => {
+    const ref = doc(owner(), 'users', 'u1', 'ada_responses', 'day7');
+    await assertFails(setDoc(ref, adaDoc('full', 'day7', 'in_progress',
+        {channel: 'phone_by_staff'})));
+    await assertFails(setDoc(ref, adaDoc('full', 'day7', 'in_progress',
+        {staffUid: 'staff1'})));
+    const open = doc(owner(), 'users', 'u1', 'day7_open_responses', 'day7');
+    await assertFails(setDoc(open, {uid: 'u1', timepoint: 'day7',
+      status: 'in_progress', channel: 'phone_by_staff'}));
+  });
+
+  it('an old placeholder-era doc without channel still saves', async () => {
+    const ref = doc(owner(), 'users', 'u1', 'ada_responses', 'day7');
+    const d = adaDoc('full', 'day7', 'in_progress',
+        {itemsVersion: 'ada-placeholder-20261007'});
+    delete d.channel;
+    await assertSucceeds(setDoc(ref, d));
+  });
+
+  it('the participant cannot edit a phone completion in progress',
+      async () => {
+        await testEnv.withSecurityRulesDisabled(async (c) => {
+          await setDoc(doc(c.firestore(), 'users', 'u1', 'ada_responses',
+              'day7'), adaDoc('full', 'day7', 'in_progress',
+              {channel: 'phone_by_staff', staffUid: 'staff1'}));
+        });
+        const ref = doc(owner(), 'users', 'u1', 'ada_responses', 'day7');
+        await assertSucceeds(getDoc(ref));
+        await assertFails(setDoc(ref, adaDoc('full', 'day7', 'submitted'),
+            {merge: true}));
+      });
+
+  it('ada_status is server-only (even for staff roles)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), 'ada_status', 'u1'),
+          {uid: 'u1', researchId: 'P7K3QX2', day7Status: 'overdue'});
+    });
+    const pi = testEnv.authenticatedContext('p', {role: 'pi'}).firestore();
+    const rs = testEnv.authenticatedContext('r', {role: 'researcher'})
+        .firestore();
+    for (const db of [owner(), pi, rs]) {
+      await assertFails(getDoc(doc(db, 'ada_status', 'u1')));
+      await assertFails(setDoc(doc(db, 'ada_status', 'u1'), {x: 1}));
+    }
+  });
+});
+
 describe('day7_open_responses rules', () => {
   const d7 = (status, extra) => Object.assign({
     schemaVersion: 1, instrument: 'day7_open', studyPhase: 'A', uid: 'u1',
     timepoint: 'day7', itemsVersion: 'day7-open-placeholder-20261007',
+    channel: 'app',
     answers: {
       q1: {text: '每朝同小欣講早晨。', status: 'answered', inputMode: 'typed'},
       q2: {text: null, status: 'skipped'},

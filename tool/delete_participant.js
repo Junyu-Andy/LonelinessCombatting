@@ -18,7 +18,8 @@
  *              te_audit_queue, stt_usage, safety_classifier_calls (T8,
  *              may not exist yet), pending_loneliness_probes (doc id or
  *              uid field), hotline_filter_log (T7), research_id_map
- *              (doc id) and research_ids (T12).
+ *              (doc id) and research_ids (T12), ada_status (doc id,
+ *              T17b: day-7 status and research ID).
  *   Storage    any file under users/{uid}/ (the App writes none today);
  *              rows in the weekly blinded exports exports/{date}/*.ndjson
  *              — see "Exports" below.
@@ -76,6 +77,8 @@ const TOP_LEVEL = [
   // T12 (decision 0021): research-ID lookup, both directions.
   {collection: 'research_id_map', field: 'uid', docIdIsUid: true},
   {collection: 'research_ids', field: 'uid'},
+  // T17b (decision 0030): Phase A day-7 status, push times, research ID.
+  {collection: 'ada_status', field: 'uid', docIdIsUid: true},
 ];
 
 const NOT_COVERED = [
