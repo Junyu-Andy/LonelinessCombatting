@@ -38,6 +38,7 @@ rules_version = '2';
 //   users/{uid}/djg_responses/{timepoint}        -> T18 W2 DJG (client: raw answers only; server: scores, push, missed)
 //   users/{uid}/ada_responses/{timepoint}        -> T17 Phase A ADA (owner only; frozen once submitted)
 //   users/{uid}/day7_open_responses/{timepoint}  -> T17 Phase A day-7 open questions (same rule)
+//   ada_status/{uid}                             -> T17b day-7 status, research ID, push times (server only)
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -171,25 +172,40 @@ service cloud.firestore {
       return ['ada_responses', 'day7_open_responses'];
     }
 
+    // T17b (decision 0030): the App's channel is always "app".  A phone
+    // completion ("phone_by_staff", staffUid) is written only by the
+    // adaStaffSave Cloud Function; once a researcher has started one the
+    // participant can no longer edit that document.
     function validPhaseASurvey(docId) {
       return request.resource.data.uid == request.auth.uid
         && request.resource.data.timepoint == docId
-        && request.resource.data.status in ['in_progress', 'submitted'];
+        && request.resource.data.status in ['in_progress', 'submitted']
+        && request.resource.data.get('channel', 'app') == 'app'
+        && request.resource.data.get('staffUid', null) == null;
     }
 
     match /users/{uid}/ada_responses/{docId} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) && validPhaseASurvey(docId);
       allow update: if isOwner(uid) && validPhaseASurvey(docId)
-        && resource.data.status == 'in_progress';
+        && resource.data.status == 'in_progress'
+        && resource.data.get('channel', 'app') == 'app';
       allow delete: if false;
     }
     match /users/{uid}/day7_open_responses/{docId} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) && validPhaseASurvey(docId);
       allow update: if isOwner(uid) && validPhaseASurvey(docId)
-        && resource.data.status == 'in_progress';
+        && resource.data.status == 'in_progress'
+        && resource.data.get('channel', 'app') == 'app';
       allow delete: if false;
+    }
+
+    // T17b — server-only day-7 status (functions/ada.js).  Holds the
+    // research ID, so no client reads it; researchers see it through the
+    // role-checked adaStaffDay7Status callable.
+    match /ada_status/{uid} {
+      allow read, write: if false;
     }
 
     // ============================================================

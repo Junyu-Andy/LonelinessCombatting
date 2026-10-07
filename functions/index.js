@@ -21,6 +21,7 @@ const safetyClassifier = require("./safety_classifier");
 const featureFlags = require("./feature_flags");
 const blinding = require("./blinding");
 const djgW2 = require("./djg_w2");
+const ada = require("./ada");
 
 admin.initializeApp();
 
@@ -2019,6 +2020,85 @@ exports.onDjgResponseWritten = onDocumentWritten(
     await djgW2.scoreSubmission(admin.firestore(), event.params.uid,
         event.params.timepoint, after);
   },
+);
+
+// ---------------------------------------------------------------------------
+// T17b — Phase A ADA day-7 flow (SPEC:C22, decision 0030).  Phase A only,
+// no LLM.  Off unless app_config/phaseA_schedule turns the ADA or the
+// day-7 open questions on (functions/ada.js).
+//   adaDay7Dispatch: hourly 08:00–21:00 HKT — the day-7 push at the hour
+//     chosen at visit 1, one more 24 h later if not completed, and the
+//     overdue mark after the window (default day 9).  Draft copy carries
+//     【占位】, so nothing is sent until the research team signs it off.
+//   onAdaResponseWritten / onDay7OpenResponseWritten: keep the
+//     server-only ada_status/{uid} (status, research ID) current.
+//   adaStaffDay7Status / adaStaffLoad / adaStaffSave: the researcher page
+//     (role researcher or pi) and phone completion (phone_by_staff).
+// ---------------------------------------------------------------------------
+exports.adaDay7Dispatch = onSchedule(
+  {
+    schedule: "0 8-21 * * *",
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    retryCount: 0,
+  },
+  async (_event) => {
+    await ada.dispatchAdaDay7(admin.firestore(), admin.messaging());
+  },
+);
+
+exports.onAdaResponseWritten = onDocumentWritten(
+  {document: "users/{uid}/ada_responses/{timepoint}", region: "asia-east2"},
+  async (event) => {
+    await ada.refreshStatus(admin.firestore(), event.params.uid);
+  },
+);
+
+exports.onDay7OpenResponseWritten = onDocumentWritten(
+  {
+    document: "users/{uid}/day7_open_responses/{timepoint}",
+    region: "asia-east2",
+  },
+  async (event) => {
+    await ada.refreshStatus(admin.firestore(), event.params.uid);
+  },
+);
+
+/**
+ * Run an ada.js staff call; map its error codes to HttpsError.
+ * @param {function(): Promise<object>} fn
+ * @return {Promise<object>}
+ */
+async function adaStaffCall(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    const known = ["permission-denied", "invalid-argument",
+      "failed-precondition"];
+    if (err && known.indexOf(err.code) >= 0) {
+      throw new HttpsError(err.code, err.message);
+    }
+    console.error("ada staff call failed", {err: String(err)});
+    throw new HttpsError("internal", "ada_staff_failed");
+  }
+}
+
+exports.adaStaffDay7Status = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+  (request) => adaStaffCall(() =>
+    ada.staffDay7Status(admin.firestore(), request.auth)),
+);
+
+exports.adaStaffLoad = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+  (request) => adaStaffCall(() =>
+    ada.staffLoad(admin.firestore(), request.auth, request.data)),
+);
+
+exports.adaStaffSave = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+  (request) => adaStaffCall(() =>
+    ada.staffSave(admin.firestore(), request.auth, request.data)),
 );
 
 // ---------------------------------------------------------------------------

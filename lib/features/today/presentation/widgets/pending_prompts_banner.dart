@@ -18,7 +18,8 @@ import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/time/app_clock.dart';
 import '../../../../core/config/phase_a_schedule_config.dart';
 import '../../../ada/presentation/ada_page.dart';
-import '../../../ada/presentation/day7_open_page.dart';
+import '../../../ada/data/ada_gate.dart';
+import '../../../ada/presentation/day7_flow_page.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
 import '../../../assessment/data/djg_w2.dart';
@@ -29,7 +30,11 @@ import '../../../weekly_pr/data/weekly_pr_trigger.dart';
 import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
 
 class PendingPromptsBanner extends StatefulWidget {
-  const PendingPromptsBanner({super.key});
+  const PendingPromptsBanner({super.key, this.preset});
+
+  /// Tests and screenshots: show these prompts instead of querying.
+  @visibleForTesting
+  final PendingPrompts? preset;
 
   @override
   State<PendingPromptsBanner> createState() => _PendingPromptsBannerState();
@@ -43,6 +48,7 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
   @override
   void initState() {
     super.initState();
+    _pending = widget.preset;
     AppClock.instance.addListener(_onClock);
   }
 
@@ -62,12 +68,13 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (widget.preset != null) return;
     _service ??= PendingPromptsService(analytics: AnalyticsScope.of(context));
     _maybeLoad();
   }
 
   Future<void> _maybeLoad() async {
-    if (_loading || _pending != null) return;
+    if (_loading || _pending != null || widget.preset != null) return;
     final profile = AppSettingsScope.of(context).profile;
     if (profile == null) return;
     setState(() => _loading = true);
@@ -186,13 +193,16 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
     _maybeLoad();
   }
 
-  /// T17 — Phase A day-7 open questions.
-  Future<void> _openDay7Open() async {
+  /// T17b — Phase A day-7 flow (ADA full form + open questions).
+  Future<void> _openDay7Flow(List<Day7Part> parts) async {
     final p = _pending;
+    final sched = PhaseAScheduleConfig.current;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => Day7OpenPage(
-          allowSkip: PhaseAScheduleConfig.current.day7OpenEndedAllowSkip,
+        builder: (_) => Day7FlowPage(
+          parts: parts,
+          adaTimepoint: sched.timepointById(kDay7TimepointId) ??
+              PhaseAScheduleConfig.defaultAdaTimepoints.last,
           enrolmentDay: p?.enrolmentDay,
         ),
       ),
@@ -264,21 +274,24 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
     if (ada != null) {
       tiles.add(_BannerTile(
         icon: Icons.groups_2_outlined,
-        title: isEn ? 'About the three companions' : '三個夥伴嘅幾條問題',
+        title: isEn ? 'About the three companions' : '三位陪伴者嘅幾條問題',
         subtitle: isEn
             ? 'A few minutes: how you see the three companions.'
-            : '幾分鐘，講下你點睇三個夥伴。',
+            : '幾分鐘，講下你點睇三位陪伴者。',
         onTap: () => _openAda(ada),
       ));
     }
-    if (p.day7Open) {
+    if (p.day7Flow.isNotEmpty) {
+      // T17b — draft wording, research team to sign off.
       tiles.add(_BannerTile(
+        key: const ValueKey('day7_flow_card'),
         icon: Icons.edit_note_outlined,
-        title: isEn ? 'A few open questions' : '幾條開放問題',
+        title: isEn ? 'Day 7 questions' : '第 7 日問卷',
         subtitle: isEn
-            ? 'After a week, we would like to hear what you think.'
-            : '用咗一個禮拜，想聽下你嘅諗法。',
-        onTap: _openDay7Open,
+            ? 'You have used the App for a week. We would like to hear '
+                'what you think.'
+            : '用咗一個禮拜，想聽下你嘅諗法。可以分幾次做。',
+        onTap: () => _openDay7Flow(p.day7Flow),
       ));
     }
 
@@ -307,6 +320,7 @@ class _BannerTile extends StatelessWidget {
   final VoidCallback onTap;
 
   const _BannerTile({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,

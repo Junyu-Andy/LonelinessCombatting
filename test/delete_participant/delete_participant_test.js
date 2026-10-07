@@ -96,6 +96,9 @@ async function seedUser(uid) {
   await db.collection('te_audit_queue').add({uid, thoughtPreview: SECRET});
   await db.collection('stt_usage').add({uid, bytes: 10});
   await db.collection('pending_loneliness_probes').doc(uid).set({uid});
+  // T17b: server-only day-7 status (doc id = uid).
+  await db.collection('ada_status').doc(uid).set({uid, researchId: null,
+    day7Status: 'in_progress'});
   await bucket.file(`users/${uid}/note.txt`).save('synthetic file');
 }
 
@@ -162,7 +165,7 @@ test('dry run lists everything and deletes nothing', async () => {
   assert.strictEqual(by['users/{uid}/day7_open_responses/*'], 1);
   for (const c of ['llm_calls', 'safety_events', 'safety_event_dedup',
     'pi_alerts', 'te_audit_queue', 'stt_usage',
-    'pending_loneliness_probes']) {
+    'pending_loneliness_probes', 'ada_status']) {
     assert.strictEqual(by[c], 1, c);
   }
   assert.strictEqual(by['safety_classifier_calls'], 0);
@@ -170,7 +173,7 @@ test('dry run lists everything and deletes nothing', async () => {
   assert.strictEqual(r.found.storageUserFiles, 1);
   assert.deepStrictEqual(r.found.exports.map((e) => e.rows), [2]);
   assert.deepStrictEqual(await residue(UID).then((l) => l.length > 0), true);
-  assert.strictEqual((await residue(UID)).length, 12, 'all still there');
+  assert.strictEqual((await residue(UID)).length, 13, 'all still there');
 });
 
 test('--confirm deletes everything of that person, nothing else', async () => {
@@ -180,7 +183,7 @@ test('--confirm deletes everything of that person, nothing else', async () => {
   // The other participant is untouched.
   const again = await tool.run(ctx({uid: OTHER}));
   const n = again.found.firestore.reduce((s, g) => s + g.count, 0);
-  assert.strictEqual(n, 31); // incl. djg_es + djg_responses (T18), ada + day-7 (T17)
+  assert.strictEqual(n, 32); // incl. djg_es + djg_responses (T18), ada + day-7 (T17), ada_status (T17b)
   assert.strictEqual(again.found.auth, 1);
   // Exports are only counted by default.
   assert.strictEqual(r.exportsPolicy, 'counted only, files not modified');

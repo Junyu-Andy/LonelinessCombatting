@@ -19,7 +19,8 @@
  *              may not exist yet), pending_loneliness_probes (doc id or
  *              uid field), hotline_filter_log (T7), research_id_map
  *              (doc id) and research_ids (T12), enrollments (doc id) and
- *              llm_denied_log (T19).
+ *              llm_denied_log (T19), ada_status (doc id, T17b: day-7
+ *              status and research ID).
  *   Storage    any file under users/{uid}/ (the App writes none today);
  *              rows in the weekly blinded exports exports/{date}/*.ndjson
  *              — see "Exports" below.
@@ -82,6 +83,8 @@ const TOP_LEVEL = [
   // LLM-refusal log.  The allocation log is kept (NOT_COVERED).
   {collection: 'enrollments', field: 'uid', docIdIsUid: true},
   {collection: 'llm_denied_log', field: 'uid'},
+  // T17b (decision 0030): Phase A day-7 status, push times, research ID.
+  {collection: 'ada_status', field: 'uid', docIdIsUid: true},
 ];
 
 const NOT_COVERED = [
