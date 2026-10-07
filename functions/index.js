@@ -10,6 +10,8 @@ const {computeLlmFlags} = require("./llm_flags");
 const arm = require("./arm");
 const memory = require("./memory");
 const llmLog = require("./llm_log");
+const hotline = require("./hotline_filter");
+const {safetyConfig} = require("./safety_config");
 
 admin.initializeApp();
 
@@ -269,6 +271,36 @@ async function assertLlmAllowed(uid) {
   }
 }
 
+// T7 — safety switches live in safety_config.js (`meta/safety_config`).
+/**
+ * One `hotline_filter_log` row per reply in which numbers were replaced.
+ * Never stores the reply or the numbers — only how many, of which kind,
+ * and whether each was one of the approved crisis numbers.
+ * @param {!admin.firestore.Firestore} db Firestore handle.
+ * @param {!Object} row uid / agentId / moduleId / items / ruleVersion.
+ * @return {Promise<void>} Resolves when written (errors are logged).
+ */
+async function logHotlineFilter(db, row) {
+  try {
+    const sum = hotline.summarise(row.items);
+    await db.collection("hotline_filter_log").add({
+      ts: admin.firestore.FieldValue.serverTimestamp(),
+      uid: row.uid || null,
+      agent_id: row.agentId || null,
+      module_id: row.moduleId || null,
+      call_type: llmLog.callTypeForModule(row.moduleId),
+      count: row.items.length,
+      kinds: sum.kinds,
+      approved_count: sum.approved_count,
+      unapproved_count: sum.unapproved_count,
+      filter_version: hotline.FILTER_VERSION,
+      prompt_rule_version: row.ruleVersion || null,
+    });
+  } catch (err) {
+    console.error("hotline_filter_log write failed:", err.message);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // proxyDeepSeek — main LLM entry point. Now supports promptKey resolution
 // in addition to the legacy systemPrompt path.
@@ -330,6 +362,18 @@ exports.proxyDeepSeek = onCall(
       systemPrompt = `${systemPrompt}\n\n${stripPII(memoryBlock)}`;
     }
 
+    // T7 — "never write a phone number" rule, last so it wins.  Appended
+    // after the hash for the same reason as the memory block.
+    const safetyCfg = await safetyConfig(admin.firestore());
+    let hotlineRuleVersion = null;
+    if (safetyCfg.hotlinePromptRule) {
+      const rule = loadPrompt(hotline.PROMPT_RULE_KEY);
+      if (rule) {
+        systemPrompt = `${systemPrompt}\n\n${rule}`;
+        hotlineRuleVersion = hotline.PROMPT_RULE_KEY;
+      }
+    }
+
     // HREC data minimisation: strip identifiers from every outgoing
     // user/assistant message and replace the auth uid with a coded
     // session id.  No raw uid, email, phone, address, HKID leaves the
@@ -382,10 +426,30 @@ exports.proxyDeepSeek = onCall(
     }
 
     const data = response.data;
-    const text = data.choices &&
+    const rawText = data.choices &&
       data.choices[0] &&
       data.choices[0].message &&
       data.choices[0].message.content;
+
+    // T7 — hotline outbound filter: no number the model wrote reaches the
+    // participant; each becomes the crisis-page token the App renders as a
+    // link.  Logged without text.
+    let text = rawText;
+    let hotlineReplaced = 0;
+    if (safetyCfg.hotlineOutputFilter && rawText) {
+      const filtered = hotline.filterHotlines(rawText);
+      if (filtered.count > 0) {
+        text = filtered.text;
+        hotlineReplaced = filtered.count;
+        await logHotlineFilter(admin.firestore(), {
+          uid: request.auth.uid,
+          agentId,
+          moduleId,
+          items: filtered.items,
+          ruleVersion: hotlineRuleVersion,
+        });
+      }
+    }
 
     // B.1 — compute the 5 mechanism flags (Phase A spec May 2026).
     //   1. specific_content_engagement
@@ -395,8 +459,8 @@ exports.proxyDeepSeek = onCall(
     //   5. generative_summary
     // Pure regex pipeline on the (userInput, assistantOutput, agentContext,
     // moduleId) tuple.  Determinism is the contract: same inputs → same
-    // flag bundle.  Both arms go through this CF for safety, but only
-    // Arm A clients persist the result.
+    // flag bundle.  Only Arm A reaches this CF (assertLlmAllowed above);
+    // Arm B never calls an LLM.
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     const llmFlags = computeLlmFlags({
       userInput: lastUser ? (lastUser.content || "") : "",
@@ -414,10 +478,26 @@ exports.proxyDeepSeek = onCall(
       // L-2 — provenance echoed back for the client's per-turn log.
       model: (data && data.model) || null,
       temperature: temperatureFor(agentId),
-      promptVersion: promptVersionFor(payload.promptKey || null),
+      promptVersion: withRuleVersion(
+          promptVersionFor(payload.promptKey || null), hotlineRuleVersion),
+      // T7 — how many phone numbers were replaced, and the rule in force.
+      hotlineReplaced: hotlineReplaced,
+      hotlineRuleVersion: hotlineRuleVersion,
     };
   },
 );
+
+/**
+ * Spec 3.10: promptVersion is built from every prompt file in use, so the
+ * hotline rule joins the persona label ("siu_yan_v1@2026-06+hotline_rule.v1").
+ * @param {?string} personaVersion From promptVersionFor; null for raw prompts.
+ * @param {?string} ruleVersion Hotline rule key, or null when switched off.
+ * @return {?string} Combined label.
+ */
+function withRuleVersion(personaVersion, ruleVersion) {
+  if (!personaVersion || !ruleVersion) return personaVersion;
+  return `${personaVersion}+${ruleVersion}`;
+}
 
 // ---------------------------------------------------------------------------
 // safetyAcknowledgement – returns the templated per-agent safety text.
@@ -784,22 +864,64 @@ exports.transcribeAudio = onCall(
 );
 
 // ---------------------------------------------------------------------------
-// B.7 — safety_events onCreate trigger (Sprint 1.2).
+// B.7 — safety_events onCreate trigger (Sprint 1.2; dedup rewritten T7).
 //
 // Fires when the client writes a new doc to `safety_events/{eventId}`.
 // Responsibilities:
-//   1. Compute dedup_key = sha256(uid + source + textHash + minuteBucket).
-//   2. Attempt to create `safety_event_dedup/{dedup_key}` — if it already
-//      exists, a concurrent write from another source beat us this minute;
-//      skip the PI alert to avoid flooding.
-//   3. Patch the incoming doc with the computed dedup_key.
-//   4. For acute events: send email to PI (if SMTP secrets are configured)
-//      and write to `pi_alerts` collection.
-//
-// Dedup window: 1 minute.  All 3 sources (gateway_input, gateway_output,
-// m3_turn) for the same user + same text hash within one minute collapse
-// to a single alert.
+//   1. Compute dedup_key.  T7 (decision 0018): one conversational turn is
+//      ONE counted event, whichever scans (user_input / ai_output_scan)
+//      fired.  The key therefore never contains `source`:
+//        - with `turnId` (every client since T7): sha256(uid|turn|turnId);
+//        - without (older clients): sha256(uid|textHash|minuteBucket).
+//      The pre-T7 key included `source`, so a turn whose input and output
+//      both matched produced two alerts — the opposite of what this
+//      comment used to promise.
+//   2. Claim `safety_event_dedup/{dedup_key}` in a transaction.  The first
+//      event of the turn is the primary (`isDuplicate: false`).  A later
+//      event of the same turn is marked `isDuplicate: true` +
+//      `duplicateOf`; if its level is higher (e.g. the AI reply scan hit
+//      acute after a moderate input), the primary is raised to that level
+//      and records `escalatedBy`, so counting `isDuplicate == false` rows
+//      gives one row per turn at the turn's highest level.
+//   3. Make sure `source` is present (rules already require it).
+//   4. For acute events (or a duplicate that escalated the turn to acute):
+//      write `pi_alerts` and email PI (if SMTP secrets are configured).
 // ---------------------------------------------------------------------------
+
+const _LEVEL_RANK = {none: 0, low: 1, moderate: 2, acute: 3};
+const _TIER_RANK = {
+  none: 0, low: 1, moderate_review: 2, moderate_interrupt: 3, acute: 4,
+};
+
+/**
+ * Severity rank of an event (tier when present, else the legacy level).
+ * @param {?string} level Legacy 4-band level.
+ * @param {?string} tier S-1 tier code.
+ * @return {number} Higher is more severe.
+ */
+function severityRank(level, tier) {
+  if (tier && Object.prototype.hasOwnProperty.call(_TIER_RANK, tier)) {
+    return _TIER_RANK[tier];
+  }
+  const r = _LEVEL_RANK[level];
+  // Legacy `moderate` sits between review and interrupt; treat it as
+  // interrupt (the fail-safe side, like DistressLevel.parse).
+  return r === 2 ? 3 : (r === 3 ? 4 : (r || 0));
+}
+
+/**
+ * dedup key for an event; see the block comment above.
+ * @param {!Object} data Event fields.
+ * @param {number} minuteBucket Floor(createTime / 60 s).
+ * @return {string} hex sha256.
+ */
+function safetyDedupKey(data, minuteBucket) {
+  const uid = data.uid || "";
+  const input = data.turnId ?
+    `${uid}|turn|${data.turnId}` :
+    `${uid}|${data.textHash || ""}|${minuteBucket}`;
+  return crypto.createHash("sha256").update(input, "utf8").digest("hex");
+}
 
 exports.onSafetyEventCreated = onDocumentCreated(
   {
@@ -817,48 +939,82 @@ exports.onSafetyEventCreated = onDocumentCreated(
     const uid = data.uid || "";
     const source = data.source || "unknown";
     const textHash = data.textHash || "";
-    const level = data.level || "none";
+    let level = data.level || "none";
+    const tier = data.tier || null;
+    const rank = severityRank(level, tier);
 
     // minuteBucket: floor to 1-minute window using the doc's server timestamp.
     const createSeconds = snap.createTime ?
       snap.createTime.seconds :
       Math.floor(Date.now() / 1000);
     const minuteBucket = Math.floor(createSeconds / 60);
+    const dedupKey = safetyDedupKey(data, minuteBucket);
 
-    const dedupInput = `${uid}|${source}|${textHash}|${minuteBucket}`;
-    const dedupKey = crypto
-      .createHash("sha256")
-      .update(dedupInput, "utf8")
-      .digest("hex");
-
-    // Patch the event doc with the computed dedup_key for auditability.
-    await snap.ref.update({dedup_key: dedupKey});
-
-    // Attempt to claim the dedup slot.  If it already exists, another source
-    // fired within the same minute — skip the PI alert.
+    // Claim the dedup slot.  An existing slot means another scan of the
+    // same turn got there first: this event is a duplicate, and may raise
+    // the turn's level.
     const dedupRef = db.collection("safety_event_dedup").doc(dedupKey);
+    let primaryPath = null;
+    let primaryRank = 0;
     try {
       await db.runTransaction(async (tx) => {
         const existing = await tx.get(dedupRef);
         if (existing.exists) {
-          throw new Error("duplicate");
+          primaryPath = existing.get("eventRef") || null;
+          primaryRank = existing.get("rank") || 0;
+          if (rank > primaryRank) {
+            tx.update(dedupRef, {rank, level, tier});
+          }
+          return;
         }
         tx.create(dedupRef, {
           uid,
           source,
           textHash,
+          turnId: data.turnId || null,
           minuteBucket,
+          rank,
+          level,
+          tier,
           eventRef: snap.ref.path,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       });
     } catch (err) {
-      if (err.message === "duplicate") {
+      // Unexpected error: log and fall through so the alert still fires.
+      console.error("safety_event dedup tx error:", err);
+    }
+
+    const patch = {dedup_key: dedupKey, isDuplicate: primaryPath !== null};
+    if (!data.source) patch.source = source;
+    if (primaryPath !== null) patch.duplicateOf = primaryPath;
+    await snap.ref.update(patch);
+
+    if (primaryPath !== null) {
+      if (rank <= primaryRank) {
         console.log(`safety_event dedup hit for key=${dedupKey.slice(0, 8)}`);
         return;
       }
-      // Unexpected error: log and fall through so the alert still fires.
-      console.error("safety_event dedup tx error:", err);
+      // Same turn, higher level: raise the primary so the counted row
+      // carries the turn's highest level.
+      try {
+        await db.doc(primaryPath).update({
+          level,
+          tier,
+          escalatedBy: {
+            source,
+            eventPath: snap.ref.path,
+            matchedTerm: data.matchedTerm || null,
+            category: data.category || null,
+          },
+        });
+      } catch (err) {
+        console.error("safety_event escalation update failed:", err.message);
+      }
+      // Alert only if the turn just became acute; an acute primary
+      // already alerted.
+      if (level !== "acute" || primaryRank >= _TIER_RANK.acute) return;
+      level = "acute";
     }
 
     // Only acute events page PI immediately.
@@ -881,6 +1037,7 @@ exports.onSafetyEventCreated = onDocumentCreated(
     const alertPayload = {
       uid,
       source,
+      inputPoint: data.inputPoint || null,
       level,
       agentId,
       dedupKey,
@@ -930,6 +1087,7 @@ exports.onSafetyEventCreated = onDocumentCreated(
         "An acute distress event was detected.",
         `Agent: ${agentId}`,
         `Source: ${source}`,
+        `Input point: ${data.inputPoint || "unknown"}`,
         `Event path: ${snap.ref.path}`,
         "",
         "Review the safety_events collection in the Firebase Console.",
