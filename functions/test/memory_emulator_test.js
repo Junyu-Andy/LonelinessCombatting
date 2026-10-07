@@ -31,7 +31,10 @@ async function reset({enabled = true, optIn = true, arm = "A"} = {}) {
     await Promise.all(docs.map((d) => d.delete()));
   }
   await db.doc("meta/memory_config").set({enabled, policy: "C"});
-  await user().set({memory_enabled: optIn, arm});
+  // Decision 0020: sharing is enforced by default; existing accounts are
+  // migrated to sharedContextUse: true.
+  await user().set({memory_enabled: optIn, arm,
+    consent: {sharedContextUse: true}});
 }
 
 async function seedBuffer(agentId, lines) {
@@ -245,6 +248,67 @@ test("Phase B Arm A gets memory without opting in; Phase A Arm A does not",
       await user().set({memory_enabled: false, arm: "B",
         armAssignmentMode: "randomise"});
       assert.strictEqual(await m.injectMemory(db, args), "");
+    });
+
+test("sharedContextUse consent: enforced + off → only own items (C20)",
+    async () => {
+      await reset();
+      await seedBuffer("tung_tung", [
+        [true, "大家都叫我陳太。我鍾意飲早茶。"],
+      ]);
+      const id = await m.claimBuffer(db, UID, "tung_tung");
+      await m.processExtraction(db, UID, id, stub(GOOD), NOW);
+      const args = {uid: UID, agentId: "siu_yan", moduleId: "m2_check_in",
+        messages: [{role: "user", content: "hi"}], now: NOW};
+      const setUser = (shared) => user().set({memory_enabled: true,
+        arm: "A", consent: {sharedContextUse: shared}});
+      try {
+        // Switch explicitly off: consent ignored.
+        await db.doc("app_config/phase_a").set(
+            {enforceSharedContextConsent: false});
+        await setUser(false);
+        assert.ok((await m.injectMemory(db, args)).includes("陳太"));
+        // Default (no app_config/phase_a) is on: consent off → Tung Tung's
+        // shared fact stays with it.
+        await db.doc("app_config/phase_a").delete();
+        assert.strictEqual(await m.injectMemory(db, args), "");
+        const own = await m.injectMemory(db, {...args,
+          agentId: "tung_tung", moduleId: "tung_tung_chat"});
+        assert.ok(own.includes("陳太"), "own agent still sees it");
+        // Switch on, consent on: shared again.
+        await setUser(true);
+        assert.ok((await m.injectMemory(db, args)).includes("陳太"));
+        const logs = (await user().collection("mem_injections").get()).docs
+            .map((d) => d.get("policy"));
+        assert.ok(logs.includes("B") && logs.includes("C"), String(logs));
+      } finally {
+        await db.doc("app_config/phase_a").delete();
+      }
+    });
+
+test("sharedContextUse consent: extractor sees only own facts (C20)",
+    async () => {
+      await reset();
+      await user().collection("mem_facts").add({agent_id: "siu_yan",
+        category: "name", key: "稱呼", value: "陳太", status: "active",
+        visibility: "shared", sensitivity: "normal"});
+      await user().set({memory_enabled: true, arm: "A",
+        consent: {sharedContextUse: false}});
+      await db.doc("app_config/phase_a").set(
+          {enforceSharedContextConsent: true});
+      try {
+        await seedBuffer("tung_tung", [[true, "我鍾意飲早茶。"]]);
+        const id = await m.claimBuffer(db, UID, "tung_tung");
+        let prompt = "";
+        await m.processExtraction(db, UID, id, async (p) => {
+          prompt = JSON.stringify(p);
+          return JSON.stringify({summary: "", facts: [], followups: []});
+        }, NOW);
+        assert.ok(prompt.length > 0);
+        assert.ok(!prompt.includes("陳太"), "Siu Yan's fact not shown");
+      } finally {
+        await db.doc("app_config/phase_a").delete();
+      }
     });
 
 (async () => {

@@ -15,6 +15,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../features/auth/data/user_profile.dart';
 import '../agent_context/shared_context_service.dart';
 import '../llm/llm_gateway.dart';
+import '../privacy/shared_context_consent.dart';
 import 'cooldown_manager.dart';
 import 'keyword_filter.dart';
 import 'triggers_config.dart';
@@ -129,7 +130,9 @@ class ReferralRoutingService {
           id: id,
           fromAgent: sourceAgentId,
           toAgent: match.trigger.targetAgentId,
-          triggerSnippet: userTurn,
+          // C20: empty when sharedContextUse consent is enforced and off.
+          triggerSnippet:
+              SharedContextConsent.referralSnippet(profile, userTurn),
           suggestionText: decision.suggestion.trim(),
           proposedAt: DateTime.now(),
         ),

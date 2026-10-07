@@ -25,6 +25,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/config/phase_a_config.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_profile.dart';
@@ -48,12 +49,16 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
   /// Phase A defaults transcript retention to ON for every agent.
   /// The matching informed-consent statement is collected on paper
   /// rather than in the app per the May-2026 review, so we no longer
-  /// surface the per-agent toggles here.
-  static const Map<String, bool> _transcriptRetentionByAgent = {
-    AgentRegistry.siuYanId: true,
-    AgentRegistry.ahJanAhBakId: true,
-    AgentRegistry.tungTungId: true,
-  };
+  /// surface the per-agent toggles here.  C20 / decision 0020: the value
+  /// comes from config (`transcriptRetentionDefault`, default ON).
+  static Map<String, bool> get _transcriptRetentionByAgent {
+    final on = PhaseAConfig.current.transcriptRetentionDefault;
+    return {
+      AgentRegistry.siuYanId: on,
+      AgentRegistry.ahJanAhBakId: on,
+      AgentRegistry.tungTungId: on,
+    };
+  }
 
   bool _busy = false;
   String? _error;

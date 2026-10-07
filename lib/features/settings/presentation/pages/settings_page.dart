@@ -4,6 +4,7 @@ import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/feature_flags/feature_flags.dart';
 import '../../../../core/memory/memory_mode.dart';
+import '../../../../core/privacy/transcript_retention.dart';
 import '../../../../core/testing/tester_gate.dart';
 import '../../../../core/version/build_info.dart';
 import '../../data/tester_tools.dart';
@@ -126,6 +127,30 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const MyStoryPage()),
             ),
+          ),
+          // C20 / decision 0020: the participant's own off switch for
+          // transcript retention (both arms; default stays on).
+          const SizedBox(height: 10),
+          _TranscriptRetentionTile(
+            isEn: isEn,
+            value: TranscriptRetention.isOn(settings.profile),
+            onChanged: settings.profile == null
+                ? null
+                : (value) async {
+                    final profile = settings.profile!;
+                    final updated = profile.copyWith(
+                      consent:
+                          TranscriptRetention.set(profile.consent, value),
+                    );
+                    settings.profile = updated;
+                    try {
+                      await AuthServiceScope.of(context)
+                          .updateProfile(updated);
+                    } catch (_) {
+                      // Offline / guest: the local value stands; the SDK
+                      // syncs later.
+                    }
+                  },
           ),
 
           // Memory v1: Phase B Arm A has it (no toggle); testers on a

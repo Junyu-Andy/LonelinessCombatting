@@ -17,6 +17,7 @@ import '../../../../core/cross_referral/referral_suggestion_card.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/memory/cross_module_memory.dart';
+import '../../../../core/privacy/shared_context_consent.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/safety/safety_copy.dart';
 import '../../../../core/session/chat_session_recorder.dart';
@@ -470,7 +471,10 @@ class _CheckInArmAState extends State<CheckInArmA> {
     // ask the budget service whether M2 may lightly reference recent
     // M3 reminiscence content. Subsequent turns reuse whatever the
     // first turn resolved so the LLM keeps consistent context.
-    if (isFirstTurn && profile != null) {
+    // C20: skipped when sharedContextUse consent is enforced and off.
+    if (isFirstTurn &&
+        profile != null &&
+        SharedContextConsent.allowsCrossAgent(profile)) {
       final inputFlag = core.distress.analyze(text);
       _crossModuleCallbackUsedThisSession =
           await core.crossModuleMemory.getEligibleCallback(

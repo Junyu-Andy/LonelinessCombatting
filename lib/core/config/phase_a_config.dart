@@ -30,6 +30,9 @@ class PhaseAConfig {
     this.week1NudgeDays = const [3, 6],
     this.safetyScanAllInputs = true,
     this.hotlineFilterClient = true,
+    this.transcriptRetentionDefault = true,
+    this.sharedContextUseDefault = true,
+    this.enforceSharedContextConsent = true,
   });
 
   /// M-7 — agent session ends after this many minutes without a user
@@ -73,6 +76,29 @@ class PhaseAConfig {
   /// T7 — App-side second pass of the hotline filter on AI replies (the
   /// server pass is `meta/safety_config.hotlineOutputFilter`).  Default ON.
   final bool hotlineFilterClient;
+
+  /// C20 — value written to `consent.transcriptRetention` (and every
+  /// per-agent entry) when the participant taps 繼續 on the consent page
+  /// and finishes agent onboarding.  Default ON keeps today's behaviour;
+  /// the research team sets the final value to match the ICF (decision
+  /// 0020).  Only affects accounts that have not consented yet.
+  final bool transcriptRetentionDefault;
+
+  /// C20 — value written to `consent.sharedContextUse` on the consent
+  /// page.  Default ON: the three companions share basic information
+  /// unless the participant asks the research team to turn it off
+  /// (decision 0020).
+  final bool sharedContextUseDefault;
+
+  /// C20 — when true, `consent.sharedContextUse` really controls
+  /// cross-agent sharing: if it is not true, each agent only uses its
+  /// own memory (App: v0 cross-module callback + referral snippet;
+  /// server: memory v1 policy forced to B).  Default ON (decision 0020);
+  /// existing accounts are set to true by
+  /// tool/set_shared_context_consent.js before this ships.  The server
+  /// reads the same key from `app_config/phase_a` (functions/memory.js
+  /// `loadConfig`) and is also on unless the key is explicitly false.
+  final bool enforceSharedContextConsent;
 
   static PhaseAConfig _current = const PhaseAConfig();
 
@@ -125,6 +151,12 @@ class PhaseAConfig {
       week1NudgeDays: nudge,
       safetyScanAllInputs: b('safetyScanAllInputs', base.safetyScanAllInputs),
       hotlineFilterClient: b('hotlineFilterClient', base.hotlineFilterClient),
+      transcriptRetentionDefault:
+          b('transcriptRetentionDefault', base.transcriptRetentionDefault),
+      sharedContextUseDefault:
+          b('sharedContextUseDefault', base.sharedContextUseDefault),
+      enforceSharedContextConsent:
+          b('enforceSharedContextConsent', base.enforceSharedContextConsent),
     );
   }
 
@@ -139,5 +171,8 @@ class PhaseAConfig {
         'week1NudgeDays': week1NudgeDays,
         'safetyScanAllInputs': safetyScanAllInputs,
         'hotlineFilterClient': hotlineFilterClient,
+        'transcriptRetentionDefault': transcriptRetentionDefault,
+        'sharedContextUseDefault': sharedContextUseDefault,
+        'enforceSharedContextConsent': enforceSharedContextConsent,
       };
 }
