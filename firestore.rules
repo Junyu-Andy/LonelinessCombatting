@@ -29,6 +29,7 @@ rules_version = '2';
 //   safety_event_dedup/{dedupKey}                -> *new* B.7 dedup sentinel (admin-write only)
 //   pi_alerts/{alertId}                          -> *new* B.7 acute alert queue (admin-write only)
 //   llm_calls/{callId}                           -> C04 per-call model log (Cloud Functions only)
+//   research_id_map/{uid}, research_ids/{rid}    -> T12 research-ID lookup (server-write; unblinded role read)
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -39,6 +40,13 @@ service cloud.firestore {
 
     function isOwner(uid) {
       return isAuthed() && request.auth.uid == uid;
+    }
+
+    // T12 (decision 0021): roles are Auth custom claims set by
+    // tool/provision_researcher.js.  role == 'pi' is the unblinded role;
+    // role == 'researcher' is blinded.  Participants have no role.
+    function isUnblinded() {
+      return isAuthed() && request.auth.token.role == 'pi';
     }
 
     // ============================================================
@@ -178,6 +186,21 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // T12 research IDs (functions/blinding.js is the only writer).
+    // The uid <-> research ID lookup de-pseudonymises the blinded
+    // export, so only the unblinded role may read it; nobody writes
+    // from a client.  meta/blinding_config has no rule: admin only.
+    // ============================================================
+    match /research_id_map/{uid} {
+      allow read: if isUnblinded();
+      allow write: if false;
+    }
+    match /research_ids/{researchId} {
+      allow read: if isUnblinded();
+      allow write: if false;
+    }
+
+    // ============================================================
     // C.2 stratified RCT arm-balance counter (Sprint 1.4).
     //
     // Schema: { cell_0: {aCount, bCount}, cell_1: ..., cell_2: ...,
@@ -192,7 +215,10 @@ service cloud.firestore {
     // (concurrent signups); keep the rule tight.
     // ============================================================
     match /meta/arm_counter {
-      allow read: if isAuthed();
+      // T12: per-arm counts are unblinding information.  The app no
+      // longer reads this doc (assignArm runs on the server), so only
+      // the unblinded role may.
+      allow read: if isUnblinded();
 
       // Written as per-count deltas: the previous nested-helper form
       // (cellPrior/cellNext/validIncrement/cellUnchanged over 4 × 4

@@ -10,6 +10,7 @@ const {computeLlmFlags} = require("./llm_flags");
 const arm = require("./arm");
 const memory = require("./memory");
 const llmLog = require("./llm_log");
+const blinding = require("./blinding");
 
 admin.initializeApp();
 
@@ -1198,6 +1199,22 @@ exports.blindedDataExport = onSchedule(
     const dateKey = new Date()
       .toLocaleDateString("en-CA", {timeZone: "Asia/Hong_Kong"}); // YYYY-MM-DD
 
+    // T12 (decision 0021): with meta/blinding_config.enabled the v2 export
+    // (research IDs, fixed group mapping, outcome allowlist) replaces the
+    // legacy one below.  Off by default.
+    const blindingConfig = await blinding.readBlindingConfig(db);
+    if (blindingConfig.enabled) {
+      const built = await blinding.buildBlindedExport(db, {
+        dateKey, includeUsageSummary: blindingConfig.includeUsageSummary,
+        includeBriefPr: blindingConfig.includeBriefPr,
+      });
+      const n = await blinding.writeBlindedExport(
+          admin.storage().bucket(), built, dateKey);
+      console.log(`blindedDataExport v2: wrote ${n} files for ${dateKey}`);
+      return;
+    }
+
+    // Legacy export (switch off).  Known leaks: T2 report 3.3.
     // Generate this week's blind mapping (X/Y → A/B) and salt.  Stored
     // in a separate collection that the working analyst cannot read; only
     // the PI's service account.

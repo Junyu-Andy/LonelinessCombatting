@@ -165,18 +165,20 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | 位置 | 内容 |
 |---|---|
 | `app_config/arm_assignment` | `{randomise: bool}`：是否随机分组 |
-| `meta/arm_counter` | 4 个层各自的 A/B 人数 |
+| `meta/arm_counter` | 4 个层各自的 A/B 人数。只有非盲角色能读 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开 |
 | `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列 |
 | `llm_calls` | 每次调用 DeepSeek 一条：时间、调用类型、agent、uid、请求和返回的模型名、`system_fingerprint`、token 数（含思考 token）、HTTP 状态码、延迟、是否出错。不存原文。只有服务器写，App 不能读写（决策 0016） |
-| `export_blind_keys` | 盲法导出时组别 → Group_X / Group_Y 的对照 |
+| `export_blind_keys` | 盲法导出时组别 → Group_X / Group_Y 的对照。新版用固定的 `stable_v2`，不再每周换 |
+| `research_id_map/{uid}`、`research_ids/{researchId}` | 研究编号对照表（决策 0021）。只有服务器写，只有非盲角色（`role: pi`）能读 |
+| `meta/blinding_config` | 盲法开关：`enabled`、`includeBriefPr`、`includeUsageSummary`，都默认 false。客户端不能读写 |
 
 ## 9. Cloud Functions
 
 | 函数 | 触发 | 做什么 |
 |---|---|---|
 | `proxyDeepSeek` | App 调用 | 所有 LLM 对话；拼 prompt 和记忆 |
-| `assignArm` | App 调用（注册、登录补分） | 分组 |
+| `assignArm` | App 调用（注册、登录补分） | 分组；盲法开关开时同时生成研究编号 |
 | `memoryEndSession` | App 调用（离开聊天页） | v1：整理这次对话的记忆 |
 | `memorySweep` | 每 15 分钟 | v1：补整理 30 分钟没有新消息的对话 |
 | `referralJudgement` | App 调用 | 跨陪伴者转介的第二层判断（只 A 组） |
@@ -186,7 +188,7 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | `onSafetyEventCreated` | 新安全事件 | 通知 PI |
 | `onThoughtExerciseCreated` | 新思维练习 | 写入研究员审计队列 `te_audit_queue` |
 | `weeklyLonelinessProbe` | 每周日 9:00（香港时间，下同） | 生成周度孤独感问卷队列（App 端默认不显示） |
-| `blindedDataExport` | 每周日 2:00 | 盲法数据导出 |
+| `blindedDataExport` | 每周日 2:00 | 盲法数据导出。`meta/blinding_config.enabled` 开：新版（`functions/blinding.js`，研究编号、结局量表白名单），写到 `exports_v2/{日期}/`，可用 `tool/check_blinded_export.js` 检查；关：旧版 `exports/{日期}/` |
 | `dailyMoodReminder` | 周一至六 19:00 | 每日情绪提醒 |
 | `weeklySurveyReminder` | 周日 20:00 | 周问卷提醒 |
 | `week2Push` | 每天 10:00 | 第二周推送 |
