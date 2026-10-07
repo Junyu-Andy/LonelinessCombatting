@@ -87,6 +87,21 @@ async function seedUser(uid, arm, extra) {
     answers: {e1: 1, e2: 0}, score: 3, status: "completed",
     answeredAt: ts("2026-10-01T03:00:00Z"),
     answeredAtLocal: "2026-10-01T11:00:00.000"});
+  // T18: the W2 DJG doc as the App + server leave it after scoring.
+  await u.collection("djg_responses").doc("W2").set({timepoint: "W2",
+    itemsVersion: "djg6_pkg3_v1",
+    answers: {q1: "yes", q2: "mostly", q3: "no", q4: "no", q5: "skipped",
+      q6: "yes"},
+    status: "submitted", startedAt: ts("2026-10-14T02:05:00Z"),
+    startedAtLocal: "2026-10-14T10:05:00.000",
+    submittedAt: ts("2026-10-14T02:08:00Z"),
+    submittedAtLocal: "2026-10-14T10:08:00.000",
+    updatedAt: ts("2026-10-14T02:08:00Z"),
+    pushSentAt: ts("2026-10-14T02:00:00Z"),
+    scores: {emotional: 2, social: null, total: null},
+    scoringVersion: "djg6_pkg3_v1", scoredAt: ts("2026-10-14T02:08:01Z"),
+    outsideWindow: false, w0Date: "2026-10-01",
+    windowStartDate: "2026-10-14", windowEndDate: "2026-10-20"});
   await u.collection("agent_diff").add({wave: 1, timepoint: "d7",
     usageFreq: {siu_yan: 3}, personality: {siu_yan: {warm: 5}},
     function: null, freeResponse: "小欣好似識得諗嘢咁",
@@ -253,6 +268,19 @@ test("v2 export of a synthetic two-arm cohort passes the checker",
       assert.strictEqual(usage.length, 2); // both sessions in 2026-W41
       assert.ok(usage.every((r) => r.isoWeek === "2026-W41" &&
           r.sessionCount === 2 && r.activeDays === 2));
+      // T18: W2 DJG rows from both arms, scores kept, same field set.
+      const djg = readNdjson(dir, "djg_responses");
+      assert.strictEqual(djg.length, 2);
+      assert.deepStrictEqual(djg.map((r) => r.groupCode).sort(),
+          ["Group_X", "Group_Y"]);
+      assert.deepStrictEqual(djg[0].scores,
+          {emotional: 2, social: null, total: null});
+      assert.deepStrictEqual(Object.keys(djg[0]).sort(),
+          Object.keys(djg[1]).sort());
+      for (const r of djg) {
+        assert.strictEqual(r.startedAtLocal, undefined);
+        assert.strictEqual(r.scoredAt, undefined);
+      }
       // Brief PR is held back unless asked for (decision 0021).
       assert.strictEqual(readNdjson(dir, "brief_pr").length, 0);
       // No raw uid anywhere in any file.

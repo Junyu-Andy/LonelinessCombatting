@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'app/app.dart';
 import 'app/app_settings.dart';
 import 'core/config/phase_a_config.dart';
+import 'core/config/phase_b_config.dart';
+import 'core/feature_flags/feature_flags.dart';
 import 'core/feature_flags/remote_feature_flags.dart';
 import 'core/safety/safety_copy.dart';
 import 'core/agent_context/agent_context_service.dart';
@@ -70,6 +72,9 @@ Future<void> main() async {
   // C18 — search / voice switches (all off unless app_config/feature_flags
   // says true; decision 0019).
   await RemoteFeatureFlags.load(available: firebaseReady);
+  // T18 — Phase B-only keys (in-app W2 DJG; decision 0027).  A Phase A
+  // build skips the read: nothing there applies to it.
+  await PhaseBConfig.load(available: firebaseReady && FeatureFlags.phaseB);
 
   const detector = DistressDetector();
   final distressState = DistressState();
