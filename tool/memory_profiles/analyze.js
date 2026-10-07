@@ -141,7 +141,8 @@ for (const {p, r} of data) {
     facts_per_session: S.length ? +(sum(S, (s) => s.new_facts.length) / S.length).toFixed(1) : 0};
 
   // Planted lines.
-  const planted = S.flatMap((s) => s.planted.map((x) => Object.assign({session: s.index, turns: s.turns}, x)));
+  const MATCH = Object.fromEntries(p.sessions.flatMap((s) => s.planted).map((x) => [x.id, x.match]));
+  const planted = S.flatMap((s) => s.planted.map((x) => Object.assign({session: s.index, turns: s.turns, match: MATCH[x.id]}, x)));
   const captured = (x) => !!(x.fact || x.followup);
   const inBuf = planted.filter((x) => x.in_buffer && x.kind !== "dont_store");
   const outBuf = planted.filter((x) => !x.in_buffer && x.kind !== "dont_store");
