@@ -46,7 +46,13 @@ FALLBACK = "assets/config/llm_fallback_messages.json"
 SUMMARISER = "lib/core/agent_context/rolling_summary_compiler.dart"
 FUNCTIONS_INDEX = "functions/index.js"
 
-BUNDLE_ORDER = PROMPTS + [SUFFIX_TEMPLATE, ACKS, CRISIS, FALLBACK]
+# Versioned persona files the server loads instead of a v1 file
+# (functions/index.js PROMPT_FILES, spec 3.10).
+PROMPTS_V2 = [
+    "functions/prompts/tung_tung.v2.txt",
+]
+
+BUNDLE_ORDER = PROMPTS + PROMPTS_V2 + [SUFFIX_TEMPLATE, ACKS, CRISIS, FALLBACK]
 
 
 def read(path: str) -> str:

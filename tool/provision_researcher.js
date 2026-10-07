@@ -14,12 +14,15 @@
  *   node tool/provision_researcher.js --uid=abc123 --role=pi
  *   node tool/provision_researcher.js --email=alice@hku.hk --revoke
  *
- * Roles:
- *   researcher — working analyst.  Sees engagement, TE audit queue, PPR
- *                aggregates, blinded transcripts.  Cannot read
- *                export_blind_keys (would de-blind).
- *   pi         — principal investigator.  Sees everything researcher does
- *                plus PI alerts and blind keys.  Use sparingly.
+ * Roles (T12, decision 0021 — firestore.rules isUnblinded()):
+ *   researcher — BLINDED working analyst.  Sees engagement totals, PPR
+ *                aggregates and distress flags; the dashboard hides
+ *                per-arm counts and single-arm sections.  Cannot read
+ *                export_blind_keys or the research-ID lookup.
+ *   pi         — UNBLINDED (principal investigator).  Sees everything
+ *                researcher does plus per-arm counts, and may read the
+ *                research-ID lookup (research_id_map / research_ids).
+ *                Use sparingly.
  *
  * Side effects:
  *   - Forces token refresh on the user's next sign-in so the claim takes

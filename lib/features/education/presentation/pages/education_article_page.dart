@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/llm/llm_gateway.dart';
@@ -102,6 +103,7 @@ Here is the article:
       systemPrompt: template.replaceAll('%ARTICLE%', body),
       history: history,
       userInput: text,
+      uid: AppSettingsScope.read(context).profile?.uid,
     );
     if (!mounted) return;
     setState(() {

@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../core/safety/hotline_filter.dart';
+
 /// Renders chat-bubble text that may contain a small subset of markdown
 /// (`**bold**`, `*italic*`, leading `#` headings) without dragging in a
 /// full markdown package.  LLM replies often arrive with these markers
 /// even after the prompt asks for plain text, and raw asterisks read as
 /// noise to older users.
+///
+/// T7: the hotline token ([kHotlineToken]) that replaces any phone number in
+/// an AI reply is rendered as a [HotlineLink] to the crisis page.
 class RichChatText extends StatelessWidget {
   final String text;
   final TextStyle style;
@@ -19,8 +24,19 @@ class RichChatText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final parts = text.split(kHotlineToken);
+    final spans = <InlineSpan>[];
+    for (var i = 0; i < parts.length; i++) {
+      if (i > 0) {
+        spans.add(WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: HotlineLink(style: style),
+        ));
+      }
+      if (parts[i].isNotEmpty) spans.addAll(_parse(parts[i], style));
+    }
     return Text.rich(
-      TextSpan(children: _parse(text, style)),
+      TextSpan(children: spans),
       textAlign: textAlign,
     );
   }

@@ -28,6 +28,11 @@ class PhaseAConfig {
     this.w2DayOffset = 14,
     this.w2WindowDays = 3,
     this.week1NudgeDays = const [3, 6],
+    this.safetyScanAllInputs = true,
+    this.hotlineFilterClient = true,
+    this.transcriptRetentionDefault = true,
+    this.sharedContextUseDefault = true,
+    this.enforceSharedContextConsent = true,
   });
 
   /// M-7 — agent session ends after this many minutes without a user
@@ -60,6 +65,40 @@ class PhaseAConfig {
   /// P-1 — enrolment days on which the "you haven't tried {agent}" nudge
   /// may show.
   final List<int> week1NudgeDays;
+
+  /// T7 (decision 0018) — run the shared safety check on every free-text
+  /// input added in T7 (Thought Exercise, intake, agent comparison,
+  /// feedback "other", action plan, follow-up note, weekly questionnaire,
+  /// summary edits, search words).  Default ON (decided, SPEC C12); false
+  /// restores the pre-T7 coverage.  Chat inputs are scanned either way.
+  final bool safetyScanAllInputs;
+
+  /// T7 — App-side second pass of the hotline filter on AI replies (the
+  /// server pass is `meta/safety_config.hotlineOutputFilter`).  Default ON.
+  final bool hotlineFilterClient;
+
+  /// C20 — value written to `consent.transcriptRetention` (and every
+  /// per-agent entry) when the participant taps 繼續 on the consent page
+  /// and finishes agent onboarding.  Default ON keeps today's behaviour;
+  /// the research team sets the final value to match the ICF (decision
+  /// 0020).  Only affects accounts that have not consented yet.
+  final bool transcriptRetentionDefault;
+
+  /// C20 — value written to `consent.sharedContextUse` on the consent
+  /// page.  Default ON: the three companions share basic information
+  /// unless the participant asks the research team to turn it off
+  /// (decision 0020).
+  final bool sharedContextUseDefault;
+
+  /// C20 — when true, `consent.sharedContextUse` really controls
+  /// cross-agent sharing: if it is not true, each agent only uses its
+  /// own memory (App: v0 cross-module callback + referral snippet;
+  /// server: memory v1 policy forced to B).  Default ON (decision 0020);
+  /// existing accounts are set to true by
+  /// tool/set_shared_context_consent.js before this ships.  The server
+  /// reads the same key from `app_config/phase_a` (functions/memory.js
+  /// `loadConfig`) and is also on unless the key is explicitly false.
+  final bool enforceSharedContextConsent;
 
   static PhaseAConfig _current = const PhaseAConfig();
 
@@ -96,6 +135,7 @@ class PhaseAConfig {
   static PhaseAConfig fromMap(Map<String, dynamic> map,
       {PhaseAConfig base = const PhaseAConfig()}) {
     int i(String k, int d) => (map[k] as num?)?.toInt() ?? d;
+    bool b(String k, bool d) => map[k] is bool ? map[k] as bool : d;
     final nudgeRaw = map['week1NudgeDays'];
     final nudge = nudgeRaw is List
         ? nudgeRaw.whereType<num>().map((e) => e.toInt()).toList()
@@ -109,6 +149,14 @@ class PhaseAConfig {
       w2DayOffset: i('w2DayOffset', base.w2DayOffset),
       w2WindowDays: i('w2WindowDays', base.w2WindowDays),
       week1NudgeDays: nudge,
+      safetyScanAllInputs: b('safetyScanAllInputs', base.safetyScanAllInputs),
+      hotlineFilterClient: b('hotlineFilterClient', base.hotlineFilterClient),
+      transcriptRetentionDefault:
+          b('transcriptRetentionDefault', base.transcriptRetentionDefault),
+      sharedContextUseDefault:
+          b('sharedContextUseDefault', base.sharedContextUseDefault),
+      enforceSharedContextConsent:
+          b('enforceSharedContextConsent', base.enforceSharedContextConsent),
     );
   }
 
@@ -121,5 +169,10 @@ class PhaseAConfig {
         'w2DayOffset': w2DayOffset,
         'w2WindowDays': w2WindowDays,
         'week1NudgeDays': week1NudgeDays,
+        'safetyScanAllInputs': safetyScanAllInputs,
+        'hotlineFilterClient': hotlineFilterClient,
+        'transcriptRetentionDefault': transcriptRetentionDefault,
+        'sharedContextUseDefault': sharedContextUseDefault,
+        'enforceSharedContextConsent': enforceSharedContextConsent,
       };
 }

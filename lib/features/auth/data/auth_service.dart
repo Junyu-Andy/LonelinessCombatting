@@ -146,10 +146,13 @@ class AuthService {
     await _auth.signOut();
   }
 
-  Future<void> updateProfile(UserProfile profile) async {
+  /// [includeSharedContextUse] is true only on the consent page (decision
+  /// 0020; see [ConsentFlags.sharedContextUse]).
+  Future<void> updateProfile(UserProfile profile,
+      {bool includeSharedContextUse = false}) async {
     _ensureAvailable();
     await _db.collection('users').doc(profile.uid).set(
-      profile.toMap(),
+      profile.toMap(includeSharedContextUse: includeSharedContextUse),
       SetOptions(merge: true),
     );
   }

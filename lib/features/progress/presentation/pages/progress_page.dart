@@ -105,6 +105,7 @@ Output: only the paragraph itself.
       moduleId: 'm9_progress_summary',
       systemPrompt: isEn ? _systemPromptEn : _systemPromptZh,
       history: const [],
+      uid: AppSettingsScope.read(context).profile?.uid,
       userInput: [
         'check-ins: ${d.moodScores.length}',
         'days with contact: ${d.contactDays}',

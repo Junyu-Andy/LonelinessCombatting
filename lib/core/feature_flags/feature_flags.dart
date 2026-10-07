@@ -52,6 +52,23 @@ class FeatureFlags {
   /// Phase B Arm A gets v1 without it — see core/memory/memory_mode.dart.
   static bool get memoryV1 => _memoryV1Define == 'true';
 
+  static const _ruleTemplateRepliesDefine =
+      String.fromEnvironment('RULE_TEMPLATE_REPLIES', defaultValue: 'false');
+  static const _ruleTemplateRepliesAllowPlaceholderDefine =
+      String.fromEnvironment('RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER',
+          defaultValue: 'false');
+
+  /// Decision 0023 — Arm B check-in / reminiscence answer each submission
+  /// with one template reply.  Default OFF: the pages behave exactly as
+  /// before.  Callers use `RuleReplyPool.enabled`, which also refuses to
+  /// switch on while the pool still holds placeholder text.
+  static bool get ruleTemplateReplies => _ruleTemplateRepliesDefine == 'true';
+
+  /// Screenshots / tests only: let [ruleTemplateReplies] run with the
+  /// 【占位】 placeholder pool.  Never set in a participant build.
+  static bool get ruleTemplateRepliesAllowPlaceholder =>
+      _ruleTemplateRepliesAllowPlaceholderDefine == 'true';
+
 
   /// C.3 — Hybrid-only affordances that must NOT mount in Phase A or for
   /// an Arm B participant.  The arm tutorial / education surface keys

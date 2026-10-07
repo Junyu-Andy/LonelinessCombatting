@@ -19,6 +19,7 @@ import '../../../core/survey/likert_scale.dart';
 import '../../analytics/presentation/analytics_scope.dart';
 import '../../auth/presentation/auth_service_scope.dart';
 import '../data/thought_exercise_entry.dart';
+import '../../../core/safety/safety_check.dart';
 import '../../../core/session/chat_session_recorder.dart';
 
 class ThoughtExercisePage extends StatefulWidget {
@@ -137,6 +138,18 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
           widget.agentId != null ? 'siu_yan_offer' : 'me_tile',
     );
     final id = await repo.create(profile.uid, entry);
+    // T7 — the four text fields go through the shared safety check (both
+    // arms) after the entry is saved; acute opens the crisis page.
+    if (mounted) {
+      await SafetyService.of(context).checkAndRoute(
+        context,
+        [entry.situation, entry.thought, entry.oneReasonTrue,
+          entry.anotherWayToLook].join('\n'),
+        point: SafetyInputPoint.thoughtExercise,
+        uid: profile.uid,
+        agentId: widget.agentId,
+      );
+    }
     if (mounted) {
       _entryId = id;
       await AnalyticsScope.of(context).logM5ThoughtExerciseSaved(

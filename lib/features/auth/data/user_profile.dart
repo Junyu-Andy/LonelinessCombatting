@@ -59,8 +59,12 @@ class ConsentFlags {
   final Map<String, bool> transcriptRetentionByAgent;
 
   /// "Shared context" lets agents reference each other's recent content
-  /// (mood, action plans). Off by default — turning it on tightens the
-  /// integration between agents. Tracks Dev Req §4.2 `shared_context_use`.
+  /// (mood, action plans). Tracks Dev Req §4.2 `shared_context_use`.
+  /// Decision 0020: set on the consent page from config (default on);
+  /// afterwards only the research team changes it, with
+  /// tool/set_shared_context_consent.js. So [toMap] leaves it out unless
+  /// asked: the App loads the profile once at sign-in, and a later save
+  /// must not write a stale value back over the script's.
   final bool sharedContextUse;
 
   final DateTime? acceptedAt;
@@ -94,11 +98,11 @@ class ConsentFlags {
         acceptedAt: acceptedAt ?? this.acceptedAt,
       );
 
-  Map<String, dynamic> toMap() => {
+  Map<String, dynamic> toMap({bool includeSharedContextUse = false}) => {
         'functionalData': functionalData,
         'transcriptRetention': transcriptRetention,
         'transcriptRetentionByAgent': transcriptRetentionByAgent,
-        'sharedContextUse': sharedContextUse,
+        if (includeSharedContextUse) 'sharedContextUse': sharedContextUse,
         'acceptedAt': acceptedAt?.toIso8601String(),
       };
 
@@ -356,7 +360,8 @@ class UserProfile {
     );
   }
 
-  Map<String, dynamic> toMap() => {
+  /// [includeSharedContextUse]: see [ConsentFlags.sharedContextUse].
+  Map<String, dynamic> toMap({bool includeSharedContextUse = false}) => {
         'uid': uid,
         'email': email,
         'displayName': displayName,
@@ -371,7 +376,8 @@ class UserProfile {
         // before the arm landed can never erase the assigned arm (the
         // arm==null backfill would then re-randomise the participant).
         if (arm != null) 'arm': arm!.code,
-        'consent': consent.toMap(),
+        'consent':
+            consent.toMap(includeSharedContextUse: includeSharedContextUse),
         'ahJanAhBakVariant': ahJanAhBakVariant?.code,
         'closeContacts': closeContacts.map((c) => c.toMap()).toList(),
         'interests': interests,

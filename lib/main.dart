@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'app/app.dart';
 import 'app/app_settings.dart';
 import 'core/config/phase_a_config.dart';
+import 'core/feature_flags/remote_feature_flags.dart';
 import 'core/safety/safety_copy.dart';
 import 'core/agent_context/agent_context_service.dart';
 import 'core/agent_context/shared_context_service.dart';
@@ -20,6 +21,7 @@ import 'core/memory/memory_store.dart';
 import 'core/safety/distress_detector.dart';
 import 'core/safety/distress_router.dart';
 import 'core/safety/distress_state.dart';
+import 'core/safety/safety_check.dart';
 import 'core/safety/safety_event_writer.dart';
 import 'features/analytics/data/analytics_service.dart';
 import 'features/auth/data/auth_service.dart';
@@ -65,11 +67,16 @@ Future<void> main() async {
   // are loaded before the first frame so a crisis surface is never blank.
   await SafetyCopy.load();
   await PhaseAConfig.load(available: firebaseReady);
+  // C18 — search / voice switches (all off unless app_config/feature_flags
+  // says true; decision 0019).
+  await RemoteFeatureFlags.load(available: firebaseReady);
 
   const detector = DistressDetector();
   final distressState = DistressState();
   final distressRouter = DistressRouter(state: distressState);
   final safetyWriter = SafetyEventWriter(available: firebaseReady);
+  // T7 — one safety-check entry point for every free-text input.
+  final safety = SafetyService(detector: detector, writer: safetyWriter);
   final llmFeaturesRepo = LlmTurnFeaturesRepository(available: firebaseReady);
   final memory = MemoryStore(available: firebaseReady);
   final crossModuleMemory = CrossModuleMemoryService(
@@ -100,8 +107,7 @@ Future<void> main() async {
     onEvent: (type, payload) => analytics.logEvent(type, payload),
   );
   final llmGateway = LlmGateway(
-    detector: detector,
-    safetyWriter: safetyWriter,
+    safety: safety,
     featuresRepo: llmFeaturesRepo,
   );
   final agentGreeting = AgentGreetingService(
@@ -121,6 +127,7 @@ Future<void> main() async {
       distress: detector,
       distressState: distressState,
       distressRouter: distressRouter,
+      safety: safety,
       crossModuleMemory: crossModuleMemory,
       agentContext: agentContext,
       sharedContext: sharedContext,

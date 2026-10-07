@@ -136,8 +136,9 @@ test("rule-based arm: no extraction, no injection, no model call",
 async function seedMixed(uid) {
   await wipe(uid);
   const u = db.collection("users").doc(uid);
+  // Decision 0020: accounts are migrated to sharedContextUse: true.
   await u.set({arm: "A", armAssignmentMode: "randomise",
-    memory_enabled: false});
+    memory_enabled: false, consent: {sharedContextUse: true}});
   const today = m.hkDateKey(new Date());
   const add = (col, id, data) => u.collection(col).doc(id).set(
       Object.assign({created_at: new Date(), updated_at: new Date(),
@@ -228,7 +229,8 @@ test("extraction prompt uses the Hong Kong date at 01:30 HKT", async () => {
   const uid = "tz";
   await wipe(uid);
   const u = db.collection("users").doc(uid);
-  await u.set({arm: "A", armAssignmentMode: "randomise"});
+  await u.set({arm: "A", armAssignmentMode: "randomise",
+    consent: {sharedContextUse: true}});
   const now = new Date("2026-10-06T17:30:00Z"); // 2026-10-07 01:30 HKT
   await u.collection("agent_contexts").doc("siu_yan").set({
     shortTermBuffer: [{fromUser: true, text: "聽日去街市",

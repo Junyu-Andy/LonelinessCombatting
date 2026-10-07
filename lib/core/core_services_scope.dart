@@ -12,6 +12,7 @@ import 'memory/memory_store.dart';
 import 'safety/distress_detector.dart';
 import 'safety/distress_router.dart';
 import 'safety/distress_state.dart';
+import 'safety/safety_check.dart';
 
 /// Bundles the cross-cutting services every Arm A module needs (LLM,
 /// memory, distress detection, cross-module memory, per-agent context
@@ -32,6 +33,10 @@ class CoreServicesScope extends InheritedWidget {
   final HandoffExecutor handoffExecutor;
   final AgentGreetingService agentGreeting;
 
+  /// T7 — the shared safety-check entry point (both arms).  Defaults to a
+  /// detect-only instance (no writes) when not supplied, e.g. in tests.
+  final SafetyService safety;
+
   const CoreServicesScope({
     super.key,
     required this.llm,
@@ -46,8 +51,9 @@ class CoreServicesScope extends InheritedWidget {
     required this.referralRouting,
     required this.handoffExecutor,
     required this.agentGreeting,
+    SafetyService? safety,
     required super.child,
-  });
+  }) : safety = safety ?? const SafetyService();
 
   static CoreServicesScope of(BuildContext context) {
     final s = context.dependOnInheritedWidgetOfExactType<CoreServicesScope>();
@@ -68,5 +74,6 @@ class CoreServicesScope extends InheritedWidget {
       personaResolver != oldWidget.personaResolver ||
       referralRouting != oldWidget.referralRouting ||
       handoffExecutor != oldWidget.handoffExecutor ||
-      agentGreeting != oldWidget.agentGreeting;
+      agentGreeting != oldWidget.agentGreeting ||
+      safety != oldWidget.safety;
 }

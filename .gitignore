@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Rules-test dependencies (npm install in tool/ci_backend_tests.sh)
+/test/rules/node_modules/

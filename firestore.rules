@@ -8,7 +8,7 @@ rules_version = '2';
 // which bypass these rules.
 //
 // Collections this app uses (Sprint 1 additions marked *new*):
-//   users/{uid}                                  -> profile (incl. write-once arm, consent,
+//   users/{uid}                                  -> profile (incl. server-written arm, consent,
 //                                                   close_contacts, interests,
 //                                                   firstIntroSeen, per-agent
 //                                                   transcript flags,
@@ -29,6 +29,7 @@ rules_version = '2';
 //   safety_event_dedup/{dedupKey}                -> *new* B.7 dedup sentinel (admin-write only)
 //   pi_alerts/{alertId}                          -> *new* B.7 acute alert queue (admin-write only)
 //   llm_calls/{callId}                           -> C04 per-call model log (Cloud Functions only)
+//   research_id_map/{uid}, research_ids/{rid}    -> T12 research-ID lookup (server-write; unblinded role read)
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -41,35 +42,48 @@ service cloud.firestore {
       return isAuthed() && request.auth.uid == uid;
     }
 
-    // ============================================================
-    // Profile doc.  The owner reads/writes it, except that the RCT
-    // arm is write-once: it may go from absent/null to 'A' or 'B'
-    // (signup, or the arm==null backfill) and never change after.
-    // A merge-write that omits `arm` keeps the stored value, so
-    // ordinary profile updates pass.
-    // ============================================================
-    function armValid(data) {
-      return data.get('arm', null) == null || data.arm in ['A', 'B'];
+    // T12 (decision 0021): roles are Auth custom claims set by
+    // tool/provision_researcher.js.  role == 'pi' is the unblinded role;
+    // role == 'researcher' is blinded.  Participants have no role.
+    function isUnblinded() {
+      return isAuthed() && request.auth.token.role == 'pi';
     }
 
-    // Written only by the assignArm Cloud Function. armAssignmentMode
-    // also decides who gets mandatory memory v1 (Phase B Arm A), so a
-    // client must never set or change these.
-    function serverAssignmentUntouched() {
-      return !request.resource.data.diff(
-          resource == null ? {} : resource.data).affectedKeys()
-        .hasAny(['armAssignmentMode', 'armAssignedBy', 'armAssignedAt']);
+    // ============================================================
+    // Profile doc.  The owner reads and writes it, except the RCT
+    // assignment fields, which only the assignArm Cloud Function
+    // (admin SDK, bypasses rules) may write — decision 0003 / 0022:
+    //   - create: `arm` and `strataCell` must be absent or null;
+    //   - update: none of the assignment fields may change.  A
+    //     merge-write that repeats the stored value (or omits it)
+    //     changes nothing, so ordinary profile updates pass;
+    //   - delete: never from a client.  Deleting and re-creating the
+    //     doc would let assignArm re-randomise the participant.
+    //     Whole-person deletion runs server-side (admin SDK).
+    // ============================================================
+    function assignmentFields() {
+      return ['arm', 'strataCell', 'armAssignmentMode', 'armAssignedBy',
+              'armAssignedAt'];
+    }
+
+    function createLeavesAssignmentEmpty(data) {
+      return data.get('arm', null) == null
+        && data.get('strataCell', null) == null
+        && !data.keys().hasAny(['armAssignmentMode', 'armAssignedBy',
+                                'armAssignedAt']);
+    }
+
+    function updateLeavesAssignmentUntouched() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(assignmentFields());
     }
 
     match /users/{uid} {
-      allow read, delete: if isOwner(uid);
-      allow create: if isOwner(uid) && armValid(request.resource.data)
-        && serverAssignmentUntouched();
-      allow update: if isOwner(uid)
-        && armValid(request.resource.data)
-        && serverAssignmentUntouched()
-        && (resource.data.get('arm', null) == null
-            || request.resource.data.get('arm', null) == resource.data.arm);
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && createLeavesAssignmentEmpty(request.resource.data);
+      allow update: if isOwner(uid) && updateLeavesAssignmentUntouched();
+      allow delete: if false;
     }
 
     // ============================================================
@@ -126,9 +140,21 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasAll(['uid', 'source', 'textHash', 'level'])
         && request.resource.data.level in ['none', 'low', 'moderate',
-            'moderate_review', 'moderate_interrupt', 'acute'];
+            'moderate_review', 'moderate_interrupt', 'acute']
+        // T7: source is one of the three analysis buckets; the pre-T7
+        // codes stay valid so an old build's events are not lost.
+        && request.resource.data.source in ['user_input', 'ai_output_scan',
+            'form', 'gateway_input', 'gateway_output', 'm3_turn', 'rule_turn']
+        // Dedup / escalation fields are the trigger's, never the client's.
+        && !request.resource.data.keys().hasAny(['dedup_key', 'isDuplicate',
+            'duplicateOf', 'escalatedBy']);
       // Reads + updates come only from service accounts.
       allow read, update, delete: if false;
+    }
+
+    // T7 hotline outbound filter log — Cloud Functions only (no text).
+    match /hotline_filter_log/{id} {
+      allow read, write: if false;
     }
 
     // ============================================================
@@ -178,6 +204,21 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // T12 research IDs (functions/blinding.js is the only writer).
+    // The uid <-> research ID lookup de-pseudonymises the blinded
+    // export, so only the unblinded role may read it; nobody writes
+    // from a client.  meta/blinding_config has no rule: admin only.
+    // ============================================================
+    match /research_id_map/{uid} {
+      allow read: if isUnblinded();
+      allow write: if false;
+    }
+    match /research_ids/{researchId} {
+      allow read: if isUnblinded();
+      allow write: if false;
+    }
+
+    // ============================================================
     // C.2 stratified RCT arm-balance counter (Sprint 1.4).
     //
     // Schema: { cell_0: {aCount, bCount}, cell_1: ..., cell_2: ...,
@@ -192,7 +233,10 @@ service cloud.firestore {
     // (concurrent signups); keep the rule tight.
     // ============================================================
     match /meta/arm_counter {
-      allow read: if isAuthed();
+      // T12: per-arm counts are unblinding information.  The app no
+      // longer reads this doc (assignArm runs on the server), so only
+      // the unblinded role may.
+      allow read: if isUnblinded();
 
       // Written as per-count deltas: the previous nested-helper form
       // (cellPrior/cellNext/validIncrement/cellUnchanged over 4 × 4

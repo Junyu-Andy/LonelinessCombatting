@@ -333,5 +333,18 @@ test("scope: the kill switch overrides everything", () => {
   assert.ok(!m.inScope(off, {arm: "A", memory_enabled: true}));
 });
 
+test("C20: sharedContextUse only counts when the switch is on", () => {
+  const off = {policy: "C", enforceSharedContextConsent: false};
+  const on = {policy: "C", enforceSharedContextConsent: true};
+  assert.strictEqual(m.effectivePolicy(off, {}), "C");
+  assert.strictEqual(m.effectivePolicy(on, {}), "B");
+  assert.strictEqual(m.effectivePolicy(on,
+      {consent: {sharedContextUse: false}}), "B");
+  assert.strictEqual(m.effectivePolicy(on,
+      {consent: {sharedContextUse: true}}), "C");
+  assert.strictEqual(m.effectivePolicy({policy: "A",
+    enforceSharedContextConsent: true}, null), "B");
+});
+
 console.log(`\n${passed} passed, ${failures.length} failed.`);
 if (failures.length) process.exit(1);

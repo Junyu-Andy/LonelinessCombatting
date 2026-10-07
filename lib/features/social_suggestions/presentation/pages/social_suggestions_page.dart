@@ -104,6 +104,7 @@ other text.
       systemPrompt: isEn ? _systemPromptEn : _systemPromptZh,
       history: const [],
       userInput: userInput,
+      uid: AppSettingsScope.read(context).profile?.uid,
     );
 
     if (!mounted) return;

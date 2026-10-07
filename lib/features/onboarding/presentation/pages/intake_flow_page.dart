@@ -22,6 +22,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/safety/safety_check.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/intake_repository.dart';
 import '../../data/intake_response.dart';
@@ -173,6 +174,37 @@ class _IntakeFlowPageState extends State<IntakeFlowPage> {
       }());
     }
     if (!mounted) return;
+    // T7 — the open answers go through the shared safety check (both arms;
+    // intake comes before the arm is known).  The surface shows before
+    // onboarding closes, so a crisis page is never lost in the transition.
+    if (profile != null) {
+      final safety = SafetyService.of(context);
+      String join(Iterable<String?> xs) => xs
+          .where((x) => x != null && x.trim().isNotEmpty)
+          .map((x) => x!.trim())
+          .join('\n');
+      final results = [
+        safety.checkUserText(_onMind,
+            point: SafetyInputPoint.intakeOnMind, uid: profile.uid),
+        safety.checkUserText(_avoidTopics,
+            point: SafetyInputPoint.intakeAvoidTopics, uid: profile.uid),
+        safety.checkUserText(
+            join([
+              _mainGoalOtherText,
+              _typicalMorning,
+              _typicalAfternoon,
+              _typicalEvening,
+              _activitiesOtherText,
+              _topicsOtherText,
+              for (final m in [..._importantPeople, ..._reconnectPeople])
+                m['extra'],
+            ]),
+            point: SafetyInputPoint.intakeOtherText,
+            uid: profile.uid),
+      ];
+      await safety.route(context, results);
+      if (!mounted) return;
+    }
     setState(() => _saving = false);
     widget.onComplete();
   }

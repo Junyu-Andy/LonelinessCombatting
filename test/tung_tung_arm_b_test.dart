@@ -12,6 +12,7 @@ import 'package:app_demo/core/core_services_scope.dart';
 import 'package:app_demo/core/cross_referral/handoff_executor.dart';
 import 'package:app_demo/core/cross_referral/referral_routing_service.dart';
 import 'package:app_demo/core/feature_flags/feature_flags.dart';
+import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
 import 'package:app_demo/core/llm/agent_greeting_service.dart';
 import 'package:app_demo/core/llm/llm_gateway.dart';
 import 'package:app_demo/core/memory/cross_module_memory.dart';
@@ -25,6 +26,7 @@ import 'package:app_demo/features/analytics/presentation/analytics_scope.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
 import 'package:app_demo/features/auth/presentation/auth_service_scope.dart';
 import 'package:app_demo/features/curious_companion/data/tung_tung_rule_pool.dart';
+import 'package:app_demo/features/curious_companion/data/tung_tung_search_intent.dart';
 import 'package:app_demo/features/curious_companion/presentation/pages/tung_tung_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -155,5 +157,50 @@ void main() {
         skipOffstage: false), findsWidgets);
     expect(find.textContaining('原來係咁', findRichText: true,
         skipOffstage: false), findsNothing);
+  }, skip: !(FeatureFlags.phaseB && _armB));
+
+  testWidgets('C18: no mic and no search button on the rule arm',
+      (tester) async {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('dev.fluttercommunity.plus/connectivity'),
+      (call) async => ['wifi'],
+    );
+    // Even with search switched on, the rule arm never gets the button.
+    RemoteFeatureFlags.current =
+        const RemoteFeatureFlags(webSearchEnabled: true);
+    addTearDown(() => RemoteFeatureFlags.current = const RemoteFeatureFlags());
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.mic_none_rounded), findsNothing);
+    expect(find.byIcon(Icons.travel_explore_outlined), findsNothing);
+  }, skip: !(FeatureFlags.phaseB && _armB));
+
+  testWidgets('C18: fixed search-off line replaces the template when the '
+      'flag is on', (tester) async {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('dev.fluttercommunity.plus/connectivity'),
+      (call) async => ['wifi'],
+    );
+    final fixed = TungTungSearchIntent.reply(isEn: false);
+
+    // Flag off (default): ordinary template.
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '今日天氣點呀？');
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded).first);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.textContaining(fixed, findRichText: true), findsNothing);
+
+    // Flag on: the fixed line, still no LLM.
+    RemoteFeatureFlags.current =
+        const RemoteFeatureFlags(searchOffReplyEnabled: true);
+    addTearDown(() => RemoteFeatureFlags.current = const RemoteFeatureFlags());
+    await tester.enterText(find.byType(TextField).first, '今日天氣點呀？');
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded).first);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.textContaining(fixed, findRichText: true), findsOneWidget);
+    expect(client.calls, 0, reason: 'Arm B must never call the LLM');
   }, skip: !(FeatureFlags.phaseB && _armB));
 }

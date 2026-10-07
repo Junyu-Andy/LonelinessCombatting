@@ -151,7 +151,7 @@ void main() {
       await expectLater(
         writer.maybeWrite(
           uid: 'u1',
-          source: SafetySource.gatewayInput,
+          source: SafetySource.userInput,
           match: const DistressMatch(DistressLevel.none),
           inputText: 'hello',
         ),
@@ -160,7 +160,7 @@ void main() {
       await expectLater(
         writer.maybeWrite(
           uid: 'u1',
-          source: SafetySource.gatewayOutput,
+          source: SafetySource.aiOutputScan,
           match: const DistressMatch(DistressLevel.low),
           inputText: '我有啲孤獨',
         ),
@@ -173,7 +173,7 @@ void main() {
       await expectLater(
         writer.maybeWrite(
           uid: 'u1',
-          source: SafetySource.m3Turn,
+          source: SafetySource.form,
           match: const DistressMatch(DistressLevel.acute, '想死'),
           inputText: '我想死',
           agentId: 'siu_yan',
