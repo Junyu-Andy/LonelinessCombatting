@@ -8,85 +8,69 @@ class PrivacyPolicyPage extends StatelessWidget {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
 
+    // C20 / decision 0020 — kept short and general; the details (which
+    // companies, where servers are, what cannot be deleted) live in the
+    // signed consent form.  Wording awaits the PI's sign-off.
     final sections = isEn
         ? const [
             _SectionData(
-              icon: Icons.lock_outline,
+              icon: Icons.cloud_outlined,
               title: 'Where is your data stored?',
-              body: 'Your daily check-ins, reflections, reminders, and contact list '
-                  'are stored only on your device. '
-                  'We do not upload this content to any server.',
+              body: 'What you enter in the app, and your conversations, '
+                  'are stored on cloud servers over the internet.',
             ),
             _SectionData(
-              icon: Icons.visibility_off_outlined,
-              title: 'Can we see what you fill in?',
-              body: 'No. This demo has no account login and no cloud sync. '
-                  'No one can remotely access what you enter.',
+              icon: Icons.visibility_outlined,
+              title: 'Who can see it?',
+              body: 'Only the research team, when the study needs it.',
             ),
             _SectionData(
               icon: Icons.share_outlined,
-              title: 'Is anything shared with third parties?',
-              body: 'We do not share your usage records with any third party '
-                  '(e.g. advertisers, insurers). '
-                  'Data only leaves your device when you actively choose to share it with someone you trust.',
+              title: 'Is anything shared with other companies?',
+              body: 'Some features use other companies\' services, '
+                  'including AI services, to process what you enter. '
+                  'We do not give your data to advertisers or insurers.',
             ),
             _SectionData(
               icon: Icons.delete_outline,
-              title: 'How do I delete all records?',
-              body: 'Go to Settings → Clear all data to delete everything at once. '
-                  'This action cannot be undone — please back up anything you need first.',
+              title: 'Want to leave the study or delete your data?',
+              body: 'Please contact the research team (email below). '
+                  'We will take care of it for you.',
             ),
             _SectionData(
-              icon: Icons.warning_amber_outlined,
-              title: 'Exceptions in emergencies',
-              body: 'If you use the Emergency Support page to call a hotline or 999, '
-                  'phone number information is handled by your carrier and is outside this app\'s control.',
-            ),
-            _SectionData(
-              icon: Icons.update_outlined,
-              title: 'When will this policy be updated?',
-              body: 'Any changes will be notified within the app. '
-                  'We will explain the reason for any change in plain language.',
+              icon: Icons.description_outlined,
+              title: 'More details',
+              body: 'Please see the research consent form you signed.',
             ),
           ]
         : const [
             _SectionData(
-              icon: Icons.lock_outline,
+              icon: Icons.cloud_outlined,
               title: '你嘅資料擺喺邊？',
-              body: '你每日嘅 check-in、反思記錄、提醒同聯絡人名單，'
-                  '只會儲存喺你部電話本身。'
-                  '我哋唔會將呢啲內容上傳到伺服器。',
+              body: '你喺 app 入面填嘅嘢，同埋傾偈嘅紀錄，'
+                  '會經網絡儲存喺雲端伺服器。',
             ),
             _SectionData(
-              icon: Icons.visibility_off_outlined,
-              title: '我哋會睇到你填乜嘢嗎？',
-              body: '唔會。呢個 demo 冇賬戶登入、冇雲端同步，'
-                  '亦都冇任何人可以遠端讀取你填嘅嘢。',
+              icon: Icons.visibility_outlined,
+              title: '邊個睇得到？',
+              body: '只有研究團隊會按研究需要查閱。',
             ),
             _SectionData(
               icon: Icons.share_outlined,
-              title: '會唔會同第三方分享？',
-              body: '唔會同任何第三方（例如廣告商、保險公司）分享你嘅使用紀錄。'
-                  '只有當你自己主動選擇分享某啲內容畀信任嘅人嗰陣，'
-                  '資料先會離開你部電話。',
+              title: '會唔會交畀其他公司？',
+              body: '部分功能會用其他公司嘅服務（包括人工智能服務）'
+                  '處理你輸入嘅內容。'
+                  '我哋唔會將你嘅資料交畀廣告商或者保險公司。',
             ),
             _SectionData(
               icon: Icons.delete_outline,
-              title: '我點樣刪除所有紀錄？',
-              body: '入「設定 > 清除所有資料」就可以一次過刪除晒。'
-                  '動作完成之後冇辦法復原，請保留需要嘅內容先刪除。',
+              title: '想退出研究或者刪除資料？',
+              body: '請聯絡研究團隊（下面嘅電郵），我哋會幫你處理。',
             ),
             _SectionData(
-              icon: Icons.warning_amber_outlined,
-              title: '緊急情況下嘅例外',
-              body: '如果你用緊「即時支援」頁嘅功能致電熱線或 999，'
-                  '電話號碼資訊由電訊商處理，不受呢個 app 控制。',
-            ),
-            _SectionData(
-              icon: Icons.update_outlined,
-              title: '呢份政策幾時會更新？',
-              body: '任何更改會喺 app 內通知。'
-                  '我哋會盡量用簡單嘅語言話畀你知點解要改。',
+              icon: Icons.description_outlined,
+              title: '想知多啲？',
+              body: '詳情請參閱你簽署嘅研究同意書。',
             ),
           ];
 
@@ -99,8 +83,8 @@ class PrivacyPolicyPage extends StatelessWidget {
         children: [
           Text(
             isEn
-                ? 'We believe privacy is respect. Here is how your data is handled, in plain terms.'
-                : '我哋相信私隱就係尊重。下面用簡單嘅方式解釋你嘅資料點樣處理。',
+                ? 'Here is, in short, how your data is handled.'
+                : '下面簡單講下你嘅資料點樣處理。',
             style: theme.textTheme.bodyLarge,
           ),
           const SizedBox(height: 24),
@@ -156,7 +140,7 @@ class PrivacyPolicyPage extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            isEn ? 'Last updated: April 2026' : '最後更新：2026 年 4 月',
+            isEn ? 'Last updated: October 2026' : '最後更新：2026 年 10 月',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
