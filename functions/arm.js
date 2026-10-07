@@ -14,9 +14,15 @@
  * Mode: app_config/arm_assignment.randomise === true randomises (Phase B);
  * anything else assigns Arm A to everyone (Phase A pilot). The counter
  * still increments in the participant's cell either way.
+ *
+ * T12 (decision 0021): when meta/blinding_config.enabled is true, the
+ * same transaction also gives a newly assigned participant a research ID
+ * (functions/blinding.js).  Off by default.
  */
 
 "use strict";
+
+const blinding = require("./blinding");
 
 const UCLA_MEDIAN_SPLIT = 44;
 
@@ -63,7 +69,8 @@ function chooseArm({aCount, bCount}, {randomise, rng}) {
  *
  * @param {object} db admin.firestore()
  * @param {string} uid
- * @param {{rng: (function(): number|undefined)}} opts
+ * @param {{rng: (function(): number|undefined),
+ *     randomInt: (function(number): number|undefined)}} opts
  * @return {Promise<{arm: string, cell: number, mode: string,
  *     assigned: boolean}>}
  */
@@ -72,10 +79,12 @@ async function assignArm(db, uid, opts = {}) {
   const userRef = db.collection("users").doc(uid);
   const counterRef = db.doc("meta/arm_counter");
   const configRef = db.doc("app_config/arm_assignment");
+  const blindingRef = db.doc(blinding.CONFIG_DOC);
 
   return db.runTransaction(async (tx) => {
-    const [user, counter, config] = await Promise.all([
+    const [user, counter, config, blindingSnap] = await Promise.all([
       tx.get(userRef), tx.get(counterRef), tx.get(configRef),
+      tx.get(blindingRef),
     ]);
     if (!user.exists) {
       throw new Error("profile_missing");
@@ -104,6 +113,10 @@ async function assignArm(db, uid, opts = {}) {
     const randomise = config.exists && config.get("randomise") === true;
     const arm = chooseArm(counts, {randomise, rng});
     const mode = randomise ? "randomise" : "force_a";
+    // Reads must all happen before the first write.
+    const ridPlan = blinding.configFromSnap(blindingSnap).enabled ?
+      await blinding.planResearchIdTx(tx, db, uid, opts.randomInt) :
+      null;
 
     tx.set(counterRef, {
       [key]: {
@@ -119,6 +132,9 @@ async function assignArm(db, uid, opts = {}) {
       armAssignedAt: new Date(),
       armAssignmentMode: mode,
     }, {merge: true});
+    if (ridPlan) {
+      blinding.writeResearchIdTx(tx, db, uid, ridPlan, "assign_arm");
+    }
 
     return {arm, cell, mode, assigned: true};
   });

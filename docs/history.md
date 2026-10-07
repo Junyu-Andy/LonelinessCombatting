@@ -28,6 +28,14 @@
 - 负责人决定通通 prompt 去掉"幫你查"邀请：新建 `tung_tung.v2.txt`，服务器按注册表加载，`tung_tung_v1.txt` 保留。待 PI 审核。
 - 报告：`docs/dev-reports/T9-flags-20261007.md`。待办第 40–42 项。
 
+## 2026-10-07 盲法（T12，PR 草稿，未合并）
+
+- 新版盲法导出：每人一个跨周不变的研究编号（分组时由服务器生成），组别代码整个研究期间固定，只导出两组都答的结局量表；对话轮次、会话、事件、LLM 和记忆相关集合揭盲前不导出（决策 0021）。
+- 研究编号对照表 `research_id_map`、`research_ids`，只有非盲角色（`role: pi`）能读。`meta/arm_counter` 也改为只有非盲角色能读。
+- 研究者后台：`researcher`（盲法）看不到两组人数和只有一组才有数据的板块；`pi`（非盲）看全部。
+- 新增检查脚本 `tool/check_blinded_export.js`，有可疑字段就非零退出，测试里跑。
+- 开关 `meta/blinding_config.enabled` 默认关，关着时旧导出照旧。报告：`docs/dev-reports/T12-blinding-20261007.md`。
+
 ## 2026-10-06 开发任务 T1–T6；DeepSeek 模型名
 
 - 研究侧功能登记表（C01–C22）放进 `docs/spec/feature-registry.md`，任务单放进 `docs/dev-tasks/dev-tasks-1006.md`。T1–T6 分六个云端会话并行执行，报告写到 `docs/dev-reports/`、`docs/spec/`、`docs/export/`。

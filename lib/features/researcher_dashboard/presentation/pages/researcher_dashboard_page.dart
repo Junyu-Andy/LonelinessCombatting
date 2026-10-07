@@ -4,7 +4,9 @@
 /// pending distress flags, transcript audit queue, per-agent PPR
 /// aggregates, and cross-referral statistics.
 ///
-/// Gated by the Firebase custom claim `role: researcher`. The auth
+/// Gated by the Firebase custom claim `role` (T12, decision 0021):
+/// `researcher` is blinded and sees only arm-neutral sections; `pi` is
+/// unblinded and sees everything (see [DashboardAccess]). The auth
 /// check is intentionally strict — if the claim is missing the page
 /// renders an "access denied" state rather than degraded data.
 /// Provision the claim via Firebase Admin SDK (a one-off script on
@@ -18,6 +20,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../../auth/presentation/auth_service_scope.dart';
+import '../../data/dashboard_access.dart';
 
 class ResearcherDashboardPage extends StatefulWidget {
   const ResearcherDashboardPage({super.key});
@@ -28,7 +31,7 @@ class ResearcherDashboardPage extends StatefulWidget {
 }
 
 class _ResearcherDashboardPageState extends State<ResearcherDashboardPage> {
-  Future<bool>? _authCheck;
+  Future<DashboardAccess>? _authCheck;
 
   @override
   void initState() {
@@ -36,15 +39,14 @@ class _ResearcherDashboardPageState extends State<ResearcherDashboardPage> {
     _authCheck = _checkResearcherClaim();
   }
 
-  Future<bool> _checkResearcherClaim() async {
+  Future<DashboardAccess> _checkResearcherClaim() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
+    if (user == null) return DashboardAccess.denied;
     try {
       final token = await user.getIdTokenResult(true);
-      final role = token.claims?['role'];
-      return role == 'researcher';
+      return DashboardAccess.fromClaims(token.claims);
     } catch (_) {
-      return false;
+      return DashboardAccess.denied;
     }
   }
 
@@ -70,7 +72,7 @@ class _ResearcherDashboardPageState extends State<ResearcherDashboardPage> {
       );
     }
 
-    return FutureBuilder<bool>(
+    return FutureBuilder<DashboardAccess>(
       future: _authCheck,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
@@ -78,7 +80,8 @@ class _ResearcherDashboardPageState extends State<ResearcherDashboardPage> {
               title: 'Researcher',
               body: Center(child: CircularProgressIndicator()));
         }
-        if (snap.data != true) {
+        final access = snap.data ?? DashboardAccess.denied;
+        if (!access.allowed) {
           return _DashboardScaffold(
             title: isEn ? 'Researcher' : '研究員',
             body: Center(
@@ -97,7 +100,7 @@ class _ResearcherDashboardPageState extends State<ResearcherDashboardPage> {
         }
         return _DashboardScaffold(
           title: isEn ? 'Researcher dashboard' : '研究員儀錶板',
-          body: _DashboardBody(isEn: isEn),
+          body: _DashboardBody(isEn: isEn, access: access),
         );
       },
     );
@@ -120,7 +123,8 @@ class _DashboardScaffold extends StatelessWidget {
 
 class _DashboardBody extends StatelessWidget {
   final bool isEn;
-  const _DashboardBody({required this.isEn});
+  final DashboardAccess access;
+  const _DashboardBody({required this.isEn, required this.access});
 
   @override
   Widget build(BuildContext context) {
@@ -132,21 +136,25 @@ class _DashboardBody extends StatelessWidget {
         const _DistressFlagsList(),
         const SizedBox(height: 24),
         _SectionHeader(label: isEn ? 'Engagement' : '參與度'),
-        const _EngagementSummary(),
+        _EngagementSummary(showArmCounts: access.showsArmCounts),
         const SizedBox(height: 24),
-        _SectionHeader(label: isEn ? 'Transcript audit queue' : '對話審計隊列'),
-        const _TranscriptAuditList(),
-        const SizedBox(height: 24),
-        // B.5 — Thought-Exercise audit queue (Sprint 3.1).  Reads from
-        // te_audit_queue/{id}; click-through opens an audit form that
-        // captures the 6 dimensions defined in the CF trigger.
-        _SectionHeader(
-            label: isEn ? 'Thought-exercise audit' : '想法練習審計'),
-        const _ThoughtExerciseAuditList(),
-        const SizedBox(height: 24),
-        _SectionHeader(label: isEn ? 'Cross-referral' : '跨 agent 轉介'),
-        const _CrossReferralStats(),
-        const SizedBox(height: 24),
+        // T12: sections whose data exists in one arm only are for the
+        // unblinded role.
+        if (access.showsSingleArmSections) ...[
+          _SectionHeader(label: isEn ? 'Transcript audit queue' : '對話審計隊列'),
+          const _TranscriptAuditList(),
+          const SizedBox(height: 24),
+          // B.5 — Thought-Exercise audit queue (Sprint 3.1).  Reads from
+          // te_audit_queue/{id}; click-through opens an audit form that
+          // captures the 6 dimensions defined in the CF trigger.
+          _SectionHeader(
+              label: isEn ? 'Thought-exercise audit' : '想法練習審計'),
+          const _ThoughtExerciseAuditList(),
+          const SizedBox(height: 24),
+          _SectionHeader(label: isEn ? 'Cross-referral' : '跨 agent 轉介'),
+          const _CrossReferralStats(),
+          const SizedBox(height: 24),
+        ],
         _SectionHeader(label: isEn ? 'PPR aggregates' : 'PPR 總體分布'),
         const _PprAggregates(),
       ],
@@ -534,7 +542,8 @@ class _FlagRow extends StatelessWidget {
 }
 
 class _EngagementSummary extends StatelessWidget {
-  const _EngagementSummary();
+  final bool showArmCounts;
+  const _EngagementSummary({required this.showArmCounts});
 
   @override
   Widget build(BuildContext context) {
@@ -554,8 +563,10 @@ class _EngagementSummary extends StatelessWidget {
         return _StatRow(
           tiles: [
             _StatTile(label: 'Participants', value: docs.length.toString()),
-            _StatTile(label: 'Arm A', value: armA.toString()),
-            _StatTile(label: 'Arm B', value: armB.toString()),
+            if (showArmCounts) ...[
+              _StatTile(label: 'Arm A', value: armA.toString()),
+              _StatTile(label: 'Arm B', value: armB.toString()),
+            ],
             _StatTile(label: 'Variant set', value: withVariant.toString()),
           ],
         );
