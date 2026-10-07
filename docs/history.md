@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-07 T19、T17b 合成一个 PR
+
+- T19（分组重做）和 T17b（ADA 按 `docs/spec/instruments/ada.md` 补做）各一个云端会话，合成这一个 PR。交接文档 `docs/dev-reports/T19-T17b-handoff-20261007.md`。
+- 合并时的衔接：T17b 的研究员页面和 `adaStaff*` callable 改认 T19 的新角色（`blinded`、`unblinded`；研究编号只给 `unblinded`），旧名 `pi`、`researcher` 不再有权限；整人删除脚本同时覆盖 `enrollments`、`llm_denied_log`、`ada_status`。
+- **部署即生效、不受开关控制的三处**：旧角色账号失去权限，要按新角色重发；发给 PI 的告警只剩研究编号、级别、时间、编号；分组计数器客户端不能读写。分组开关 `meta/randomization_config.enabled` 必须在第一位 Phase B 老人注册前打开。
+
 ## 2026-10-07 T19 App 内分组重做（SPEC:C01，PR 草稿，未合并）
 
 - **现状**：注册时 `assignArm` 按 UCLA × 年龄 4 层最小化分配（少的那组优先，一样多抛硬币），分层变量是老人自填的；计数器 `meta/arm_counter` 客户端仍能写增量；`role: pi` 是非盲角色；给 PI 的告警邮件带来源和陪伴者。
