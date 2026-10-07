@@ -28,9 +28,10 @@
  * Exports: each weekly export is one file per collection holding every
  * participant. Rows of this person are found by uidHash (recomputed from
  * export_blind_keys/{date}.salt), participantId or any field equal to the
- * uid. By default they are only COUNTED; the files are not touched (the
- * research team decides, see the T11 report). --rewrite-exports (with
- * --confirm) rewrites each file without those rows.
+ * uid. They are only COUNTED; the files are not touched — decision
+ * 0020: de-identified exported data already used for analysis is kept.
+ * --rewrite-exports (with --confirm) rewrites each file without those
+ * rows; NOT the default, only if the research team decides otherwise.
  *
  * Dry run by default: lists what would be deleted. --confirm deletes,
  * scans again and fails unless nothing is left. Either way a receipt
