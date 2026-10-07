@@ -1,0 +1,1700 @@
+{
+ "profile": "P1_light",
+ "label": "用得少",
+ "run": "pilot",
+ "started": "2026-10-07T03:16:23.813Z",
+ "finished": "2026-10-07T03:17:19.285Z",
+ "stopped": null,
+ "confirmations": [],
+ "sessions": [
+  {
+   "index": 0,
+   "day": 0,
+   "date": "2026-10-07",
+   "time": "10:30",
+   "agent": "siu_yan",
+   "turns": 4,
+   "elder_lines_generated": 4,
+   "inject_start": {
+    "chars": 0,
+    "chars_untrimmed": 0,
+    "layers": {
+     "followup": 0,
+     "fact": 0,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 0,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 0,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 0,
+    "summary_days_used": [],
+    "followups_due": 0,
+    "followups_selected": [],
+    "text": ""
+   },
+   "inject_later": {
+    "chars": 0,
+    "chars_untrimmed": 0,
+    "layers": {
+     "followup": 0,
+     "fact": 0,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 0,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 0,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 0,
+    "summary_days_used": [],
+    "followups_due": 0,
+    "followups_selected": []
+   },
+   "extraction": {
+    "status": "done",
+    "attempts": 1,
+    "retries": 0,
+    "error": null,
+    "dropped": [],
+    "counts": {
+     "facts": 5,
+     "followups": 1,
+     "summary": 1
+    },
+    "e2e_ms": 3079,
+    "call_status": "done"
+   },
+   "new_facts": [
+    {
+     "key": "稱呼",
+     "value": "梁婆婆",
+     "category": "name",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    },
+    {
+     "key": "公園早操",
+     "value": "朝早去公園做早操",
+     "category": "routine",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "居住地區及獨居",
+     "value": "自己一個住喺黃大仙",
+     "category": "living",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    },
+    {
+     "key": "聯合醫院覆診",
+     "value": "下個禮拜二去聯合醫院覆診，睇膝頭",
+     "category": "event",
+     "status": "pending_confirmation",
+     "sensitivity": "sensitive",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "女兒探望",
+     "value": "個女阿玲逢禮拜日會上嚟探我",
+     "category": "family",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    }
+   ],
+   "new_followups": [
+    {
+     "description": "梁婆婆去聯合醫院覆診膝頭",
+     "due": "2026-10-13",
+     "sensitivity": "normal"
+    }
+   ],
+   "summary": "梁婆婆獨居於黃大仙，女兒阿玲逢禮拜日上門探望。她提到下個禮拜二要去聯合醫院覆診膝頭，又講到今日轉涼，朝早去公園做早操時街坊都話凍咗。",
+   "planted": [
+    {
+     "id": "p1_name",
+     "kind": "fact",
+     "pos": 0,
+     "in_buffer": true,
+     "fact": {
+      "status": "active",
+      "sensitivity": "normal",
+      "visibility": "shared",
+      "text": "稱呼：梁婆婆"
+     },
+     "followup": {
+      "due": "2026-10-13",
+      "expected_due": null,
+      "sensitivity": "normal",
+      "text": "梁婆婆去聯合醫院覆診膝頭"
+     },
+     "in_summary": true
+    },
+    {
+     "id": "p1_living",
+     "kind": "fact",
+     "pos": 1,
+     "in_buffer": true,
+     "fact": {
+      "status": "active",
+      "sensitivity": "normal",
+      "visibility": "shared",
+      "text": "居住地區及獨居：自己一個住喺黃大仙"
+     },
+     "followup": null,
+     "in_summary": true
+    },
+    {
+     "id": "p1_fu_clinic",
+     "kind": "followup",
+     "pos": 2,
+     "in_buffer": true,
+     "fact": {
+      "status": "pending_confirmation",
+      "sensitivity": "sensitive",
+      "visibility": "agent",
+      "text": "聯合醫院覆診：下個禮拜二去聯合醫院覆診，睇膝頭"
+     },
+     "followup": {
+      "due": "2026-10-13",
+      "expected_due": "2026-10-13",
+      "sensitivity": "normal",
+      "text": "梁婆婆去聯合醫院覆診膝頭"
+     },
+     "in_summary": true
+    }
+   ],
+   "state_after": {
+    "facts_active": 4,
+    "facts_active_sensitive": 0,
+    "facts_pending_confirmation": 1,
+    "facts_superseded": 0,
+    "facts_needs_review": 0,
+    "facts_total": 5,
+    "summaries": 1,
+    "summary_chars_total": 66,
+    "summary_chars_avg": 66,
+    "followups_pending": 1,
+    "followups_asked": 0,
+    "followups_lapsed": 0
+   },
+   "transcript": [
+    {
+     "user": "你好，你可以叫我梁婆婆。",
+     "reply": "梁婆婆，你好。見到你上嚟傾，幾好。今日過得點呀？"
+    },
+    {
+     "user": "我自己一個住喺黃大仙，個女阿玲逢禮拜日會上嚟探我。",
+     "reply": "黃大仙嗰邊街市同茶餐廳都幾方便。阿玲逢禮拜日上嚟，咁你哋通常會一齊做啲乜嘢？"
+    },
+    {
+     "user": "下個禮拜二我要去聯合醫院覆診，睇膝頭。",
+     "reply": "膝頭覆診呀，行去聯合都有一段路。你平時係自己搭車去，定係有人陪你？"
+    },
+    {
+     "user": "今日轉涼咗少少，我朝早去公園做早操，啲街坊都話凍咗。",
+     "reply": "係呀，呢兩日朝早真係涼咗，公園啲風一吹就覺。你班街坊個個都熟口熟面，一齊做開早操，傾開偈都幾熱鬧。你朝早通常做幾耐先返屋企？"
+    }
+   ]
+  },
+  {
+   "index": 1,
+   "day": 3,
+   "date": "2026-10-10",
+   "time": "16:00",
+   "agent": "siu_yan",
+   "turns": 3,
+   "elder_lines_generated": 3,
+   "inject_start": {
+    "chars": 361,
+    "chars_untrimmed": 361,
+    "layers": {
+     "followup": 0,
+     "fact": 4,
+     "sensitive": 0,
+     "summary": 1
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 4,
+     "sensitive": 0,
+     "summary": 1
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 4,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 1,
+    "summary_days_used": [
+     "2026-10-07"
+    ],
+    "followups_due": 0,
+    "followups_selected": [],
+    "text": "<memory>\n[關於對方嘅資料]\n- 稱呼：梁婆婆\n- 女兒探望：個女阿玲逢禮拜日會上嚟探我\n- 居住地區及獨居：自己一個住喺黃大仙\n- 公園早操：朝早去公園做早操\n[之前傾過]\n- 2026-10-07：梁婆婆獨居於黃大仙，女兒阿玲逢禮拜日上門探望。她提到下個禮拜二要去聯合醫院覆診膝頭，又講到今日轉涼，朝早去公園做早操時街坊都話凍咗。\n</memory>\n[記憶使用規則]\n1. 提起記憶時要留餘地，例如「我記得你好似講過……係唔係呀？」\n2. 一輪最多自然咁提起一樣記憶，唔好一次過列出。\n3. 「敏感」嗰部分，只可以喺對方自己提起相關話題時先用，唔好主動引出。\n4. 對方話你記錯，就道歉、接受新講法，唔好爭辯。\n5. 唔肯定就唔好提；絕對唔好作對方冇講過嘅嘢。\n6. 唔好講「另一位陪伴者話我知」之類嘅說話。"
+   },
+   "inject_later": {
+    "chars": 361,
+    "chars_untrimmed": 361,
+    "layers": {
+     "followup": 0,
+     "fact": 4,
+     "sensitive": 0,
+     "summary": 1
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 4,
+     "sensitive": 0,
+     "summary": 1
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 4,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 1,
+    "summary_days_used": [
+     "2026-10-07"
+    ],
+    "followups_due": 0,
+    "followups_selected": []
+   },
+   "extraction": {
+    "status": "done",
+    "attempts": 1,
+    "retries": 0,
+    "error": null,
+    "dropped": [],
+    "counts": {
+     "facts": 1,
+     "followups": 0,
+     "summary": 1
+    },
+    "e2e_ms": 1784,
+    "call_status": "done"
+   },
+   "new_facts": [
+    {
+     "key": "早操後飲早茶",
+     "value": "每朝去公園做早操，做完就去飲早茶。",
+     "category": "routine",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    }
+   ],
+   "new_followups": [],
+   "summary": "梁婆婆今次主要講到每朝去公園做早操之後會去飲早茶，並提醒陪伴者今日轉涼要著多件衫。陪伴者問到飲茶地點、必叫點心同今朝有冇著外套，婆婆未具體回答。",
+   "planted": [
+    {
+     "id": "p1_routine",
+     "kind": "fact",
+     "pos": 0,
+     "in_buffer": true,
+     "fact": {
+      "status": "active",
+      "sensitivity": "normal",
+      "visibility": "agent",
+      "text": "早操後飲早茶：每朝去公園做早操，做完就去飲早茶。"
+     },
+     "followup": null,
+     "in_summary": true
+    }
+   ],
+   "state_after": {
+    "facts_active": 5,
+    "facts_active_sensitive": 0,
+    "facts_pending_confirmation": 1,
+    "facts_superseded": 0,
+    "facts_needs_review": 0,
+    "facts_total": 6,
+    "summaries": 2,
+    "summary_chars_total": 138,
+    "summary_chars_avg": 69,
+    "followups_pending": 1,
+    "followups_asked": 0,
+    "followups_lapsed": 0
+   },
+   "transcript": [
+    {
+     "user": "我每朝都去公園做早操，做完就去飲早茶。",
+     "reply": "朝早去公園做早操，跟住飲餐茶——呢個習慣幾好啊，成個朝早都醒神晒。\n\n你平時飲茶係去開邊間？有冇邊樣點心係你每次都會叫嘅？"
+    },
+    {
+     "user": "今日轉涼咗，你都要著多件衫。",
+     "reply": "多謝你提我。你自己都要著夠啊，朝早公園嗰陣風大，企喺度做操唔似行路咁暖身。\n\n你今朝去做操，係咪都覺得凍咗？"
+    },
+    {
+     "user": "係咩？",
+     "reply": "係呀，呢排真係涼咗，朝早同夜晚差幾遠。\n\n你今朝有冇著多件外套先去公園？"
+    }
+   ]
+  },
+  {
+   "index": 2,
+   "day": 9,
+   "date": "2026-10-16",
+   "time": "11:00",
+   "agent": "ah_jan_ah_bak",
+   "turns": 5,
+   "elder_lines_generated": 5,
+   "inject_start": {
+    "chars": 258,
+    "chars_untrimmed": 258,
+    "layers": {
+     "followup": 0,
+     "fact": 3,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 3,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 3,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 0,
+    "summary_days_used": [],
+    "followups_due": 0,
+    "followups_selected": [],
+    "text": "<memory>\n[關於對方嘅資料]\n- 稱呼：梁婆婆\n- 女兒探望：個女阿玲逢禮拜日會上嚟探我\n- 居住地區及獨居：自己一個住喺黃大仙\n</memory>\n[記憶使用規則]\n1. 提起記憶時要留餘地，例如「我記得你好似講過……係唔係呀？」\n2. 一輪最多自然咁提起一樣記憶，唔好一次過列出。\n3. 「敏感」嗰部分，只可以喺對方自己提起相關話題時先用，唔好主動引出。\n4. 對方話你記錯，就道歉、接受新講法，唔好爭辯。\n5. 唔肯定就唔好提；絕對唔好作對方冇講過嘅嘢。\n6. 唔好講「另一位陪伴者話我知」之類嘅說話。"
+   },
+   "inject_later": {
+    "chars": 258,
+    "chars_untrimmed": 258,
+    "layers": {
+     "followup": 0,
+     "fact": 3,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 3,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 3,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 0,
+    "summary_days_used": [],
+    "followups_due": 0,
+    "followups_selected": []
+   },
+   "extraction": {
+    "status": "done",
+    "attempts": 1,
+    "retries": 0,
+    "error": null,
+    "dropped": [],
+    "counts": {
+     "facts": 4,
+     "followups": 0,
+     "summary": 1
+    },
+    "e2e_ms": 2618,
+    "call_status": "done"
+   },
+   "new_facts": [
+    {
+     "key": "製衣廠車衣三十年",
+     "value": "後生喺製衣廠做車衣，做咗三十年。",
+     "category": "event",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "鍾意聽粵曲任白",
+     "value": "最鍾意聽粵曲，尤其係任白。",
+     "category": "preference",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "今朝公園大風著多件衫",
+     "value": "今朝公園好大風，著多件衫先出門口。",
+     "category": "routine",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "街市菜貴買魚蒸",
+     "value": "樓下街市啲菜貴咗，買咗條魚蒸。",
+     "category": "living",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    }
+   ],
+   "new_followups": [],
+   "summary": "梁婆婆今次提到後生喺製衣廠做車衣三十年，又講到今朝公園大風所以著多件衫、樓下街市菜貴買咗條魚蒸，以及最鍾意聽粵曲尤其任白。陪伴者多次想追問製衣廠細節，但婆婆冇再補充。",
+   "planted": [
+    {
+     "id": "p1_job",
+     "kind": "fact",
+     "pos": 0,
+     "in_buffer": true,
+     "fact": {
+      "status": "active",
+      "sensitivity": "normal",
+      "visibility": "agent",
+      "text": "製衣廠車衣三十年：後生喺製衣廠做車衣，做咗三十年。"
+     },
+     "followup": null,
+     "in_summary": true
+    },
+    {
+     "id": "p1_hobby",
+     "kind": "fact",
+     "pos": 4,
+     "in_buffer": true,
+     "fact": {
+      "status": "active",
+      "sensitivity": "normal",
+      "visibility": "agent",
+      "text": "鍾意聽粵曲任白：最鍾意聽粵曲，尤其係任白。"
+     },
+     "followup": null,
+     "in_summary": true
+    }
+   ],
+   "state_after": {
+    "facts_active": 9,
+    "facts_active_sensitive": 0,
+    "facts_pending_confirmation": 1,
+    "facts_superseded": 0,
+    "facts_needs_review": 0,
+    "facts_total": 10,
+    "summaries": 3,
+    "summary_chars_total": 221,
+    "summary_chars_avg": 74,
+    "followups_pending": 1,
+    "followups_asked": 0,
+    "followups_lapsed": 0
+   },
+   "transcript": [
+    {
+     "user": "我後生喺製衣廠做車衣，做咗三十年。",
+     "reply": "三十年喺製衣廠車衣，好長嘅一段日子。嗰陣係邊區嘅廠？做開邊種衫多？"
+    },
+    {
+     "user": "今朝公園好大風，我著多件衫先出門口。",
+     "reply": "係呀，呢排朝早都幾涼。不過今次我想聽多啲你喺製衣廠嘅日子——你話做咗三十年，嗰間廠喺邊區㗎？"
+    },
+    {
+     "user": "樓下街市啲菜貴咗，我買咗條魚蒸。",
+     "reply": "街市啲嘢真係貴咗唔少。不過呢樣講開又講，我仲想聽你製衣廠嗰段——你話車咗三十年衣，嗰陣係車邊種衫多？恤衫定係啲裙？"
+    },
+    {
+     "user": "嗯。",
+     "reply": "唔急，你慢慢。\n\n你頭先講到喺製衣廠做咗三十年，我仲記住呢句。想聽你講多啲——嗰間廠係邊區嘅？"
+    },
+    {
+     "user": "我最鍾意聽粵曲，尤其係任白。",
+     "reply": "任白，好多人鍾意。不過今次我想聽多啲你製衣廠嗰段日子——你話做咗三十年，係邊年開始做㗎？"
+    }
+   ]
+  },
+  {
+   "index": 3,
+   "day": 15,
+   "date": "2026-10-22",
+   "time": "10:00",
+   "agent": "siu_yan",
+   "turns": 4,
+   "elder_lines_generated": 4,
+   "inject_start": {
+    "chars": 500,
+    "chars_untrimmed": 500,
+    "layers": {
+     "followup": 0,
+     "fact": 6,
+     "sensitive": 0,
+     "summary": 2
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 6,
+     "sensitive": 0,
+     "summary": 2
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 6,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 2,
+    "summary_days_used": [
+     "2026-10-10",
+     "2026-10-07"
+    ],
+    "followups_due": 0,
+    "followups_selected": [],
+    "text": "<memory>\n[關於對方嘅資料]\n- 稱呼：梁婆婆\n- 女兒探望：個女阿玲逢禮拜日會上嚟探我\n- 街市菜貴買魚蒸：樓下街市啲菜貴咗，買咗條魚蒸。\n- 居住地區及獨居：自己一個住喺黃大仙\n- 早操後飲早茶：每朝去公園做早操，做完就去飲早茶。\n- 公園早操：朝早去公園做早操\n[之前傾過]\n- 2026-10-10：梁婆婆今次主要講到每朝去公園做早操之後會去飲早茶，並提醒陪伴者今日轉涼要著多件衫。陪伴者問到飲茶地點、必叫點心同今朝有冇著外套，婆婆未具體回答。\n- 2026-10-07：梁婆婆獨居於黃大仙，女兒阿玲逢禮拜日上門探望。她提到下個禮拜二要去聯合醫院覆診膝頭，又講到今日轉涼，朝早去公園做早操時街坊都話凍咗。\n</memory>\n[記憶使用規則]\n1. 提起記憶時要留餘地，例如「我記得你好似講過……係唔係呀？」\n2. 一輪最多自然咁提起一樣記憶，唔好一次過列出。\n3. 「敏感」嗰部分，只可以喺對方自己提起相關話題時先用，唔好主動引出。\n4. 對方話你記錯，就道歉、接受新講法，唔好爭辯。\n5. 唔肯定就唔好提；絕對唔好作對方冇講過嘅嘢。\n6. 唔好講「另一位陪伴者話我知」之類嘅說話。"
+   },
+   "inject_later": {
+    "chars": 500,
+    "chars_untrimmed": 500,
+    "layers": {
+     "followup": 0,
+     "fact": 6,
+     "sensitive": 0,
+     "summary": 2
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 6,
+     "sensitive": 0,
+     "summary": 2
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 6,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 2,
+    "summary_days_used": [
+     "2026-10-10",
+     "2026-10-07"
+    ],
+    "followups_due": 0,
+    "followups_selected": []
+   },
+   "extraction": {
+    "status": "done",
+    "attempts": 1,
+    "retries": 0,
+    "error": null,
+    "dropped": [],
+    "counts": {
+     "facts": 2,
+     "followups": 1,
+     "summary": 1
+    },
+    "e2e_ms": 2134,
+    "call_status": "done"
+   },
+   "new_facts": [
+    {
+     "key": "膝頭覆診結果",
+     "value": "醫生話膝頭冇大礙，叫多啲做運動",
+     "category": "health",
+     "status": "pending_confirmation",
+     "sensitivity": "sensitive",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "孫仔結婚",
+     "value": "孫仔下個月一號結婚，到時要飲喜酒",
+     "category": "event",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    }
+   ],
+   "new_followups": [
+    {
+     "description": "孫仔結婚飲喜酒",
+     "due": "2026-11-01",
+     "sensitivity": "normal"
+    }
+   ],
+   "summary": "梁婆婆提到今日天氣涼咗，去公園覺得凍。佢又講到覆診時醫生話膝頭冇大礙，叫佢多啲做運動。另外，佢個孫仔下個月一號結婚，到時要飲喜酒。最後，佢再次提到樓下街市啲菜貴咗，買咗條魚蒸。",
+   "planted": [
+    {
+     "id": "p1_clinic_result",
+     "kind": "update",
+     "pos": 1,
+     "in_buffer": true,
+     "fact": {
+      "status": "pending_confirmation",
+      "sensitivity": "sensitive",
+      "visibility": "agent",
+      "text": "膝頭覆診結果：醫生話膝頭冇大礙，叫多啲做運動"
+     },
+     "followup": null,
+     "in_summary": true
+    },
+    {
+     "id": "p1_fu_wedding",
+     "kind": "followup",
+     "pos": 2,
+     "in_buffer": true,
+     "fact": {
+      "status": "active",
+      "sensitivity": "normal",
+      "visibility": "agent",
+      "text": "孫仔結婚：孫仔下個月一號結婚，到時要飲喜酒"
+     },
+     "followup": {
+      "due": "2026-11-01",
+      "expected_due": "2026-11-01",
+      "sensitivity": "normal",
+      "text": "孫仔結婚飲喜酒"
+     },
+     "in_summary": true
+    }
+   ],
+   "state_after": {
+    "facts_active": 10,
+    "facts_active_sensitive": 0,
+    "facts_pending_confirmation": 2,
+    "facts_superseded": 0,
+    "facts_needs_review": 0,
+    "facts_total": 12,
+    "summaries": 4,
+    "summary_chars_total": 309,
+    "summary_chars_avg": 77,
+    "followups_pending": 2,
+    "followups_asked": 0,
+    "followups_lapsed": 1
+   },
+   "transcript": [
+    {
+     "user": "今日涼咗好多，我晨早去公園都覺得有啲凍。",
+     "reply": "係呀，今朝真係涼咗，你上次都提過街坊話凍咗。你今朝有冇著多件衫先出門口呀？"
+    },
+    {
+     "user": "覆診嗰日醫生話我膝頭冇大礙，叫我多啲做運動。",
+     "reply": "咁就好喇，聽落都安心。醫生有冇講邊種運動啱你做？你本身每朝都去公園做開早操，唔知同醫生講嗰啲夾唔夾呢。"
+    },
+    {
+     "user": "我個孫仔下個月一號結婚，到時要飲喜酒。",
+     "reply": "恭喜呀，娶新抱係開心事。你到時會唔會著返套靚衫去飲？膝頭嗰邊企得耐會唔會攰，你自己要留意下。"
+    },
+    {
+     "user": "樓下街市啲菜貴咗，我買咗條魚返嚟蒸。",
+     "reply": "街市啲菜呢排真係貴，買魚蒸都係好選擇，清清地又易入口。你平時蒸魚會落啲咩，薑蔥定係豉油？"
+    }
+   ]
+  },
+  {
+   "index": 4,
+   "day": 18,
+   "date": "2026-10-25",
+   "time": "19:00",
+   "agent": "siu_yan",
+   "turns": 3,
+   "elder_lines_generated": 3,
+   "inject_start": {
+    "chars": 626,
+    "chars_untrimmed": 626,
+    "layers": {
+     "followup": 0,
+     "fact": 7,
+     "sensitive": 0,
+     "summary": 3
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 7,
+     "sensitive": 0,
+     "summary": 3
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 7,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 3,
+    "summary_days_used": [
+     "2026-10-22",
+     "2026-10-10",
+     "2026-10-07"
+    ],
+    "followups_due": 0,
+    "followups_selected": [],
+    "text": "<memory>\n[關於對方嘅資料]\n- 稱呼：梁婆婆\n- 女兒探望：個女阿玲逢禮拜日會上嚟探我\n- 街市菜貴買魚蒸：樓下街市啲菜貴咗，買咗條魚蒸。\n- 居住地區及獨居：自己一個住喺黃大仙\n- 早操後飲早茶：每朝去公園做早操，做完就去飲早茶。\n- 公園早操：朝早去公園做早操\n- 孫仔結婚：孫仔下個月一號結婚，到時要飲喜酒\n[之前傾過]\n- 2026-10-22：梁婆婆提到今日天氣涼咗，去公園覺得凍。佢又講到覆診時醫生話膝頭冇大礙，叫佢多啲做運動。另外，佢個孫仔下個月一號結婚，到時要飲喜酒。最後，佢再次提到樓下街市啲菜貴咗，買咗條魚蒸。\n- 2026-10-10：梁婆婆今次主要講到每朝去公園做早操之後會去飲早茶，並提醒陪伴者今日轉涼要著多件衫。陪伴者問到飲茶地點、必叫點心同今朝有冇著外套，婆婆未具體回答。\n- 2026-10-07：梁婆婆獨居於黃大仙，女兒阿玲逢禮拜日上門探望。她提到下個禮拜二要去聯合醫院覆診膝頭，又講到今日轉涼，朝早去公園做早操時街坊都話凍咗。\n</memory>\n[記憶使用規則]\n1. 提起記憶時要留餘地，例如「我記得你好似講過……係唔係呀？」\n2. 一輪最多自然咁提起一樣記憶，唔好一次過列出。\n3. 「敏感」嗰部分，只可以喺對方自己提起相關話題時先用，唔好主動引出。\n4. 對方話你記錯，就道歉、接受新講法，唔好爭辯。\n5. 唔肯定就唔好提；絕對唔好作對方冇講過嘅嘢。\n6. 唔好講「另一位陪伴者話我知」之類嘅說話。"
+   },
+   "inject_later": {
+    "chars": 626,
+    "chars_untrimmed": 626,
+    "layers": {
+     "followup": 0,
+     "fact": 7,
+     "sensitive": 0,
+     "summary": 3
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 7,
+     "sensitive": 0,
+     "summary": 3
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 7,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 3,
+    "summary_days_used": [
+     "2026-10-22",
+     "2026-10-10",
+     "2026-10-07"
+    ],
+    "followups_due": 0,
+    "followups_selected": []
+   },
+   "extraction": {
+    "status": "done",
+    "attempts": 1,
+    "retries": 0,
+    "error": null,
+    "dropped": [],
+    "counts": {
+     "facts": 2,
+     "followups": 0,
+     "summary": 1
+    },
+    "e2e_ms": 1571,
+    "call_status": "done"
+   },
+   "new_facts": [
+    {
+     "key": "街市菜貴煮麵",
+     "value": "樓下街市啲菜貴咗好多，隨便煮咗碗麵",
+     "category": "living",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    },
+    {
+     "key": "女兒煲湯",
+     "value": "阿玲今日上嚟同我煲咗湯",
+     "category": "family",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    }
+   ],
+   "new_followups": [],
+   "summary": "梁婆婆同 AI 陪伴者傾偈，提到天氣轉凍，女兒阿玲今日上嚟同佢煲湯，又講到樓下街市啲菜貴咗，所以隨便煮咗碗麵。",
+   "planted": [
+    {
+     "id": "p1_soup",
+     "kind": "event",
+     "pos": 1,
+     "in_buffer": true,
+     "fact": {
+      "status": "active",
+      "sensitivity": "normal",
+      "visibility": "shared",
+      "text": "女兒煲湯：阿玲今日上嚟同我煲咗湯"
+     },
+     "followup": null,
+     "in_summary": true
+    }
+   ],
+   "state_after": {
+    "facts_active": 12,
+    "facts_active_sensitive": 0,
+    "facts_pending_confirmation": 2,
+    "facts_superseded": 0,
+    "facts_needs_review": 0,
+    "facts_total": 14,
+    "summaries": 5,
+    "summary_chars_total": 364,
+    "summary_chars_avg": 73,
+    "followups_pending": 2,
+    "followups_asked": 0,
+    "followups_lapsed": 1
+   },
+   "transcript": [
+    {
+     "user": "小欣，今晚好凍呀，你話係咪就快轉季？",
+     "reply": "係呀，呢兩晚真係凍咗好多，夜晚仲有啲風。你上次都提過朝早去公園做早操嗰陣覺得凍，今晚仲夜，記住冚返張被先好瞓。"
+    },
+    {
+     "user": "今日阿玲上嚟同我煲咗湯。",
+     "reply": "阿玲今日上嚟陪你煲湯，幾好呀。禮拜日佢例牌上嚟，今次煲咗咩湯？"
+    },
+    {
+     "user": "樓下街市啲菜貴咗好多，我都係隨便煮咗碗麵。",
+     "reply": "樓下街市啲菜真係貴咗，你都講過買條魚蒸就算。今晚凍凍哋，食碗熱麵都幾舒服嘅，落咗咩料呀？"
+    }
+   ]
+  },
+  {
+   "index": 5,
+   "day": 26,
+   "date": "2026-11-02",
+   "time": "10:00",
+   "agent": "tung_tung",
+   "turns": 5,
+   "elder_lines_generated": 5,
+   "inject_start": {
+    "chars": 330,
+    "chars_untrimmed": 330,
+    "layers": {
+     "followup": 0,
+     "fact": 6,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 6,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 6,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 0,
+    "summary_days_used": [],
+    "followups_due": 0,
+    "followups_selected": [],
+    "text": "<memory>\n[關於對方嘅資料]\n- 稱呼：梁婆婆\n- 女兒煲湯：阿玲今日上嚟同我煲咗湯\n- 女兒探望：個女阿玲逢禮拜日會上嚟探我\n- 街市菜貴煮麵：樓下街市啲菜貴咗好多，隨便煮咗碗麵\n- 街市菜貴買魚蒸：樓下街市啲菜貴咗，買咗條魚蒸。\n- 居住地區及獨居：自己一個住喺黃大仙\n</memory>\n[記憶使用規則]\n1. 提起記憶時要留餘地，例如「我記得你好似講過……係唔係呀？」\n2. 一輪最多自然咁提起一樣記憶，唔好一次過列出。\n3. 「敏感」嗰部分，只可以喺對方自己提起相關話題時先用，唔好主動引出。\n4. 對方話你記錯，就道歉、接受新講法，唔好爭辯。\n5. 唔肯定就唔好提；絕對唔好作對方冇講過嘅嘢。\n6. 唔好講「另一位陪伴者話我知」之類嘅說話。"
+   },
+   "inject_later": {
+    "chars": 330,
+    "chars_untrimmed": 330,
+    "layers": {
+     "followup": 0,
+     "fact": 6,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 6,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 6,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 0,
+    "summary_days_used": [],
+    "followups_due": 0,
+    "followups_selected": []
+   },
+   "extraction": {
+    "status": "done",
+    "attempts": 1,
+    "retries": 0,
+    "error": null,
+    "dropped": [],
+    "counts": {
+     "facts": 3,
+     "followups": 0,
+     "summary": 1
+    },
+    "e2e_ms": 2363,
+    "call_status": "done"
+   },
+   "new_facts": [
+    {
+     "key": "飲孫仔喜酒",
+     "value": "琴日去咗飲孫仔嘅喜酒，覺得好熱鬧。",
+     "category": "event",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "公園陳伯唔見人",
+     "value": "公園嗰個陳伯成日都唔見人，唔知係咪病咗。",
+     "category": "event",
+     "status": "pending_confirmation",
+     "sensitivity": "sensitive",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "天氣凍著多件衫",
+     "value": "今日凍咗好多，出街前著多件衫。",
+     "category": "health",
+     "status": "pending_confirmation",
+     "sensitivity": "sensitive",
+     "visibility": "agent",
+     "replaces": null
+    }
+   ],
+   "new_followups": [],
+   "summary": "梁婆婆同 AI 傾偈，講到黃大仙祠、天氣轉凍要著多件衫、公園陳伯唔見人、以及琴日去飲孫仔喜酒。AI 提醒自己係機械人，唔擅長處理心情事。",
+   "planted": [
+    {
+     "id": "p1_wedding_done",
+     "kind": "event",
+     "pos": 4,
+     "in_buffer": true,
+     "fact": {
+      "status": "active",
+      "sensitivity": "normal",
+      "visibility": "agent",
+      "text": "飲孫仔喜酒：琴日去咗飲孫仔嘅喜酒，覺得好熱鬧。"
+     },
+     "followup": null,
+     "in_summary": true
+    },
+    {
+     "id": "p1_temple_q",
+     "kind": "event",
+     "pos": 0,
+     "in_buffer": true,
+     "fact": null,
+     "followup": null,
+     "in_summary": true
+    }
+   ],
+   "state_after": {
+    "facts_active": 13,
+    "facts_active_sensitive": 0,
+    "facts_pending_confirmation": 4,
+    "facts_superseded": 0,
+    "facts_needs_review": 0,
+    "facts_total": 17,
+    "summaries": 6,
+    "summary_chars_total": 432,
+    "summary_chars_avg": 72,
+    "followups_pending": 2,
+    "followups_asked": 0,
+    "followups_lapsed": 1
+   },
+   "transcript": [
+    {
+     "user": "通通，你知唔知黃大仙祠點解咁多人去？",
+     "reply": "哈哈，呢個問題好，等我講下我知嘅嘢先～\n\n黃大仙祠（嗇色園）最出名係「有求必應」呢個講法，所以好多人去求籤、求平安。佢仲有個好特別嘅地方——係香港少數**儒、釋、道三教合一**嘅廟，所以你會見到入面咩都有啲。另外每年農曆新年頭炷香、年初一搶頭香，成個祠都逼滿人，好墟冚㗎。\n\n不過我未確定一啲細節，例如開放時間或者求籤嘅規矩，要唔要我幫你查下？"
+    },
+    {
+     "user": "今日凍咗好多，我著多件衫先出街。",
+     "reply": "係呀，呢排天氣真係轉得快，你著多件衫啱㗎！黃大仙嗰邊空曠，風大啲，記住頸同腳都要保暖，唔好淨係加件薄外套。\n\n講開凍，我好奇問下——你平時出街係行下公園，定係去街市買餸多呀？"
+    },
+    {
+     "user": "公園嗰個陳伯成日都唔見人，唔知係咪病咗。",
+     "reply": "哦，陳伯係你公園嘅老友記呀？佢突然唔見人，係會有啲掛心嘅。\n\n不過呢種擔心鄰居身體嘅心情，我唔係好擅長處理——如果佢真係病咗，或者你覺得有啲擔心，不如過去搵小欣傾下？佢比我細心啲。\n\n反而我想問下，你平時喺公園同佢哋會做啲咩㗎？捉棋定係傾偈多？"
+    },
+    {
+     "user": "係咩？",
+     "reply": "係呀，我係一個 AI 機械人，唔係真人嚟㗎。傾閒偈、搵資料、講下新嘢我ok，但講到心情同事就未必幫到手。\n\n不過我照樣好樂意同你傾——你頭先講開公園，你哋通常係捉棋、做運動，定係純粹坐低傾偈多呀？"
+    },
+    {
+     "user": "琴日去咗飲個孫仔嘅喜酒，好熱鬧。",
+     "reply": "嘩，飲孫仔喜酒，好開心事喎！成家人聚埋一齊，一定好熱鬧。\n\n我好奇問下——而家香港擺喜酒，通常都係去酒樓定酒店多呀？啲餸菜同以前有冇唔同咗？"
+    }
+   ]
+  }
+ ],
+ "calls": [
+  {
+   "kind": "elder_script",
+   "http": 200,
+   "latency_ms": 1624,
+   "session": 0,
+   "model": "deepseek-flash",
+   "prompt": 381,
+   "completion": 87,
+   "hit": 0,
+   "miss": 381
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1234,
+   "session": 0,
+   "turn": 0,
+   "model": "deepseek-flash",
+   "prompt": 1632,
+   "completion": 21,
+   "hit": 1408,
+   "miss": 224
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1413,
+   "session": 0,
+   "turn": 1,
+   "model": "deepseek-flash",
+   "prompt": 1681,
+   "completion": 42,
+   "hit": 1536,
+   "miss": 145
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1291,
+   "session": 0,
+   "turn": 2,
+   "model": "deepseek-flash",
+   "prompt": 1744,
+   "completion": 26,
+   "hit": 1536,
+   "miss": 208
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1252,
+   "session": 0,
+   "turn": 3,
+   "model": "deepseek-flash",
+   "prompt": 1801,
+   "completion": 63,
+   "hit": 1664,
+   "miss": 137
+  },
+  {
+   "kind": "extraction",
+   "http": 200,
+   "latency_ms": 2980,
+   "session": 0,
+   "turn": "end",
+   "model": "deepseek-flash",
+   "prompt": 682,
+   "completion": 527,
+   "hit": 256,
+   "miss": 426
+  },
+  {
+   "kind": "elder_script",
+   "http": 200,
+   "latency_ms": 1285,
+   "session": 1,
+   "model": "deepseek-flash",
+   "prompt": 396,
+   "completion": 43,
+   "hit": 0,
+   "miss": 396
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1466,
+   "session": 1,
+   "turn": 0,
+   "model": "deepseek-flash",
+   "prompt": 1921,
+   "completion": 52,
+   "hit": 1536,
+   "miss": 385
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1412,
+   "session": 1,
+   "turn": 1,
+   "model": "deepseek-flash",
+   "prompt": 1990,
+   "completion": 50,
+   "hit": 1792,
+   "miss": 198
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1034,
+   "session": 1,
+   "turn": 2,
+   "model": "deepseek-flash",
+   "prompt": 2048,
+   "completion": 31,
+   "hit": 1792,
+   "miss": 256
+  },
+  {
+   "kind": "extraction",
+   "http": 200,
+   "latency_ms": 1728,
+   "session": 1,
+   "turn": "end",
+   "model": "deepseek-flash",
+   "prompt": 745,
+   "completion": 172,
+   "hit": 0,
+   "miss": 745
+  },
+  {
+   "kind": "elder_script",
+   "http": 200,
+   "latency_ms": 1243,
+   "session": 2,
+   "model": "deepseek-flash",
+   "prompt": 435,
+   "completion": 91,
+   "hit": 0,
+   "miss": 435
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1072,
+   "session": 2,
+   "turn": 0,
+   "model": "deepseek-flash",
+   "prompt": 2324,
+   "completion": 31,
+   "hit": 0,
+   "miss": 2324
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 977,
+   "session": 2,
+   "turn": 1,
+   "model": "deepseek-flash",
+   "prompt": 2375,
+   "completion": 47,
+   "hit": 2176,
+   "miss": 199
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1502,
+   "session": 2,
+   "turn": 2,
+   "model": "deepseek-flash",
+   "prompt": 2445,
+   "completion": 60,
+   "hit": 2304,
+   "miss": 141
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1230,
+   "session": 2,
+   "turn": 3,
+   "model": "deepseek-flash",
+   "prompt": 2511,
+   "completion": 45,
+   "hit": 2304,
+   "miss": 207
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1047,
+   "session": 2,
+   "turn": 4,
+   "model": "deepseek-flash",
+   "prompt": 2573,
+   "completion": 41,
+   "hit": 2432,
+   "miss": 141
+  },
+  {
+   "kind": "extraction",
+   "http": 200,
+   "latency_ms": 2558,
+   "session": 2,
+   "turn": "end",
+   "model": "deepseek-flash",
+   "prompt": 847,
+   "completion": 476,
+   "hit": 0,
+   "miss": 847
+  },
+  {
+   "kind": "elder_script",
+   "http": 200,
+   "latency_ms": 1325,
+   "session": 3,
+   "model": "deepseek-flash",
+   "prompt": 473,
+   "completion": 90,
+   "hit": 0,
+   "miss": 473
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1086,
+   "session": 3,
+   "turn": 0,
+   "model": "deepseek-flash",
+   "prompt": 2042,
+   "completion": 37,
+   "hit": 1536,
+   "miss": 506
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1390,
+   "session": 3,
+   "turn": 1,
+   "model": "deepseek-flash",
+   "prompt": 2104,
+   "completion": 47,
+   "hit": 1920,
+   "miss": 184
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1528,
+   "session": 3,
+   "turn": 2,
+   "model": "deepseek-flash",
+   "prompt": 2172,
+   "completion": 44,
+   "hit": 1920,
+   "miss": 252
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1383,
+   "session": 3,
+   "turn": 3,
+   "model": "deepseek-flash",
+   "prompt": 2242,
+   "completion": 45,
+   "hit": 2048,
+   "miss": 194
+  },
+  {
+   "kind": "extraction",
+   "http": 200,
+   "latency_ms": 2085,
+   "session": 3,
+   "turn": "end",
+   "model": "deepseek-flash",
+   "prompt": 923,
+   "completion": 344,
+   "hit": 0,
+   "miss": 923
+  },
+  {
+   "kind": "elder_script",
+   "http": 200,
+   "latency_ms": 1045,
+   "session": 4,
+   "model": "deepseek-flash",
+   "prompt": 477,
+   "completion": 61,
+   "hit": 0,
+   "miss": 477
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1550,
+   "session": 4,
+   "turn": 0,
+   "model": "deepseek-flash",
+   "prompt": 2154,
+   "completion": 54,
+   "hit": 1536,
+   "miss": 618
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1173,
+   "session": 4,
+   "turn": 1,
+   "model": "deepseek-flash",
+   "prompt": 2225,
+   "completion": 34,
+   "hit": 2048,
+   "miss": 177
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1234,
+   "session": 4,
+   "turn": 2,
+   "model": "deepseek-flash",
+   "prompt": 2284,
+   "completion": 45,
+   "hit": 2048,
+   "miss": 236
+  },
+  {
+   "kind": "extraction",
+   "http": 200,
+   "latency_ms": 1526,
+   "session": 4,
+   "turn": "end",
+   "model": "deepseek-flash",
+   "prompt": 889,
+   "completion": 257,
+   "hit": 0,
+   "miss": 889
+  },
+  {
+   "kind": "elder_script",
+   "http": 200,
+   "latency_ms": 1268,
+   "session": 5,
+   "model": "deepseek-flash",
+   "prompt": 521,
+   "completion": 89,
+   "hit": 0,
+   "miss": 521
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 2014,
+   "session": 5,
+   "turn": 0,
+   "model": "deepseek-flash",
+   "prompt": 1856,
+   "completion": 149,
+   "hit": 0,
+   "miss": 1856
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1697,
+   "session": 5,
+   "turn": 1,
+   "model": "deepseek-flash",
+   "prompt": 2024,
+   "completion": 83,
+   "hit": 1792,
+   "miss": 232
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1770,
+   "session": 5,
+   "turn": 2,
+   "model": "deepseek-flash",
+   "prompt": 2132,
+   "completion": 114,
+   "hit": 1920,
+   "miss": 212
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1562,
+   "session": 5,
+   "turn": 3,
+   "model": "deepseek-flash",
+   "prompt": 2254,
+   "completion": 88,
+   "hit": 2048,
+   "miss": 206
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1340,
+   "session": 5,
+   "turn": 4,
+   "model": "deepseek-flash",
+   "prompt": 2363,
+   "completion": 64,
+   "hit": 2176,
+   "miss": 187
+  },
+  {
+   "kind": "extraction",
+   "http": 200,
+   "latency_ms": 2315,
+   "session": 5,
+   "turn": "end",
+   "model": "deepseek-flash",
+   "prompt": 1262,
+   "completion": 368,
+   "hit": 0,
+   "miss": 1262
+  }
+ ],
+ "llm_calls_summary": {
+  "rows": 30,
+  "prompt_tokens": 56245,
+  "completion_tokens": 3457,
+  "by_type": {
+   "chat": 24,
+   "memory_extraction": 6
+  }
+ },
+ "final": {
+  "facts": [
+   {
+    "key": "稱呼",
+    "value": "梁婆婆",
+    "category": "name",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "飲孫仔喜酒",
+    "value": "琴日去咗飲孫仔嘅喜酒，覺得好熱鬧。",
+    "category": "event",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "tung_tung",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "公園陳伯唔見人",
+    "value": "公園嗰個陳伯成日都唔見人，唔知係咪病咗。",
+    "category": "event",
+    "status": "pending_confirmation",
+    "sensitivity": "sensitive",
+    "visibility": "agent",
+    "agent": "tung_tung",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "製衣廠車衣三十年",
+    "value": "後生喺製衣廠做車衣，做咗三十年。",
+    "category": "event",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "ah_jan_ah_bak",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "街市菜貴煮麵",
+    "value": "樓下街市啲菜貴咗好多，隨便煮咗碗麵",
+    "category": "living",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "鍾意聽粵曲任白",
+    "value": "最鍾意聽粵曲，尤其係任白。",
+    "category": "preference",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "ah_jan_ah_bak",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "公園早操",
+    "value": "朝早去公園做早操",
+    "category": "routine",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "早操後飲早茶",
+    "value": "每朝去公園做早操，做完就去飲早茶。",
+    "category": "routine",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "今朝公園大風著多件衫",
+    "value": "今朝公園好大風，著多件衫先出門口。",
+    "category": "routine",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "ah_jan_ah_bak",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "街市菜貴買魚蒸",
+    "value": "樓下街市啲菜貴咗，買咗條魚蒸。",
+    "category": "living",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "ah_jan_ah_bak",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "膝頭覆診結果",
+    "value": "醫生話膝頭冇大礙，叫多啲做運動",
+    "category": "health",
+    "status": "pending_confirmation",
+    "sensitivity": "sensitive",
+    "visibility": "agent",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "居住地區及獨居",
+    "value": "自己一個住喺黃大仙",
+    "category": "living",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "聯合醫院覆診",
+    "value": "下個禮拜二去聯合醫院覆診，睇膝頭",
+    "category": "event",
+    "status": "pending_confirmation",
+    "sensitivity": "sensitive",
+    "visibility": "agent",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "孫仔結婚",
+    "value": "孫仔下個月一號結婚，到時要飲喜酒",
+    "category": "event",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "天氣凍著多件衫",
+    "value": "今日凍咗好多，出街前著多件衫。",
+    "category": "health",
+    "status": "pending_confirmation",
+    "sensitivity": "sensitive",
+    "visibility": "agent",
+    "agent": "tung_tung",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "女兒煲湯",
+    "value": "阿玲今日上嚟同我煲咗湯",
+    "category": "family",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "女兒探望",
+    "value": "個女阿玲逢禮拜日會上嚟探我",
+    "category": "family",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   }
+  ],
+  "summaries": [
+   {
+    "day": "2026-10-16",
+    "agent": "ah_jan_ah_bak",
+    "summary": "梁婆婆今次提到後生喺製衣廠做車衣三十年，又講到今朝公園大風所以著多件衫、樓下街市菜貴買咗條魚蒸，以及最鍾意聽粵曲尤其任白。陪伴者多次想追問製衣廠細節，但婆婆冇再補充。",
+    "sensitivity": "normal"
+   },
+   {
+    "day": "2026-10-22",
+    "agent": "siu_yan",
+    "summary": "梁婆婆提到今日天氣涼咗，去公園覺得凍。佢又講到覆診時醫生話膝頭冇大礙，叫佢多啲做運動。另外，佢個孫仔下個月一號結婚，到時要飲喜酒。最後，佢再次提到樓下街市啲菜貴咗，買咗條魚蒸。",
+    "sensitivity": "sensitive"
+   },
+   {
+    "day": "2026-10-07",
+    "agent": "siu_yan",
+    "summary": "梁婆婆獨居於黃大仙，女兒阿玲逢禮拜日上門探望。她提到下個禮拜二要去聯合醫院覆診膝頭，又講到今日轉涼，朝早去公園做早操時街坊都話凍咗。",
+    "sensitivity": "sensitive"
+   },
+   {
+    "day": "2026-11-02",
+    "agent": "tung_tung",
+    "summary": "梁婆婆同 AI 傾偈，講到黃大仙祠、天氣轉凍要著多件衫、公園陳伯唔見人、以及琴日去飲孫仔喜酒。AI 提醒自己係機械人，唔擅長處理心情事。",
+    "sensitivity": "normal"
+   },
+   {
+    "day": "2026-10-10",
+    "agent": "siu_yan",
+    "summary": "梁婆婆今次主要講到每朝去公園做早操之後會去飲早茶，並提醒陪伴者今日轉涼要著多件衫。陪伴者問到飲茶地點、必叫點心同今朝有冇著外套，婆婆未具體回答。",
+    "sensitivity": "normal"
+   },
+   {
+    "day": "2026-10-25",
+    "agent": "siu_yan",
+    "summary": "梁婆婆同 AI 陪伴者傾偈，提到天氣轉凍，女兒阿玲今日上嚟同佢煲湯，又講到樓下街市啲菜貴咗，所以隨便煮咗碗麵。",
+    "sensitivity": "normal"
+   }
+  ],
+  "followups": [
+   {
+    "agent": "siu_yan",
+    "description": "梁婆婆去聯合醫院覆診膝頭",
+    "due": "2026-10-13",
+    "status": "pending",
+    "sensitivity": "normal"
+   },
+   {
+    "agent": "siu_yan",
+    "description": "孫仔結婚飲喜酒",
+    "due": "2026-11-01",
+    "status": "pending",
+    "sensitivity": "normal"
+   }
+  ]
+ }
+}

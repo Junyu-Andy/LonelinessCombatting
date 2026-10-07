@@ -1,0 +1,465 @@
+{
+ "run": "pilot",
+ "profiles": {
+  "P1_light": {
+   "label": "用得少",
+   "sessions": 6,
+   "stopped": null,
+   "user_turns": 24,
+   "confirmations": [],
+   "kinds": {
+    "elder_script": {
+     "calls": 6,
+     "input_hit": 0,
+     "input_miss": 2683,
+     "output": 461,
+     "errors": 0,
+     "latency_p50": 1285,
+     "latency_p95": 1624,
+     "latency_max": 1624
+    },
+    "chat": {
+     "calls": 24,
+     "input_hit": 41472,
+     "input_miss": 9425,
+     "output": 1313,
+     "errors": 0,
+     "latency_p50": 1383,
+     "latency_p95": 1770,
+     "latency_max": 2014
+    },
+    "extraction": {
+     "calls": 6,
+     "input_hit": 256,
+     "input_miss": 5092,
+     "output": 2144,
+     "errors": 0,
+     "latency_p50": 2315,
+     "latency_p95": 2980,
+     "latency_max": 2980
+    }
+   },
+   "totals": {
+    "calls": 30,
+    "input_hit": 41728,
+    "input_miss": 14517,
+    "output": 3457,
+    "total": 59702
+   },
+   "weeks": [
+    {
+     "week": 1,
+     "sessions": 2,
+     "user_turns": 7,
+     "state": {
+      "facts_active": 5,
+      "facts_active_sensitive": 0,
+      "facts_pending_confirmation": 1,
+      "facts_superseded": 0,
+      "facts_needs_review": 0,
+      "facts_total": 6,
+      "summaries": 2,
+      "summary_chars_total": 138,
+      "summary_chars_avg": 69,
+      "followups_pending": 1,
+      "followups_asked": 0,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 181,
+     "block_chars_max": 361,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 146
+    },
+    {
+     "week": 2,
+     "sessions": 1,
+     "user_turns": 5,
+     "state": {
+      "facts_active": 9,
+      "facts_active_sensitive": 0,
+      "facts_pending_confirmation": 1,
+      "facts_superseded": 0,
+      "facts_needs_review": 0,
+      "facts_total": 10,
+      "summaries": 3,
+      "summary_chars_total": 221,
+      "summary_chars_avg": 74,
+      "followups_pending": 1,
+      "followups_asked": 0,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 258,
+     "block_chars_max": 258,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 209
+    },
+    {
+     "week": 3,
+     "sessions": 2,
+     "user_turns": 7,
+     "state": {
+      "facts_active": 12,
+      "facts_active_sensitive": 0,
+      "facts_pending_confirmation": 2,
+      "facts_superseded": 0,
+      "facts_needs_review": 0,
+      "facts_total": 14,
+      "summaries": 5,
+      "summary_chars_total": 364,
+      "summary_chars_avg": 73,
+      "followups_pending": 2,
+      "followups_asked": 0,
+      "followups_lapsed": 1
+     },
+     "block_chars_avg": 563,
+     "block_chars_max": 626,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 456
+    },
+    {
+     "week": 4,
+     "sessions": 1,
+     "user_turns": 5,
+     "state": {
+      "facts_active": 13,
+      "facts_active_sensitive": 0,
+      "facts_pending_confirmation": 4,
+      "facts_superseded": 0,
+      "facts_needs_review": 0,
+      "facts_total": 17,
+      "summaries": 6,
+      "summary_chars_total": 432,
+      "summary_chars_avg": 72,
+      "followups_pending": 2,
+      "followups_asked": 0,
+      "followups_lapsed": 1
+     },
+     "block_chars_avg": 330,
+     "block_chars_max": 330,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 267
+    }
+   ],
+   "injection": {
+    "block_chars_avg": 346,
+    "block_chars_max": 626,
+    "block_tokens_avg": 280,
+    "block_tokens_max": 507,
+    "untrimmed_max": 626,
+    "sessions_over_budget": 0,
+    "cut_layers": {},
+    "cut_examples": [],
+    "sessions_fact_cap_hit": 0,
+    "sessions_empty_block": 1,
+    "memory_chars_sent": 7901,
+    "memory_tokens_sent_est": 6398
+   },
+   "extraction": {
+    "sessions": 6,
+    "done": 6,
+    "failed": [],
+    "retries": 0,
+    "with_summary": 6,
+    "dropped": {},
+    "e2e_p50": 2363,
+    "e2e_p95": 3079,
+    "facts_per_session": 2.8
+   },
+   "planted": {
+    "total": 11,
+    "in_buffer": 11,
+    "in_buffer_captured": 10,
+    "in_buffer_in_summary": 11,
+    "out_of_buffer": 0,
+    "out_of_buffer_captured": 0,
+    "out_of_buffer_in_summary": 0,
+    "lost_examples": []
+   },
+   "followups": {
+    "planted": 2,
+    "created": 2,
+    "due_correct": 2,
+    "due_wrong": [],
+    "created_total": 2,
+    "injected": 0,
+    "final_asked": 0,
+    "final_pending_lapsed": 1,
+    "final_pending_future": 0,
+    "final_pending_sensitive": 0,
+    "selected_list": [],
+    "asked_more_than_once": []
+   },
+   "problems": {
+    "stale_summary_sessions": 2,
+    "stale_summary_example": "2026-10-22 注入了 2026-10-10、2026-10-07 的摘要",
+    "stale_relative_date_facts": [
+     "飲孫仔喜酒：琴日去咗飲孫仔嘅喜酒，覺得好熱鬧。",
+     "今朝公園大風著多件衫：今朝公園好大風，著多件衫先出門口。",
+     "孫仔結婚：孫仔下個月一號結婚，到時要飲喜酒",
+     "女兒煲湯：阿玲今日上嚟同我煲咗湯"
+    ],
+    "needs_review_facts": [],
+    "contradictions": [],
+    "dont_store": [],
+    "pii": [],
+    "summary_missing_for_agent": []
+   },
+   "final_counts": {
+    "facts_active": 13,
+    "facts_active_sensitive": 0,
+    "facts_pending_confirmation": 4,
+    "facts_superseded": 0,
+    "facts_needs_review": 0,
+    "facts_total": 17,
+    "summaries": 6,
+    "summary_chars_total": 432,
+    "summary_chars_avg": 72,
+    "followups_pending": 2,
+    "followups_asked": 0,
+    "followups_lapsed": 1
+   }
+  },
+  "P2_typical": {
+   "label": "典型",
+   "sessions": 2,
+   "stopped": null,
+   "user_turns": 28,
+   "confirmations": [],
+   "kinds": {
+    "elder_script": {
+     "calls": 2,
+     "input_hit": 0,
+     "input_miss": 827,
+     "output": 655,
+     "errors": 0,
+     "latency_p50": 3103,
+     "latency_p95": 3103,
+     "latency_max": 3103
+    },
+    "chat": {
+     "calls": 28,
+     "input_hit": 58880,
+     "input_miss": 5864,
+     "output": 1813,
+     "errors": 0,
+     "latency_p50": 1308,
+     "latency_p95": 1746,
+     "latency_max": 1763
+    },
+    "extraction": {
+     "calls": 2,
+     "input_hit": 256,
+     "input_miss": 2777,
+     "output": 2343,
+     "errors": 0,
+     "latency_p50": 4462,
+     "latency_p95": 4462,
+     "latency_max": 4462
+    }
+   },
+   "totals": {
+    "calls": 30,
+    "input_hit": 59136,
+    "input_miss": 8641,
+    "output": 4156,
+    "total": 71933
+   },
+   "weeks": [
+    {
+     "week": 1,
+     "sessions": 2,
+     "user_turns": 28,
+     "state": {
+      "facts_active": 15,
+      "facts_active_sensitive": 0,
+      "facts_pending_confirmation": 3,
+      "facts_superseded": 3,
+      "facts_needs_review": 0,
+      "facts_total": 21,
+      "summaries": 2,
+      "summary_chars_total": 245,
+      "summary_chars_avg": 123,
+      "followups_pending": 0,
+      "followups_asked": 0,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 164,
+     "block_chars_max": 327,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 132
+    },
+    {
+     "week": 2,
+     "sessions": 0,
+     "user_turns": 0,
+     "state": {
+      "facts_active": 15,
+      "facts_active_sensitive": 0,
+      "facts_pending_confirmation": 3,
+      "facts_superseded": 3,
+      "facts_needs_review": 0,
+      "facts_total": 21,
+      "summaries": 2,
+      "summary_chars_total": 245,
+      "summary_chars_avg": 123,
+      "followups_pending": 0,
+      "followups_asked": 0,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 0,
+     "block_chars_max": 0,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 0
+    },
+    {
+     "week": 3,
+     "sessions": 0,
+     "user_turns": 0,
+     "state": {
+      "facts_active": 15,
+      "facts_active_sensitive": 0,
+      "facts_pending_confirmation": 3,
+      "facts_superseded": 3,
+      "facts_needs_review": 0,
+      "facts_total": 21,
+      "summaries": 2,
+      "summary_chars_total": 245,
+      "summary_chars_avg": 123,
+      "followups_pending": 0,
+      "followups_asked": 0,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 0,
+     "block_chars_max": 0,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 0
+    },
+    {
+     "week": 4,
+     "sessions": 0,
+     "user_turns": 0,
+     "state": {
+      "facts_active": 15,
+      "facts_active_sensitive": 0,
+      "facts_pending_confirmation": 3,
+      "facts_superseded": 3,
+      "facts_needs_review": 0,
+      "facts_total": 21,
+      "summaries": 2,
+      "summary_chars_total": 245,
+      "summary_chars_avg": 123,
+      "followups_pending": 0,
+      "followups_asked": 0,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 0,
+     "block_chars_max": 0,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 0
+    }
+   ],
+   "injection": {
+    "block_chars_avg": 164,
+    "block_chars_max": 327,
+    "block_tokens_avg": 132,
+    "block_tokens_max": 265,
+    "untrimmed_max": 327,
+    "sessions_over_budget": 0,
+    "cut_layers": {},
+    "cut_examples": [],
+    "sessions_fact_cap_hit": 0,
+    "sessions_empty_block": 1,
+    "memory_chars_sent": 4578,
+    "memory_tokens_sent_est": 3707
+   },
+   "extraction": {
+    "sessions": 2,
+    "done": 2,
+    "failed": [],
+    "retries": 0,
+    "with_summary": 2,
+    "dropped": {},
+    "e2e_p50": 4509,
+    "e2e_p95": 4509,
+    "facts_per_session": 10.5
+   },
+   "planted": {
+    "total": 4,
+    "in_buffer": 1,
+    "in_buffer_captured": 1,
+    "in_buffer_in_summary": 1,
+    "out_of_buffer": 3,
+    "out_of_buffer_captured": 2,
+    "out_of_buffer_in_summary": 3,
+    "lost_examples": []
+   },
+   "followups": {
+    "planted": 0,
+    "created": 0,
+    "due_correct": 0,
+    "due_wrong": [],
+    "created_total": 0,
+    "injected": 0,
+    "final_asked": 0,
+    "final_pending_lapsed": 0,
+    "final_pending_future": 0,
+    "final_pending_sensitive": 0,
+    "selected_list": [],
+    "asked_more_than_once": []
+   },
+   "problems": {
+    "stale_summary_sessions": 0,
+    "stale_summary_example": null,
+    "stale_relative_date_facts": [
+     "同珍姐飲茶：今朝同珍姐去飲茶，啲蝦餃貴咗成兩蚊。"
+    ],
+    "needs_review_facts": [],
+    "contradictions": [
+     {
+      "note": "倫敦 vs 曼徹斯特（老人自己纠正）",
+      "both_live": false,
+      "a": [
+       "志明喺倫敦做嘢：個仔志明喺倫敦做嘢。"
+      ],
+      "b": []
+     },
+     {
+      "note": "行山 vs 暂停行山改太极",
+      "both_live": false,
+      "a": [
+       "行樓梯都痛：以前成日同伙記去行山，而家行樓梯都痛。"
+      ],
+      "b": []
+     }
+    ],
+    "dont_store": [],
+    "pii": [],
+    "summary_missing_for_agent": []
+   },
+   "final_counts": {
+    "facts_active": 15,
+    "facts_active_sensitive": 0,
+    "facts_pending_confirmation": 3,
+    "facts_superseded": 3,
+    "facts_needs_review": 0,
+    "facts_total": 21,
+    "summaries": 2,
+    "summary_chars_total": 245,
+    "summary_chars_avg": 123,
+    "followups_pending": 0,
+    "followups_asked": 0,
+    "followups_lapsed": 0
+   }
+  }
+ },
+ "token_fit": {
+  "rows": 52,
+  "base": {
+   "siu_yan": 1621,
+   "ah_jan_ah_bak": 2104,
+   "tung_tung": 1562
+  },
+  "perBlockChar": 0.80975028836756,
+  "perHistoryChar": 1.0131071687179416
+ }
+}
