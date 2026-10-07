@@ -346,5 +346,226 @@ test("C20: sharedContextUse only counts when the switch is on", () => {
     enforceSharedContextConsent: true}, null), "B");
 });
 
+// ------------------------------------------------- T10 (decision 0024)
+const forgetLib = require("../memory_forget");
+
+test("T10 flags: fixes on unless false, confirmation reply off", () => {
+  const d = m.t10Flags({});
+  for (const k of ["excludeSafetyTurns", "omitSensitiveSummary",
+    "honourForgetRequests", "deleteSummaryWithItem",
+    "honourMemoryWithdrawal", "sensitiveFactQuota",
+    "strictFactValidation"]) {
+    assert.strictEqual(d[k], true, k);
+    assert.strictEqual(m.t10Flags({[k]: false})[k], false, k);
+  }
+  assert.strictEqual(d.forgetAckReply, false);
+  assert.strictEqual(m.t10Flags({forgetAckReply: true}).forgetAckReply, true);
+  assert.strictEqual(d.extractionPrompt, "memory_extraction.v2");
+  assert.strictEqual(m.t10Flags({extractionPrompt: "memory_extraction.v1"})
+      .extractionPrompt, "memory_extraction.v1");
+  assert.strictEqual(m.t10Flags({extractionPrompt: "x"}).extractionPrompt,
+      "memory_extraction.v2");
+});
+
+test("T10 prompts: v1 file is the old prompt, v2 adds the new rules", () => {
+  const v1 = m.buildExtractionPrompt({turns, activeFacts: [],
+    todayKey: TODAY, promptName: "memory_extraction.v1"}).system;
+  assert.ok(v1.includes("今日係 2026-09-29（星期二，香港時間）"));
+  assert.ok(v1.includes(m.CATEGORIES.join(", ")));
+  assert.ok(!v1.includes("safety_concern"));
+  assert.ok(!v1.includes("{{"));
+  const v2 = m.buildExtractionPrompt({turns, activeFacts: [],
+    todayKey: TODAY}).system;
+  for (const w of ["safety_concern", "假設", "講笑", "陪伴者嘅名",
+    "唔好記住", "summary 只寫中性"]) {
+    assert.ok(v2.includes(w), w);
+  }
+  assert.ok(!v2.includes("{{"));
+});
+
+test("T10 screening: flagged turns and the replies to them are removed", () => {
+  const t = [
+    {fromUser: true, text: "我今日去咗飲茶"},
+    {fromUser: false, text: "好呀"},
+    {fromUser: true, text: "有時諗住不如死咗算"},
+    {fromUser: false, text: "我好擔心你"},
+    {fromUser: false, text: "你可以同我講多啲"},
+    {fromUser: true, text: "老伴走咗之後好難過"},
+    {fromUser: true, text: "我好孤獨"},
+    {fromUser: false, text: "我陪住你"},
+  ];
+  const r = m.screenTurns(t, {excludeSafety: true, forget: true});
+  assert.strictEqual(r.safetyTurns, 2);
+  assert.deepStrictEqual(r.turns.map((x) => x.text),
+      ["我今日去咗飲茶", "好呀", "我好孤獨", "我陪住你"]);
+  assert.strictEqual(r.forget, null);
+  const off = m.screenTurns(t, {excludeSafety: false, forget: false});
+  assert.strictEqual(off.turns.length, t.length);
+});
+
+test("T10 screening: a request not to remember is reported", () => {
+  const t = [
+    {fromUser: true, text: "我借咗五萬蚊俾個仔"},
+    {fromUser: false, text: "唔該你同我講"},
+    {fromUser: true, text: "你唔好記住呢件事呀"},
+  ];
+  const r = m.screenTurns(t, {excludeSafety: true, forget: true});
+  assert.ok(r.forget);
+  assert.strictEqual(r.forget.index, 2);
+  assert.strictEqual(r.forget.label, "dont_remember");
+  assert.strictEqual(m.screenTurns(t, {excludeSafety: true, forget: false})
+      .forget, null);
+});
+
+test("T10 forget phrases: common Cantonese requests, not lookalikes", () => {
+  const yes = ["唔好記住呢件事", "呢樣你唔好記低呀", "唔使記住喇",
+    "當我冇講過", "就當我無講過啦", "唔好話畀其他人知", "唔好話俾美玲知",
+    "唔好同其他人講", "你唔好講出去", "幫我保密", "你知我知就得",
+    "忘記佢啦", "唔好再提呢件事", "不要記住", "Please don't remember this",
+    "forget what I said", "你當冇聽過啦", "唔好記錄落去"];
+  const no = ["我唔好記性", "我記性唔好", "你唔好記錯呀", "唔使記掛我",
+    "我唔記得咗", "你唔好同我講笑", "記得提醒我食藥", "你咪記住佢囉",
+    "我叫個女記住買餸", "今日好開心", "唔好提醒我", "當時冇講到"];
+  for (const t of yes) assert.ok(forgetLib.detectForget(t), `miss: ${t}`);
+  for (const t of no) assert.strictEqual(forgetLib.detectForget(t), null, t);
+});
+
+test("T10 forget: related items share two pieces with the request", () => {
+  const t = [
+    {fromUser: true, text: "我買股票蝕咗三萬蚊"},
+    {fromUser: true, text: "唔好記住我股票蝕錢嘅事"},
+  ];
+  const subj = forgetLib.subjectBigrams(t, 1, "唔好記住");
+  assert.ok(forgetLib.relatedTo("股票蝕咗三萬", subj));
+  assert.ok(!forgetLib.relatedTo("鍾意飲早茶", subj));
+  assert.ok(!forgetLib.relatedTo("唔好記住呢件事", subj), "stop words only");
+});
+
+test("T10 validation: safety turns or safety_concern → no summary", () => {
+  const raw = extraction({summary: "陳太講起飲早茶。"});
+  const base = {...ctx, excludeSafety: true};
+  assert.strictEqual(m.validateExtraction(raw, base).summary, "陳太講起飲早茶。");
+  const a = m.validateExtraction(raw, {...base, safetyTurns: 1});
+  assert.strictEqual(a.summary, "");
+  assert.ok(a.dropped.some((d) => d.reason === "safety_turns"));
+  const b = m.validateExtraction(extraction({summary: "陳太講起飲早茶。",
+    safety_concern: true,
+    facts: [
+      {op: "add", category: "health", key: "瞓", value: "瞓唔着",
+        quote: "下個禮拜四帶我去睇醫生"},
+      {op: "add", category: "name", key: "稱呼", value: "陳太",
+        quote: "叫我陳太"}]}), base);
+  assert.strictEqual(b.summary, "");
+  assert.deepStrictEqual(b.facts.map((f) => f.category), ["name"]);
+  // The App lexicon also runs on the summary the model wrote.
+  const c = m.validateExtraction(extraction({summary: "佢覺得自己係個負擔"}),
+      base);
+  assert.strictEqual(c.summary, "");
+  // Off: as before.
+  assert.strictEqual(m.validateExtraction(extraction({summary: "x",
+    safety_concern: true}), {...ctx, safetyTurns: 1}).summary, "x");
+});
+
+test("T10 validation: a sensitive summary is not kept", () => {
+  const raw = extraction({summary: "陳太話膝頭痛，下星期去睇醫生。"});
+  assert.strictEqual(m.validateExtraction(raw,
+      {...ctx, omitSensitiveSummary: true}).summary, "");
+  assert.ok(m.validateExtraction(raw, ctx).summary.length > 0);
+});
+
+test("T10 validation: companion names and cross-category updates", () => {
+  const raw = extraction({facts: [
+    {op: "add", category: "name", key: "陪伴者", value: "陪伴者叫阿珍",
+      quote: "叫我陳太"},
+    {op: "update", fact_id: "f_old", category: "event", key: "出世",
+      value: "喺香港出世", quote: "叫我陳太"},
+  ]});
+  const strict = {...ctx, strictFacts: true,
+    activeFactCategories: new Map([["f_old", "name"]])};
+  const v = m.validateExtraction(raw, strict);
+  assert.strictEqual(v.facts.length, 1);
+  assert.strictEqual(v.facts[0].replaces, null, "event can't replace name");
+  assert.ok(v.dropped.some((d) => d.reason === "companion_name"));
+  const loose = m.validateExtraction(raw, ctx);
+  assert.strictEqual(loose.facts.length, 2);
+  assert.strictEqual(loose.facts[1].replaces, "f_old");
+});
+
+test("T10 validation: a dated plan is kept as a follow-up only", () => {
+  const raw = extraction({
+    facts: [{op: "add", category: "event", key: "睇醫生",
+      value: "下個禮拜四睇醫生", quote: "下個禮拜四帶我去睇醫生"},
+    {op: "add", category: "hobby", key: "飲早茶", value: "鍾意飲早茶",
+      quote: "我鍾意飲早茶"}],
+    followups: [{description: "睇醫生", due_date: "2026-10-08",
+      quote: "阿玲下個禮拜四帶我去睇醫生"}],
+  });
+  const v = m.validateExtraction(raw, {...ctx, strictFacts: true});
+  assert.deepStrictEqual(v.facts.map((f) => f.key), ["飲早茶"]);
+  assert.strictEqual(v.followups.length, 1);
+  assert.ok(v.dropped.some((d) => d.reason === "plan_is_followup"));
+  assert.strictEqual(m.validateExtraction(raw, ctx).facts.length, 2);
+});
+
+test("T10 sensitivity: health, loss and mood words in summaries", () => {
+  for (const t of ["腳唔好行唔到山", "夜晚瞓唔着", "照顧中風嘅老公",
+    "而家眼矇睇唔清", "豆豆上個禮拜走咗"]) {
+    assert.strictEqual(m.classifySensitivity("event", t, false), "sensitive",
+        t);
+  }
+  assert.strictEqual(m.classifySensitivity("event", "去公園影花", false),
+      "normal");
+});
+
+test("T10 injection: confirmed sensitive facts keep their own places", () => {
+  const many = {facts: [], summaries: [], followups: []};
+  for (let i = 0; i < 25; i++) {
+    many.facts.push(fact(`f${i}`, "siu_yan", "family"));
+  }
+  for (let i = 0; i < 7; i++) {
+    many.facts.push(fact(`s${i}`, "siu_yan", "health", "sensitive"));
+  }
+  const opts = {agentId: "siu_yan", policy: "C", todayKey: TODAY,
+    sessionStart: false};
+  assert.strictEqual(m.selectForInjection(many, opts).sensitiveFacts.length, 0);
+  const q = m.selectForInjection(many, {...opts, sensitiveQuota: true});
+  assert.strictEqual(q.facts.length, 20);
+  assert.strictEqual(q.sensitiveFacts.length, m.LIMITS.sensitiveFacts);
+});
+
+test("T10 injection: sensitive summaries are left out", () => {
+  const mm = {facts: [], followups: [], summaries: [
+    {id: "a", agent_id: "siu_yan", summary: "飲茶", day_key: "2026-09-28",
+      sensitivity: "normal"},
+    {id: "b", agent_id: "siu_yan", summary: "膝頭痛", day_key: "2026-09-27",
+      sensitivity: "sensitive"},
+  ]};
+  const opts = {agentId: "siu_yan", policy: "C", todayKey: TODAY,
+    sessionStart: false};
+  assert.strictEqual(m.selectForInjection(mm, opts).summaryDays.length, 2);
+  const s = m.selectForInjection(mm, {...opts, omitSensitiveSummary: true});
+  assert.deepStrictEqual(s.summaryDays.map((d) => d.ids[0]), ["a"]);
+});
+
+test("T10 scope: withdrawal stops memory, Phase B Arm A included", () => {
+  const cfg = {enabled: true, phaseBArmA: true};
+  const w = {arm: "A", armAssignmentMode: "randomise",
+    memoryWithdrawnAt: new Date()};
+  assert.ok(!m.inScope(cfg, w));
+  assert.ok(!m.inScope(cfg, {memory_enabled: true,
+    memoryWithdrawnAt: new Date()}));
+  assert.ok(m.inScope({...cfg, honourMemoryWithdrawal: false}, w));
+  // memory_enabled false is every App profile's default: not a withdrawal.
+  assert.ok(m.inScope(cfg, {arm: "A", armAssignmentMode: "randomise",
+    memory_enabled: false}));
+});
+
+test("T10 confirmation reply: off by default and never a draft", () => {
+  const msgs = [{role: "user", content: "你唔好記住呢件事呀"}];
+  // The shipped file still holds the draft mark, so nothing is added.
+  assert.strictEqual(m.forgetAck(msgs), "");
+  assert.strictEqual(m.forgetAck([{role: "user", content: "你好"}]), "");
+});
+
 console.log(`\n${passed} passed, ${failures.length} failed.`);
 if (failures.length) process.exit(1);

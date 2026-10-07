@@ -26,10 +26,23 @@
  * sharing policy on the server (never by prompt), caps the block length,
  * and logs the injection.
  *
+ * T10 (decision 0024, switches in meta/memory_config, see t10Flags):
+ * the elder's own words are screened with the App's safety lexicon
+ * (safety_lexicon.json) before extraction; sensitive summaries are not
+ * kept; a 「唔好記住」 request (memory_forget.js) keeps the session out
+ * and deletes related items; deleting an item deletes its session's
+ * summary; tool/delete_memory.js sets memoryWithdrawnAt, which stops
+ * memory for good, Phase B Arm A included.
+ *
  * Retrieval memory (RAG) is out of scope for v1.
  */
 
 "use strict";
+
+const fs = require("fs");
+const path = require("path");
+const safetyLexicon = require("./safety_lexicon");
+const forget = require("./memory_forget");
 
 const AGENTS = ["siu_yan", "ah_jan_ah_bak", "tung_tung"];
 
@@ -61,6 +74,15 @@ const SENSITIVE_TERMS = [
   "病", "醫", "藥", "痛", "癌", "覆診", "手術", "入院", "過身", "去世", "死",
   "離婚", "嗌交", "吵架", "唔啱", "反面", "錢", "債", "借", "遺囑", "抑鬱",
   "焦慮", "失眠", "孤獨", "寂寞",
+  // T10 (decision 0024): the summary is now kept only when none of these
+  // match, so the list also covers health, loss and mood words the model
+  // wrote into summaries in the T10 runs. Adding a word only ever makes
+  // more items wait for confirmation (facts) or drops a summary.
+  "中風", "輪椅", "拐杖", "治療", "眼矇", "睇唔清", "白內障", "耳聾",
+  "聽唔清", "瞓唔着", "瞓唔著", "瞓唔到", "跌親", "骨折", "血壓", "糖尿",
+  "心臟", "腦退化", "失智", "認知障礙", "腳唔好", "行唔到", "過咗身",
+  "過世", "離世", "走咗", "骨灰", "喪禮", "拜祭", "忌日", "喊", "唔開心",
+  "好攰", "蝕", "欠",
 ];
 
 /**
@@ -86,12 +108,28 @@ const LIMITS = {
   maxChars: 2000, // ≈1,500 tokens of Chinese
   followups: 1,
   facts: 20,
+  // T10: confirmed sensitive facts keep this many places even when the
+  // 20 ordinary places are full (sensitiveFactQuota).
+  sensitiveFacts: 5,
   summaryDays: 3,
   summaryChars: 150,
   followupExpireDays: 7,
   maxAttempts: 3,
   revisionReview: 3, // this many revisions of one fact → researcher review
 };
+
+/**
+ * Companion names: a "name" fact must be the user's own form of address
+ * (T16: 「陪伴者叫阿珍」 was stored as the user's name and shared).
+ */
+const COMPANION_NAMES = ["陪伴者", "小欣", "阿珍", "阿伯", "通通"];
+
+/** Extraction prompt files (functions/prompts/<name>.txt). */
+const EXTRACTION_PROMPTS = ["memory_extraction.v1", "memory_extraction.v2"];
+const DEFAULT_EXTRACTION_PROMPT = "memory_extraction.v2";
+const FORGET_ACK_PROMPT = "memory_forget_ack.v1";
+/** A prompt file still holding this is a draft and is never used. */
+const DRAFT_MARK = "【待研究側定稿】";
 
 /** Category order when facts must be trimmed. */
 const CATEGORY_PRIORITY = [
@@ -186,36 +224,36 @@ function visibilityFor(category, sensitivity) {
 // Extraction: prompt + validation
 // ---------------------------------------------------------------------------
 
+const _promptFiles = {};
+
+/**
+ * A prompt file from functions/prompts/, read once and cached.
+ * @param {string} name e.g. memory_extraction.v2
+ * @return {string} the file without its final newline
+ */
+function loadPromptFile(name) {
+  if (_promptFiles[name] === undefined) {
+    _promptFiles[name] = fs.readFileSync(
+        path.join(__dirname, "prompts", `${name}.txt`), "utf8")
+        .replace(/\n$/, "");
+  }
+  return _promptFiles[name];
+}
+
 /**
  * @param {{turns: Array<{fromUser: boolean, text: string}>,
- *   activeFacts: Array<object>, todayKey: string}} args
+ *   activeFacts: Array<object>, todayKey: string,
+ *   promptName: (string|undefined)}} args promptName defaults to
+ *   DEFAULT_EXTRACTION_PROMPT
  * @return {{system: string, user: string}}
  */
-function buildExtractionPrompt({turns, activeFacts, todayKey}) {
-  const system = `你負責由一段長者同 AI 陪伴者嘅對話入面，抽取值得記住嘅資料。
-只可以抽取「用戶」自己明確講過嘅內容，唔好推測、唔好補充。
-每一條事實同待跟進事項，都要附上 quote：用戶原句入面連續嘅一段字，一字不改。
-用繁體書面中文寫 value / summary / description，人名同重要粵語詞保留原文。
-唔好記錄電話、地址、身份證號碼。涉及自殺、自殘嘅內容一律唔好抽取。
-
-今日係 ${todayKey}（${weekdayZh(todayKey)}，香港時間）。
-「聽日」「下個禮拜四」「月尾」呢類相對日期，要換算成 YYYY-MM-DD。
-冇講明日期嘅事，唔好當待跟進事項。
-
-category 只可以用：${CATEGORIES.join(", ")}。
-facts 入面每條要標 op：
-- add：新事實
-- update：修正或更新現有事實，要填 fact_id（用下面「現有事實」嘅 id）；
-  如果用戶係糾正之前講錯嘅嘢，correction 填 true
-- no_change：唔使輸出（省略）
-健康、家庭矛盾、財務、情緒困擾等內容，sensitive 填 true。
-
-只輸出一個 JSON 物件，格式：
-{"summary": "≤150字，第三身描述今次傾咗咩",
- "facts": [{"op": "add|update", "fact_id": "", "category": "",
-   "key": "簡短標題", "value": "", "quote": "", "sensitive": false,
-   "correction": false}],
- "followups": [{"description": "", "due_date": "YYYY-MM-DD", "quote": ""}]}`;
+function buildExtractionPrompt({turns, activeFacts, todayKey, promptName}) {
+  const name = EXTRACTION_PROMPTS.includes(promptName) ?
+    promptName : DEFAULT_EXTRACTION_PROMPT;
+  const system = loadPromptFile(name)
+      .split("{{TODAY}}").join(todayKey)
+      .split("{{WEEKDAY}}").join(weekdayZh(todayKey))
+      .split("{{CATEGORIES}}").join(CATEGORIES.join(", "));
 
   const factLines = activeFacts.length === 0 ? "（暫時冇）" :
     activeFacts.map((f) =>
@@ -232,9 +270,24 @@ facts 入面每條要標 op：
  * Schema errors reject the whole extraction (nothing is written); items
  * whose quote is not in the user's own words are dropped individually.
  *
+ * T10 options in ctx (all off when absent, so old callers are unchanged):
+ *   strictFacts      a "name" fact naming a companion is dropped; an
+ *                    update must target a fact of the same category,
+ *                    otherwise it is kept as an add (activeFactCategories)
+ *   excludeSafety    no summary when the session had turns the App
+ *                    lexicon flags (safetyTurns > 0) or the model set
+ *                    safety_concern; with safety_concern, sensitive facts
+ *                    and follow-ups are dropped too; a summary the App
+ *                    lexicon flags is dropped
+ *   omitSensitiveSummary  a summary classified sensitive is not kept
+ *
  * @param {object} raw parsed JSON from the model
  * @param {{turns: Array<{fromUser: boolean, text: string}>,
- *   activeFactIds: Set<string>, todayKey: string}} ctx
+ *   activeFactIds: Set<string>, todayKey: string,
+ *   activeFactCategories: (Map<string, string>|undefined),
+ *   strictFacts: (boolean|undefined), excludeSafety: (boolean|undefined),
+ *   safetyTurns: (number|undefined),
+ *   omitSensitiveSummary: (boolean|undefined)}} ctx
  * @return {object} {ok, error} on rejection; {ok, summary, facts,
  *   followups, dropped} otherwise
  */
@@ -259,6 +312,8 @@ function validateExtraction(raw, ctx) {
   const outFacts = [];
   const outFollowups = [];
   const dropped = [];
+  const safetyConcern = ctx.excludeSafety === true &&
+    raw.safety_concern === true;
 
   for (const f of facts) {
     if (!f || typeof f !== "object") return {ok: false, error: "fact_shape"};
@@ -284,8 +339,22 @@ function validateExtraction(raw, ctx) {
       dropped.push({kind: "fact", reason: "safety", item: {op: f.op}});
       continue;
     }
-    const replaces = f.op === "update" && ctx.activeFactIds.has(f.fact_id) ?
+    if (safetyConcern && sensitivity !== "normal") {
+      dropped.push({kind: "fact", reason: "safety_concern", item: {}});
+      continue;
+    }
+    if (ctx.strictFacts === true && f.category === "name" &&
+        COMPANION_NAMES.some((n) => `${f.key}${f.value}`.includes(n))) {
+      dropped.push({kind: "fact", reason: "companion_name", item: f});
+      continue;
+    }
+    let replaces = f.op === "update" && ctx.activeFactIds.has(f.fact_id) ?
       f.fact_id : null;
+    // T4: 「我喺香港出世」 replaced the user's name. Only like for like.
+    if (replaces && ctx.strictFacts === true && ctx.activeFactCategories &&
+        ctx.activeFactCategories.get(replaces) !== f.category) {
+      replaces = null;
+    }
     outFacts.push({
       category: f.category,
       key: f.key.trim().slice(0, 40),
@@ -325,18 +394,56 @@ function validateExtraction(raw, ctx) {
       dropped.push({kind: "followup", reason: "safety", item: {}});
       continue;
     }
+    const fuSensitivity = classifySensitivity("event",
+        APPOINTMENT_TERMS.reduce((t, w) => t.split(w).join(""), text),
+        false);
+    if (safetyConcern && fuSensitivity !== "normal") {
+      dropped.push({kind: "followup", reason: "safety_concern", item: {}});
+      continue;
+    }
     outFollowups.push({
       description: u.description.trim().slice(0, 120),
       due_date: u.due_date,
       quote: u.quote.trim().slice(0, 200),
-      sensitivity: classifySensitivity("event",
-          APPOINTMENT_TERMS.reduce((t, w) => t.split(w).join(""), text),
-          false),
+      sensitivity: fuSensitivity,
     });
   }
 
-  const cleanSummary = hitsSafety(summary) ? "" :
+  // T4 #6: a dated plan was stored twice, as a follow-up and as a fact
+  // whose value ("下個禮拜四……") goes stale. Keep only the follow-up.
+  if (ctx.strictFacts === true) {
+    const fuQuotes = outFollowups.map((u) => normalize(u.quote));
+    for (let i = outFacts.length - 1; i >= 0; i--) {
+      const q = normalize(outFacts[i].quote);
+      // Same words: one quote holds the other and is not much longer.
+      const same = (u) => (u.includes(q) || q.includes(u)) &&
+        Math.min(u.length, q.length) >= 0.6 * Math.max(u.length, q.length);
+      if (fuQuotes.some(same)) {
+        dropped.push({kind: "fact", reason: "plan_is_followup",
+          item: outFacts[i]});
+        outFacts.splice(i, 1);
+      }
+    }
+  }
+
+  let cleanSummary = hitsSafety(summary) ? "" :
     summary.trim().slice(0, LIMITS.summaryChars);
+  let summaryDrop = null;
+  if (cleanSummary && ctx.excludeSafety === true) {
+    if ((ctx.safetyTurns || 0) > 0) summaryDrop = "safety_turns";
+    else if (safetyConcern) summaryDrop = "safety_concern";
+    else if (safetyLexicon.isEscalation(cleanSummary)) {
+      summaryDrop = "safety_lexicon";
+    }
+  }
+  if (cleanSummary && !summaryDrop && ctx.omitSensitiveSummary === true &&
+      classifySensitivity("event", cleanSummary, false) !== "normal") {
+    summaryDrop = "sensitive";
+  }
+  if (summaryDrop) {
+    dropped.push({kind: "summary", reason: summaryDrop, item: {}});
+    cleanSummary = "";
+  }
   return {
     ok: true,
     summary: cleanSummary,
@@ -376,7 +483,11 @@ function visibleTo(item, agentId, policy) {
  * @param {{facts: Array<object>, summaries: Array<object>,
  *   followups: Array<object>}} mem loaded docs (with id)
  * @param {{agentId: string, policy: string, todayKey: string,
- *   sessionStart: boolean}} opts
+ *   sessionStart: boolean, sensitiveQuota: (boolean|undefined),
+ *   omitSensitiveSummary: (boolean|undefined)}} opts T10:
+ *   sensitiveQuota gives confirmed sensitive facts LIMITS.sensitiveFacts
+ *   places of their own; omitSensitiveSummary leaves out summaries
+ *   classified sensitive (written before the fix)
  * @return {{followups: Array<object>, facts: Array<object>,
  *   sensitiveFacts: Array<object>, summaryDays: Array<object>}}
  */
@@ -402,8 +513,10 @@ function selectForInjection(mem, opts) {
       });
   const facts = usable.filter((f) => f.sensitivity === "normal")
       .slice(0, LIMITS.facts);
+  const sensitivePlaces = Math.max(0, LIMITS.facts - facts.length,
+      opts.sensitiveQuota === true ? LIMITS.sensitiveFacts : 0);
   const sensitiveFacts = usable.filter((f) => f.sensitivity === "sensitive")
-      .slice(0, Math.max(0, LIMITS.facts - facts.length));
+      .slice(0, sensitivePlaces);
 
   // Same-day sessions read as one daily entry; only the last few days go in.
   const byDay = new Map();
@@ -411,6 +524,8 @@ function selectForInjection(mem, opts) {
   for (const s of mem.summaries
       .filter((x) => visibleTo(x, agentId, policy === "A" ? "A" : "B"))
       .filter((x) => x.summary)
+      .filter((x) => opts.omitSensitiveSummary !== true ||
+        (x.sensitivity || "normal") === "normal")
       .sort((a, b) => (a.ended_ms || 0) - (b.ended_ms || 0))) {
     const day = byDay.get(s.day_key) || {day: s.day_key, ids: [], texts: []};
     day.ids.push(s.id);
@@ -509,6 +624,28 @@ function renderMemoryBlock(sel) {
 // ---------------------------------------------------------------------------
 
 /**
+ * T10 switches in meta/memory_config (decision 0024). Fixes are on unless
+ * the field is explicitly false; the elder-facing confirmation reply is
+ * off unless explicitly true.
+ * @param {object} d meta/memory_config data
+ * @return {object}
+ */
+function t10Flags(d) {
+  return {
+    excludeSafetyTurns: d.excludeSafetyTurns !== false,
+    omitSensitiveSummary: d.omitSensitiveSummary !== false,
+    honourForgetRequests: d.honourForgetRequests !== false,
+    forgetAckReply: d.forgetAckReply === true,
+    deleteSummaryWithItem: d.deleteSummaryWithItem !== false,
+    honourMemoryWithdrawal: d.honourMemoryWithdrawal !== false,
+    sensitiveFactQuota: d.sensitiveFactQuota !== false,
+    strictFactValidation: d.strictFactValidation !== false,
+    extractionPrompt: EXTRACTION_PROMPTS.includes(d.extractionPrompt) ?
+      d.extractionPrompt : DEFAULT_EXTRACTION_PROMPT,
+  };
+}
+
+/**
  * @param {object} db admin.firestore()
  * @return {Promise<{enabled: boolean, policy: string}>}
  */
@@ -527,6 +664,7 @@ async function loadConfig(db) {
     // C20 / decision 0020: same key the App reads (PhaseAConfig); on
     // unless explicitly false.
     enforceSharedContextConsent: app.enforceSharedContextConsent !== false,
+    ...t10Flags(d),
   };
 }
 
@@ -552,14 +690,21 @@ function effectivePolicy(cfg, user) {
  *     mandatory, no opt-out; Phase A pilot users (assigned in force_a
  *     mode) keep memory v0;
  *   - anyone else who opted in (testers on a MEMORY_V1 build).
- * The kill switch (cfg.enabled) overrides everything.
- * @param {{enabled: boolean, phaseBArmA: boolean}} cfg
+ * The kill switch (cfg.enabled) overrides everything. With
+ * cfg.honourMemoryWithdrawal (T10, default on), a user whose memory was
+ * withdrawn or deleted by tool/delete_memory.js (memoryWithdrawnAt set,
+ * server-only field) is out of scope too, Phase B Arm A included.
+ * @param {{enabled: boolean, phaseBArmA: boolean,
+ *   honourMemoryWithdrawal: (boolean|undefined)}} cfg
  * @param {object} user profile doc data
  * @return {boolean}
  */
 function inScope(cfg, user) {
   if (!cfg.enabled || !user) return false;
   if (user.arm === "B") return false;
+  if (cfg.honourMemoryWithdrawal !== false && user.memoryWithdrawnAt) {
+    return false;
+  }
   if (cfg.phaseBArmA && user.arm === "A" &&
       user.armAssignmentMode === "randomise") {
     return true;
@@ -570,14 +715,14 @@ function inScope(cfg, user) {
 /**
  * @param {object} db
  * @param {string} uid
- * @return {Promise<?{policy: string}>}
+ * @return {Promise<?{policy: string, cfg: object}>}
  */
 async function memoryActive(db, uid) {
   const cfg = await loadConfig(db);
   if (!cfg.enabled) return null;
   const user = await db.collection("users").doc(uid).get();
   if (!user.exists || !inScope(cfg, user.data())) return null;
-  return {policy: effectivePolicy(cfg, user.data())};
+  return {policy: effectivePolicy(cfg, user.data()), cfg};
 }
 
 /**
@@ -617,6 +762,27 @@ async function loadMemory(db, uid) {
 }
 
 /**
+ * forgetAckReply (default off): when the user's latest message asks the
+ * companion not to remember, a one-line instruction to confirm it. The
+ * wording is a draft for the research team; a file still holding
+ * DRAFT_MARK is never used.
+ * @param {Array<object>} messages the chat so far
+ * @return {string} "" or the instruction
+ */
+function forgetAck(messages) {
+  const users = (messages || []).filter((m) => m && m.role === "user");
+  const last = users.length ? users[users.length - 1] : null;
+  if (!last || !forget.detectForget(String(last.content || ""))) return "";
+  let text = "";
+  try {
+    text = loadPromptFile(FORGET_ACK_PROMPT);
+  } catch (_) {
+    return "";
+  }
+  return text.includes(DRAFT_MARK) ? "" : text;
+}
+
+/**
  * Build the memory block for one proxyDeepSeek call, mark an injected
  * follow-up as asked, and log the injection. Returns "" when memory is
  * off for this user/module. Never throws: memory must not break a chat.
@@ -641,9 +807,12 @@ async function injectMemory(db, {uid, agentId, moduleId, messages, now}) {
     const mem = await loadMemory(db, uid);
     const sel = selectForInjection(mem, {
       agentId, policy: active.policy, todayKey, sessionStart,
+      sensitiveQuota: active.cfg.sensitiveFactQuota,
+      omitSensitiveSummary: active.cfg.omitSensitiveSummary,
     });
     const block = renderMemoryBlock(sel);
-    if (!block.text) return "";
+    const ack = active.cfg.forgetAckReply ? forgetAck(messages) : "";
+    if (!block.text) return ack;
 
     const u = db.collection("users").doc(uid);
     const batch = db.batch();
@@ -664,7 +833,7 @@ async function injectMemory(db, {uid, agentId, moduleId, messages, now}) {
       created_at: new Date(),
     });
     await batch.commit();
-    return block.text;
+    return ack ? `${block.text}\n${ack}` : block.text;
   } catch (err) {
     console.error("memory injection failed", {uid, agentId, err: String(err)});
     return "";
@@ -672,10 +841,48 @@ async function injectMemory(db, {uid, agentId, moduleId, messages, now}) {
 }
 
 /**
+ * T10: what may go to the extractor. A user turn the App lexicon flags
+ * (moderate or acute, the same rule that keeps it out of the App's
+ * buffer) is removed with the companion's replies to it. A request not
+ * to remember is reported, not removed: the caller drops the session.
+ * @param {Array<{fromUser: boolean, text: string}>} turns
+ * @param {{excludeSafety: boolean, forget: boolean}} opts
+ * @return {{turns: Array<object>, safetyTurns: number,
+ *   forget: ?{index: number, label: string, phrase: string}}}
+ */
+function screenTurns(turns, opts) {
+  const out = [];
+  let safetyTurns = 0;
+  let skipReplies = false;
+  let found = null;
+  for (const t of turns) {
+    if (!t.fromUser) {
+      if (!skipReplies) out.push(t);
+      continue;
+    }
+    skipReplies = false;
+    if (opts.excludeSafety && safetyLexicon.isEscalation(t.text)) {
+      safetyTurns++;
+      skipReplies = true;
+      continue;
+    }
+    if (opts.forget && !found) {
+      const hit = forget.detectForget(t.text);
+      if (hit) {
+        found = {index: out.length, label: hit.label, phrase: hit.phrase};
+      }
+    }
+    out.push(t);
+  }
+  return {turns: out, safetyTurns, forget: found};
+}
+
+/**
  * Atomically move an agent's short-term buffer into a pending
  * mem_extractions doc. Returns its id, or null when there is nothing to
  * extract. A second concurrent claim sees an empty buffer, so one session
- * is extracted once (MEM-3).
+ * is extracted once (MEM-3). With excludeSafetyTurns (T10), turns the
+ * App lexicon flags are never copied into mem_extractions.
  *
  * @param {object} db
  * @param {string} uid
@@ -683,6 +890,7 @@ async function injectMemory(db, {uid, agentId, moduleId, messages, now}) {
  * @return {Promise<?string>}
  */
 async function claimBuffer(db, uid, agentId) {
+  const cfg = await loadConfig(db);
   const u = db.collection("users").doc(uid);
   const ctxRef = u.collection("agent_contexts").doc(agentId);
   const extRef = u.collection("mem_extractions").doc();
@@ -697,9 +905,12 @@ async function claimBuffer(db, uid, agentId) {
           timestamp: t.timestamp || null,
         }));
     if (!turns.some((t) => t.fromUser)) return null;
+    const screened = screenTurns(turns,
+        {excludeSafety: cfg.excludeSafetyTurns, forget: false});
     tx.set(extRef, {
       agent_id: agentId,
-      turns,
+      turns: screened.turns,
+      screened_safety_turns: screened.safetyTurns,
       status: "pending",
       attempts: 0,
       created_at: new Date(),
@@ -730,7 +941,6 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
   if ((data.attempts || 0) >= LIMITS.maxAttempts) return "failed";
 
   const agentId = data.agent_id;
-  const turns = data.turns || [];
   const todayKey = hkDateKey(now || new Date());
   let rawText = "";
   try {
@@ -739,12 +949,51 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
     const [cfg, userSnap] = await Promise.all([loadConfig(db), u.get()]);
     const policy = effectivePolicy({...cfg, policy: "C"},
         userSnap.exists ? userSnap.data() : null);
+
+    // T10: screen the elder's words before anything reaches the model.
+    const screened = screenTurns(data.turns || [], {
+      excludeSafety: cfg.excludeSafetyTurns,
+      forget: cfg.honourForgetRequests,
+    });
+    const turns = screened.turns;
+    const safetyTurns = screened.safetyTurns +
+      (data.screened_safety_turns || 0);
+    if (screened.forget) {
+      const deleted = await forgetRelated(db, uid, turns, screened.forget,
+          cfg.deleteSummaryWithItem);
+      await extRef.update({
+        status: "done",
+        outcome: "forget_request",
+        forget: {label: screened.forget.label, deleted,
+          lexicon: forget.FORGET_LEXICON_VERSION},
+        attempts: (data.attempts || 0) + 1,
+        excluded_safety_turns: safetyTurns,
+        counts: {facts: 0, followups: 0, summary: 0},
+        turns: [],
+        finished_at: now || new Date(),
+      });
+      return "done";
+    }
+    if (!turns.some((t) => t.fromUser)) {
+      await extRef.update({
+        status: "done",
+        outcome: "nothing_left",
+        attempts: (data.attempts || 0) + 1,
+        excluded_safety_turns: safetyTurns,
+        counts: {facts: 0, followups: 0, summary: 0},
+        turns: [],
+        finished_at: now || new Date(),
+      });
+      return "done";
+    }
+
     const existing = await u.collection("mem_facts")
         .where("status", "==", "active").get();
     const activeFacts = existing.docs
         .map((d) => ({id: d.id, ...d.data()}))
         .filter((f) => visibleTo(f, agentId, policy));
-    const prompt = buildExtractionPrompt({turns, activeFacts, todayKey});
+    const prompt = buildExtractionPrompt({turns, activeFacts, todayKey,
+      promptName: cfg.extractionPrompt});
     rawText = await callModel(prompt);
     let parsed;
     try {
@@ -755,6 +1004,12 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
     const v = validateExtraction(parsed, {
       turns, todayKey,
       activeFactIds: new Set(activeFacts.map((f) => f.id)),
+      activeFactCategories:
+        new Map(activeFacts.map((f) => [f.id, f.category])),
+      strictFacts: cfg.strictFactValidation,
+      excludeSafety: cfg.excludeSafetyTurns,
+      safetyTurns,
+      omitSensitiveSummary: cfg.omitSensitiveSummary,
     });
     if (!v.ok) throw new Error(`schema:${v.error}`);
 
@@ -837,6 +1092,8 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
     batch.update(extRef, {
       status: "done",
       attempts: (data.attempts || 0) + 1,
+      prompt_version: cfg.extractionPrompt,
+      excluded_safety_turns: safetyTurns,
       raw_output: rawText.slice(0, 20000),
       dropped: v.dropped.map((d) => ({kind: d.kind, reason: d.reason})),
       counts: {
@@ -859,6 +1116,111 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
     });
     return "failed";
   }
+}
+
+/**
+ * 「唔好記住」 (T10): delete stored items, from any companion and any
+ * earlier session, that look like what the request is about (shared
+ * two-character pieces, memory_forget.relatedTo). With
+ * deleteSummaryWithItem, the summary of a deleted item's session goes too.
+ * @param {object} db
+ * @param {string} uid
+ * @param {Array<{fromUser: boolean, text: string}>} turns screened turns
+ * @param {{index: number, phrase: string}} hit from screenTurns
+ * @param {boolean} withSummary
+ * @return {Promise<{facts: number, followups: number, summaries: number}>}
+ */
+async function forgetRelated(db, uid, turns, hit, withSummary) {
+  const u = db.collection("users").doc(uid);
+  const subject = forget.subjectBigrams(turns, hit.index, hit.phrase);
+  const [facts, followups, summaries] = await Promise.all([
+    u.collection("mem_facts").get(),
+    u.collection("mem_followups").get(),
+    u.collection("mem_summaries").get(),
+  ]);
+  const refs = new Map();
+  const sessions = new Set();
+  let nFacts = 0;
+  let nFollowups = 0;
+  for (const d of facts.docs) {
+    const x = d.data();
+    if (forget.relatedTo(`${x.key} ${x.value} ${x.quote}`, subject)) {
+      refs.set(d.ref.path, d.ref);
+      nFacts++;
+      if (x.source_session_id) sessions.add(x.source_session_id);
+    }
+  }
+  for (const d of followups.docs) {
+    const x = d.data();
+    if (forget.relatedTo(`${x.description} ${x.quote}`, subject)) {
+      refs.set(d.ref.path, d.ref);
+      nFollowups++;
+      if (x.source_session_id) sessions.add(x.source_session_id);
+    }
+  }
+  for (const d of summaries.docs) {
+    const x = d.data();
+    if (forget.relatedTo(x.summary, subject) ||
+        (withSummary && (sessions.has(d.id) ||
+          sessions.has(x.source_session_id)))) {
+      refs.set(d.ref.path, d.ref);
+    }
+  }
+  const all = [...refs.values()];
+  for (let i = 0; i < all.length; i += 400) {
+    const batch = db.batch();
+    for (const r of all.slice(i, i + 400)) batch.delete(r);
+    await batch.commit();
+  }
+  return {facts: nFacts, followups: nFollowups,
+    summaries: all.length - nFacts - nFollowups};
+}
+
+/**
+ * T10 deleteSummaryWithItem: when a fact or follow-up is deleted (the
+ * 「我記得嘅嘢」 page), the same content goes everywhere else too, so it
+ * cannot come back another way:
+ *   - the summary of the session the item came from;
+ *   - other facts / follow-ups with exactly the same wording (the model
+ *     sometimes stores one sentence twice, e.g. as "event" and "living").
+ * Called by the onDocumentDeleted triggers in index.js.
+ * @param {object} db
+ * @param {string} uid
+ * @param {object} item the deleted doc's data
+ * @return {Promise<number>} how many docs were deleted
+ */
+async function deleteSummaryForItem(db, uid, item) {
+  if (!item) return 0;
+  const cfg = await loadConfig(db);
+  if (!cfg.deleteSummaryWithItem) return 0;
+  const u = db.collection("users").doc(uid);
+  const reads = [];
+  const sessionId = item.source_session_id;
+  if (sessionId) {
+    reads.push(u.collection("mem_summaries").doc(sessionId).get()
+        .then((d) => (d.exists ? [d.ref] : [])));
+    reads.push(u.collection("mem_summaries")
+        .where("source_session_id", "==", sessionId).get()
+        .then((q) => q.docs.map((d) => d.ref)));
+  }
+  if (typeof item.value === "string" && item.value) {
+    reads.push(u.collection("mem_facts").where("value", "==", item.value)
+        .get().then((q) => q.docs.map((d) => d.ref)));
+  }
+  if (typeof item.description === "string" && item.description) {
+    reads.push(u.collection("mem_followups")
+        .where("description", "==", item.description).get()
+        .then((q) => q.docs.map((d) => d.ref)));
+  }
+  const refs = new Map();
+  for (const list of await Promise.all(reads)) {
+    for (const r of list) refs.set(r.path, r);
+  }
+  if (refs.size === 0) return 0;
+  const batch = db.batch();
+  for (const r of refs.values()) batch.delete(r);
+  await batch.commit();
+  return refs.size;
 }
 
 module.exports = {
@@ -885,4 +1247,10 @@ module.exports = {
   injectMemory,
   claimBuffer,
   processExtraction,
+  screenTurns,
+  forgetAck,
+  forgetRelated,
+  deleteSummaryForItem,
+  t10Flags,
+  COMPANION_NAMES,
 };
