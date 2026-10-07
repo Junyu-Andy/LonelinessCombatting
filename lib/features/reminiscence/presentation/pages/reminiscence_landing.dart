@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/config/usage_copy.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/reminiscence_themes.dart';
@@ -35,12 +36,20 @@ class ReminiscenceLandingPage extends StatelessWidget {
           children: [
             // SPEC:C06 — the count follows the real theme list (4), not a
             // hard-coded 6.  Wording pending research-side sign-off (T13).
+            // T20: `app_config/usage_copy` may replace this line; `{weeks}`
+            // in the configured text becomes the theme count.
             Text(
-              isEn
-                  ? 'A weekly 15–25 minute session. $_weeks themes across '
-                      '$_weeks weeks. There\'s no right answer — just what '
-                      'you remember.'
-                  : '每星期一節，15-25 分鐘。$_weeks 個主題、$_weeks 個禮拜。冇標準答案，記得幾多都得。',
+              UsageCopy.current
+                  .text(
+                    UsageCopy.reminiscenceLandingIntro,
+                    isEn: isEn,
+                    fallback: isEn
+                        ? 'A weekly 15–25 minute session. $_weeks themes across '
+                            '$_weeks weeks. There\'s no right answer — just what '
+                            'you remember.'
+                        : '每星期一節，15-25 分鐘。$_weeks 個主題、$_weeks 個禮拜。冇標準答案，記得幾多都得。',
+                  )
+                  .replaceAll('{weeks}', '$_weeks'),
               style: theme.textTheme.bodyLarge,
             ),
             const SizedBox(height: 12),
