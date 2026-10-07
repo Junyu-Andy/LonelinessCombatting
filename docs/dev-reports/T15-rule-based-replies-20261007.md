@@ -45,7 +45,7 @@
 - 集中在 `lib/features/rule_replies/rule_reply_safety.dart`，两个函数，写成 T7 `SafetyService`（PR #34，`lib/core/safety/safety_check.dart`）的用法：
   - `ruleReplyDetect(context, text)` ↔ `SafetyService.detect`：先检测，决定给不给模板；
   - `ruleReplyCheckAndRoute(context, text, inputPoint:, uid:, agentId:, sessionId:)` ↔ `SafetyService.checkAndRoute`：写 `safety_events`（moderate 以上）、acute 打开危机页、moderate_interrupt 弹支援面板。`inputPoint` 用 T7 的代码 `check_in_note` / `reminiscence_note`。
-- 现在内部用的仍是签到 B、回忆 B 原来的路径：`DistressDetector` v5、`SafetyEventWriter`（`source: rule_turn`）、`DistressRouter`。T7 合并后，两个函数体各换成一行调用，页面不用改。
+- ~~现在内部用的仍是签到 B、回忆 B 原来的路径~~。**合并更新（2026-10-07）**：和 T7 合成一个 PR 时已改为调用 `SafetyService`：签到 B、回忆 B 在保存前用 `checkUserText` 检测并写一条事件（两种路径都一样，不再另写 `rule_turn` 事件），之后只做路由；`rule_reply_safety.dart` 的两个函数改为直接委托 `SafetyService`。
 - 命中 = moderate_review、moderate_interrupt、acute（即会写 `safety_events` 的等级）。命中时不给模板、不记最近记录，安全流程照旧。`low` 不算命中。
 - 开关关时页面仍走原来的写法（先写安全事件、最后路由），一行没变。
 

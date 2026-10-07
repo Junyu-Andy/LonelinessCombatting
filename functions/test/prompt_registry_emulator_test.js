@@ -72,7 +72,10 @@ async function main() {
   assert.ok(v2.includes("[SEARCH_RESULTS]"), "search-results rule kept");
 
   const out = await chat("tung_tung");
-  assert.strictEqual(out.promptVersion, "tung_tung_v2@2026-10");
+  // T7 (decision 0018) appends the hotline rule file to every persona
+  // label while meta/safety_config.hotlinePromptRule is on (default).
+  assert.strictEqual(out.promptVersion,
+      "tung_tung_v2@2026-10+hotline_rule.v1");
   const sys = systemText();
   assert.ok(sys.includes("唔好主動提出幫佢上網查"), "server loads v2");
   assert.ok(!sys.includes("要唔要我幫你查下"), "v1 invitation gone");

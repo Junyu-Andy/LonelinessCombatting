@@ -14,7 +14,8 @@
  *              llm_calls, safety_events, safety_event_dedup, pi_alerts,
  *              te_audit_queue, stt_usage, safety_classifier_calls (T8,
  *              may not exist yet), pending_loneliness_probes (doc id or
- *              uid field).
+ *              uid field), hotline_filter_log (T7), research_id_map
+ *              (doc id) and research_ids (T12).
  *   Storage    any file under users/{uid}/ (the App writes none today);
  *              rows in the weekly blinded exports exports/{date}/*.ndjson
  *              — see "Exports" below.
@@ -67,6 +68,11 @@ const TOP_LEVEL = [
   {collection: 'stt_usage', field: 'uid'},
   {collection: 'safety_classifier_calls', field: 'uid'},
   {collection: 'pending_loneliness_probes', field: 'uid', docIdIsUid: true},
+  // T7 (decision 0018): one row per reply whose phone numbers were replaced.
+  {collection: 'hotline_filter_log', field: 'uid'},
+  // T12 (decision 0021): research-ID lookup, both directions.
+  {collection: 'research_id_map', field: 'uid', docIdIsUid: true},
+  {collection: 'research_ids', field: 'uid'},
 ];
 
 const NOT_COVERED = [
