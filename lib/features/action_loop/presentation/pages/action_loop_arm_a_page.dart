@@ -193,6 +193,7 @@ try again in the afternoon." No extra encouragement or suggestions.
       moduleId: 'm7_action_loop_summary',
       systemPrompt: isEn ? _summarySystemPromptEn : _summarySystemPromptZh,
       history: const [],
+      uid: AppSettingsScope.read(context).profile?.uid,
       userInput: [
         'action: $_action',
         'when: $_whenText',

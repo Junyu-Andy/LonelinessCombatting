@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/safety/safety_check.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/ppr_scale.dart';
 
@@ -58,6 +59,16 @@ class _PprWeeklyPageState extends State<PprWeeklyPage> {
       _saving = false;
       _saved = true;
     });
+    // T7 — the free text goes through the shared safety check (both arms);
+    // the surface shows before this page closes.
+    await SafetyService.of(context).checkAndRoute(
+      context,
+      _freeTextCtrl.text.trim(),
+      point: SafetyInputPoint.pprFreeText,
+      uid: profile.uid,
+      agentId: widget.agentId,
+    );
+    if (!mounted) return;
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
     Navigator.of(context).pop();

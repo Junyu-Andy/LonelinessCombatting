@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/safety/safety_check.dart';
 import '../../../../core/survey/likert_scale.dart';
 import '../../../../core/survey/survey_item_card.dart';
 import '../../../../core/voice/voice_input_button.dart';
@@ -166,6 +167,13 @@ class _AgentDiffPageState extends State<AgentDiffPage> {
       _saving = false;
       _saved = true;
     });
+    // T7 — the free answer goes through the shared safety check (both arms).
+    await SafetyService.of(context).checkAndRoute(
+      context,
+      _freeResponseCtrl.text.trim(),
+      point: SafetyInputPoint.agentDiff,
+      uid: profile?.uid,
+    );
   }
 
   /// Short agent labels, with Ah Jan / Ah Bak resolved to the user's chosen

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/safety/safety_check.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
@@ -81,6 +82,14 @@ class _M3SessionDetailPageState extends State<M3SessionDetailPage> {
       _editing = false;
       _saving = false;
     });
+    // T7 — the re-edited text goes through the shared safety check.
+    await SafetyService.of(context).checkAndRoute(
+      context,
+      newText,
+      point: SafetyInputPoint.m3SessionEdit,
+      uid: profile.uid,
+    );
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(

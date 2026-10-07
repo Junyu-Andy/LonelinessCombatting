@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/reminders/reminder_service.dart';
+import '../../../../core/safety/safety_check.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -98,6 +99,15 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
         );
       }
     }
+    if (!mounted) return;
+    // T7 — the plan text goes through the shared safety check (Arm A's
+    // goes through the gateway); the surface shows before the page closes.
+    await SafetyService.of(context).checkAndRoute(
+      context,
+      _actionCtrl.text.trim(),
+      point: SafetyInputPoint.actionPlan,
+      uid: profile?.uid,
+    );
     if (!mounted) return;
     setState(() => _busy = false);
     if (mounted) Navigator.of(context).pop();

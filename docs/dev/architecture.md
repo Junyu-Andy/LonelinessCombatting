@@ -1,6 +1,6 @@
 # 陪住 App 技术文档
 
-> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
 ## 1. 一句话
@@ -94,23 +94,25 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 ## 5. 一条消息的旅程（A 组）
 
 1. 老人在聊天页输入（文字或语音）。
-2. `LlmGateway` 先用 `DistressDetector` 查输入：
+2. `LlmGateway` 先用统一入口 `SafetyService`（`lib/core/safety/safety_check.dart`，内部是 `DistressDetector`）查输入：
    - **acute（急性）**：不调模型，显示热线，打开紧急支援页；
    - **moderate_interrupt**：照常回复，同时打断显示支援模板；
    - **moderate_review**：照常回复，事后供研究员查看；
-   - 以上都写 `safety_events`，服务器 `onSafetyEventCreated` 通知 PI。
+   - 以上都写 `safety_events`（`source`、`inputPoint`、`turnId`），服务器 `onSafetyEventCreated` 去重、acute 通知 PI。
 3. 调 `proxyDeepSeek`：
    - 查分组（B 组拒绝）；
    - 读 persona prompt 文件，接上 App 传来的上下文（`contextSuffix`）；
    - 记忆 v1 用户：服务器自己读记忆、拼进 prompt（见第 7 节）；
+   - prompt 末尾加「不写电话号码」规则 `hotline_rule.v1`（开关 `meta/safety_config.hotlinePromptRule`）；
    - `stripPII` 去掉电话、邮箱、身份证等；
    - 调 DeepSeek，计算 5 个「LLM 独有机制」标记（`functions/llm_flags.js`）；
-   - 在 `llm_calls` 记一条：返回的 `model`、token 数、延迟（见第 11 节）。
-4. 回复再查一次安全词，然后显示。
+   - 在 `llm_calls` 记一条：返回的 `model`、token 数、延迟（见第 11 节）；
+   - 回复里的电话号码全部换成「【緊急熱線】」，每次替换记一条 `hotline_filter_log`（开关 `hotlineOutputFilter`）。
+4. 回复再查一次安全词（只在级别高于输入时写事件，一轮只算一条），App 再过一遍号码过滤，然后显示。「【緊急熱線】」显示成链接，点开是危机页。
 5. 记录：每轮写 `turns`，每次会话写 `sessions`（`ChatSessionRecorder`）；没有被安全标记的轮次写进记忆缓冲区。
 6. 离开页面：会话结束 → 整理记忆 → 满足条件时弹 Brief PR（见第 6 节）。
 
-**B 组**：同样的页面外壳，第 2 步一样；第 3 步换成本地规则选模板，`turns` 里标 `llmStatus: rule_based`。不调 LLM，不写记忆。
+**B 组**：同样的页面外壳，第 2 步一样（同一个 `SafetyService`）；第 3 步换成本地规则选模板，`turns` 里标 `llmStatus: rule_based`。不调 LLM，不写记忆。
 
 ## 6. 会话和 Brief PR
 
@@ -168,7 +170,9 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | `app_config/reminders` | `{m7FollowupPushEnabled: bool}`：行动计划提醒发不发，默认关（决策 0022） |
 | `meta/arm_counter` | 4 个层各自的 A/B 人数 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开 |
-| `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列 |
+| `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列。事件字段：`source`（user_input / ai_output_scan / form）、`inputPoint`、`turnId`、级别、命中词、文字的哈希；服务器补 `dedup_key`、`isDuplicate`、`duplicateOf`、`escalatedBy`。分析只数 `isDuplicate == false`（决策 0018） |
+| `hotline_filter_log` | Hybrid 组 AI 回复里被替换的电话号码：时间、uid、模块、个数、种类、是否在批准清单里。不存原文和号码。只有服务器写 |
+| `meta/safety_config` | 热线规则和热线过滤的开关（`hotlinePromptRule`、`hotlineOutputFilter`），没有这个文档 = 都开 |
 | `llm_calls` | 每次调用 DeepSeek 一条：时间、调用类型、agent、uid、请求和返回的模型名、`system_fingerprint`、token 数（含思考 token）、HTTP 状态码、延迟、是否出错。不存原文。只有服务器写，App 不能读写（决策 0016） |
 | `export_blind_keys` | 盲法导出时组别 → Group_X / Group_Y 的对照 |
 
@@ -209,6 +213,8 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 - **安全回应模板和热线**：`functions/prompts/safety_acknowledgements.json`、`crisis_resources.json`，App 和服务器读同一份。
 - **被安全标记的轮次不进入记忆**（决策 0013）。记忆 v1 在服务器上再查一次自杀、自残等词。
 - **两组都通知 PI**（决策 0014）。
+- **统一入口**（决策 0018）：`SafetyService`。老人的每一处自由输入两组都经过它：聊天、签到和回忆留言、Thought Exercise、入组开放题、陪伴者比较页、「其他」反馈框、行动计划和跟进笔记、每周问卷自由题、回忆总结修改、搜一搜的搜索词。表单页用 `checkAndRoute`：先保存，再弹危机页或支援面板。
+- **热线过滤**（只 Hybrid 组，决策 0018）：AI 不写号码；写了也在服务器和 App 各换一次成危机页链接。
 
 ## 11. 版本追溯
 
@@ -235,6 +241,8 @@ Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`�
 | `--dart-define=MEMORY_V1=true` | 测试人员可在设置里自愿开启记忆 v1 |
 | `--dart-define=TESTER_PIN=…` | 解锁测试工具（日程模拟器、测试推送） |
 | `--dart-define=WEEKLY_PROBE=true` | 显示周度孤独感问卷 |
+
+运行时开关（不用重新编译）：`app_config/phase_a` 的 `safetyScanAllInputs`（新增输入点的安全检测）、`hotlineFilterClient`（App 端号码过滤），默认都开；服务器的 `meta/safety_config` 见第 8 节。
 
 本地跑和 CI 一样的测试：
 

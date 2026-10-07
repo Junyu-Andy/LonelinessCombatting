@@ -7,7 +7,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/safety/distress_detector.dart';
-import '../../../../core/safety/safety_event_writer.dart';
+import '../../../../core/safety/safety_check.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
@@ -155,8 +155,14 @@ class _CheckInArmBState extends State<CheckInArmB> {
     if (face == null) return;
     final note = _noteCtrl.text.trim();
     final core = CoreServicesScope.of(context);
-    final distress = core.distress.analyze(note);
     final profile = AppSettingsScope.read(context).profile;
+    // T7 — the shared entry point: detect + PI event (arm-invariant).
+    final distress = core.safety
+        .checkUserText(note,
+            point: SafetyInputPoint.checkInNote,
+            uid: profile?.uid,
+            agentId: AgentRegistry.siuYanId)
+        .match;
     final authAvailable = AuthServiceScope.of(context).available;
     final analytics = AnalyticsScope.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
@@ -187,16 +193,6 @@ class _CheckInArmBState extends State<CheckInArmB> {
           socialEnergy: (_socialDayAnswer ?? 2) + 1,
         ) ??
         Future<void>.value());
-    if (distress.isEscalation && profile != null) {
-      // Same PI alert Arm A gets through the gateway (arm-invariant).
-      unawaited(SafetyEventWriter(available: authAvailable).maybeWrite(
-        uid: profile.uid,
-        source: SafetySource.ruleTurn,
-        match: distress,
-        inputText: note,
-        agentId: AgentRegistry.siuYanId,
-      ));
-    }
     setState(() => _saved = true);
 
     // Decision 0015 — the submission is one agent session, like a chat.

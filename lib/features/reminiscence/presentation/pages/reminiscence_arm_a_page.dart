@@ -11,6 +11,7 @@ import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
 import '../../../../core/connectivity/offline_pending_banner.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../core/safety/safety_check.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
@@ -261,6 +262,7 @@ clay-pot rice stand..."
             userInput: isEn
                 ? 'Please open this week\'s session.'
                 : '請開始今週嘅對話。',
+            uid: AppSettingsScope.read(context).profile?.uid,
           )
           .timeout(const Duration(seconds: 10));
       if (response.text.trim().isNotEmpty) {
@@ -625,6 +627,7 @@ clay-pot rice stand..."
       systemPrompt: isEn ? _summarySystemPromptEn : _summarySystemPromptZh,
       history: history,
       userInput: isEn ? 'Please summarise this session.' : '請總結今次嘅內容。',
+      uid: AppSettingsScope.read(context).profile?.uid,
     );
     if (!mounted) return;
     final fallback = _turns
@@ -679,6 +682,18 @@ clay-pot rice stand..."
     }
     if (!mounted) return;
     setState(() => _saved = true);
+    // T7 — text the participant typed into the summary goes through the
+    // shared safety check; the surface shows before the page closes.
+    if (userEdited) {
+      await core.safety.checkAndRoute(
+        context,
+        edited,
+        point: SafetyInputPoint.reminiscenceSummaryEdit,
+        uid: profile?.uid,
+        agentId: AgentRegistry.ahJanAhBakId,
+      );
+      if (!mounted) return;
+    }
     await Future<void>.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
     // M-1 (Phase A baseline) — the 4-item Brief PR replaces the earlier
