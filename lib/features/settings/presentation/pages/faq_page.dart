@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/config/usage_copy.dart';
+
 class FaqPage extends StatelessWidget {
   const FaqPage({super.key});
+
+  /// Position of "Does it matter if I skip a check-in?" in both lists.
+  static const _skipCheckinIndex = 3;
 
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
 
-    final items = isEn
+    final faq = isEn
         ? const [
             (
               'Is this app a replacement for a doctor?',
@@ -91,6 +96,18 @@ class FaqPage extends StatelessWidget {
                   '系統支援中英文隨時切換。',
             ),
           ];
+    // T20: the "skip a check-in" answer talks about how often to come
+    // back, so `app_config/usage_copy` may replace it (same in both arms).
+    final items = [
+      for (var i = 0; i < faq.length; i++)
+        i == _skipCheckinIndex
+            ? (
+                faq[i].$1,
+                UsageCopy.current.text(UsageCopy.faqSkipCheckinAnswer,
+                    isEn: isEn, fallback: faq[i].$2),
+              )
+            : faq[i],
+    ];
 
     return Scaffold(
       appBar: AppBar(

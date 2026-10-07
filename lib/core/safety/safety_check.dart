@@ -79,7 +79,11 @@ enum SafetyInputPoint {
   pprFreeText('ppr_free_text', SafetySource.form),
   reminiscenceSummaryEdit('reminiscence_summary_edit', SafetySource.form),
   m3SessionEdit('m3_session_edit', SafetySource.form),
-  searchQuery('search_query', SafetySource.userInput);
+  searchQuery('search_query', SafetySource.userInput),
+
+  // T17 (decision 0026) — Phase A ADA Part D and day-7 open questions.
+  adaFreeText('ada_free_text', SafetySource.form),
+  day7OpenEnded('day7_open_ended', SafetySource.form);
 
   const SafetyInputPoint(this.code, this.source, {this.newInT7 = true});
   final String code;

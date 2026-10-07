@@ -181,6 +181,8 @@ const OPTIONAL_COLLECTIONS = ["brief_pr"];
 // weekly_pr.sessionCountThisWeek/referentRule (usage-derived),
 // agent_diff.freeResponse (free text), daily_mood.source_surface,
 // every `arm` (replaced by groupCode).
+// Never here: ada_responses and day7_open_responses (T17, decision 0026)
+// are Phase A only and stay out of the Phase B blinded export.
 const OUTCOME_COLLECTIONS = {
   brief_pr: [
     "schemaVersion", "agentId", "understanding", "validation", "caring",
@@ -193,6 +195,14 @@ const OUTCOME_COLLECTIONS = {
   pgic: ["value", "isoWeek", "weekIso", "answeredAt"],
   djg_es: [
     "timepoint", "itemsVersion", "answers", "score", "status", "answeredAt",
+  ],
+  // T18 (decision 0027): W2 DJG, 6 items.  Raw answers + server scores;
+  // nothing in it differs by arm.
+  djg_responses: [
+    "timepoint", "itemsVersion", "answers", "status", "scores",
+    "scoringVersion", "outsideWindow", "w0Date", "windowStartDate",
+    "windowEndDate", "pushSentAt", "reminderSentAt", "startedAt",
+    "submittedAt", "missedAt",
   ],
   agent_diff: [
     "wave", "timepoint", "usageFreq", "personality", "function", "answeredAt",

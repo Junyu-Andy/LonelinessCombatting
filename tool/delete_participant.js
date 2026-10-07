@@ -9,7 +9,10 @@
  *   Firestore  users/{uid} and EVERY subcollection under it, found by
  *              walking the tree (so nothing is missed if a new
  *              subcollection appears): profile, intake, sessions, turns,
- *              events, surveys, memory v0 + v1, action plans, reminders…
+ *              events, surveys (incl. djg_es and the T18 W2 DJG
+ *              djg_responses), memory v0 + v1, action plans, reminders,
+ *              Phase A ADA (ada_responses) and day-7 open questions
+ *              (day7_open_responses, T17)…
  *              Top-level collections, by the field that holds the uid:
  *              llm_calls, safety_events, safety_event_dedup, pi_alerts,
  *              te_audit_queue, stt_usage, safety_classifier_calls (T8,

@@ -123,6 +123,8 @@ const Map<SafetyInputPoint, String> _perPoint = {
   SafetyInputPoint.reminiscenceSummaryEdit: '嗰年我想跳樓。',
   SafetyInputPoint.m3SessionEdit: '其實我想自殺。',
   SafetyInputPoint.searchQuery: '點樣自殺最快',
+  SafetyInputPoint.adaFreeText: '三個都冇用，我想死。',
+  SafetyInputPoint.day7OpenEnded: '用完一個禮拜，我仲係好想了結自己。',
 };
 
 /// moduleIds the Hybrid pages pass for each conversational point.
