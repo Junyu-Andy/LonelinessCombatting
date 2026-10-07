@@ -50,7 +50,7 @@ flowchart LR
 | 阿珍 / 阿伯 `ah_jan_ah_bak` | 回忆、倾偈（老人在 onboarding 选性别版本） | M3 回忆（每周主题）、自由对话 |
 | 通通 `tung_tung` | 好奇、闲聊、资讯 | 通通聊天、M8 文章问答 |
 
-Persona 设定在 `functions/prompts/{siu_yan,ah_jan_ah_bak,tung_tung}_v1.txt`。
+Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；通通用 `tung_tung.v2.txt`（App 仍发 `tung_tung_v1`，服务器按 `functions/index.js` 的 `PROMPT_FILES` 换成 v2，决策 0019）。旧文件保留不改。
 
 **两组各模块对照**
 

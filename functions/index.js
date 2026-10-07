@@ -41,10 +41,23 @@ const DEEPSEEK_THINKING = {type: "disabled"};
 const PROMPT_DIR = path.join(__dirname, "prompts");
 const _promptCache = {};
 
+// Prompt registry (memory-and-entry-spec 3.10): the key the app sends →
+// the versioned file the server loads.  Installed apps keep sending the
+// old key, so the swap happens here.  Old files are never overwritten.
+//   tung_tung_v1 → tung_tung.v2: no "幫你查" invitation (decision 0019).
+const PROMPT_FILES = {
+  tung_tung_v1: "tung_tung.v2",
+};
+
+function promptFileFor(key) {
+  return Object.prototype.hasOwnProperty.call(PROMPT_FILES, key) ?
+    PROMPT_FILES[key] : key;
+}
+
 function loadPrompt(key) {
   if (_promptCache[key] !== undefined) return _promptCache[key];
   try {
-    const file = path.join(PROMPT_DIR, `${key}.txt`);
+    const file = path.join(PROMPT_DIR, `${promptFileFor(key)}.txt`);
     _promptCache[key] = fs.readFileSync(file, "utf8");
   } catch (err) {
     _promptCache[key] = null;
@@ -75,7 +88,7 @@ function promptVersionFor(key) {
   let label = null;
   if (text) {
     const m = text.split("\n")[0].match(/v(\d+)\s*\(rev\s*([0-9-]+)\)/);
-    if (m) label = `${key.replace(/_v\d+$/, "")}_v${m[1]}@${m[2]}`;
+    if (m) label = `${key.replace(/[._]v\d+$/, "")}_v${m[1]}@${m[2]}`;
   }
   _promptVersionCache[key] = label;
   return label;
