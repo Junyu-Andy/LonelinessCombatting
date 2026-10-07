@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/config/phase_a_config.dart';
 import '../../../../core/safety/safety_overlay.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_profile.dart';
@@ -124,8 +125,12 @@ class _ConsentPageState extends State<ConsentPage> {
         // Paper HREC consent is the authority; tapping 繼續 records it.
         functionalData: true,
         // P3.3: transcript retention defaults ON; the user reaches the
-        // kill-switch in Settings → Privacy.
-        transcriptRetention: true,
+        // kill-switch in Settings → Privacy.  C20 / decision 0020: both
+        // defaults come from config (app_config/phase_a) so the research
+        // team can match the ICF without a release.
+        transcriptRetention:
+            PhaseAConfig.current.transcriptRetentionDefault,
+        sharedContextUse: PhaseAConfig.current.sharedContextUseDefault,
         acceptedAt: DateTime.now(),
       ),
     );

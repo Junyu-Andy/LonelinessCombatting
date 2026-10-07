@@ -1,0 +1,10 @@
+rules_version = '2';
+// Emulator only (tool/delete_participant.js test). Clients get nothing;
+// the Admin SDK used by the script bypasses rules. Not deployed.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -28,6 +28,9 @@ class PhaseAConfig {
     this.w2DayOffset = 14,
     this.w2WindowDays = 3,
     this.week1NudgeDays = const [3, 6],
+    this.transcriptRetentionDefault = true,
+    this.sharedContextUseDefault = false,
+    this.enforceSharedContextConsent = false,
   });
 
   /// M-7 — agent session ends after this many minutes without a user
@@ -60,6 +63,26 @@ class PhaseAConfig {
   /// P-1 — enrolment days on which the "you haven't tried {agent}" nudge
   /// may show.
   final List<int> week1NudgeDays;
+
+  /// C20 — value written to `consent.transcriptRetention` (and every
+  /// per-agent entry) when the participant taps 繼續 on the consent page
+  /// and finishes agent onboarding.  Default ON keeps today's behaviour;
+  /// the research team sets the final value to match the ICF (decision
+  /// 0020).  Only affects accounts that have not consented yet.
+  final bool transcriptRetentionDefault;
+
+  /// C20 — value written to `consent.sharedContextUse` on the consent
+  /// page.  Default OFF is what the page has always stored (the field
+  /// was left at its default).  Decision 0020.
+  final bool sharedContextUseDefault;
+
+  /// C20 — when true, `consent.sharedContextUse` really controls
+  /// cross-agent sharing: if it is not true, each agent only uses its
+  /// own memory (App: v0 cross-module callback + referral snippet;
+  /// server: memory v1 policy forced to B).  Default OFF = no change
+  /// (decision 0020).  The server reads the same key from
+  /// `app_config/phase_a` (functions/memory.js `loadConfig`).
+  final bool enforceSharedContextConsent;
 
   static PhaseAConfig _current = const PhaseAConfig();
 
@@ -96,6 +119,10 @@ class PhaseAConfig {
   static PhaseAConfig fromMap(Map<String, dynamic> map,
       {PhaseAConfig base = const PhaseAConfig()}) {
     int i(String k, int d) => (map[k] as num?)?.toInt() ?? d;
+    bool b(String k, bool d) {
+      final v = map[k];
+      return v is bool ? v : d;
+    }
     final nudgeRaw = map['week1NudgeDays'];
     final nudge = nudgeRaw is List
         ? nudgeRaw.whereType<num>().map((e) => e.toInt()).toList()
@@ -109,6 +136,12 @@ class PhaseAConfig {
       w2DayOffset: i('w2DayOffset', base.w2DayOffset),
       w2WindowDays: i('w2WindowDays', base.w2WindowDays),
       week1NudgeDays: nudge,
+      transcriptRetentionDefault:
+          b('transcriptRetentionDefault', base.transcriptRetentionDefault),
+      sharedContextUseDefault:
+          b('sharedContextUseDefault', base.sharedContextUseDefault),
+      enforceSharedContextConsent:
+          b('enforceSharedContextConsent', base.enforceSharedContextConsent),
     );
   }
 
@@ -121,5 +154,8 @@ class PhaseAConfig {
         'w2DayOffset': w2DayOffset,
         'w2WindowDays': w2WindowDays,
         'week1NudgeDays': week1NudgeDays,
+        'transcriptRetentionDefault': transcriptRetentionDefault,
+        'sharedContextUseDefault': sharedContextUseDefault,
+        'enforceSharedContextConsent': enforceSharedContextConsent,
       };
 }

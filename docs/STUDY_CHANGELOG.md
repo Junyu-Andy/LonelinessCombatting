@@ -5,6 +5,7 @@
 | 日期 | Tag | 改动 | 影响（cohort × 组别） | 生效方式 | 决策记录 |
 |---|---|---|---|---|---|
 | 待定 | `phaseB-v1.0.0` | Phase B 冻结版本：v1 记忆、分组标记、版本追溯字段、「我的資料」页面 | phase_b × 两组 | 第一位 phase_b 参与者入组前 | 0001 |
+| 2026-10-07 | — | 「共享上下文」同意（`sharedContextUse`）可以真正控制陪伴者之间的记忆共享，但开关 `enforceSharedContextConsent` **默认关**，线上不变。打开后，没有同意的人每个陪伴者只用自己的记忆（记忆 v1 按策略 B；小欣不再引用回忆摘要；转介不存原话）。「保留对话」和「共享」的默认值改为从 `app_config/phase_a` 读取，默认保持现状（保留：开；共享：关）。新增研究员用的整人删除脚本 | 开关关着时：无。**打开开关时**：所有 cohort × Hybrid 组的跨陪伴者共享改变，要在这里另记一条，写明生效日期 | 合并并部署 Functions 后；开关由研究侧在 Firestore 打开 | 0020 |
 | 2026-10-06 | — | 每次调用 DeepSeek 都在 `llm_calls` 记一条（返回的 `model`、`system_fingerprint`、token、HTTP 状态、延迟、是否出错，不存原文）。参与者感受不到，影响测量记录 | 所有 cohort × Hybrid 组；规则组不产生记录 | 随合并后的下一次 Functions 部署 | 0016 |
 | 2026-10-06 | — | DeepSeek 请求从旧名 `deepseek-chat` 改为 `deepseek-flash` 并关闭思考模式。实际模型不变（旧名本来就指向 DeepSeek-V4.1-Flash 非思考模式），参与者感受不到差别；研究文件里的模型名要从 DeepSeek-V3 更正 | 所有 cohort × Hybrid 组 | 下次部署 Functions 后 | 0017 |
 | 2026-10-04 | — | 签到 B、回忆 B 每次提交记为一次会话并弹 Brief PR；签到 B 的安全提示改走统一流程（acute 打开危机页） | phase_b × 规则组 | 随 `phaseB-v1.0.0` | 0015 |

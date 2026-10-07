@@ -513,14 +513,35 @@ function renderMemoryBlock(sel) {
  * @return {Promise<{enabled: boolean, policy: string}>}
  */
 async function loadConfig(db) {
-  const snap = await db.doc("meta/memory_config").get();
+  const [snap, appSnap] = await Promise.all([
+    db.doc("meta/memory_config").get(),
+    db.doc("app_config/phase_a").get(),
+  ]);
   const d = snap.exists ? snap.data() : {};
+  const app = appSnap.exists ? appSnap.data() : {};
   const policy = ["A", "B", "C"].includes(d.policy) ? d.policy : "C";
   return {
     enabled: d.enabled === true,
     policy,
     phaseBArmA: d.phaseBArmA === true,
+    // C20 / decision 0020: same key the App reads (PhaseAConfig).
+    enforceSharedContextConsent: app.enforceSharedContextConsent === true,
   };
+}
+
+/**
+ * The sharing policy for one user. With app_config/phase_a
+ * .enforceSharedContextConsent on, a user whose consent.sharedContextUse
+ * is not true gets policy B: each agent sees only its own items
+ * (decision 0020). Otherwise the configured policy.
+ * @param {{policy: string, enforceSharedContextConsent: boolean}} cfg
+ * @param {object} user profile doc data
+ * @return {string} A | B | C
+ */
+function effectivePolicy(cfg, user) {
+  if (!cfg.enforceSharedContextConsent) return cfg.policy;
+  const consent = (user && user.consent) || {};
+  return consent.sharedContextUse === true ? cfg.policy : "B";
 }
 
 /**
@@ -555,7 +576,7 @@ async function memoryActive(db, uid) {
   if (!cfg.enabled) return null;
   const user = await db.collection("users").doc(uid).get();
   if (!user.exists || !inScope(cfg, user.data())) return null;
-  return {policy: cfg.policy};
+  return {policy: effectivePolicy(cfg, user.data())};
 }
 
 /**
@@ -712,11 +733,16 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
   const todayKey = hkDateKey(now || new Date());
   let rawText = "";
   try {
+    // The extractor sees what this agent may see: policy C, or B when
+    // sharedContextUse consent is enforced and off (decision 0020).
+    const [cfg, userSnap] = await Promise.all([loadConfig(db), u.get()]);
+    const policy = effectivePolicy({...cfg, policy: "C"},
+        userSnap.exists ? userSnap.data() : null);
     const existing = await u.collection("mem_facts")
         .where("status", "==", "active").get();
     const activeFacts = existing.docs
         .map((d) => ({id: d.id, ...d.data()}))
-        .filter((f) => visibleTo(f, agentId, "C"));
+        .filter((f) => visibleTo(f, agentId, policy));
     const prompt = buildExtractionPrompt({turns, activeFacts, todayKey});
     rawText = await callModel(prompt);
     let parsed;
@@ -759,7 +785,7 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
       if (!old) {
         old = existing.docs.find((d) =>
           d.get("category") === f.category && d.get("key") === f.key &&
-          visibleTo({id: d.id, ...d.data()}, agentId, "C")) || null;
+          visibleTo({id: d.id, ...d.data()}, agentId, policy)) || null;
       }
       const revisions = old ? (old.get("revision_count") || 0) + 1 : 0;
       const ref = u.collection("mem_facts").doc();
@@ -852,6 +878,7 @@ module.exports = {
   renderMemoryBlock,
   loadConfig,
   inScope,
+  effectivePolicy,
   memoryActive,
   loadMemory,
   injectMemory,
