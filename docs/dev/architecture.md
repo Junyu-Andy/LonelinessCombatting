@@ -180,6 +180,8 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 **全局**
 
+App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_config/usage_copy`，再加 Phase B 包的 `app_config/phase_b` 或 Phase A 包的 `app_config/phaseA_schedule`。每份最多等 3 秒，读不到就用默认值（`lib/main.dart`）。
+
 | 位置 | 内容 |
 |---|---|
 | `app_config/arm_assignment` | `{randomise: bool}`：是否随机分组 |

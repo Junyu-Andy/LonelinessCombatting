@@ -1,7 +1,6 @@
 import 'package:app_demo/core/config/usage_copy.dart';
 import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:app_demo/features/settings/presentation/pages/faq_page.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'parity_harness.dart';
