@@ -1,0 +1,1400 @@
+{
+ "run": "full",
+ "profiles": {
+  "P1_light": {
+   "label": "用得少",
+   "sessions": 6,
+   "stopped": null,
+   "user_turns": 24,
+   "confirmations": [],
+   "kinds": {
+    "elder_script": {
+     "calls": 6,
+     "input_hit": 0,
+     "input_miss": 2683,
+     "output": 461,
+     "errors": 0,
+     "latency_p50": 1285,
+     "latency_p95": 1624,
+     "latency_max": 1624
+    },
+    "chat": {
+     "calls": 24,
+     "input_hit": 41472,
+     "input_miss": 9425,
+     "output": 1313,
+     "errors": 0,
+     "latency_p50": 1383,
+     "latency_p95": 1770,
+     "latency_max": 2014
+    },
+    "extraction": {
+     "calls": 6,
+     "input_hit": 256,
+     "input_miss": 5092,
+     "output": 2144,
+     "errors": 0,
+     "latency_p50": 2315,
+     "latency_p95": 2980,
+     "latency_max": 2980
+    }
+   },
+   "totals": {
+    "calls": 30,
+    "input_hit": 41728,
+    "input_miss": 14517,
+    "output": 3457,
+    "total": 59702
+   },
+   "weeks": [
+    {
+     "week": 1,
+     "sessions": 2,
+     "user_turns": 7,
+     "state": {
+      "facts_active": 5,
+      "facts_active_sensitive": 0,
+      "facts_pending_confirmation": 1,
+      "facts_superseded": 0,
+      "facts_needs_review": 0,
+      "facts_total": 6,
+      "summaries": 2,
+      "summary_chars_total": 138,
+      "summary_chars_avg": 69,
+      "followups_pending": 1,
+      "followups_asked": 0,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 181,
+     "block_chars_max": 361,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 171
+    },
+    {
+     "week": 2,
+     "sessions": 1,
+     "user_turns": 5,
+     "state": {
+      "facts_active": 9,
+      "facts_active_sensitive": 0,
+      "facts_pending_confirmation": 1,
+      "facts_superseded": 0,
+      "facts_needs_review": 0,
+      "facts_total": 10,
+      "summaries": 3,
+      "summary_chars_total": 221,
+      "summary_chars_avg": 74,
+      "followups_pending": 1,
+      "followups_asked": 0,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 258,
+     "block_chars_max": 258,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 244
+    },
+    {
+     "week": 3,
+     "sessions": 2,
+     "user_turns": 7,
+     "state": {
+      "facts_active": 12,
+      "facts_active_sensitive": 0,
+      "facts_pending_confirmation": 2,
+      "facts_superseded": 0,
+      "facts_needs_review": 0,
+      "facts_total": 14,
+      "summaries": 5,
+      "summary_chars_total": 364,
+      "summary_chars_avg": 73,
+      "followups_pending": 2,
+      "followups_asked": 0,
+      "followups_lapsed": 1
+     },
+     "block_chars_avg": 563,
+     "block_chars_max": 626,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 533
+    },
+    {
+     "week": 4,
+     "sessions": 1,
+     "user_turns": 5,
+     "state": {
+      "facts_active": 13,
+      "facts_active_sensitive": 0,
+      "facts_pending_confirmation": 4,
+      "facts_superseded": 0,
+      "facts_needs_review": 0,
+      "facts_total": 17,
+      "summaries": 6,
+      "summary_chars_total": 432,
+      "summary_chars_avg": 72,
+      "followups_pending": 2,
+      "followups_asked": 0,
+      "followups_lapsed": 1
+     },
+     "block_chars_avg": 330,
+     "block_chars_max": 330,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 312
+    }
+   ],
+   "injection": {
+    "block_chars_avg": 346,
+    "block_chars_max": 626,
+    "block_tokens_avg": 327,
+    "block_tokens_max": 592,
+    "untrimmed_max": 626,
+    "sessions_over_budget": 0,
+    "cut_layers": {},
+    "cut_examples": [],
+    "sessions_fact_cap_hit": 0,
+    "sessions_empty_block": 1,
+    "memory_chars_sent": 7901,
+    "memory_tokens_sent_est": 7477
+   },
+   "extraction": {
+    "sessions": 6,
+    "done": 6,
+    "failed": [],
+    "retries": 0,
+    "with_summary": 6,
+    "dropped": {},
+    "e2e_p50": 2363,
+    "e2e_p95": 3079,
+    "facts_per_session": 2.8
+   },
+   "planted": {
+    "total": 11,
+    "in_buffer": 11,
+    "in_buffer_captured": 10,
+    "in_buffer_in_summary": 11,
+    "out_of_buffer": 0,
+    "out_of_buffer_captured": 0,
+    "out_of_buffer_in_summary": 0,
+    "lost_examples": []
+   },
+   "followups": {
+    "planted": 2,
+    "created": 2,
+    "due_correct": 2,
+    "due_wrong": [],
+    "created_total": 2,
+    "injected": 0,
+    "final_asked": 0,
+    "final_pending_lapsed": 1,
+    "final_pending_future": 0,
+    "final_pending_sensitive": 0,
+    "selected_list": [],
+    "asked_more_than_once": []
+   },
+   "problems": {
+    "stale_summary_sessions": 2,
+    "stale_summary_example": "2026-10-22 注入了 2026-10-10、2026-10-07 的摘要",
+    "stale_relative_date_facts": [
+     "飲孫仔喜酒：琴日去咗飲孫仔嘅喜酒，覺得好熱鬧。",
+     "今朝公園大風著多件衫：今朝公園好大風，著多件衫先出門口。",
+     "孫仔結婚：孫仔下個月一號結婚，到時要飲喜酒",
+     "女兒煲湯：阿玲今日上嚟同我煲咗湯"
+    ],
+    "needs_review_facts": [],
+    "contradictions": [],
+    "dont_store": [],
+    "pii": [],
+    "summary_missing_for_agent": []
+   },
+   "final_counts": {
+    "facts_active": 13,
+    "facts_active_sensitive": 0,
+    "facts_pending_confirmation": 4,
+    "facts_superseded": 0,
+    "facts_needs_review": 0,
+    "facts_total": 17,
+    "summaries": 6,
+    "summary_chars_total": 432,
+    "summary_chars_avg": 72,
+    "followups_pending": 2,
+    "followups_asked": 0,
+    "followups_lapsed": 1
+   }
+  },
+  "P2_typical": {
+   "label": "典型",
+   "sessions": 20,
+   "stopped": null,
+   "user_turns": 280,
+   "confirmations": [
+    {
+     "date": "2026-10-11",
+     "confirmed": 3
+    },
+    {
+     "date": "2026-10-18",
+     "confirmed": 11
+    },
+    {
+     "date": "2026-10-25",
+     "confirmed": 10
+    },
+    {
+     "date": "2026-11-01",
+     "confirmed": 14
+    }
+   ],
+   "kinds": {
+    "elder_script": {
+     "calls": 20,
+     "input_hit": 512,
+     "input_miss": 9708,
+     "output": 6166,
+     "errors": 0,
+     "latency_p50": 3027,
+     "latency_p95": 3280,
+     "latency_max": 3280
+    },
+    "chat": {
+     "calls": 280,
+     "input_hit": 805888,
+     "input_miss": 82231,
+     "output": 15995,
+     "errors": 0,
+     "latency_p50": 1329,
+     "latency_p95": 1720,
+     "latency_max": 2339
+    },
+    "extraction": {
+     "calls": 20,
+     "input_hit": 5120,
+     "input_miss": 64293,
+     "output": 20473,
+     "errors": 0,
+     "latency_p50": 3976,
+     "latency_p95": 4742,
+     "latency_max": 4742
+    }
+   },
+   "totals": {
+    "calls": 300,
+    "input_hit": 811008,
+    "input_miss": 146524,
+    "output": 36468,
+    "total": 994000
+   },
+   "weeks": [
+    {
+     "week": 1,
+     "sessions": 5,
+     "user_turns": 70,
+     "state": {
+      "facts_active": 37,
+      "facts_active_sensitive": 3,
+      "facts_pending_confirmation": 6,
+      "facts_superseded": 3,
+      "facts_needs_review": 0,
+      "facts_total": 46,
+      "summaries": 5,
+      "summary_chars_total": 575,
+      "summary_chars_avg": 115,
+      "followups_pending": 3,
+      "followups_asked": 1,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 549,
+     "block_chars_max": 1132,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 519
+    },
+    {
+     "week": 2,
+     "sessions": 5,
+     "user_turns": 70,
+     "state": {
+      "facts_active": 73,
+      "facts_active_sensitive": 13,
+      "facts_pending_confirmation": 3,
+      "facts_superseded": 5,
+      "facts_needs_review": 0,
+      "facts_total": 81,
+      "summaries": 10,
+      "summary_chars_total": 1173,
+      "summary_chars_avg": 117,
+      "followups_pending": 7,
+      "followups_asked": 3,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 1171,
+     "block_chars_max": 1322,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 1108
+    },
+    {
+     "week": 3,
+     "sessions": 5,
+     "user_turns": 70,
+     "state": {
+      "facts_active": 104,
+      "facts_active_sensitive": 21,
+      "facts_pending_confirmation": 6,
+      "facts_superseded": 10,
+      "facts_needs_review": 0,
+      "facts_total": 120,
+      "summaries": 15,
+      "summary_chars_total": 1623,
+      "summary_chars_avg": 108,
+      "followups_pending": 7,
+      "followups_asked": 6,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 1229,
+     "block_chars_max": 1274,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 1163
+    },
+    {
+     "week": 4,
+     "sessions": 5,
+     "user_turns": 70,
+     "state": {
+      "facts_active": 146,
+      "facts_active_sensitive": 34,
+      "facts_pending_confirmation": 5,
+      "facts_superseded": 14,
+      "facts_needs_review": 0,
+      "facts_total": 165,
+      "summaries": 20,
+      "summary_chars_total": 2272,
+      "summary_chars_avg": 114,
+      "followups_pending": 9,
+      "followups_asked": 9,
+      "followups_lapsed": 3
+     },
+     "block_chars_avg": 1263,
+     "block_chars_max": 1310,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 1195
+    }
+   ],
+   "injection": {
+    "block_chars_avg": 1053,
+    "block_chars_max": 1322,
+    "block_tokens_avg": 996,
+    "block_tokens_max": 1251,
+    "untrimmed_max": 1322,
+    "sessions_over_budget": 0,
+    "cut_layers": {},
+    "cut_examples": [],
+    "sessions_fact_cap_hit": 14,
+    "sessions_empty_block": 1,
+    "memory_chars_sent": 288130,
+    "memory_tokens_sent_est": 272669
+   },
+   "extraction": {
+    "sessions": 20,
+    "done": 20,
+    "failed": [],
+    "retries": 0,
+    "with_summary": 20,
+    "dropped": {},
+    "e2e_p50": 4009,
+    "e2e_p95": 4783,
+    "facts_per_session": 8.3
+   },
+   "planted": {
+    "total": 19,
+    "in_buffer": 12,
+    "in_buffer_captured": 12,
+    "in_buffer_in_summary": 12,
+    "out_of_buffer": 7,
+    "out_of_buffer_captured": 1,
+    "out_of_buffer_in_summary": 2,
+    "lost_examples": [
+     "p2_job（第4/14句）",
+     "p2_fu_clinic1（第2/14句）",
+     "p2_fu_clinic2（第1/14句）",
+     "p2_son_correction（第4/14句）",
+     "p2_grandson_back（第1/14句）"
+    ]
+   },
+   "followups": {
+    "planted": 5,
+    "created": 2,
+    "due_correct": 1,
+    "due_wrong": [
+     "p2_anniv: 2026-11-11（应为 2026-11-04）"
+    ],
+    "created_total": 18,
+    "injected": 9,
+    "final_asked": 9,
+    "final_pending_lapsed": 3,
+    "final_pending_future": 5,
+    "final_pending_sensitive": 3,
+    "selected_list": [
+     "2026-10-12 siu_yan: 禮拜六約咗班老友去飲茶，跟住捉象棋。（2026-10-10）",
+     "2026-10-14 siu_yan: 用戶話聽日再同陪伴者講下舊時沙田點樣。（2026-10-10）",
+     "2026-10-16 siu_yan: 用戶下個禮拜四要去威爾斯覆診。（2026-10-15）",
+     "2026-10-22 tung_tung: 用戶話要打去問志明啲嘢。（2026-10-15）",
+     "2026-10-26 siu_yan: 志明帶樂樂返香港探用戶哋（2026-10-24）",
+     "2026-10-27 ah_jan_ah_bak: 用戶提醒聽日覆診，要記得提佢。（2026-10-21）",
+     "2026-10-28 siu_yan: 同珍姐講樂樂想食馬蹄糕，等佢準備（2026-10-24）",
+     "2026-10-29 tung_tung: 用戶下個禮拜四去威爾斯覆診做物理治療。（2026-10-29）",
+     "2026-10-30 siu_yan: 買定啲玩具畀孫仔樂樂（2026-10-24）"
+    ],
+    "asked_more_than_once": [
+     "p2_fu_clinic1 ×3",
+     "p2_fu_son_visit ×4",
+     "p2_fu_clinic2 ×3",
+     "p2_fu_son_leave ×2"
+    ]
+   },
+   "problems": {
+    "stale_summary_sessions": 4,
+    "stale_summary_example": "2026-10-22 注入了 2026-10-15、2026-10-08 的摘要",
+    "stale_relative_date_facts": [
+     "下個禮拜四去威爾斯覆診做物理治療：用戶下個禮拜四又要去威爾斯覆診，做物理治療。",
+     "下個禮拜四去威爾斯覆診：下個禮拜四（2026-10-22）要去威爾斯覆診，膝頭呢排痛返。",
+     "膝頭好咗物理治療有用：用戶膝頭呢排好啲，物理治療真係有用，行路冇咁痛。",
+     "下個禮拜三結婚紀念日諗住去飲茶慶祝：用戶話下個禮拜三（2026-11-11）係同珍姐結婚紀念日，諗住去飲茶慶祝。",
+     "膝頭仲痛下禮拜四覆診：用戶個膝頭仲係痛，下個禮拜四又要去覆診。",
+     "今朝公園捉棋一勝一負：用戶今朝落樓下公園同班老友捉咗兩盤棋，贏咗一盤，輸咗一盤，和氣收場。",
+     "下個禮拜三結婚紀念日去飲茶慶祝：用戶話下個禮拜三（2026-11-11）係同珍姐結婚紀念日，諗住去飲茶慶祝。",
+     "珍姐煮梅菜蒸肉餅：琴日珍姐煮咗個梅菜蒸肉餅，用戶覺得好味。",
+     "下個禮拜四去覆診做物理治療：用戶下個禮拜四（2026-11-05）又要去覆診，做物理治療，覺得攞苦嚟辛。",
+     "聽日去公園捉象棋：用戶問聽日（2026-10-23）去唔去公園捉象棋。",
+     "今日覆診醫生話要做物理治療：用戶今日去咗覆診，醫生話要做物理治療。",
+     "下個禮拜六想去行山：用戶話下個禮拜六都仲想去行山，睇下點。",
+     "珍姐今晚煮蓮藕燜豬肉：珍姐今晚話煮蓮藕燜豬肉，係用戶至愛。",
+     "膝頭哥今日有啲痛：用戶話膝頭哥今日有啲痛，可能琴日行多咗。",
+     "志明聽日返英國：志明佢哋聽日（2026-10-30）返英國，用戶有啲唔捨得。",
+     "珍姐煮皮蛋瘦肉粥：珍姐今朝煮咗個皮蛋瘦肉粥，好味。",
+     "琴日同樂樂視像：琴日先同樂樂視像，樂樂話掛住用戶隻艇仔粥。",
+     "下禮拜四威爾斯覆診：用戶下個禮拜四要去威爾斯覆診，希望唔使等咁耐。",
+     "今晚睇英超：今晚有英超，實睇。",
+     "聽日講舊時沙田：聽日再同陪伴者講下舊時沙田點樣。",
+     "膝頭今日好似好少少：用戶話膝頭今日好似好少少，不過都係要等物理治療。",
+     "珍姐琴日煮蒸水蛋好滑：珍姐琴日煮咗個蒸水蛋，好滑。",
+     "志明話下個禮拜返嚟一齊飲茶：用戶話志明話下個禮拜就返嚟，到時一齊去飲茶。",
+     "琴日公園捉象棋輸兩鋪：用戶琴日喺公園捉象棋，輸咗兩鋪，激死佢。",
+     "珍姐琴日跌親入咗醫院：用戶話珍姐琴日跌親，入咗醫院，用戶好擔心。",
+     "膝頭好咗靠打太極：用戶膝頭呢排好啲，打太極有用。",
+     "樂樂下個禮拜返嚟：樂樂下個禮拜返嚟。"
+    ],
+    "needs_review_facts": [],
+    "contradictions": [
+     {
+      "note": "倫敦 vs 曼徹斯特（老人自己纠正）",
+      "both_live": true,
+      "a": [
+       "樂樂想教玩新遊戲：用戶個孫樂樂喺倫敦，成日話要教用戶玩新遊戲。",
+       "孫仔樂樂喺倫敦讀書：孫仔樂樂喺倫敦讀緊書。"
+      ],
+      "b": [
+       "仔志明喺曼徹斯特：個仔志明喺曼徹斯特。"
+      ]
+     },
+     {
+      "note": "行山 vs 暂停行山改太极",
+      "both_live": true,
+      "a": [
+       "膝頭好返就帶樂樂行山：用戶話到時膝頭好返就帶樂樂行山。",
+       "逢禮拜六朝早馬鞍山行山：用戶逢禮拜六朝早同班老友去馬鞍山行山。"
+      ],
+      "b": [
+       "暫時唔行山改打太極：膝頭唔好咗，暫時唔行山，改咗去打太極。",
+       "改咗打太極：用戶話而家改咗打太極，都幾好。"
+      ]
+     }
+    ],
+    "dont_store": [],
+    "pii": [],
+    "summary_missing_for_agent": []
+   },
+   "final_counts": {
+    "facts_active": 146,
+    "facts_active_sensitive": 34,
+    "facts_pending_confirmation": 5,
+    "facts_superseded": 14,
+    "facts_needs_review": 0,
+    "facts_total": 165,
+    "summaries": 20,
+    "summary_chars_total": 2272,
+    "summary_chars_avg": 114,
+    "followups_pending": 9,
+    "followups_asked": 9,
+    "followups_lapsed": 3
+   }
+  },
+  "P3_heavy": {
+   "label": "用得多",
+   "sessions": 84,
+   "stopped": null,
+   "user_turns": 1148,
+   "confirmations": [
+    {
+     "date": "2026-10-11",
+     "confirmed": 23
+    },
+    {
+     "date": "2026-10-18",
+     "confirmed": 40
+    },
+    {
+     "date": "2026-10-25",
+     "confirmed": 35
+    },
+    {
+     "date": "2026-11-01",
+     "confirmed": 45
+    }
+   ],
+   "kinds": {
+    "elder_script": {
+     "calls": 84,
+     "input_hit": 0,
+     "input_miss": 44451,
+     "output": 27526,
+     "errors": 0,
+     "latency_p50": 2462,
+     "latency_p95": 4713,
+     "latency_max": 5609
+    },
+    "chat": {
+     "calls": 1148,
+     "input_hit": 4010496,
+     "input_miss": 385183,
+     "output": 61788,
+     "errors": 0,
+     "latency_p50": 1290,
+     "latency_p95": 1679,
+     "latency_max": 2353
+    },
+    "extraction": {
+     "calls": 84,
+     "input_hit": 54400,
+     "input_miss": 875707,
+     "output": 83180,
+     "errors": 0,
+     "latency_p50": 4006,
+     "latency_p95": 5148,
+     "latency_max": 5428
+    }
+   },
+   "totals": {
+    "calls": 1232,
+    "input_hit": 4064896,
+    "input_miss": 1260890,
+    "output": 144968,
+    "total": 5470754
+   },
+   "weeks": [
+    {
+     "week": 1,
+     "sessions": 21,
+     "user_turns": 287,
+     "state": {
+      "facts_active": 137,
+      "facts_active_sensitive": 21,
+      "facts_pending_confirmation": 11,
+      "facts_superseded": 6,
+      "facts_needs_review": 0,
+      "facts_total": 154,
+      "summaries": 21,
+      "summary_chars_total": 2442,
+      "summary_chars_avg": 116,
+      "followups_pending": 6,
+      "followups_asked": 8,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 1159,
+     "block_chars_max": 1757,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 1097
+    },
+    {
+     "week": 2,
+     "sessions": 21,
+     "user_turns": 287,
+     "state": {
+      "facts_active": 284,
+      "facts_active_sensitive": 60,
+      "facts_pending_confirmation": 9,
+      "facts_superseded": 15,
+      "facts_needs_review": 0,
+      "facts_total": 308,
+      "summaries": 42,
+      "summary_chars_total": 5048,
+      "summary_chars_avg": 120,
+      "followups_pending": 13,
+      "followups_asked": 19,
+      "followups_lapsed": 1
+     },
+     "block_chars_avg": 1601,
+     "block_chars_max": 1896,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 1515
+    },
+    {
+     "week": 3,
+     "sessions": 21,
+     "user_turns": 287,
+     "state": {
+      "facts_active": 442,
+      "facts_active_sensitive": 95,
+      "facts_pending_confirmation": 7,
+      "facts_superseded": 18,
+      "facts_needs_review": 0,
+      "facts_total": 467,
+      "summaries": 63,
+      "summary_chars_total": 7735,
+      "summary_chars_avg": 123,
+      "followups_pending": 16,
+      "followups_asked": 29,
+      "followups_lapsed": 2
+     },
+     "block_chars_avg": 1566,
+     "block_chars_max": 1835,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 1482
+    },
+    {
+     "week": 4,
+     "sessions": 21,
+     "user_turns": 287,
+     "state": {
+      "facts_active": 587,
+      "facts_active_sensitive": 137,
+      "facts_pending_confirmation": 14,
+      "facts_superseded": 30,
+      "facts_needs_review": 0,
+      "facts_total": 631,
+      "summaries": 84,
+      "summary_chars_total": 10564,
+      "summary_chars_avg": 126,
+      "followups_pending": 16,
+      "followups_asked": 35,
+      "followups_lapsed": 3
+     },
+     "block_chars_avg": 1685,
+     "block_chars_max": 1956,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 1595
+    }
+   ],
+   "injection": {
+    "block_chars_avg": 1503,
+    "block_chars_max": 1956,
+    "block_tokens_avg": 1422,
+    "block_tokens_max": 1851,
+    "untrimmed_max": 1956,
+    "sessions_over_budget": 0,
+    "cut_layers": {},
+    "cut_examples": [],
+    "sessions_fact_cap_hit": 79,
+    "sessions_empty_block": 1,
+    "memory_chars_sent": 1576162,
+    "memory_tokens_sent_est": 1491584
+   },
+   "extraction": {
+    "sessions": 84,
+    "done": 84,
+    "failed": [],
+    "retries": 0,
+    "with_summary": 84,
+    "dropped": {
+     "fact:quote_not_found": 1
+    },
+    "e2e_p50": 4059,
+    "e2e_p95": 5206,
+    "facts_per_session": 7.5
+   },
+   "planted": {
+    "total": 34,
+    "in_buffer": 25,
+    "in_buffer_captured": 22,
+    "in_buffer_in_summary": 24,
+    "out_of_buffer": 8,
+    "out_of_buffer_captured": 0,
+    "out_of_buffer_in_summary": 0,
+    "lost_examples": [
+     "p3_husband（第4/25句）",
+     "p3_grandkids3（第12/25句）",
+     "p3_vet_done（第14/25句）",
+     "p3_cat_age12（第6/25句）",
+     "p3_online_shop（第8/25句）",
+     "p3_fu_xmas（第9/25句）",
+     "p3_cane（第2/25句）",
+     "p3_move_maybe（第9/25句）"
+    ]
+   },
+   "followups": {
+    "planted": 6,
+    "created": 5,
+    "due_correct": 4,
+    "due_wrong": [
+     "p3_fu_trip: 2026-11-06（应为 2026-10-30）"
+    ],
+    "created_total": 51,
+    "injected": 35,
+    "final_asked": 35,
+    "final_pending_lapsed": 3,
+    "final_pending_future": 10,
+    "final_pending_sensitive": 6,
+    "selected_list": [
+     "2026-10-08 siu_yan: 去長者中心剪紙班（2026-10-08）",
+     "2026-10-08 siu_yan: 去睇醫生（2026-10-08）",
+     "2026-10-09 siu_yan: 去長者中心剪紙班（2026-10-09）",
+     "2026-10-09 ah_jan_ah_bak: 何太聽日去剪紙班（2026-10-09）",
+     "2026-10-10 siu_yan: 何太聽日去長者中心剪紙班，關注腰骨狀況（2026-10-10）",
+     "2026-10-11 siu_yan: 何太聽日去長者中心剪紙班，考慮帶舊報紙墊枱（2026-10-11）",
+     "2026-10-12 siu_yan: 聽日去長者中心剪紙，用戶考慮帶啲餅請人食（2026-10-12）",
+     "2026-10-13 siu_yan: 用戶聽日朝早去拜神，順便買餸。（2026-10-13）",
+     "2026-10-16 siu_yan: 聽日長者中心剪紙班，用戶已報名，希望唔好落雨。（2026-10-16）",
+     "2026-10-17 siu_yan: 帶咪咪去睇獸醫（2026-10-17）",
+     "2026-10-17 siu_yan: 去長者中心做運動（2026-10-17）",
+     "2026-10-18 siu_yan: 下個禮拜日美玲嚟食飯，用戶諗住整蒸肉餅（2026-10-18）",
+     "2026-10-18 ah_jan_ah_bak: 美玲下個禮拜日嚟食飯，用戶會叫佢幫手買生果拜神。（2026-10-18）",
+     "2026-10-18 siu_yan: 美玲話下個禮拜日帶阿晴嚟食飯，用戶諗住煲個湯。（2026-10-18）",
+     "2026-10-19 siu_yan: 美玲下個禮拜日嚟食飯，用戶要決定整咩畀佢食（2026-10-18）",
+     "2026-10-19 ah_jan_ah_bak: 美玲下個禮拜日嚟食飯，用戶打算煲湯蒸魚。（2026-10-18）",
+     "2026-10-19 siu_yan: 帶咪咪去睇獸醫（2026-10-18）",
+     "2026-10-20 siu_yan: 何太禮拜日美玲嚟食飯，諗住煲湯，可跟進佢煲咩湯。（2026-10-18）",
+     "2026-10-20 siu_yan: 何太聽日要去街市買餸，可提醒佢買少啲、分兩轉攞，減輕腰骨負擔。（2026-10-17）",
+     "2026-10-21 siu_yan: 去長者中心聽防騙講座，考慮帶平安鐘（2026-10-21）",
+     "2026-10-21 ah_jan_ah_bak: 下個禮拜三去長者中心聽防騙講座（2026-10-21）",
+     "2026-10-21 siu_yan: 去長者中心聽防騙講座（2026-10-21）",
+     "2026-10-22 ah_jan_ah_bak: 去長者中心聽防騙講座（2026-10-21）",
+     "2026-10-23 siu_yan: 用戶問聽日好唔好去長者中心同啲朋友傾偈。（2026-10-23）",
+     "2026-10-25 siu_yan: 美玲下個禮拜日嚟食飯，用戶諗住煲湯。（2026-10-25）",
+     "2026-10-25 ah_jan_ah_bak: 下個禮拜日美玲嚟食飯，用戶諗住煲湯。（2026-10-25）",
+     "2026-10-26 siu_yan: 帶咪咪去獸醫覆診（2026-10-26）",
+     "2026-10-26 ah_jan_ah_bak: 美玲下個禮拜日嚟食飯，用戶諗住煲湯。（2026-10-25）",
+     "2026-10-27 ah_jan_ah_bak: 美玲下個禮拜日嚟食飯，用戶諗住煲湯。（2026-10-25）",
+     "2026-10-28 siu_yan: 下個禮拜三去長者中心聽防騙講座（2026-10-28）",
+     "2026-10-28 ah_jan_ah_bak: 下個禮拜三中心有防騙講座，用戶想去聽。（2026-10-28）",
+     "2026-10-28 siu_yan: 下個禮拜三長者中心有防騙講座，用戶實去聽。（2026-10-28）",
+     "2026-10-29 siu_yan: 美玲下個禮拜帶阿晴嚟探用戶（2026-10-28）",
+     "2026-10-30 siu_yan: 下個禮拜五中心去大埔旅行，用戶考慮去唔去，需跟進佢決定。（2026-10-30）",
+     "2026-11-03 ah_jan_ah_bak: 用戶問聽日去唔去長者中心好，需要跟進佢決定去唔去。（2026-11-03）"
+    ],
+    "asked_more_than_once": [
+     "p3_fu_papercut ×7",
+     "p3_fu_dinner ×10",
+     "p3_fu_scam_talk ×7",
+     "p3_fu_vet ×3"
+    ]
+   },
+   "problems": {
+    "stale_summary_sessions": 0,
+    "stale_summary_example": null,
+    "stale_relative_date_facts": [
+     "下個禮拜五去大埔旅行：用戶話下個禮拜五會去大埔旅行。",
+     "聽日長者中心剪紙班已報名：聽日長者中心有剪紙班，用戶報咗名。",
+     "今晚煲湯自己一個食諗起一家人：用戶今晚煲咗個湯，自己一個食，食食下又諗起以前一家人。",
+     "今朝五點幾醒咗：今朝五點幾就醒咗",
+     "呢排成日諗起何生：呢排成日諗起何生，佢以前最鍾意食用戶整嘅馬拉糕",
+     "咪咪琴日跳上神枱差啲打爛觀音像：用戶話咪咪琴日跳上神枱，差啲打爛個觀音像，激死佢。",
+     "今朝六點起身餵咪咪：今朝六點起身，餵完咪咪，見佢肯食少少，都安心啲。",
+     "腰骨呢排又痛：用戶腰骨呢排又痛。",
+     "腰骨呢排又痛坐耐啲都唔得：用戶腰骨呢排又痛，坐耐啲都唔得。",
+     "美寶加拿大落雪：美寶喺加拿大嗰邊，呢排話落雪喇，用戶叮囑佢着多件衫",
+     "今朝煲粥一個人食唔完：用戶今朝煲咗粥，但一個人食，食極都食唔完。",
+     "叮囑陪伴者今日天氣涼咗着多件衫：用戶話今日天氣涼咗，叮囑陪伴者記住着多件衫。",
+     "美玲下個禮拜日嚟食飯諗住煲湯：美玲話下個禮拜日會嚟食飯，用戶諗住煲個湯。",
+     "諗緊買咩俾阿晴做生日禮物：阿晴下個月生日，用戶諗緊買咩俾佢好。",
+     "腰骨呢幾日又痛可能琴日行得多：用戶話腰骨呢幾日又痛，可能係琴日行得多。",
+     "聽日去中心：用戶聽日要去中心。",
+     "今日早餐食菠蘿包：今日食咗個菠蘿包做早餐",
+     "腰骨痛可能聽日要用拐杖去中心：用戶腰骨又痛，可能聽日都要用拐杖去中心。",
+     "美玲下個禮拜日帶阿晴嚟食飯：美玲話下個禮拜日帶阿晴嚟食飯，用戶諗住煲個湯。",
+     "腰骨呢排又痛返貼膏藥冇乜用：用戶腰骨呢排又痛返，可能係天氣轉凉，貼咗塊膏藥都冇乜用。",
+     "中心今日有防騙講座：用戶話而家啲電視新聞成日講騙案，中心今日都有防騙講座，用戶以前都唔知咁多嘢，覺得要小心啲。",
+     "今日中午煮麵：中午煮咗個麵",
+     "美寶琴日打嚟話聖誕真係返嚟：美寶琴日打電話嚟，話聖誕真係返嚟，用戶而家就開始諗煮咩俾佢食。",
+     "聽日剪紙班帶舊報紙：聽日長者中心剪紙班，用戶考慮帶舊報紙去",
+     "四個孫阿晴最細下個月生日要封利是：用戶有四個孫，阿晴最細，下個月生日，用戶要封利是。",
+     "今晚瞓唔着：用戶今晚又瞓唔着。",
+     "咪咪今朝跳上牀：咪咪今朝又跳上用戶張床，搞到用戶冇得瞓。",
+     "咪咪跳上大髀舔手：咪咪今晚跳上用戶大髀，佢知用戶唔開心，係咁舔用戶隻手。",
+     "咪咪跳上大脾用頭擦好似知唔開心：咪咪今朝跳上用戶大脾，仲用個頭擦用戶，好似知道用戶唔開心咁。",
+     "膝頭痛到唔想郁：用戶話今日凍咗好多，膝頭痛到唔想郁。",
+     "琴日剪紙班導師讚靚返屋企仲開心：琴日剪紙班導師讚用戶剪得靚，用戶返到屋企都仲開心。",
+     "落雨腰骨痛：今日落雨，腰骨又痛，留喺屋企煲劇",
+     "咪咪今晚跳上牀瞓似知用戶唔開心：咪咪今晚又跳上用戶張床度瞓，成日都係咁，好似知道用戶唔開心。",
+     "剪兔仔送阿晴：今日長者中心導師讚用戶剪紙剪得靚，用戶剪咗隻兔仔，諗住送畀美玲個女阿晴。",
+     "咪咪今晚跳上大脾睇電視瞓着：咪咪今晚跳上用戶大脾睇電視，睇睇下又瞓着咗，佢真係好痴人。",
+     "美玲下個禮拜帶阿晴嚟探：美玲今日打電話嚟，話下個禮拜帶阿晴嚟探用戶，用戶好開心。",
+     "咪咪今日跳上大髀瞓：咪咪今日跳上用戶大髀上面瞓，用戶覺得佢呢排好似開心返啲。",
+     "陳太個仔買咗部新電話：今日中心個陳太話佢個仔買咗部新電話俾佢，用戶唔識用。",
+     "咪咪呢排成日抓梳化：咪咪呢排成日抓梳化，用戶覺得激氣。",
+     "腰骨又痛唔知瞓唔瞓得着：用戶話腰骨又痛，今晚唔知瞓唔瞓得着。",
+     "美寶琴日打視像話加拿大落雪：美寶琴日打視像電話返嚟，話加拿大開始落雪喇。",
+     "今日食蒸魚留咗啲畀咪咪：用戶今日食咗蒸魚，美玲話好味，用戶留咗啲畀咪咪。",
+     "咪咪今朝跳上床踩肚：咪咪今朝跳上用戶張床，仲踩用戶個肚，用戶話佢佢又唔聽，不過有佢陪住都好。",
+     "琴日同陳太傾咗成朝：用戶琴日同陳太傾咗成朝。",
+     "下個禮拜三防騙講座想去聽：下個禮拜三有防騙講座，用戶想去聽，學多啲嘢。",
+     "今晚又瞓唔着：用戶今晚又係瞓唔着。",
+     "咪咪跳上檯：咪咪今日跳上檯面搞跌茶杯",
+     "咪咪牙肉好返好多成日喵：咪咪今朝又跳上用戶張床，佢牙肉好返好多喇，而家成日喵用戶。",
+     "朝早六點起身餵咪咪去街市：用戶今朝六點起身，餵完咪咪就去街市買餸。",
+     "美玲買咗件新衫今日著咗：美玲同用戶和好咗，仲買咗件新衫俾用戶，用戶今日著咗。",
+     "剪紙班導師讚靚剪兔仔：今日長者中心剪紙班，導師話用戶剪得靚，用戶剪咗隻兔仔畀咪咪",
+     "剪紙班已報名：聽日下晝長者中心有剪紙班，已報名",
+     "報咗剪紙班：聽日報咗剪紙班，唔知好唔好玩",
+     "腰骨呢兩日又痛返：用戶腰骨呢兩日又痛返，聽日去中心都唔知企唔企得耐。",
+     "下個禮拜日美玲嚟食飯諗住整蒸肉餅：下個禮拜日美玲話嚟食飯，用戶諗住整蒸肉餅。",
+     "咪咪跳上神枱差啲打爛香爐：咪咪今日跳上神枱，差啲打爛個香爐，嚇死用戶。",
+     "下個禮拜五中心去大埔旅行問去唔去好：用戶話下個禮拜五中心去大埔旅行，問去唔去好。",
+     "陳太孫女考到大學：今日中心個陳太同用戶講，佢個孫女考到大學。",
+     "剪紙班導師讚靚：今日剪紙好好玩，導師話用戶剪得靚",
+     "咪咪跳上神枱：咪咪今日跳上神枱上面，用戶鬧佢，佢仲望住用戶。",
+     "今日長者中心冇乜人：今日長者中心冇乜人，得用戶同陳太、李伯幾個。",
+     "中心下個月搞生日會諗住整蘿蔔糕：中心啲朋友話下個月搞生日會，用戶諗住整蘿蔔糕畀大家食。",
+     "今朝煲咗粥咪咪喺腳邊轉：用戶今朝煲咗粥，咪咪喺佢腳邊轉來轉去。",
+     "今日中心同陳師奶傾開：用戶今日喺中心同陳師奶傾開，佢話佢個仔都唔返嚟食飯。",
+     "今日聽防騙講座學咗好多嘢：用戶話今日聽防騙講座，學咗好多嘢，覺得而家啲騙徒好犀利。",
+     "今日蒸魚一個人食冇胃口：用戶今日朝早去街市買咗條魚，蒸咗嚟食，但一個人食冇乜胃口。",
+     "美玲下個禮拜日嚟食飯：美玲住將軍澳，下個禮拜日會嚟食飯。",
+     "美寶琴日打視像返嚟：美寶琴日打視像返嚟，話加拿大開始凍，用戶叫佢着多件衫",
+     "買魚蒸半條留半條聽日食：用戶買咗條魚，蒸咗半條，剩返半條聽日食。",
+     "今日天氣涼腰骨痛唔敢出街遠：今日天氣涼咗少少，腰骨又開始痛，唔敢出街咁遠。",
+     "今日煲粥一個人食食唔完：用戶今日煲咗粥，但一個人食，食極都食唔完。",
+     "咪咪今日跳上大髀瞓咗成個下晝：咪咪今日跳上用戶大髀，瞓咗成個下晝。",
+     "今日下晝食粥：用戶今日下晝食咗碗粥，簡簡單單又一餐。",
+     "咪咪今朝跳上床踩肚後去窗台：咪咪今朝跳上用戶張床，踩住用戶個肚，跟住走咗去窗台曬太陽。",
+     "美玲下個禮拜日嚟食飯會煲湯蒸魚：美玲下個禮拜日嚟食飯，用戶打算煲個湯，再蒸條魚。",
+     "咪咪今晚跳上大髀瞓咗成個鐘：咪咪今晚跳上用戶大髀，瞓咗成個鐘，用戶覺得佢呢排好似乖咗。",
+     "今朝六點起身餵咪咪去街市：今朝六點起身，餵完咪咪，去咗街市買餸。",
+     "美寶琴日打視像話加拿大落雪叫著多件衫：美寶琴日打視像電話返嚟，話加拿大開始落雪，叫用戶著多件衫。",
+     "腰骨痛擔心旅行企得耐：用戶腰骨呢排又痛，唔知企得耐唔耐。",
+     "今朝煲粥一個人食諗起同何生飲早茶：用戶今朝煲咗啲粥，自己一個食，食食下又諗起以前同何生一齊食早茶嘅日子。",
+     "今日煮咗蒸魚：今日煮咗蒸魚。",
+     "今晚煲皮蛋瘦肉粥：用戶今晚煲咗個皮蛋瘦肉粥。",
+     "咪咪食返嘢獸醫話牙肉發炎：咪咪呢排食返嘢，獸醫話只係牙肉發炎，食咗藥好啲。",
+     "腰骨痛可能坐得耐：腰骨呢排又痛，可能係坐得耐。",
+     "咪咪唔多食嘢要睇獸醫：咪咪呢排唔多食嘢，用戶聽日帶佢去睇獸醫。",
+     "阿晴下個月生日：最細嘅孫阿晴下個月生日。",
+     "咪咪今朝跳上床咕嚕咕嚕牙肉冇咁痛：咪咪今朝跳上用戶張床，仲咕嚕咕嚕咁，睇嚟牙肉冇咁痛喇。",
+     "陳太今日又講個仔唔返嚟食飯：長者中心陳太今日又同用戶講佢個仔唔返嚟食飯。",
+     "咪咪呢排成日趴喺何生張椅度：咪咪呢排成日趴喺何生張椅度，何生以前最鍾意坐嗰度。",
+     "咪咪今朝跳上床喵喵聲叫起身：咪咪今朝又跳上用戶張床，仲喵喵聲咁叫用戶起身。",
+     "下個禮拜日美玲嚟食飯煲湯：下個禮拜日美玲話嚟食飯，用戶諗住煲湯。",
+     "阿晴下個月生日諗緊送咩：用戶個孫阿晴下個月生日，用戶諗緊送咩畀佢。",
+     "今日去咗聽防騙講座：用戶今日去咗聽防騙講座，學咗好多嘢。",
+     "今日天氣涼煲咗老火湯：用戶話今日天氣涼涼哋，煲咗啲老火湯，飲完成個人暖晒。",
+     "尋晚腰骨痛到轉身都難：用戶尋晚瞓唔着，腰骨痛到轉身都難，可能聽日去長者中心做運動。",
+     "腰骨呢排又痛：用戶腰骨呢排又痛，坐得耐就唔舒服。",
+     "下個禮拜五中心去大埔旅行考慮去唔去：下個禮拜五中心去大埔旅行，用戶問去唔去好。",
+     "今日去長者中心：今日又去咗長者中心，同陳太傾咗成個下晝",
+     "咪咪今晚跳上大髀坐咗成個鐘：咪咪今晚跳上用戶大髀，坐咗成個鐘。",
+     "咪咪偷食枱面半條魚：咪咪今日偷食咗用戶擺喺枱面嘅半條魚，用戶鬧佢，佢就即刻走埋嚟撒嬌。",
+     "今朝五點醒咗瞓唔返腰骨痛：今朝五點就醒咗，瞓唔返，腰骨又痛。",
+     "美寶琴日打電話嚟話加拿大開始凍：美寶琴日有打電話嚟，話加拿大開始凍喇。",
+     "美寶琴日打電話返嚟話加拿大開始凍：美寶琴日有打電話返嚟，話加拿大開始凍喇。",
+     "天氣涼着何生買嘅舊外套：今日天氣涼咗少少，用戶攞咗件舊外套出嚟着，係何生以前買俾佢嘅。",
+     "腰骨痛到瞓唔着：用戶腰骨呢排痛到瞓唔着。",
+     "下個禮拜三防騙講座實去聽：中心啲朋友話下個禮拜三有防騙講座，用戶實去聽，學多啲嘢。",
+     "今日天氣涼煲咗老火湯：用戶今日天氣涼涼哋，煲咗個老火湯，飲完成個人暖晒。",
+     "下個禮拜中心去大埔旅行報咗名：用戶話下個禮拜中心去旅行，去大埔，已經報咗名。",
+     "今日去長者中心傾成個下晝：用戶今日去咗長者中心，同班老友記傾咗成個下晝。",
+     "食菠蘿包奶茶做一餐：用戶今日食咗個菠蘿包，飲杯奶茶，就算一餐",
+     "咪咪今朝五點幾跳上床踩肚叫起身：咪咪今朝五點幾跳上床踩用戶個肚，叫用戶起身。",
+     "美寶呢排冇打電話返嚟：美寶喺加拿大嗰邊，呢排都冇打電話返嚟，用戶唔知係咪好忙。",
+     "腰骨痛去長者中心貼膏藥：用戶腰骨今晚又痛，可能聽日要去長者中心搵姑娘幫手貼膏藥",
+     "咪咪跳上床搞到腰骨痛：咪咪今日跳上用戶張床瞓，搞到用戶腰骨痛都唔敢郁",
+     "今晚又瞓唔着：用戶今晚又瞓唔着。",
+     "咪咪今朝跳上牀叫起身：咪咪今朝跳上牀叫用戶起身",
+     "聽日想去拜神同菩薩講美玲嗌交：用戶聽日想去拜神，順便同菩薩講聲，希望美玲唔好再同佢嗌交。",
+     "聽日帶咪咪覆診：咪咪牙肉發炎，用戶聽日要帶佢覆診。",
+     "聽日去中心：用戶聽日要去中心。",
+     "社交活動：今日去長者中心同陳太傾偈",
+     "咪咪牙肉好返好多：咪咪牙肉好返好多，今朝跳上床喵喵叫。",
+     "阿晴下個月生日要封利是：用戶話最細嘅孫阿晴下個月生日，要封利是。",
+     "咪咪今朝跳上床喵喵聲叫肚餓：咪咪今朝跳上用戶張床，喵喵聲咁叫，用戶知佢肚餓。",
+     "今日美玲同老公嚟食飯：今日美玲同佢老公嚟咗食飯。",
+     "今日去大埔旅行食咗豆腐花：用戶今日去大埔旅行，食咗豆腐花。",
+     "咪咪今日趴大脾睇電視：咪咪今日好乖，趴喺用戶大脾睇電視。",
+     "聽日剪紙班已報名：聽日長者中心有剪紙班，已報名，希望到時唔好咁痛。",
+     "陳太今日請食馬拉糕：長者中心嗰個陳太，今日請用戶食咗件馬拉糕。",
+     "下個禮拜五跟中心去大埔旅行：用戶話下個禮拜五跟中心去大埔旅行。",
+     "聽日朝早去拜神順便買餸：用戶聽日朝早去拜神，順便買啲餸。",
+     "今日食咗碗粥冇胃口：用戶話今日食咗碗粥，冇乜胃口，可能因為掛住先生。",
+     "今晚食咗美玲買嘅叉燒飯：用戶今晚食咗碗叉燒飯，係美玲買嘅。",
+     "問聽日去唔去長者中心：用戶問聽日去唔去長者中心好。",
+     "下個禮拜三防騙講座想去聽：下個禮拜三（2026-10-21）長者中心有防騙講座，用戶想去聽。",
+     "聽日剪紙班考慮帶餅請人食：用戶問聽日（2026-10-12）去長者中心剪紙，好唔好帶啲餅請人食",
+     "咪咪今晚趴喺腳邊：咪咪今晚成晚趴喺用戶腳邊，用戶覺得佢知自己掛住何生。",
+     "今晚煲老火湯自己一個飲到喊：用戶今晚煲咗個老火湯，自己一個飲，飲飲下就喊咗出嚟。",
+     "美寶琴日打電話嚟話加拿大凍：美寶琴日打電話嚟，話加拿大開始凍喇。",
+     "新聞話觀塘舊區要重建：今日新聞話觀塘舊區要重建。",
+     "今日天氣涼著咗外套：今日天氣涼涼哋，用戶著咗件外套。",
+     "下個禮拜五中心去大埔旅行：下個禮拜五中心去旅行，去大埔。",
+     "執櫃桶搵到何生老花眼鏡：琴日執櫃桶，搵到何生副老花眼鏡。",
+     "報咗剪紙班：聽日下晝長者中心有剪紙班，報咗名",
+     "今朝五點幾醒咗瞓唔返咪咪叫起身：用戶今朝五點幾就醒咗，瞓唔返，咪咪又跳上床叫佢起身。",
+     "今晚煲粥加瘦肉：用戶今晚煲咗啲粥，加咗啲瘦肉，食完個身暖好多",
+     "下個禮拜五去大埔旅行驚行唔到咁多路：下個禮拜五去大埔旅行，用戶驚行唔到咁多路，未決定去唔去。",
+     "陳太話觀塘以前係海：今日中心個陳太話用戶知，觀塘以前係海嚟。",
+     "腰骨痛：今日天氣涼咗，著多件衫，腰骨有啲痛，可能聽日要去睇下醫生",
+     "美玲走後屋企靜到得咪咪陪：用戶話今日美玲走咗之後，屋企靜到得返咪咪陪佢。",
+     "咪咪跳上神枱差啲整跌觀音像：咪咪今日跳上神枱，差啲整跌用戶拜神嗰個觀音像。",
+     "今朝五點幾醒咗瞓唔返：今朝五點幾醒咗，瞓唔返，成晚諗起以前同何生去飲茶嘅日子。",
+     "今朝買咗條鯇魚諗住蒸：今朝買咗條鯇魚，諗住蒸嚟食，但一個人食唔晒。",
+     "下個禮拜三防騙講座諗住去聽：下個禮拜三中心有防騙講座，用戶諗住去聽。",
+     "咪咪今日精神好跳上大髀瞓：咪咪今日精神好咗，仲跳上用戶大髀度瞓，好痴身。",
+     "咪咪今日唔肯食嘢十二歲：咪咪今日唔肯食嘢，佢今年十二歲，用戶有啲擔心。",
+     "今晚覺得好寂寞：用戶今晚覺得好靜，成日覺得好寂寞。",
+     "今日美玲走咗之後洗碗睇電視：今日美玲走咗之後，用戶洗完碗，坐喺度睇電視，都唔知睇咗啲咩。",
+     "陳太話個仔唔返嚟食飯：今日長者中心，陳太又話佢個仔唔返嚟食飯。",
+     "咪咪今日食返嘢用戶安心：用戶話咪咪今日食返嘢，佢安心晒。",
+     "今日十五買生果拜神同何生講幾句：今日十五，用戶買咗生果去拜神，順便同何生講幾句。",
+     "今朝五點幾醒咗瞓唔返腰骨痛：用戶今朝五點幾就醒咗，瞓唔返，腰骨又痛。",
+     "聽日帶咪咪去睇獸醫：用戶聽日會帶咪咪去睇獸醫，因為咪咪呢排唔多食嘢，用戶好擔心。",
+     "今日長者中心同老友記傾偈：用戶今日去長者中心，同幾個老友記傾偈，講下仔女，講下天氣。",
+     "今日防騙講座抄咗筆記：用戶今日去中心防騙講座，覺得好，抄低咗啲筆記。",
+     "今日防騙講座好有用抄低筆記：用戶今日去長者中心防騙講座，覺得好有用，仲抄低咗啲筆記。",
+     "美寶琴日打電話話加拿大開始凍：美寶琴日有打電話返嚟，話加拿大開始凍喇，用戶叫佢著多件衫。",
+     "美玲下個禮拜日嚟食飯：美玲今日打俾用戶，話下個禮拜日真係嚟食飯，用戶諗住煲個湯。",
+     "今朝煲粥食兩啖就飽冇胃口：用戶今朝煲咗啲粥，食兩啖就飽，冇乜胃口。",
+     "落雨膝頭痛到唔想郁：今日落雨，用戶膝頭痛到唔想郁，成晚坐喺度。",
+     "今朝煲粥一個人食諗起何生：今朝煲咗粥，但得自己一個食，食食下又諗起何生。",
+     "咪咪呢排成日咳要𠱁食藥：咪咪呢排成日咳，用戶要去𠱁咪咪食藥。",
+     "聽日要去街市買餸：聽日要去街市買餸。",
+     "血壓高醫生開新藥日日食：用戶呢排血壓有啲高，醫生開咗新藥，日日要食。",
+     "美寶琴日打電話返嚟話加拿大凍：美寶琴日有打電話返嚟，話加拿大嗰邊開始凍，用戶叫佢着多件衫。"
+    ],
+    "needs_review_facts": [],
+    "contradictions": [
+     {
+      "note": "咪咪十岁 vs 十二岁（纠正）",
+      "both_live": false,
+      "a": [],
+      "b": [
+       "咪咪今日唔肯食嘢十二歲：咪咪今日唔肯食嘢，佢今年十二歲，用戶有啲擔心。",
+       "咪咪十二歲：咪咪今年十二歲，用戶更正之前講錯。"
+      ]
+     },
+     {
+      "note": "三个孙 vs 四个孙（前后矛盾）",
+      "both_live": true,
+      "a": [
+       "有三個孫最細叫阿晴：用戶有三個孫，最細嗰個叫阿晴，佢好得意。",
+       "阿晴係三個孫之中最細：阿晴係用戶三個孫之中最細嗰個，好得意。"
+      ],
+      "b": [
+       "四個孫阿晴最細下個月生日要封利是：用戶有四個孫，阿晴最細，下個月生日，用戶要封利是。",
+       "有四個孫：用戶有四個孫。"
+      ]
+     },
+     {
+      "note": "去街市 vs 改网购",
+      "both_live": true,
+      "a": [
+       "街市嗰邊拆咗以前成日去買餸：用戶話街市嗰邊都拆咗，以前成日去買餸。",
+       "朝早六點起身餵咪咪去街市：用戶今朝六點起身，餵完咪咪就去街市買餸。"
+      ],
+      "b": [
+       "美玲幫網購但想自己行街市：用戶話美玲而家幫佢網購，唔使出街市，但係有時都想自己去行下，睇下啲菜新唔新鮮。",
+       "多數叫美玲幫手網購：用戶而家多數叫美玲幫佢網購。"
+      ]
+     },
+     {
+      "note": "想搬 vs 决定不搬",
+      "both_live": true,
+      "a": [
+       "諗搬去同美玲住會唔會麻煩佢：用戶諗如果搬去同美玲住，會唔會麻煩到佢。"
+      ],
+      "b": [
+       "決定唔搬留喺觀塘住：用戶決定唔搬，留喺觀塘住，有咪咪陪。"
+      ]
+     }
+    ],
+    "dont_store": [
+     {
+      "id": "p3_dont_store_quarrel",
+      "facts_live": [
+       "同美玲而家冇事唔好再提嗌交：用戶同美玲而家冇事，叫陪伴者唔好再提嗰日嗌交嘅事。（pending_confirmation）",
+       "聽日想去拜神同菩薩講美玲嗌交：用戶聽日想去拜神，順便同菩薩講聲，希望美玲唔好再同佢嗌交。（active）"
+      ],
+      "summaries": 3
+     }
+    ],
+    "pii": [],
+    "summary_missing_for_agent": []
+   },
+   "final_counts": {
+    "facts_active": 587,
+    "facts_active_sensitive": 137,
+    "facts_pending_confirmation": 14,
+    "facts_superseded": 30,
+    "facts_needs_review": 0,
+    "facts_total": 631,
+    "summaries": 84,
+    "summary_chars_total": 10564,
+    "summary_chars_avg": 126,
+    "followups_pending": 16,
+    "followups_asked": 35,
+    "followups_lapsed": 3
+   }
+  },
+  "P4_tell_all": {
+   "label": "什么都说",
+   "sessions": 20,
+   "stopped": null,
+   "user_turns": 280,
+   "confirmations": [
+    {
+     "date": "2026-10-11",
+     "confirmed": 12
+    },
+    {
+     "date": "2026-10-18",
+     "confirmed": 29
+    },
+    {
+     "date": "2026-10-25",
+     "confirmed": 26
+    },
+    {
+     "date": "2026-11-01",
+     "confirmed": 26
+    }
+   ],
+   "kinds": {
+    "elder_script": {
+     "calls": 20,
+     "input_hit": 0,
+     "input_miss": 10370,
+     "output": 6379,
+     "errors": 0,
+     "latency_p50": 2736,
+     "latency_p95": 3367,
+     "latency_max": 3367
+    },
+    "chat": {
+     "calls": 280,
+     "input_hit": 787584,
+     "input_miss": 77011,
+     "output": 15649,
+     "errors": 0,
+     "latency_p50": 1291,
+     "latency_p95": 1677,
+     "latency_max": 2048
+    },
+    "extraction": {
+     "calls": 21,
+     "input_hit": 4608,
+     "input_miss": 53655,
+     "output": 22006,
+     "errors": 0,
+     "latency_p50": 3911,
+     "latency_p95": 4925,
+     "latency_max": 5450
+    }
+   },
+   "totals": {
+    "calls": 301,
+    "input_hit": 792192,
+    "input_miss": 130666,
+    "output": 37655,
+    "total": 960513
+   },
+   "weeks": [
+    {
+     "week": 1,
+     "sessions": 5,
+     "user_turns": 70,
+     "state": {
+      "facts_active": 26,
+      "facts_active_sensitive": 12,
+      "facts_pending_confirmation": 11,
+      "facts_superseded": 2,
+      "facts_needs_review": 0,
+      "facts_total": 39,
+      "summaries": 5,
+      "summary_chars_total": 585,
+      "summary_chars_avg": 117,
+      "followups_pending": 3,
+      "followups_asked": 1,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 402,
+     "block_chars_max": 931,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 380
+    },
+    {
+     "week": 2,
+     "sessions": 5,
+     "user_turns": 70,
+     "state": {
+      "facts_active": 63,
+      "facts_active_sensitive": 36,
+      "facts_pending_confirmation": 9,
+      "facts_superseded": 9,
+      "facts_needs_review": 0,
+      "facts_total": 81,
+      "summaries": 10,
+      "summary_chars_total": 1184,
+      "summary_chars_avg": 118,
+      "followups_pending": 4,
+      "followups_asked": 3,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 1032,
+     "block_chars_max": 1166,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 976
+    },
+    {
+     "week": 3,
+     "sessions": 5,
+     "user_turns": 70,
+     "state": {
+      "facts_active": 100,
+      "facts_active_sensitive": 60,
+      "facts_pending_confirmation": 10,
+      "facts_superseded": 11,
+      "facts_needs_review": 0,
+      "facts_total": 121,
+      "summaries": 15,
+      "summary_chars_total": 1848,
+      "summary_chars_avg": 123,
+      "followups_pending": 8,
+      "followups_asked": 4,
+      "followups_lapsed": 0
+     },
+     "block_chars_avg": 1172,
+     "block_chars_max": 1221,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 1109
+    },
+    {
+     "week": 4,
+     "sessions": 5,
+     "user_turns": 70,
+     "state": {
+      "facts_active": 141,
+      "facts_active_sensitive": 85,
+      "facts_pending_confirmation": 9,
+      "facts_superseded": 12,
+      "facts_needs_review": 0,
+      "facts_total": 162,
+      "summaries": 20,
+      "summary_chars_total": 2479,
+      "summary_chars_avg": 124,
+      "followups_pending": 12,
+      "followups_asked": 6,
+      "followups_lapsed": 2
+     },
+     "block_chars_avg": 1314,
+     "block_chars_max": 1367,
+     "over_budget_sessions": 0,
+     "block_tokens_avg": 1244
+    }
+   ],
+   "injection": {
+    "block_chars_avg": 980,
+    "block_chars_max": 1367,
+    "block_tokens_avg": 927,
+    "block_tokens_max": 1294,
+    "untrimmed_max": 1367,
+    "sessions_over_budget": 0,
+    "cut_layers": {},
+    "cut_examples": [],
+    "sessions_fact_cap_hit": 9,
+    "sessions_empty_block": 1,
+    "memory_chars_sent": 270293,
+    "memory_tokens_sent_est": 255789
+   },
+   "extraction": {
+    "sessions": 20,
+    "done": 20,
+    "failed": [],
+    "retries": 1,
+    "with_summary": 20,
+    "dropped": {
+     "fact:quote_not_found": 2
+    },
+    "e2e_p50": 3942,
+    "e2e_p95": 5494,
+    "facts_per_session": 8.1
+   },
+   "planted": {
+    "total": 26,
+    "in_buffer": 17,
+    "in_buffer_captured": 14,
+    "in_buffer_in_summary": 14,
+    "out_of_buffer": 7,
+    "out_of_buffer_captured": 1,
+    "out_of_buffer_in_summary": 1,
+    "lost_examples": [
+     "p4_loan（第1/14句）",
+     "p4_hkid（第1/14句）",
+     "p4_sister_fight（第2/14句）",
+     "p4_lonely（第4/14句）",
+     "p4_divorce（第3/14句）",
+     "p4_fu_will（第3/14句）"
+    ]
+   },
+   "followups": {
+    "planted": 2,
+    "created": 1,
+    "due_correct": 1,
+    "due_wrong": [],
+    "created_total": 18,
+    "injected": 6,
+    "final_asked": 6,
+    "final_pending_lapsed": 2,
+    "final_pending_future": 5,
+    "final_pending_sensitive": 8,
+    "selected_list": [
+     "2026-10-12 siu_yan: 用戶約咗教會朋友飲茶（2026-10-10）",
+     "2026-10-16 siu_yan: 用戶聽日去教會。（2026-10-15）",
+     "2026-10-20 ah_jan_ah_bak: 考慮緊去唔去教會禮拜日聚會（2026-10-18）",
+     "2026-10-27 ah_jan_ah_bak: 用戶聽日去飲茶。（2026-10-21）",
+     "2026-10-29 tung_tung: 用戶聽日去街市買餸（2026-10-23）",
+     "2026-11-03 ah_jan_ah_bak: 教會朋友約用戶去飲茶，用戶諗住去。（2026-10-28）"
+    ],
+    "asked_more_than_once": []
+   },
+   "problems": {
+    "stale_summary_sessions": 4,
+    "stale_summary_example": "2026-10-22 注入了 2026-10-15、2026-10-08 的摘要",
+    "stale_relative_date_facts": [
+     "空肚血糖七點八：今日量血糖，空肚七點八。",
+     "聽日去街市買餸：用戶聽日（2026-10-23）要去街市買餸。",
+     "陳太送月餅：教會朋友陳太今日送咗盒月餅嚟，美蓮話唔好食咁多，太甜。",
+     "陳太邀請下禮拜聚會：教會陳太打電話嚟，話下個禮拜有聚會，問用戶去唔去。",
+     "股票跌咗少少唔敢同美蓮講：啲股票呢排跌咗少少，唔敢同美蓮講。",
+     "阿強話下個月還埋剩低嘅錢：阿強今日打電話俾用戶，話下個月會還埋剩低嗰啲錢。",
+     "露台蘭花出新芽：露台十幾盆蘭花，今日有一盆出新芽，用戶開心到同佢講咗幾句說話。",
+     "教會朋友探訪帶湯：教會啲朋友今日有探用戶，帶咗啲湯嚟，用戶好感動。",
+     "下禮拜二做左眼白內障手術：下個禮拜二（2026-10-20）要做白內障手術，左眼。",
+     "股票今日又跌唔敢同家姐講：用戶買嘅股票今日又跌，唔敢同家姐講，驚佢又話自己。",
+     "夜晚食粥無胃口：用戶夜晚食咗碗粥，無乜胃口，可能因為今日心情唔係幾好。",
+     "蝴蝶蘭就快死：最近有盆蝴蝶蘭好似就快死，用戶唔知係咪淋得太多水。",
+     "血壓高要食少啲鹹：今日覆診，醫生話用戶血壓高，叫用戶食少啲鹹嘢。",
+     "教會朋友約下個禮拜探訪：教會啲朋友仔下個禮拜約咗用戶去探訪，用戶應承咗。",
+     "下個禮拜二做白內障手術：用戶下個禮拜二（2026-10-27）要做白內障手術，左眼，不過唔係好驚。",
+     "露台蘭花開白色花：露台十幾盆蘭花，今日有一盆開花，係白色嘅，好靚。",
+     "教會朋友約聽日飲茶：教會朋友約用戶聽日去飲茶，用戶諗住去，順便抖下氣。",
+     "露台蘭花出淺紫色花苞：露台嗰幾盆蘭花，今日有一盆出咗花苞，係淺紫色嘅，好靚。",
+     "細佬阿強來電：細佬阿強上個禮拜打過電話嚟，話下個月返香港探佢哋。",
+     "聽日早起去教會：用戶聽日要早起去教會。",
+     "阿強叫唔好催還錢：細佬阿強還咗兩萬蚊，但話最近手頭緊，叫用戶唔好催。",
+     "阿強約下個禮拜飲茶：細佬阿強今日打過電話嚟，問用戶下個禮拜去唔去飲茶。",
+     "聽日去教會：聽日要去教會。",
+     "露台蘭花今日開花：用戶露台盆蘭花今日開咗花，好靚。",
+     "今日下晝去覆診等咗成個鐘：用戶今日下晝去咗覆診，等咗成個鐘，醫院好多人。",
+     "阿強今日打嚟講兩句收線：細佬阿強今日打過電話嚟，講兩句就收線。",
+     "診所護士手勢唔好：用戶今日喺診所見到個護士，手勢唔係好掂。",
+     "家姐美蓮嘮叨擺藥：家姐今晚又喺度嘮叨，話用戶啲藥亂擺。",
+     "陳太約聽日飲茶睇下先：教會陳太約用戶聽日飲茶，用戶話睇下點先。",
+     "露台花有枯葉剪咗成個下午：露台嗰幾盆花今日有啲枯葉，用戶剪咗成個下午。",
+     "蝴蝶蘭種咗三年第一次開花：露台嗰盆蝴蝶蘭，今朝竟然開咗花，種咗三年，第一次開，真係好開心。",
+     "下個禮拜二覆診：用戶下個禮拜二要覆診，順便問下醫生啲眼藥水使唔使繼續滴。",
+     "教會陳太拎湯嚟：教會個陳太今日拎咗啲湯嚟，幾好人。",
+     "美蓮嘮叨買股票蝕錢：美蓮今晚又嘮叨用戶，話用戶買股票蝕錢。",
+     "露台蝴蝶蘭今日開花：露台嗰盆蝴蝶蘭今日終於開花。",
+     "約教會朋友飲茶：聽日約咗教會朋友飲茶。",
+     "下禮拜一去銀行改遺囑：用戶下個禮拜一（2026-11-02）要去銀行改遺囑。",
+     "露台白色蝴蝶蘭今朝開花：用戶露台嗰十幾盆蘭花，今朝有一盆開咗花，係白色嘅蝴蝶蘭，好靚，用戶淋咗水先出門口。"
+    ],
+    "needs_review_facts": [],
+    "contradictions": [
+     {
+      "note": "没结婚 vs 离过婚",
+      "both_live": true,
+      "a": [
+       "未婚：冇結婚。",
+       "與家姐美蓮同住何文田：同家姐美蓮住喺何文田，冇結婚。"
+      ],
+      "b": [
+       "三十歲離婚後冇再嫁：用戶三十歲嗰陣離過婚，之後都冇再嫁，覺得一個人都有好處。",
+       "有過一段婚姻三十歲離婚：用戶有過一段婚姻，三十歲嗰陣離咗婚。"
+      ]
+     },
+     {
+      "note": "借五万未还 vs 还了两万",
+      "both_live": true,
+      "a": [
+       "細佬阿強未還五萬蚊：細佬阿強到而家都未還五萬蚊俾用戶。",
+       "細佬阿強欠錢未還：細佬阿強仲未還錢，欠五萬蚊，用戶唔知點開口。"
+      ],
+      "b": [
+       "兩萬蚊冇諗過收得返：用戶講起阿強，嗰兩萬蚊真係冇諗過收得返。",
+       "細佬阿強還咗兩萬蚊：細佬阿強終於還咗兩萬蚊俾用戶。"
+      ]
+     },
+     {
+      "note": "旧电话 vs 新电话",
+      "both_live": false,
+      "a": [],
+      "b": []
+     }
+    ],
+    "dont_store": [
+     {
+      "id": "p4_dont_store_affair",
+      "facts_live": [
+       "後生喺醫院同有婦之夫醫生冇結果：後生嗰陣喺醫院，有個醫生對用戶好照顧，不過人哋有老婆，冇結果；用戶話從來冇同人講過，唔想被記住。（active）",
+       "後生時拍過一次拖對方有婦之夫：後生時拍過一次拖，對方係有婦之夫，冇同任何人講過。（active）",
+       "前夫李志偉舊年過身：用戶前夫李志偉舊年過咗身，有時都會諗起以前拍拖嘅時候。（active）",
+       "以前拍拖對象係醫院醫生：以前拍拖嗰個，係喺醫院做醫生嘅，後來佢去咗外國。（active）",
+       "夜晚瞓唔着諗起淺水灣：夜晚瞓唔着，成日諗返以前拍拖嗰陣，李志偉帶用戶去淺水灣。（pending_confirmation）",
+       "夜晚瞓唔着覺得孤獨：用戶而家夜晚成日瞓唔着，個人好孤獨，有時會諗起以前拍拖嘅事。（active）",
+       "以前拍拖成日去戲院睇戲：以前拍拖嗰陣，成日去戲院睇戲，而家冇喇。（active）",
+       "後生拍拖對象係有婦之夫：後生嗰陣，我拍過一次拖，對方係有婦之夫。（active）",
+       "以前拍拖冇咁多煩惱：用戶話以前拍拖嗰陣，邊有咁多煩惱。（active）",
+       "後生拍拖去雍雅山房：用戶後生嗰陣拍拖，成日去雍雅山房，嗰陣時真係好開心。（active）"
+      ],
+      "summaries": 8
+     },
+     {
+      "id": "p4_dont_store_stocks",
+      "facts_live": [
+       "股票跌咗少少唔敢同美蓮講：啲股票呢排跌咗少少，唔敢同美蓮講。（active）",
+       "買股票蝕咗三萬蚊：用戶買咗啲股票，蝕咗三萬蚊，唔敢話俾家姐知。（active）",
+       "股票今日又跌唔敢同家姐講：用戶買嘅股票今日又跌，唔敢同家姐講，驚佢又話自己。（active）",
+       "冇同美蓮講蝕咗三萬蚊：用戶冇同美蓮講股票蝕咗三萬蚊。（active）",
+       "買股票唔想講：用戶買咗股票，但唔想講。（pending_confirmation）",
+       "冇買股票錢放銀行：睇新聞話股市又跌，好在自己冇買股票，啲錢放喺銀行穩陣啲。（active）",
+       "買股票蝕咗三萬：用戶買股票蝕咗三萬，仲未敢同家姐講。（active）",
+       "股票跌積蓄縮水唔敢同家姐講：股票又跌，積蓄縮水，唔敢同家姐講。（active）",
+       "美蓮嘮叨買股票蝕錢：美蓮今晚又嘮叨用戶，話用戶買股票蝕錢。（active）",
+       "股票蝕錢：股市又跌，用戶啲股票蝕咗少少。（active）",
+       "股市蝕錢：睇新聞話股市又跌，啲股票都蝕咗唔少。（active）"
+      ],
+      "summaries": 11
+     }
+    ],
+    "pii": [],
+    "summary_missing_for_agent": []
+   },
+   "final_counts": {
+    "facts_active": 141,
+    "facts_active_sensitive": 85,
+    "facts_pending_confirmation": 9,
+    "facts_superseded": 12,
+    "facts_needs_review": 0,
+    "facts_total": 162,
+    "summaries": 20,
+    "summary_chars_total": 2479,
+    "summary_chars_avg": 124,
+    "followups_pending": 12,
+    "followups_asked": 6,
+    "followups_lapsed": 2
+   }
+  }
+ },
+ "token_fit": {
+  "rows": 1732,
+  "base": {
+   "siu_yan": 1581,
+   "ah_jan_ah_bak": 2061,
+   "tung_tung": 1494
+  },
+  "perBlockChar": 0.9463391470144586,
+  "perHistoryChar": 1.0073486880996607
+ }
+}

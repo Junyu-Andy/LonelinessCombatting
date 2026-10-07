@@ -1,0 +1,1194 @@
+{
+ "profile": "P2_typical",
+ "label": "典型",
+ "run": "pilot",
+ "started": "2026-10-07T03:17:19.947Z",
+ "finished": "2026-10-07T03:18:12.221Z",
+ "stopped": null,
+ "confirmations": [],
+ "sessions": [
+  {
+   "index": 0,
+   "day": 0,
+   "date": "2026-10-07",
+   "time": "10:00",
+   "agent": "siu_yan",
+   "turns": 14,
+   "elder_lines_generated": 14,
+   "inject_start": {
+    "chars": 0,
+    "chars_untrimmed": 0,
+    "layers": {
+     "followup": 0,
+     "fact": 0,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 0,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 0,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 0,
+    "summary_days_used": [],
+    "followups_due": 0,
+    "followups_selected": [],
+    "text": ""
+   },
+   "inject_later": {
+    "chars": 0,
+    "chars_untrimmed": 0,
+    "layers": {
+     "followup": 0,
+     "fact": 0,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 0,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 0,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 0,
+    "summary_days_used": [],
+    "followups_due": 0,
+    "followups_selected": []
+   },
+   "extraction": {
+    "status": "done",
+    "attempts": 1,
+    "retries": 0,
+    "error": null,
+    "dropped": [],
+    "counts": {
+     "facts": 10,
+     "followups": 0,
+     "summary": 1
+    },
+    "e2e_ms": 4065,
+    "call_status": "done"
+   },
+   "new_facts": [
+    {
+     "key": "揸81號線巴士",
+     "value": "以前揸81號線巴士，由沙田出佐敦，成日滿座。",
+     "category": "event",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "街市菜價貴",
+     "value": "街市啲菜價好貴，一斤菜心要十幾蚊。",
+     "category": "living",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    },
+    {
+     "key": "手機唔識撳",
+     "value": "手機成日唔識撳，成日撳錯掣。",
+     "category": "living",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    },
+    {
+     "key": "個仔志明喺英國",
+     "value": "個仔志明喺英國。",
+     "category": "family",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    },
+    {
+     "key": "行樓梯都痛",
+     "value": "以前成日同伙記去行山，而家行樓梯都痛。",
+     "category": "health",
+     "status": "pending_confirmation",
+     "sensitivity": "sensitive",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "同珍姐飲茶",
+     "value": "今朝同珍姐去飲茶，啲蝦餃貴咗成兩蚊。",
+     "category": "family",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    },
+    {
+     "key": "膝頭痛食藥眼瞓",
+     "value": "膝頭痛，食咗藥好眼瞓，睇英超睇半場就瞓着咗。",
+     "category": "health",
+     "status": "pending_confirmation",
+     "sensitivity": "sensitive",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "落公園捉象棋",
+     "value": "要落公園捉象棋。",
+     "category": "hobby",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "乘客多為返工放工後生仔女",
+     "value": "後生仔女返工放工都係搭佢架車。",
+     "category": "event",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "孫仔樂樂要視像",
+     "value": "孫仔樂樂成日話要同佢視像。",
+     "category": "family",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    }
+   ],
+   "new_followups": [],
+   "summary": "陳伯講述以前揸81號線巴士由沙田出佐敦，後生仔女返工放工都搭佢架車。今朝同珍姐去飲茶，覺得蝦餃貴咗兩蚊，又話街市菜價貴。佢睇英超睇半場就瞓着，因為膝頭痛食藥後眼瞓，以前成日同伙記行山，而家行樓梯都痛。個仔志明喺英國，孫仔樂樂成日話要視像，但佢手機成日撳錯掣。最後話要落公園捉象棋。",
+   "planted": [
+    {
+     "id": "p2_name",
+     "kind": "fact",
+     "pos": 0,
+     "in_buffer": false,
+     "fact": null,
+     "followup": null,
+     "in_summary": true
+    },
+    {
+     "id": "p2_wife",
+     "kind": "fact",
+     "pos": 1,
+     "in_buffer": false,
+     "fact": {
+      "status": "active",
+      "sensitivity": "normal",
+      "visibility": "shared",
+      "text": "同珍姐飲茶：今朝同珍姐去飲茶，啲蝦餃貴咗成兩蚊。"
+     },
+     "followup": null,
+     "in_summary": true
+    },
+    {
+     "id": "p2_job",
+     "kind": "fact",
+     "pos": 3,
+     "in_buffer": false,
+     "fact": {
+      "status": "active",
+      "sensitivity": "normal",
+      "visibility": "agent",
+      "text": "揸81號線巴士：以前揸81號線巴士，由沙田出佐敦，成日滿座。"
+     },
+     "followup": null,
+     "in_summary": true
+    }
+   ],
+   "state_after": {
+    "facts_active": 8,
+    "facts_active_sensitive": 0,
+    "facts_pending_confirmation": 2,
+    "facts_superseded": 0,
+    "facts_needs_review": 0,
+    "facts_total": 10,
+    "summaries": 1,
+    "summary_chars_total": 140,
+    "summary_chars_avg": 140,
+    "followups_pending": 0,
+    "followups_asked": 0,
+    "followups_lapsed": 0
+   },
+   "transcript": [
+    {
+     "user": "叫我陳伯得喇。",
+     "reply": "陳伯，好呀。咁我以後就咁叫你。\n\n今日過得點呀？"
+    },
+    {
+     "user": "我同老婆珍姐住喺沙田，結婚四十幾年喇。",
+     "reply": "嘩，四十幾年，沙田。呢個係好長嘅一段日子。\n\n珍姐係咪都係沙田街坊，定係你哋後來先搬入去住？"
+    },
+    {
+     "user": "你叫小欣呀？個名幾好聽喎。",
+     "reply": "係呀，小欣。多謝陳伯。\n\n不過我轉頭又想問返你——頭先講到沙田，你同珍姐係幾時搬入去㗎？"
+    },
+    {
+     "user": "我以前揸咗三十年巴士，九巴㗎。",
+     "reply": "三十年九巴，好長喎。陳伯你揸邊條線多？沙田出九龍嗰啲？"
+    },
+    {
+     "user": "嗰時揸81號線，由沙田出佐敦，成日滿座㗎。",
+     "reply": "81號，沙田出佐敦——呢條線好旺㗎，日日逼到爆。\n\n三十年揸同一條線，條路每個彎你都記得熟。以前啲乘客有冇啲熟口熟面嘅，日日都搭你車？"
+    },
+    {
+     "user": "哈哈，後生仔女返工放工都係搭我架車。",
+     "reply": "哈哈，即係你睇住人哋由後生仔女搭到成家立室。呢種緣分幾得意——同一架車，同一條路，人哋人生唔同階段你都載過。\n\n有冇邊個乘客你到而家都仲記得？"
+    },
+    {
+     "user": "今朝同珍姐去飲茶，啲蝦餃貴咗成兩蚊。",
+     "reply": "兩蚊都唔算少喎，一籠兩蚊，一餐茶就貴咗十幾蚊。\n\n不過講開又講，你哋兩公婆仲會一齊出去飲茶，呢樣好。係咪慣咗朝早嗰間，坐埋同一張枱？"
+    },
+    {
+     "user": "唉，街市啲菜價真係好貴，一斤菜心要十幾蚊。",
+     "reply": "係呀，而家菜心真係貴到唔似樣，以前幾蚊一斤嘅日子冇咗喇。\n\n陳伯你平時煮飯多，定係珍姐落手多？買餸係你負責定佢負責？"
+    },
+    {
+     "user": "係呢，你知唔知尋晚英超邊隊贏呀？",
+     "reply": "呢個我幫你唔到喇陳伯——波嘅嘢我唔追得貼，尋晚邊隊贏我真係唔敢亂講。\n\n不過講開睇波，你自己有冇捧開邊隊？定係純粹睇下熱鬧？"
+    },
+    {
+     "user": "我睇咗半場就瞓着咗，膝頭痛食咗藥好眼瞓。",
+     "reply": "膝頭痛都幾磨人，食咗藥又眼瞓，半場都睇唔完。\n\n呢排膝頭係成日痛，定係翻風落雨先痛？"
+    },
+    {
+     "user": "以前我成日同伙記去行山，而家行樓梯都痛。",
+     "reply": "由行山變成行樓梯都痛——呢個落差，唔係一句「年紀大」講得完。\n\n陳伯，以前你哋班伙記行開邊度？"
+    },
+    {
+     "user": "個仔志明喺英國，孫仔樂樂成日話要同我視像。",
+     "reply": "志明喺英國，樂樂隔咁遠都仲記得搵你視像——呢個孫仔有心。\n\n樂樂而家大約幾大喇？視像嗰陣佢同你講開啲乜？"
+    },
+    {
+     "user": "不過我手機成日唔識撳，成日撳錯掣。",
+     "reply": "唔緊要，陳伯，呢啲機嘅嘢一開始個個都撳錯，唔係你嘅問題。\n\n你平時視像係咪樂樂嗰邊打過嚟，定係你想打過去多？如果係接電話，其實淨係撳一個綠色掣就得。"
+    },
+    {
+     "user": "得閒再同你傾啦，我要落公園捉象棋喇。",
+     "reply": "好呀，去捉棋要緊，唔好俾人等到。\n\n捉完返嚟講下贏咗幾多鋪。"
+    }
+   ]
+  },
+  {
+   "index": 1,
+   "day": 1,
+   "date": "2026-10-08",
+   "time": "10:00",
+   "agent": "tung_tung",
+   "turns": 14,
+   "elder_lines_generated": 14,
+   "inject_start": {
+    "chars": 327,
+    "chars_untrimmed": 327,
+    "layers": {
+     "followup": 0,
+     "fact": 5,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 5,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 5,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 0,
+    "summary_days_used": [],
+    "followups_due": 0,
+    "followups_selected": [],
+    "text": "<memory>\n[關於對方嘅資料]\n- 個仔志明喺英國：個仔志明喺英國。\n- 同珍姐飲茶：今朝同珍姐去飲茶，啲蝦餃貴咗成兩蚊。\n- 孫仔樂樂要視像：孫仔樂樂成日話要同佢視像。\n- 街市菜價貴：街市啲菜價好貴，一斤菜心要十幾蚊。\n- 手機唔識撳：手機成日唔識撳，成日撳錯掣。\n</memory>\n[記憶使用規則]\n1. 提起記憶時要留餘地，例如「我記得你好似講過……係唔係呀？」\n2. 一輪最多自然咁提起一樣記憶，唔好一次過列出。\n3. 「敏感」嗰部分，只可以喺對方自己提起相關話題時先用，唔好主動引出。\n4. 對方話你記錯，就道歉、接受新講法，唔好爭辯。\n5. 唔肯定就唔好提；絕對唔好作對方冇講過嘅嘢。\n6. 唔好講「另一位陪伴者話我知」之類嘅說話。"
+   },
+   "inject_later": {
+    "chars": 327,
+    "chars_untrimmed": 327,
+    "layers": {
+     "followup": 0,
+     "fact": 5,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "layers_untrimmed": {
+     "followup": 0,
+     "fact": 5,
+     "sensitive": 0,
+     "summary": 0
+    },
+    "trimmed": false,
+    "cut": [],
+    "facts_usable_normal": 5,
+    "facts_usable_sensitive": 0,
+    "summary_days_available": 0,
+    "summary_days_used": [],
+    "followups_due": 0,
+    "followups_selected": []
+   },
+   "extraction": {
+    "status": "done",
+    "attempts": 1,
+    "retries": 0,
+    "error": null,
+    "dropped": [],
+    "counts": {
+     "facts": 11,
+     "followups": 0,
+     "summary": 1
+    },
+    "e2e_ms": 4509,
+    "call_status": "done"
+   },
+   "new_facts": [
+    {
+     "key": "樓下新開茶餐廳",
+     "value": "樓下新開咗間茶餐廳，話說啲奶茶好滑，未試過。",
+     "category": "living",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    },
+    {
+     "key": "個仔志明喺英國",
+     "value": "個仔志明喺英國，成日話叫過去住，但唔慣。",
+     "category": "family",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": "YZF92xV1gI1c0Hc7c9Zw"
+    },
+    {
+     "key": "志明喺倫敦做嘢",
+     "value": "個仔志明喺倫敦做嘢。",
+     "category": "family",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    },
+    {
+     "key": "手機唔識用",
+     "value": "手機呢啲嘢真係唔係好識用，成日撳錯掣。",
+     "category": "living",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": "NipMRKzC21wEMFv0oJAW"
+    },
+    {
+     "key": "膝頭舊患發作",
+     "value": "膝頭舊患又發作，行樓梯有啲痛，不過仲頂得住。",
+     "category": "health",
+     "status": "pending_confirmation",
+     "sensitivity": "sensitive",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "孫仔樂樂六歲",
+     "value": "個孫仔叫樂樂，今年六歲。",
+     "category": "family",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    },
+    {
+     "key": "揸熱狗巴士",
+     "value": "以前揸熱狗巴士，冇冷氣。",
+     "category": "event",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "同珍姐結婚四十幾年",
+     "value": "同珍姐結婚四十幾年，佢成日話我仲係咁長氣。",
+     "category": "family",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": null
+    },
+    {
+     "key": "以前揸30號巴士",
+     "value": "以前揸30號巴士，成日經過沙田圍。",
+     "category": "event",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "電視劇冇以前咁好睇",
+     "value": "而家啲電視劇冇以前咁好睇。",
+     "category": "preference",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "agent",
+     "replaces": null
+    },
+    {
+     "key": "街市菜價貴",
+     "value": "街市啲菜價貴到飛起，一斤菜心要成廿蚊。",
+     "category": "living",
+     "status": "active",
+     "sensitivity": "normal",
+     "visibility": "shared",
+     "replaces": "ITCr4iisOcEguB8ZG6uy"
+    }
+   ],
+   "new_followups": [],
+   "summary": "用戶今次講咗以前揸30號巴士同熱狗巴士嘅回憶，又提到街市菜價貴、膝頭舊患發作、樓下新開茶餐廳、手機唔識用、電視劇冇以前咁好睇。佢亦講到個仔志明喺英國叫佢過去住但唔慣，同珍姐結婚四十幾年，以及孫仔樂樂六歲喺倫敦。",
+   "planted": [
+    {
+     "id": "p2_son_london",
+     "kind": "fact",
+     "pos": 13,
+     "in_buffer": true,
+     "fact": {
+      "status": "active",
+      "sensitivity": "normal",
+      "visibility": "shared",
+      "text": "個仔志明喺英國：個仔志明喺英國，成日話叫過去住，但唔慣。"
+     },
+     "followup": null,
+     "in_summary": true
+    }
+   ],
+   "state_after": {
+    "facts_active": 15,
+    "facts_active_sensitive": 0,
+    "facts_pending_confirmation": 3,
+    "facts_superseded": 3,
+    "facts_needs_review": 0,
+    "facts_total": 21,
+    "summaries": 2,
+    "summary_chars_total": 245,
+    "summary_chars_avg": 123,
+    "followups_pending": 0,
+    "followups_asked": 0,
+    "followups_lapsed": 0
+   },
+   "transcript": [
+    {
+     "user": "早晨呀通通，今日涼咗少少，我著多件外套先出街。",
+     "reply": "早晨呀！係呀，今日真係涼咗，你著多件衫啱晒。呢排天氣開始轉，朝早夜晚都涼啲，出街記得帶多件，唔好冷親。你今日出街係去邊度行下呀？"
+    },
+    {
+     "user": "喂，你知唔知呀，英超尋晚曼聯又輸波，激到我彈起。",
+     "reply": "哈哈，曼聯又輸？你咁激真係好投入喎！我知曼聯呢排成績真係麻麻，球迷個個都嗌救命。你係捧曼聯嘅老球迷呀？定係淨係睇佢哋輸波當娛樂？"
+    },
+    {
+     "user": "珍姐今朝煮咗皮蛋瘦肉粥，仲有油炸鬼，好食到震。",
+     "reply": "嘩，皮蛋瘦肉粥加油炸鬼，呢個組合真係冇得輸！粥夠綿、油炸鬼夠脆，一啖粥一啖油炸鬼，正到痺。你今朝同珍姐一齊食呀？飲茶之外仲有呢個早餐，你哋今朝都幾豐富喎。"
+    },
+    {
+     "user": "我等陣落公園捉象棋，同阿強佢哋鬥幾局。",
+     "reply": "落公園捉象棋好呀！捉棋最開心就係同啲老友記你一局我一局，捉到興起仲會爭到面紅耳赤。阿強佢哋棋力點呀？你通常行開咩開局，係鍾意先守後攻，定係一開波就搶攻？"
+    },
+    {
+     "user": "以前揸30號巴士，成日經過沙田圍，嗰時邊有咁多樓。",
+     "reply": "嘩，你以前揸30號巴士㗎？沙田圍以前真係好空曠，邊似而家成幢成幢樓咁密。揸巴士可以日日睇住個城市變樣，嗰種感覺幾特別。不過講起呢啲舊時嘅嘢，阿珍／阿伯佢哋比我細心，好識聽呢啲回憶。你係咪有時都會諗返以前揸車嗰陣嘅日子？"
+    },
+    {
+     "user": "而家啲後生揸車，部部都係電動，我哋嗰陣揸熱狗巴士，冇冷氣㗎。",
+     "reply": "哈哈，熱狗巴士！夏天揸嗰陣真係成身汗，冇冷氣淨係靠開窗，但嗰種感覺而家啲後生真係體會唔到。電動車又靜又涼，係舒服，但就少咗份「味道」。呢啲以前揸車嘅日子，講起真係有好多故事。你嗰陣揸熱狗，有冇試過熱到要停低抖下氣呀？"
+    },
+    {
+     "user": "嘩，你睇下街市啲菜價，貴到飛起，一斤菜心要成廿蚊。",
+     "reply": "係喎，而家街市啲菜真係貴到嚇人，一斤菜心廿蚊，同以前差好遠。我記得你之前都講過街市菜價貴，一斤要十幾蚊，而家又再升咗，真係百物騰貴。你平時買開邊檔？會唔會行多幾檔格下價先買？"
+    },
+    {
+     "user": "我膝頭舊患又發作，行樓梯有啲痛，不過仲頂得住。",
+     "reply": "哎呀，膝頭舊患又發作，行樓梯痛就唔好硬頂咁多呀，落樓梯可以扶下扶手、慢慢嚟。呢類身體嘅嘢我未夠專業，如果痛得密，最好搵醫生或者物理治療師睇下，佢哋先幫到手。你平時行公園捉棋嗰段路，會唔會都要上落樓梯㗎？"
+    },
+    {
+     "user": "樓下新開咗間茶餐廳，話說啲奶茶好滑，我未試過。",
+     "reply": "新開茶餐廳！奶茶滑唔滑，真係要試過先算，有啲茶餐廳沖奶茶落足奶同茶膽，香濃到不得了。你平時飲奶茶係鍾意少甜定正常甜？如果佢哋奶茶得，下次你同珍姐飲茶之外都可以去試下，比較下邊間好。"
+    },
+    {
+     "user": "手機呢啲嘢我真係唔係好識用，成日撳錯掣。",
+     "reply": "手機啲掣真係有時好蝦人，一個唔小心就撳錯，唔止你，好多人都咁。其實最緊要識用幾樣就得，其他慢慢嚟，唔使心急。你平時用手機主要係做啲咩多呀？打俾人、睇嘢、定係同樂樂視像多？"
+    },
+    {
+     "user": "喂，你話呢，而家啲電視劇冇以前咁好睇。",
+     "reply": "係啦，唔少人都話而家啲劇冇以前咁有味道，以前啲劇本紮實、演員夠晒戲，睇到會追落去。不過而家都有啲唔錯嘅，只係選擇太多，反而揀唔落手。你以前最鍾意睇邊套劇呀？係咪嗰啲經典嘅長劇？"
+    },
+    {
+     "user": "係啦，我個仔志明喺英國，成日話叫我過去住，但我唔慣。",
+     "reply": "仔仔叫你過去英國住，係想近啲照顧你，不過唔慣都正常，離開咗幾十年嘅地方，去到陌生環境真係要時間適應。你喺香港有珍姐、有阿強佢哋一齊捉棋飲茶，呢啲日常其實好緊要。你心入面係咪都係想留返喺香港多啲？"
+    },
+    {
+     "user": "我同珍姐結婚四十幾年，佢成日話我仲係咁長氣。",
+     "reply": "哈哈，四十年都仲嫌你長氣，即係佢仲好留心你講嘅嘢啦！兩公婆相處咁多年，有得嗌下嘴、開下玩笑，其實好溫馨。珍姐煮嘅皮蛋瘦肉粥咁正，你長氣啲都值得佢聽啦。你哋拍拖嗰陣係點識㗎？"
+    },
+    {
+     "user": "我個仔志明喺倫敦做嘢，個孫仔叫樂樂，今年六歲。",
+     "reply": "樂樂六歲，咁細個，最多嘢講又最得意嘅年紀！係咪成日都要同你視像通話嗰個孫仔呀？隔住半個地球都可以見到佢大，都幾好。佢喺倫敦講英文多定廣東話多呀？"
+    }
+   ]
+  }
+ ],
+ "calls": [
+  {
+   "kind": "elder_script",
+   "http": 200,
+   "latency_ms": 2626,
+   "session": 0,
+   "model": "deepseek-flash",
+   "prompt": 402,
+   "completion": 279,
+   "hit": 0,
+   "miss": 402
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 831,
+   "session": 0,
+   "turn": 0,
+   "model": "deepseek-flash",
+   "prompt": 1631,
+   "completion": 21,
+   "hit": 1408,
+   "miss": 223
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1413,
+   "session": 0,
+   "turn": 1,
+   "model": "deepseek-flash",
+   "prompt": 1672,
+   "completion": 41,
+   "hit": 1536,
+   "miss": 136
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1044,
+   "session": 0,
+   "turn": 2,
+   "model": "deepseek-flash",
+   "prompt": 1731,
+   "completion": 41,
+   "hit": 1536,
+   "miss": 195
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1067,
+   "session": 0,
+   "turn": 3,
+   "model": "deepseek-flash",
+   "prompt": 1790,
+   "completion": 29,
+   "hit": 1536,
+   "miss": 254
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1154,
+   "session": 0,
+   "turn": 4,
+   "model": "deepseek-flash",
+   "prompt": 1847,
+   "completion": 58,
+   "hit": 1664,
+   "miss": 183
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1218,
+   "session": 0,
+   "turn": 5,
+   "model": "deepseek-flash",
+   "prompt": 1926,
+   "completion": 62,
+   "hit": 1792,
+   "miss": 134
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1247,
+   "session": 0,
+   "turn": 6,
+   "model": "deepseek-flash",
+   "prompt": 2013,
+   "completion": 67,
+   "hit": 1792,
+   "miss": 221
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1229,
+   "session": 0,
+   "turn": 7,
+   "model": "deepseek-flash",
+   "prompt": 2105,
+   "completion": 53,
+   "hit": 1920,
+   "miss": 185
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1229,
+   "session": 0,
+   "turn": 8,
+   "model": "deepseek-flash",
+   "prompt": 2177,
+   "completion": 58,
+   "hit": 1920,
+   "miss": 257
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 840,
+   "session": 0,
+   "turn": 9,
+   "model": "deepseek-flash",
+   "prompt": 2265,
+   "completion": 43,
+   "hit": 2048,
+   "miss": 217
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1114,
+   "session": 0,
+   "turn": 10,
+   "model": "deepseek-flash",
+   "prompt": 2331,
+   "completion": 40,
+   "hit": 2176,
+   "miss": 155
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1109,
+   "session": 0,
+   "turn": 11,
+   "model": "deepseek-flash",
+   "prompt": 2396,
+   "completion": 52,
+   "hit": 2176,
+   "miss": 220
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1541,
+   "session": 0,
+   "turn": 12,
+   "model": "deepseek-flash",
+   "prompt": 2470,
+   "completion": 67,
+   "hit": 2304,
+   "miss": 166
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1044,
+   "session": 0,
+   "turn": 13,
+   "model": "deepseek-flash",
+   "prompt": 2556,
+   "completion": 29,
+   "hit": 2304,
+   "miss": 252
+  },
+  {
+   "kind": "extraction",
+   "http": 200,
+   "latency_ms": 4003,
+   "session": 0,
+   "turn": "end",
+   "model": "deepseek-flash",
+   "prompt": 1211,
+   "completion": 1118,
+   "hit": 256,
+   "miss": 955
+  },
+  {
+   "kind": "elder_script",
+   "http": 200,
+   "latency_ms": 3103,
+   "session": 1,
+   "model": "deepseek-flash",
+   "prompt": 425,
+   "completion": 376,
+   "hit": 0,
+   "miss": 425
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1308,
+   "session": 1,
+   "turn": 0,
+   "model": "deepseek-flash",
+   "prompt": 1859,
+   "completion": 60,
+   "hit": 1408,
+   "miss": 451
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1251,
+   "session": 1,
+   "turn": 1,
+   "model": "deepseek-flash",
+   "prompt": 1945,
+   "completion": 62,
+   "hit": 1792,
+   "miss": 153
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1547,
+   "session": 1,
+   "turn": 2,
+   "model": "deepseek-flash",
+   "prompt": 2033,
+   "completion": 75,
+   "hit": 1792,
+   "miss": 241
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1700,
+   "session": 1,
+   "turn": 3,
+   "model": "deepseek-flash",
+   "prompt": 2130,
+   "completion": 74,
+   "hit": 1920,
+   "miss": 210
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1390,
+   "session": 1,
+   "turn": 4,
+   "model": "deepseek-flash",
+   "prompt": 2232,
+   "completion": 109,
+   "hit": 2048,
+   "miss": 184
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1741,
+   "session": 1,
+   "turn": 5,
+   "model": "deepseek-flash",
+   "prompt": 2381,
+   "completion": 106,
+   "hit": 2176,
+   "miss": 205
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1437,
+   "session": 1,
+   "turn": 6,
+   "model": "deepseek-flash",
+   "prompt": 2518,
+   "completion": 84,
+   "hit": 2304,
+   "miss": 214
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1273,
+   "session": 1,
+   "turn": 7,
+   "model": "deepseek-flash",
+   "prompt": 2628,
+   "completion": 95,
+   "hit": 2432,
+   "miss": 196
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1377,
+   "session": 1,
+   "turn": 8,
+   "model": "deepseek-flash",
+   "prompt": 2750,
+   "completion": 77,
+   "hit": 2560,
+   "miss": 190
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1471,
+   "session": 1,
+   "turn": 9,
+   "model": "deepseek-flash",
+   "prompt": 2853,
+   "completion": 80,
+   "hit": 2688,
+   "miss": 165
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1763,
+   "session": 1,
+   "turn": 10,
+   "model": "deepseek-flash",
+   "prompt": 2957,
+   "completion": 85,
+   "hit": 2816,
+   "miss": 141
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1746,
+   "session": 1,
+   "turn": 11,
+   "model": "deepseek-flash",
+   "prompt": 3069,
+   "completion": 87,
+   "hit": 2816,
+   "miss": 253
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1464,
+   "session": 1,
+   "turn": 12,
+   "model": "deepseek-flash",
+   "prompt": 3181,
+   "completion": 89,
+   "hit": 2944,
+   "miss": 237
+  },
+  {
+   "kind": "chat",
+   "http": 200,
+   "latency_ms": 1438,
+   "session": 1,
+   "turn": 13,
+   "model": "deepseek-flash",
+   "prompt": 3298,
+   "completion": 69,
+   "hit": 3072,
+   "miss": 226
+  },
+  {
+   "kind": "extraction",
+   "http": 200,
+   "latency_ms": 4462,
+   "session": 1,
+   "turn": "end",
+   "model": "deepseek-flash",
+   "prompt": 1822,
+   "completion": 1225,
+   "hit": 0,
+   "miss": 1822
+  }
+ ],
+ "llm_calls_summary": {
+  "rows": 30,
+  "prompt_tokens": 67777,
+  "completion_tokens": 4156,
+  "by_type": {
+   "chat": 28,
+   "memory_extraction": 2
+  }
+ },
+ "final": {
+  "facts": [
+   {
+    "key": "樓下新開茶餐廳",
+    "value": "樓下新開咗間茶餐廳，話說啲奶茶好滑，未試過。",
+    "category": "living",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "tung_tung",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "個仔志明喺英國",
+    "value": "個仔志明喺英國，成日話叫過去住，但唔慣。",
+    "category": "family",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "tung_tung",
+    "revision_count": 1,
+    "needs_review": false
+   },
+   {
+    "key": "志明喺倫敦做嘢",
+    "value": "個仔志明喺倫敦做嘢。",
+    "category": "family",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "tung_tung",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "揸81號線巴士",
+    "value": "以前揸81號線巴士，由沙田出佐敦，成日滿座。",
+    "category": "event",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "街市菜價貴",
+    "value": "街市啲菜價好貴，一斤菜心要十幾蚊。",
+    "category": "living",
+    "status": "superseded",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "手機唔識撳",
+    "value": "手機成日唔識撳，成日撳錯掣。",
+    "category": "living",
+    "status": "superseded",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "手機唔識用",
+    "value": "手機呢啲嘢真係唔係好識用，成日撳錯掣。",
+    "category": "living",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "tung_tung",
+    "revision_count": 1,
+    "needs_review": false
+   },
+   {
+    "key": "個仔志明喺英國",
+    "value": "個仔志明喺英國。",
+    "category": "family",
+    "status": "superseded",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "膝頭舊患發作",
+    "value": "膝頭舊患又發作，行樓梯有啲痛，不過仲頂得住。",
+    "category": "health",
+    "status": "pending_confirmation",
+    "sensitivity": "sensitive",
+    "visibility": "agent",
+    "agent": "tung_tung",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "行樓梯都痛",
+    "value": "以前成日同伙記去行山，而家行樓梯都痛。",
+    "category": "health",
+    "status": "pending_confirmation",
+    "sensitivity": "sensitive",
+    "visibility": "agent",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "同珍姐飲茶",
+    "value": "今朝同珍姐去飲茶，啲蝦餃貴咗成兩蚊。",
+    "category": "family",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "膝頭痛食藥眼瞓",
+    "value": "膝頭痛，食咗藥好眼瞓，睇英超睇半場就瞓着咗。",
+    "category": "health",
+    "status": "pending_confirmation",
+    "sensitivity": "sensitive",
+    "visibility": "agent",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "落公園捉象棋",
+    "value": "要落公園捉象棋。",
+    "category": "hobby",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "孫仔樂樂六歲",
+    "value": "個孫仔叫樂樂，今年六歲。",
+    "category": "family",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "tung_tung",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "乘客多為返工放工後生仔女",
+    "value": "後生仔女返工放工都係搭佢架車。",
+    "category": "event",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "揸熱狗巴士",
+    "value": "以前揸熱狗巴士，冇冷氣。",
+    "category": "event",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "tung_tung",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "同珍姐結婚四十幾年",
+    "value": "同珍姐結婚四十幾年，佢成日話我仲係咁長氣。",
+    "category": "family",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "tung_tung",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "以前揸30號巴士",
+    "value": "以前揸30號巴士，成日經過沙田圍。",
+    "category": "event",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "tung_tung",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "電視劇冇以前咁好睇",
+    "value": "而家啲電視劇冇以前咁好睇。",
+    "category": "preference",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "agent",
+    "agent": "tung_tung",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "孫仔樂樂要視像",
+    "value": "孫仔樂樂成日話要同佢視像。",
+    "category": "family",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "siu_yan",
+    "revision_count": 0,
+    "needs_review": false
+   },
+   {
+    "key": "街市菜價貴",
+    "value": "街市啲菜價貴到飛起，一斤菜心要成廿蚊。",
+    "category": "living",
+    "status": "active",
+    "sensitivity": "normal",
+    "visibility": "shared",
+    "agent": "tung_tung",
+    "revision_count": 1,
+    "needs_review": false
+   }
+  ],
+  "summaries": [
+   {
+    "day": "2026-10-08",
+    "agent": "tung_tung",
+    "summary": "用戶今次講咗以前揸30號巴士同熱狗巴士嘅回憶，又提到街市菜價貴、膝頭舊患發作、樓下新開茶餐廳、手機唔識用、電視劇冇以前咁好睇。佢亦講到個仔志明喺英國叫佢過去住但唔慣，同珍姐結婚四十幾年，以及孫仔樂樂六歲喺倫敦。",
+    "sensitivity": "normal"
+   },
+   {
+    "day": "2026-10-07",
+    "agent": "siu_yan",
+    "summary": "陳伯講述以前揸81號線巴士由沙田出佐敦，後生仔女返工放工都搭佢架車。今朝同珍姐去飲茶，覺得蝦餃貴咗兩蚊，又話街市菜價貴。佢睇英超睇半場就瞓着，因為膝頭痛食藥後眼瞓，以前成日同伙記行山，而家行樓梯都痛。個仔志明喺英國，孫仔樂樂成日話要視像，但佢手機成日撳錯掣。最後話要落公園捉象棋。",
+    "sensitivity": "sensitive"
+   }
+  ],
+  "followups": []
+ }
+}
