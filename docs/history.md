@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-07 T15 规则组签到、回忆的模板回应（PR 草稿，未合并）
+
+- 规则组小欣签到、阿珍/阿伯回忆提交后，按心情从模板池给一条回应，样式和 Hybrid 组同页面的气泡一样（决策 0023）。目的是让三个陪伴者在规则组都有「输入 → 回应」。
+- 放在编译开关 `RULE_TEMPLATE_REPLIES` 后面，默认关；关时两页和现在一样。模板全是【占位】文字，有占位时开关不生效。
+- 回应前先做安全检测，命中 moderate 或 acute 不给模板，走原来的安全流程。检测集中在 `lib/features/rule_replies/rule_reply_safety.dart`，写成 T7 `SafetyService` 的用法，T7 合并后替换。
+- 回忆 B 加了一个选填的心情脸（Hybrid 回忆没有心情输入）。
+- 报告：`docs/dev-reports/T15-rule-based-replies-20261007.md`。
+
 ## 2026-10-06 开发任务 T1–T6；DeepSeek 模型名
 
 - 研究侧功能登记表（C01–C22）放进 `docs/spec/feature-registry.md`，任务单放进 `docs/dev-tasks/dev-tasks-1006.md`。T1–T6 分六个云端会话并行执行，报告写到 `docs/dev-reports/`、`docs/spec/`、`docs/export/`。

@@ -13,7 +13,7 @@
 
 ## 开发须知
 - Flutter 固定 3.35.3（Gradle 8.12 不支持更新的 Flutter）。
-- 测试：`tool/ci_flutter_tests.sh`（四套构建变体）和 `tool/ci_backend_tests.sh`（Functions + Firestore 规则，需要模拟器）。
+- 测试：`tool/ci_flutter_tests.sh`（多套构建变体）和 `tool/ci_backend_tests.sh`（Functions + Firestore 规则，需要模拟器）。
 - Flutter 工具会改 `analysis_options.yaml` 和 `pubspec.lock`，提交前 `git checkout` 这两个文件。
 - `functions/` 的 ESLint 是 ES2018：不能用 `??`、`?.`。
 - 规则组（Arm B）永远不能调用 LLM；服务器上也有一道防线，不要绕过。
