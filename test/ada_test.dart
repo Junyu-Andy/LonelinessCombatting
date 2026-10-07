@@ -21,6 +21,7 @@ import 'package:app_demo/core/safety/distress_detector.dart';
 import 'package:app_demo/core/safety/distress_router.dart';
 import 'package:app_demo/core/safety/distress_state.dart';
 import 'package:app_demo/core/safety/safety_check.dart';
+import 'package:app_demo/core/safety/safety_classifier.dart';
 import 'package:app_demo/core/safety/safety_event_writer.dart';
 import 'package:app_demo/features/ada/data/ada_gate.dart';
 import 'package:app_demo/features/ada/data/ada_items.dart';
@@ -49,6 +50,8 @@ class _RecordingWriter extends SafetyEventWriter {
     String? turnId,
     String? agentId,
     String? sessionId,
+    String? detector,
+    ClassifierVerdict? classifier,
   }) async {
     if (!match.isEscalation) return;
     rows.add({'uid': uid, 'inputPoint': inputPoint, 'level': match.level});

@@ -112,7 +112,11 @@ test("T6 A2 reply: both numbers replaced, one log row, no text", async () => {
   assert.strictEqual(row.call_type, "chat");
   assert.strictEqual(row.filter_version, "hotline_filter.v1");
   assert.strictEqual(row.prompt_rule_version, "hotline_rule.v1");
-  const flat = JSON.stringify(row);
+  // Without the timestamp: its seconds / nanoseconds can contain the
+  // digits being searched for (flaky "999" / "2382" hits).
+  const noTs = Object.assign({}, row);
+  delete noTs.ts;
+  const flat = JSON.stringify(noTs);
   assert.ok(!/2382|999|撒瑪利亞|擔心/.test(flat), "log holds no text");
 });
 

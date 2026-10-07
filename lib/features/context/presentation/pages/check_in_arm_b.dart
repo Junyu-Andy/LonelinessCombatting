@@ -182,18 +182,31 @@ class _CheckInArmBState extends State<CheckInArmB> {
     // Decision 0023 — read once so one submission never mixes paths.
     final ruleReplies = RuleReplyPool.enabled;
     final profile = AppSettingsScope.read(context).profile;
-    // T7 — the shared entry point: detect + PI event (arm-invariant).
-    final distress = core.safety
-        .checkUserText(note,
-            point: SafetyInputPoint.checkInNote,
-            uid: profile?.uid,
-            agentId: AgentRegistry.siuYanId)
-        .match;
     final authAvailable = AuthServiceScope.of(context).available;
     final analytics = AnalyticsScope.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final nav = Navigator.of(context);
     final submittedAt = DateTime.now();
+    // T7 — the shared entry point: detect + PI event (arm-invariant).
+    // T8 — the classifier is asked only when its switch is on (same rule
+    // as Arm A's gateway); off, this stays the synchronous check.
+    const point = SafetyInputPoint.checkInNote;
+    final DistressMatch distress;
+    if (core.safety.classifierActiveFor(point)) {
+      setState(() => _picking = true);
+      distress = (await core.safety.checkUserTextClassified(note,
+              point: point,
+              uid: profile?.uid,
+              agentId: AgentRegistry.siuYanId))
+          .match;
+    } else {
+      distress = core.safety
+          .checkUserText(note,
+              point: point,
+              uid: profile?.uid,
+              agentId: AgentRegistry.siuYanId)
+          .match;
+    }
 
     // B04 — before this fix Arm B only fired an analytics event; the
     // answers themselves were never persisted (= lost research data).
@@ -223,7 +236,7 @@ class _CheckInArmBState extends State<CheckInArmB> {
     // hit keeps the original line and runs the safety flow below.
     String? ruleReply;
     if (ruleReplies && allowsTemplateReply(distress)) {
-      setState(() => _picking = true);
+      if (mounted) setState(() => _picking = true);
       final entry = await RuleReplyService(
         store: widget.replyHistory ??
             FirestoreRuleReplyHistoryStore(available: authAvailable),
@@ -238,6 +251,7 @@ class _CheckInArmBState extends State<CheckInArmB> {
       ruleReply = entry == null ? null : (isEn ? entry.en : entry.zh);
       if (!mounted) return;
     }
+    if (!mounted) return;
     setState(() {
       _saved = true;
       _picking = false;

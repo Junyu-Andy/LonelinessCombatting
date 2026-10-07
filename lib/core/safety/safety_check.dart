@@ -26,11 +26,18 @@
 ///   and emails PI for acute events (testers excepted), and counts one
 ///   turn once (`turnId`).
 ///
-/// Planned callers: T8 (classifier slot behind [detect]), T10 (memory:
+/// T8 (decision 0025, proposed): an optional classifier slot behind the
+/// lexicon — [classifierActiveFor] / [checkUserTextClassified].  Off by
+/// default (`PhaseAConfig.safetyClassifierEnabled`); while off, nothing
+/// here changes and every check stays synchronous.  See
+/// `safety_classifier.dart`.
+///
+/// Planned callers: T10 (memory:
 /// [detect] on the participant's words before summarising), T15 (rule-arm
 /// template replies: [checkUserText] before choosing a template).
 library;
 
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/widgets.dart';
@@ -38,6 +45,7 @@ import 'package:flutter/widgets.dart';
 import '../config/phase_a_config.dart';
 import '../core_services_scope.dart';
 import 'distress_detector.dart';
+import 'safety_classifier.dart';
 import 'safety_event_writer.dart';
 
 /// Where a piece of free text came from — `safety_events.inputPoint`.
@@ -85,6 +93,13 @@ enum SafetyInputPoint {
   /// `safetyScanAllInputs` switch.
   final bool newInT7;
 
+  /// T8 — whether the classifier (when switched on) also looks at this
+  /// input.  Only the participant's own words: not App-built model input,
+  /// and not search words (only [SafetyService.detect] runs on those).
+  bool get classifiable =>
+      this != SafetyInputPoint.systemGenerated &&
+      this != SafetyInputPoint.searchQuery;
+
   /// The point an [LlmGateway] call's user input belongs to, by moduleId.
   static SafetyInputPoint forModule(String moduleId) {
     if (moduleId == 'm2_check_in') return chatCheckIn;
@@ -123,7 +138,12 @@ class SafetyCheckResult {
     required this.scanned,
     required this.eventQueued,
     required this.turnId,
+    this.classifier,
   });
+
+  /// T8 — the classifier's answer; null when it was not asked (switch
+  /// off, input not classifiable, or the lexicon already said acute).
+  final ClassifierVerdict? classifier;
 
   DistressLevel get level => match.level;
   bool get isEscalation => match.isEscalation;
@@ -136,12 +156,20 @@ class SafetyService {
   const SafetyService({
     this.detector = const DistressDetector(),
     this.writer,
+    this.classifier,
+    this.classifierLog,
   });
 
   final DistressDetector detector;
 
   /// Null in guest mode and tests: nothing is written, detection still runs.
   final SafetyEventWriter? writer;
+
+  /// T8 — the classifier slot.  Null = lexicon only, whatever the switch.
+  final SafetyClassifier? classifier;
+
+  /// T8 — where the App logs calls that never came back.
+  final ClassifierFallbackLog? classifierLog;
 
   static final Random _rng = Random();
 
@@ -156,6 +184,118 @@ class SafetyService {
   /// Whether [point] is scanned under the current switches.
   static bool isScanned(SafetyInputPoint point) =>
       !point.newInT7 || PhaseAConfig.current.safetyScanAllInputs;
+
+  /// T8 — whether [checkUserTextClassified] would ask the classifier for
+  /// [point].  False whenever the switch is off: callers then keep calling
+  /// the synchronous [checkUserText], so nothing changes, timing included:
+  ///
+  /// ```dart
+  /// final r = safety.classifierActiveFor(point)
+  ///     ? await safety.checkUserTextClassified(text, point: point, ...)
+  ///     : safety.checkUserText(text, point: point, ...);
+  /// ```
+  bool classifierActiveFor(SafetyInputPoint point) =>
+      classifier != null &&
+      PhaseAConfig.current.safetyClassifierEnabled &&
+      point.classifiable &&
+      isScanned(point);
+
+  /// [checkUserText] with the classifier: lexicon first; unless it already
+  /// says acute (nothing higher to find, and the crisis page must not
+  /// wait), ask the classifier for at most
+  /// `PhaseAConfig.safetyClassifierTimeoutMs`; keep the higher level; then
+  /// write one `safety_events` doc for the turn (with `detector` and the
+  /// classifier fields).  On timeout or failure: the lexicon result and
+  /// one fallback log row.  Falls through to [checkUserText] when
+  /// [classifierActiveFor] is false.
+  Future<SafetyCheckResult> checkUserTextClassified(
+    String text, {
+    required SafetyInputPoint point,
+    String? uid,
+    String? agentId,
+    String? sessionId,
+    String? turnId,
+  }) async {
+    final c = classifier;
+    if (c == null || !classifierActiveFor(point)) {
+      return checkUserText(text,
+          point: point,
+          uid: uid,
+          agentId: agentId,
+          sessionId: sessionId,
+          turnId: turnId);
+    }
+    final id = turnId ?? newTurnId();
+    final lexicon = detect(text);
+    ClassifierVerdict? verdict;
+    if (lexicon.level != DistressLevel.acute && text.trim().isNotEmpty) {
+      verdict = await _classify(c, text, point: point, turnId: id, uid: uid);
+    }
+    final match =
+        verdict == null ? lexicon : mergeClassifierVerdict(lexicon, verdict);
+    final queued = _write(
+      match: match,
+      text: text,
+      source: point.source,
+      point: point,
+      uid: uid,
+      agentId: agentId,
+      sessionId: sessionId,
+      turnId: id,
+      // Null when the classifier was not asked (lexicon acute / empty).
+      classifier: verdict,
+      detector: verdict == null ? 'lexicon' : detectorLabel(lexicon, verdict),
+    );
+    return SafetyCheckResult(
+      match: match,
+      point: point,
+      scanned: true,
+      eventQueued: queued,
+      turnId: id,
+      classifier: verdict,
+    );
+  }
+
+  Future<ClassifierVerdict> _classify(
+    SafetyClassifier c,
+    String text, {
+    required SafetyInputPoint point,
+    required String turnId,
+    String? uid,
+  }) async {
+    final timeout =
+        Duration(milliseconds: PhaseAConfig.current.safetyClassifierTimeoutMs);
+    final sw = Stopwatch()..start();
+    ClassifierVerdict verdict;
+    try {
+      verdict = await c
+          .classify(text,
+              inputPoint: point.code,
+              source: point.source.code,
+              turnId: turnId)
+          .timeout(timeout);
+    } on TimeoutException {
+      verdict = ClassifierVerdict(
+          status: ClassifierStatus.clientTimeout,
+          latencyMs: sw.elapsedMilliseconds);
+    } catch (_) {
+      verdict = ClassifierVerdict(
+          status: ClassifierStatus.clientError,
+          latencyMs: sw.elapsedMilliseconds);
+    }
+    if (verdict.status == ClassifierStatus.clientTimeout ||
+        verdict.status == ClassifierStatus.clientError) {
+      classifierLog?.record(
+        status: verdict.status,
+        inputPoint: point.code,
+        source: point.source.code,
+        turnId: turnId,
+        latencyMs: sw.elapsedMilliseconds,
+        uid: uid,
+      );
+    }
+    return verdict;
+  }
 
   /// Detect, and write one `safety_events` doc when moderate or above.
   /// Returns synchronously; the write is fire-and-forget.  Does not route.
@@ -244,6 +384,15 @@ class SafetyService {
     String? agentId,
     String? sessionId,
   }) async {
+    // T8: with the classifier switch off this stays the synchronous call
+    // it always was.
+    if (classifierActiveFor(point)) {
+      final classified = await checkUserTextClassified(text,
+          point: point, uid: uid, agentId: agentId, sessionId: sessionId);
+      if (!context.mounted) return classified;
+      await route(context, [classified]);
+      return classified;
+    }
     final result = checkUserText(text,
         point: point, uid: uid, agentId: agentId, sessionId: sessionId);
     await route(context, [result]);
@@ -274,6 +423,8 @@ class SafetyService {
     String? uid,
     String? agentId,
     String? sessionId,
+    ClassifierVerdict? classifier,
+    String? detector,
   }) {
     final w = writer;
     if (w == null || !match.isEscalation) return false;
@@ -287,6 +438,8 @@ class SafetyService {
       turnId: turnId,
       agentId: agentId,
       sessionId: sessionId,
+      classifier: classifier,
+      detector: detector,
     );
     return true;
   }

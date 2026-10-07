@@ -48,6 +48,13 @@
 - 合并时的衔接改动：T15 的签到 B、回忆 B 改用 T7 的统一安全入口（每次提交只写一条安全事件）；整人删除脚本加上 T7 的 `hotline_filter_log` 和 T12 的研究编号对照表（`research_id_map`、`research_ids`）；T9 的 prompt 测试改为期望 T7 追加的 `+hotline_rule.v1` 版本后缀。
 - 合并后在本地跑了全部测试：后端（Functions、规则、模拟器、删除脚本）全过；App 六套构建变体全过。
 
+## 2026-10-07 T8 安全分类器接口（PR 草稿，未合并）
+
+- 在统一安全入口 `SafetyService` 后面加了一个分类器槽位，给研究侧的 LoRA 模型预留，两组相同。经新的 Cloud Function `classifySafety` 中转，只返回级别和分数；只升不降；超时 1.5 秒或失败只用词库，并记 `safety_classifier_calls`。
+- 冲突：规则组「永远不能调用 LLM」。做法是独立的分类接口，不经过、也不放宽 `assertLlmAllowed`。是否接受由研究侧和 PI 定（决策 0025，提议中）。
+- 开关 `app_config/phase_a.safetyClassifierEnabled`、`meta/safety_config.classifierEnabled` 都默认关；关着时检测仍是同步的，行为不变（有测试）。用本地假模型测了正常、超时、失败。
+- 报告：`docs/dev-reports/T8-safety-classifier-20261007.md`。待办第 58–60 项。
+
 ## 2026-10-07 T13 小修与上线配置（PR 草稿，未合并）
 
 - **C01**：Firestore 规则改成分组字段（`arm`、`strataCell` 和三个 `armAssigned*`）只有服务器能写；客户端不能删自己的用户文档（决策 0022）。App 正常注册走 `assignArm`，不受影响；规则测试按新规则改写并补了用例。

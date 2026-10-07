@@ -26,6 +26,7 @@ import 'core/safety/distress_detector.dart';
 import 'core/safety/distress_router.dart';
 import 'core/safety/distress_state.dart';
 import 'core/safety/safety_check.dart';
+import 'core/safety/safety_classifier.dart';
 import 'core/safety/safety_event_writer.dart';
 import 'features/analytics/data/analytics_service.dart';
 import 'features/auth/data/auth_service.dart';
@@ -93,7 +94,14 @@ Future<void> main() async {
   final distressRouter = DistressRouter(state: distressState);
   final safetyWriter = SafetyEventWriter(available: firebaseReady);
   // T7 — one safety-check entry point for every free-text input.
-  final safety = SafetyService(detector: detector, writer: safetyWriter);
+  // T8 — classifier slot: wired, but asked only when
+  // app_config/phase_a.safetyClassifierEnabled is true (default false).
+  final safety = SafetyService(
+    detector: detector,
+    writer: safetyWriter,
+    classifier: firebaseReady ? const CloudSafetyClassifier() : null,
+    classifierLog: FirestoreClassifierFallbackLog(available: firebaseReady),
+  );
   final llmFeaturesRepo = LlmTurnFeaturesRepository(available: firebaseReady);
   final memory = MemoryStore(available: firebaseReady);
   final crossModuleMemory = CrossModuleMemoryService(

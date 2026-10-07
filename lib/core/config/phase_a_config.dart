@@ -30,6 +30,8 @@ class PhaseAConfig {
     this.week1NudgeDays = const [3, 6],
     this.safetyScanAllInputs = true,
     this.hotlineFilterClient = true,
+    this.safetyClassifierEnabled = false,
+    this.safetyClassifierTimeoutMs = 1500,
     this.transcriptRetentionDefault = true,
     this.sharedContextUseDefault = true,
     this.enforceSharedContextConsent = true,
@@ -76,6 +78,19 @@ class PhaseAConfig {
   /// T7 — App-side second pass of the hotline filter on AI replies (the
   /// server pass is `meta/safety_config.hotlineOutputFilter`).  Default ON.
   final bool hotlineFilterClient;
+
+  /// T8 (decision 0025, proposed) — after the lexicon, also ask the
+  /// pluggable safety classifier (LoRA, via the `classifySafety` Cloud
+  /// Function) about participant text, both arms.  Default OFF: with it
+  /// off every check runs exactly as before (synchronous, lexicon only).
+  /// The server has its own switch (`meta/safety_config.classifierEnabled`,
+  /// also off); both must be on.  Not to be turned on before research
+  /// and PI sign off decision 0025.
+  final bool safetyClassifierEnabled;
+
+  /// T8 — how long a check waits for the classifier before falling back
+  /// to the lexicon alone (ms).
+  final int safetyClassifierTimeoutMs;
 
   /// C20 — value written to `consent.transcriptRetention` (and every
   /// per-agent entry) when the participant taps 繼續 on the consent page
@@ -151,6 +166,11 @@ class PhaseAConfig {
       week1NudgeDays: nudge,
       safetyScanAllInputs: b('safetyScanAllInputs', base.safetyScanAllInputs),
       hotlineFilterClient: b('hotlineFilterClient', base.hotlineFilterClient),
+      safetyClassifierEnabled:
+          b('safetyClassifierEnabled', base.safetyClassifierEnabled),
+      safetyClassifierTimeoutMs: i('safetyClassifierTimeoutMs',
+              base.safetyClassifierTimeoutMs)
+          .clamp(200, 5000),
       transcriptRetentionDefault:
           b('transcriptRetentionDefault', base.transcriptRetentionDefault),
       sharedContextUseDefault:
@@ -171,6 +191,8 @@ class PhaseAConfig {
         'week1NudgeDays': week1NudgeDays,
         'safetyScanAllInputs': safetyScanAllInputs,
         'hotlineFilterClient': hotlineFilterClient,
+        'safetyClassifierEnabled': safetyClassifierEnabled,
+        'safetyClassifierTimeoutMs': safetyClassifierTimeoutMs,
         'transcriptRetentionDefault': transcriptRetentionDefault,
         'sharedContextUseDefault': sharedContextUseDefault,
         'enforceSharedContextConsent': enforceSharedContextConsent,

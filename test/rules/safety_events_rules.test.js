@@ -1,6 +1,7 @@
 /**
  * T7 — safety_events create rules (source bucket, trigger-only fields)
- * and hotline_filter_log (Cloud Functions only).
+ * and hotline_filter_log (Cloud Functions only); T8
+ * safety_classifier_calls (App adds own fallback rows only).
  *
  * Run inside the emulator (see README.md).
  */
@@ -12,7 +13,8 @@ const {
   assertSucceeds,
 } = require('@firebase/rules-unit-testing');
 const {
-  doc, getDoc, addDoc, collection,
+  doc, getDoc, addDoc, collection, updateDoc, deleteDoc, setDoc,
+  serverTimestamp,
 } = require('firebase/firestore');
 
 const PROJECT_ID = 'loneliness-pilot-dev';
@@ -93,5 +95,49 @@ describe('hotline_filter_log (T7)', () => {
     await assertFails(addDoc(collection(db, 'hotline_filter_log'),
         {uid: 'alice', count: 1}));
     await assertFails(getDoc(doc(db, 'hotline_filter_log', 'x')));
+  });
+});
+
+describe('safety_classifier_calls (T8)', () => {
+  const db = () => testEnv.authenticatedContext('alice').firestore();
+  const row = (over) => Object.assign({
+    uid: 'alice', writer: 'app', status: 'client_timeout',
+    input_point: 'check_in_note', source: 'user_input', turn_id: 't1',
+    latency_ms: 1500, ts: serverTimestamp(),
+  }, over);
+
+  it('accepts the App fallback row (timeout / error)', async () => {
+    await assertSucceeds(addDoc(collection(db(), 'safety_classifier_calls'),
+        row()));
+    await assertSucceeds(addDoc(collection(db(), 'safety_classifier_calls'),
+        row({status: 'client_error'})));
+  });
+
+  it('rejects another uid, server rows, other statuses, extra fields',
+      async () => {
+        const c = collection(db(), 'safety_classifier_calls');
+        await assertFails(addDoc(c, row({uid: 'bob'})));
+        await assertFails(addDoc(c, row({writer: 'server'})));
+        await assertFails(addDoc(c, row({status: 'ok'})));
+        await assertFails(addDoc(c, row({level: 'acute'})));
+        await assertFails(addDoc(c, row({text: '我想死'})));
+      });
+
+  it('no client reads, updates or deletes', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'safety_classifier_calls', 'x'),
+          {uid: 'alice', writer: 'server', status: 'ok'});
+    });
+    const ref = doc(db(), 'safety_classifier_calls', 'x');
+    await assertFails(getDoc(ref));
+    await assertFails(updateDoc(ref, {status: 'error'}));
+    await assertFails(deleteDoc(ref));
+  });
+
+  it('safety_events still accepts the T8 classifier fields', async () => {
+    await assertSucceeds(addDoc(collection(db(), 'safety_events'),
+        event({detector: 'classifier', classifierStatus: 'ok',
+          classifierLevel: 'acute', classifierScore: 0.9,
+          classifierVersion: 'lora-1'})));
   });
 });

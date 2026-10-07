@@ -31,6 +31,7 @@ rules_version = '2';
 //   pi_alerts/{alertId}                          -> *new* B.7 acute alert queue (admin-write only)
 //   llm_calls/{callId}                           -> C04 per-call model log (Cloud Functions only)
 //   research_id_map/{uid}, research_ids/{rid}    -> T12 research-ID lookup (server-write; unblinded role read)
+//   safety_classifier_calls/{id}                 -> T8 classifier call log (server; App adds own fallback rows only)
 //   users/{uid}/djg_responses/{timepoint}        -> T18 W2 DJG (client: raw answers only; server: scores, push, missed)
 //   users/{uid}/ada_responses/{timepoint}        -> T17 Phase A ADA (owner only; frozen once submitted)
 //   users/{uid}/day7_open_responses/{timepoint}  -> T17 Phase A day-7 open questions (same rule)
@@ -241,6 +242,21 @@ service cloud.firestore {
     // T7 hotline outbound filter log — Cloud Functions only (no text).
     match /hotline_filter_log/{id} {
       allow read, write: if false;
+    }
+
+    // T8 safety-classifier call log (decision 0025, proposed).  The
+    // classifySafety Cloud Function writes a row for every call it relays
+    // (admin SDK).  The App may only add its own fallback rows — calls
+    // whose answer never came back — with a fixed set of fields and no
+    // text.  No client reads, updates or deletes.
+    match /safety_classifier_calls/{id} {
+      allow create: if isAuthed()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.writer == 'app'
+        && request.resource.data.status in ['client_timeout', 'client_error']
+        && request.resource.data.keys().hasOnly(['uid', 'writer', 'status',
+            'input_point', 'source', 'turn_id', 'latency_ms', 'ts']);
+      allow read, update, delete: if false;
     }
 
     // ============================================================
