@@ -17,6 +17,10 @@
 ///     [DjgW2Gate.active], the `djg_es` part above is replaced by
 ///     [PendingPrompts.djgW2] (window from [PhaseBConfig], W0 from
 ///     [w0DateFor]; hidden once the doc is submitted or missed).
+///   • T17 (decision 0026): the old W2/W4 Agent Differentiation shows only
+///     where [AdaGate.legacyAgentDiffVisible] allows (off in Phase B by
+///     default); the Phase A ADA and day-7 open questions come from
+///     `app_config/phaseA_schedule` ([PhaseAScheduleConfig]).
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -25,8 +29,12 @@ import '../../features/analytics/data/analytics_service.dart';
 import '../../features/auth/data/user_profile.dart';
 import '../../features/weekly_pr/data/weekly_pr_trigger.dart';
 import '../../features/weekly_pr/data/weekly_pr_window.dart';
+import '../../features/ada/data/ada_gate.dart';
+import '../../features/ada/data/ada_items.dart'
+    show kAdaCollection, kDay7OpenCollection, kDay7OpenDocId;
 import '../../features/assessment/data/djg_w2.dart';
 import '../config/phase_a_config.dart';
+import '../config/phase_a_schedule_config.dart';
 import '../config/phase_b_config.dart';
 import '../time/app_clock.dart';
 import 'enrolment_day.dart';
@@ -52,6 +60,15 @@ class PendingPrompts {
   /// T18 — Phase B in-app W2 DJG (6 items) still open.
   final bool djgW2;
 
+  /// T17 — the Phase A ADA administration due today (null = none).
+  final AdaTimepoint? ada;
+
+  /// T17 — day-7 open questions due.
+  final bool day7Open;
+
+  /// Enrolment day used for the checks above (stored with the answers).
+  final int? enrolmentDay;
+
   const PendingPrompts({
     required this.pgic,
     required this.weeklyPr,
@@ -61,10 +78,20 @@ class PendingPrompts {
     required this.agentDiffW2,
     required this.agentDiffW4,
     this.djgW2 = false,
+    this.ada,
+    this.day7Open = false,
+    this.enrolmentDay,
   });
 
   bool get w2Any => djgEsW2 || agentDiffW2;
-  bool get any => pgic || weeklyPr || w2Any || agentDiffW4 || djgW2;
+  bool get any =>
+      pgic ||
+      weeklyPr ||
+      w2Any ||
+      agentDiffW4 ||
+      djgW2 ||
+      ada != null ||
+      day7Open;
 }
 
 class PendingPromptsService {
@@ -83,9 +110,15 @@ class PendingPromptsService {
     String uid,
     UserProfile? profile, {
     DateTime? now,
+    bool? phaseB,
+    bool? legacyAgentDiffInPhaseB,
+    PhaseAScheduleConfig? schedule,
   }) async {
     final t = now ?? AppClock.now();
     final cfg = PhaseAConfig.current;
+    final sched = schedule ?? PhaseAScheduleConfig.current;
+    final legacyDiff = AdaGate.legacyAgentDiffVisible(
+        phaseB: phaseB, legacyInPhaseB: legacyAgentDiffInPhaseB, config: sched);
 
     bool pgic = false;
     bool weeklyPr = false;
@@ -117,10 +150,14 @@ class PendingPromptsService {
     bool agentDiffW2 = false;
     bool agentDiffW4 = false;
     final djgW2On = DjgW2Gate.active;
+    AdaTimepoint? ada;
+    bool day7Open = false;
+    int? enrolDay;
     final createdAt = profile?.createdAt;
     if (createdAt != null) {
       // 1-based calendar day (「入組第 N 天」); mirrored in CF week2Push.
       final day = enrolmentDay(createdAt, t);
+      enrolDay = day;
       final inW2Window =
           day >= cfg.w2DayOffset && day < cfg.w2DayOffset + cfg.w2WindowDays;
       if (inW2Window) {
@@ -128,10 +165,27 @@ class PendingPromptsService {
         if (!djgW2On && !await _hasDoc(uid, 'djg_es', 'timepoint', 'week2')) {
           djgEsW2 = true;
         }
-        if (!await _hasDoc(uid, 'agent_diff', 'timepoint', 'week2')) agentDiffW2 = true;
+        if (legacyDiff &&
+            !await _hasDoc(uid, 'agent_diff', 'timepoint', 'week2')) {
+          agentDiffW2 = true;
+        }
       }
-      if (day >= 28 && !await _hasDoc(uid, 'agent_diff', 'timepoint', 'week4')) {
+      if (legacyDiff &&
+          day >= 28 &&
+          !await _hasDoc(uid, 'agent_diff', 'timepoint', 'week4')) {
         agentDiffW4 = true;
+      }
+      // T17 — Phase A only (never in a PHASE_B build).
+      final tp = sched.adaTimepointForDay(day);
+      if (tp != null &&
+          AdaGate.adaVisible(phaseB: phaseB, config: sched) &&
+          !await _isSubmitted(uid, kAdaCollection, tp.id)) {
+        ada = tp;
+      }
+      if (sched.day7OpenEndedOnDay(day) &&
+          AdaGate.day7OpenVisible(phaseB: phaseB, config: sched) &&
+          !await _isSubmitted(uid, kDay7OpenCollection, kDay7OpenDocId)) {
+        day7Open = true;
       }
     }
 
@@ -146,6 +200,9 @@ class PendingPromptsService {
       agentDiffW2: agentDiffW2,
       agentDiffW4: agentDiffW4,
       djgW2: djgW2,
+      ada: ada,
+      day7Open: day7Open,
+      enrolmentDay: enrolDay,
     );
   }
 
@@ -166,6 +223,23 @@ class PendingPromptsService {
       return !DjgW2Saved.fromMap(snap.data()).isClosed;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// T17 — draft documents exist from the first screen; only
+  /// `status == "submitted"` counts as done.
+  Future<bool> _isSubmitted(String uid, String collection, String docId) async {
+    try {
+      final snap = await _db
+          .collection('users')
+          .doc(uid)
+          .collection(collection)
+          .doc(docId)
+          .get();
+      return snap.data()?['status'] == 'submitted';
+    } catch (_) {
+      // Fail closed, like [_hasDoc].
+      return true;
     }
   }
 

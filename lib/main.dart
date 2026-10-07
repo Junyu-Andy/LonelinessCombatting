@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'app/app.dart';
 import 'app/app_settings.dart';
 import 'core/config/phase_a_config.dart';
+import 'core/config/phase_a_schedule_config.dart';
 import 'core/config/phase_b_config.dart';
 import 'core/config/usage_copy_loader.dart';
 import 'core/feature_flags/feature_flags.dart';
@@ -69,7 +70,7 @@ Future<void> main() async {
   // Phase A baseline — participant-facing safety strings + runtime config
   // are loaded before the first frame so a crisis surface is never blank.
   await SafetyCopy.load();
-  // The four config reads are independent and each waits up to 3 s, so
+  // The startup config reads are independent and each waits up to 3 s, so
   // they run together: a bad network costs one timeout, not four.
   await Future.wait<Object?>([
     PhaseAConfig.load(available: firebaseReady),
@@ -82,6 +83,9 @@ Future<void> main() async {
     // T18 — Phase B-only keys (in-app W2 DJG; decision 0027).  A Phase A
     // build skips the read: nothing there applies to it.
     PhaseBConfig.load(available: firebaseReady && FeatureFlags.phaseB),
+    // T17 — Phase A-only ADA schedule; never read in a Phase B build.
+    if (!FeatureFlags.phaseB)
+      PhaseAScheduleConfig.load(available: firebaseReady),
   ]);
 
   const detector = DistressDetector();

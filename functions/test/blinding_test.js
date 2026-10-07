@@ -121,6 +121,16 @@ test("checker passes a clean export", () => {
   assert.deepStrictEqual(checker.checkExport([dir]).findings, []);
 });
 
+test("T17: Phase A ADA never enters the Phase B blinded export", () => {
+  for (const n of ["ada_responses", "day7_open_responses"]) {
+    assert.ok(!(n in blinding.OUTCOME_COLLECTIONS), n);
+    assert.ok(checker.ALLOWED_FILES.indexOf(n) < 0, n);
+    const dir = writeExport({[n]: [{researchId: "P0ZAHQ5",
+      groupCode: "Group_X", formVersion: "short"}]});
+    assert.strictEqual(checker.checkExport([dir]).findings.length, 1, n);
+  }
+});
+
 test("checker flags every kind of leak", () => {
   const rid = {researchId: "P0ZAHQ5", groupCode: "Group_Y"};
   const dir = writeExport({

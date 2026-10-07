@@ -40,3 +40,9 @@ read, create, overwrite or delete a row, the participant's own included.
 null backfill and merge-writes that omit `arm` → allowed; switching, nulling,
 deleting or overwriting away an assigned arm → denied; subcollections stay
 owner-only.
+
+`ada_rules.test.js` — T17 Phase A ADA and day-7 open questions
+(`users/{uid}/ada_responses`, `day7_open_responses`), short and full form
+with synthetic data: the owner saves a draft per screen and submits once;
+afterwards the doc is frozen; no client deletes; uid / timepoint / status
+must match; other participants can't read or write.
