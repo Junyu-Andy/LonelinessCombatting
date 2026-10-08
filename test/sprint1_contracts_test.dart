@@ -1,13 +1,12 @@
 /// Sprint 1 exit-criteria contract tests.
 ///
 /// Covers: B.2 TurnMetadata, B.4 ThoughtExerciseEntry round-trip,
-/// C.2 ArmAssigner strata-cell mapping, B.7 SafetyEventWriter level filter.
+/// B.7 SafetyEventWriter level filter.
 library;
 
 import 'package:app_demo/core/llm/turn_metadata.dart';
 import 'package:app_demo/core/safety/distress_detector.dart';
 import 'package:app_demo/core/safety/safety_event_writer.dart';
-import 'package:app_demo/features/auth/data/arm_assigner.dart';
 import 'package:app_demo/features/thought_exercise/data/thought_exercise_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -108,35 +107,6 @@ void main() {
       final updated = entry.copyWith(intensityAfter: 4);
       expect(updated.intensityBefore, 6);
       expect(updated.intensityAfter, 4);
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // C.2 ArmAssigner strata-cell mapping (Phase B spec: UCLA × age band)
-  // -----------------------------------------------------------------------
-  group('ArmAssigner.strataCell', () {
-    test('low loneliness × 60-69 → cell 0', () {
-      expect(ArmAssigner.strataCell(uclaScore: 35, ageYears: 65), 0);
-    });
-    test('low loneliness × ≥70 → cell 1', () {
-      expect(ArmAssigner.strataCell(uclaScore: 35, ageYears: 72), 1);
-    });
-    test('high loneliness × 60-69 → cell 2', () {
-      expect(ArmAssigner.strataCell(uclaScore: 50, ageYears: 65), 2);
-    });
-    test('high loneliness × ≥70 → cell 3', () {
-      expect(ArmAssigner.strataCell(uclaScore: 50, ageYears: 75), 3);
-    });
-    test('exactly at median (44) treated as low (not >median)', () {
-      expect(ArmAssigner.strataCell(uclaScore: 44, ageYears: 65), 0);
-    });
-    test('age group string → years midpoint', () {
-      expect(ArmAssigner.ageYearsFromGroup('60-64'), 62);
-      expect(ArmAssigner.ageYearsFromGroup('70-74'), 72);
-      expect(ArmAssigner.ageYearsFromGroup(null), isNull);
-    });
-    test('missing data defaults to cell 0', () {
-      expect(ArmAssigner.strataCell(uclaScore: null, ageYears: null), 0);
     });
   });
 

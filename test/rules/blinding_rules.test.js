@@ -1,7 +1,8 @@
 /**
- * T12 blinding rules (decision 0021): the research-ID lookup and the
- * per-arm counter are readable only by the unblinded role (custom claim
- * role == 'pi'); no client writes the lookup.
+ * T12 blinding rules (decision 0021): the research-ID lookup is readable
+ * only by the unblinded role; no client writes it.  T19 (decision 0029)
+ * renamed the roles ('pi' → 'unblinded', 'researcher' → 'blinded'; the
+ * PI is now blinded) and closed meta/arm_counter to every client.
  *
  * Run inside the emulator (see README.md).
  */
@@ -36,10 +37,15 @@ after(async () => {
 });
 
 const participant = () => testEnv.authenticatedContext('u1').firestore();
-const blinded = () => testEnv.authenticatedContext('r1',
-  { role: 'researcher' }).firestore();
-const unblinded = () => testEnv.authenticatedContext('pi1',
+const blinded = () => testEnv.authenticatedContext('pi1',
+  { role: 'blinded' }).firestore();
+const unblinded = () => testEnv.authenticatedContext('k1',
+  { role: 'unblinded' }).firestore();
+// Claims issued before T19: they must grant nothing now.
+const legacyPi = () => testEnv.authenticatedContext('old1',
   { role: 'pi' }).firestore();
+const legacyResearcher = () => testEnv.authenticatedContext('old2',
+  { role: 'researcher' }).firestore();
 const anon = () => testEnv.unauthenticatedContext().firestore();
 
 describe('T12 blinding rules', () => {
@@ -68,7 +74,8 @@ describe('T12 blinding rules', () => {
 
   it('participants, blinded researchers and anonymous users cannot',
     async () => {
-      for (const db of [participant(), blinded(), anon()]) {
+      for (const db of [participant(), blinded(), anon(), legacyPi(),
+        legacyResearcher()]) {
         await assertFails(getDoc(doc(db, 'research_id_map', 'u1')));
         await assertFails(getDoc(doc(db, 'research_ids', 'P0ZAHP5')));
         await assertFails(getDocs(collection(db, 'research_id_map')));
@@ -85,11 +92,11 @@ describe('T12 blinding rules', () => {
     }
   });
 
-  it('per-arm counts: unblinded role only', async () => {
-    await assertSucceeds(getDoc(doc(unblinded(), 'meta', 'arm_counter')));
-    await assertFails(getDoc(doc(blinded(), 'meta', 'arm_counter')));
-    await assertFails(getDoc(doc(participant(), 'meta', 'arm_counter')));
-    await assertFails(getDoc(doc(anon(), 'meta', 'arm_counter')));
+  it('retired per-arm counter: no client reads it (T19)', async () => {
+    for (const db of [unblinded(), blinded(), participant(), anon(),
+      legacyPi()]) {
+      await assertFails(getDoc(doc(db, 'meta', 'arm_counter')));
+    }
   });
 
   it('blind keys and the blinding switch stay server-only', async () => {

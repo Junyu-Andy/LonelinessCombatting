@@ -24,6 +24,7 @@ T1–T16 已经做完，本文件只放新任务。之前发的 `dev-tasks-1007-
 | 登记表要更新的行 | 已在登记表 v2 更新：C03 模型名、C12 词库 v5、C14 1–7 点选、C15 DJG 6 条。另外 C12 的 5-flag 改为“H4 的暴露标记，不属于安全检测”。 |
 | ICF、DMP、HREC 材料跟上代码 | 研究侧在改。 |
 | 分组：计数器客户端仍能写；分层用自填的年龄组和 UCLA（“已知风险”一节） | 按 T19 重做。 |
+| 盲法：谁是非盲人员 | 非盲研究员是 Keran：登记入组、触发分组、按组引导，并生成和上传分配序列（T19）。PI（Junyu）是盲法评估者。盲法分析员揭盲前能看到什么，研究侧另定。 |
 | 建议使用频率 | 建议每天用，每周至少 5 次，不强制。App 文案见 T20。 |
 | Phase A 的远程参数也管 Phase B（“已知风险”一节） | Phase A 和 Phase B 会同期收数据，这是实际风险。两期的配置和数据要分开，见 T21。 |
 
@@ -41,7 +42,7 @@ T1–T16 已经做完，本文件只放新任务。之前发的 `dev-tasks-1007-
 
 ## T17 ADA 进 App（分支 `feat/ada`，SPEC:C22，只在 Phase A 配置下开启）
 
-已定：先把 ADA（Agent Differentiation Assessment，三个 agent 的分辨问卷）做进 App，再推进 Phase A。结构以 Phase A 问卷 v1.3 附件 C 为准。研究侧会把定稿措辞放到 `docs/spec/instruments/ada.md`；在那之前，题目用下面的结构和占位文字。
+已定：先把 ADA（Agent Differentiation Assessment，三个 agent 的分辨问卷）做进 App，再推进 Phase A。结构以 Phase A 问卷 v1.3 附件 C 为准。定稿措辞、第 7 日线上流程和界面审阅要求见 `docs/spec/instruments/ada.md`（10/7 已给），有出入时以它为准。
 
 1. 四个部分：
    - **A 使用频率**：三个 agent 各一行，4 档（完全冇 / 少过一次 / 一至两次 / 三次或以上）。题干里的回忆窗口可配置（v1.3 写“过去两个星期，正常一个礼拜”；Phase A 新版的窗口由研究侧给）。

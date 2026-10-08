@@ -2,27 +2,34 @@
 /**
  * tool/provision_researcher.js
  *
- * B.13 — Custom-claim provisioning script for researcher dashboard access.
+ * B.13 — Custom-claim provisioning for research staff.
  *
- * Adds `role: researcher` (or `pi` for the principal investigator) custom
- * claim to a Firebase Auth user.  The dashboard reads this claim via
- * `getIdTokenResult(true)` and renders Access Denied without it.
+ * Sets the `role` custom claim on a Firebase Auth user.  firestore.rules
+ * (isUnblinded()), the researcher dashboard (dashboard_access.dart), the
+ * registration page (enrollment_access.dart) and enrollParticipant read it.
  *
  * Usage:
  *   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
- *   node tool/provision_researcher.js --email=alice@hku.hk --role=researcher
- *   node tool/provision_researcher.js --uid=abc123 --role=pi
- *   node tool/provision_researcher.js --email=alice@hku.hk --revoke
+ *   NODE_PATH=functions/node_modules node tool/provision_researcher.js \
+ *     --email=keran@example.org --role=unblinded
+ *   ... --email=junyu@example.org --role=blinded
+ *   ... --email=someone@example.org --revoke
  *
- * Roles (T12, decision 0021 — firestore.rules isUnblinded()):
- *   researcher — BLINDED working analyst.  Sees engagement totals, PPR
- *                aggregates and distress flags; the dashboard hides
- *                per-arm counts and single-arm sections.  Cannot read
- *                export_blind_keys or the research-ID lookup.
- *   pi         — UNBLINDED (principal investigator).  Sees everything
- *                researcher does plus per-arm counts, and may read the
- *                research-ID lookup (research_id_map / research_ids).
- *                Use sparingly.
+ * Roles (T19, decision 0029 — replaces T12's names):
+ *   unblinded — the unblinded researcher (Keran).  Registers participants
+ *               and triggers allocation (App 研究員登記 page →
+ *               enrollParticipant), sees the arm there for the briefing,
+ *               reads the research-ID lookup, sees per-arm counts on the
+ *               dashboard, and generates / uploads the allocation
+ *               sequence (tool/randomization_sequence.js).
+ *   blinded   — blinded staff, including the PI (Junyu) as blinded
+ *               assessor.  Dashboard without per-arm counts or single-arm
+ *               sections; blinded export only.
+ *
+ * Migration from T12: the old names grant nothing now ('pi' used to be
+ * the UNBLINDED role).  For each account that holds one, run --revoke,
+ * then grant the new role: Keran → unblinded, the PI → blinded, other
+ * old 'researcher' accounts → blinded.  --list-legacy prints them.
  *
  * Side effects:
  *   - Forces token refresh on the user's next sign-in so the claim takes
@@ -33,8 +40,7 @@
  * Safety:
  *   - Requires --confirm flag in production-equivalent environments to
  *     avoid accidental grants.
- *   - Never grants both `researcher` and `pi` simultaneously (would
- *     break the blind-key access boundary).
+ *   - One role per account; changing it needs --revoke first.
  */
 
 'use strict';
@@ -48,26 +54,57 @@ function parseArgs() {
       out.revoke = true;
     } else if (a === '--confirm') {
       out.confirm = true;
+    } else if (a === '--list-legacy') {
+      out.listLegacy = true;
     } else if (a.startsWith('--')) {
       const [k, v] = a.slice(2).split('=');
-      out[k] = v ?? true;
+      out[k] = v === undefined ? true : v;
     }
   }
   return out;
 }
 
+const ROLES = ['unblinded', 'blinded'];
+const LEGACY_ROLES = ['pi', 'researcher'];
+
+async function listLegacy(auth) {
+  let token;
+  let n = 0;
+  do {
+    const page = await auth.listUsers(1000, token);
+    for (const u of page.users) {
+      const role = (u.customClaims || {}).role;
+      if (LEGACY_ROLES.includes(role)) {
+        n++;
+        console.log(`${u.email || u.uid}: role=${role} (legacy — revoke ` +
+          'and re-grant unblinded or blinded)');
+      }
+    }
+    token = page.pageToken;
+  } while (token);
+  console.log(`${n} account(s) with a legacy role.`);
+}
+
 async function main() {
   const args = parseArgs();
+  if (args.listLegacy) {
+    admin.initializeApp();
+    await listLegacy(admin.auth());
+    return;
+  }
   if (!args.email && !args.uid) {
     console.error('Need --email=<addr> OR --uid=<uid>.');
     process.exit(2);
   }
   if (!args.revoke && !args.role) {
-    console.error('Need --role=researcher OR --role=pi (or --revoke).');
+    console.error('Need --role=unblinded OR --role=blinded (or --revoke).');
     process.exit(2);
   }
-  if (args.role && !['researcher', 'pi'].includes(args.role)) {
-    console.error(`Invalid role: ${args.role}.  Must be researcher or pi.`);
+  if (args.role && !ROLES.includes(args.role)) {
+    const hint = LEGACY_ROLES.includes(args.role) ?
+      ' The T12 names were replaced in T19: the PI is now "blinded".' : '';
+    console.error(`Invalid role: ${args.role}.  Must be unblinded or ` +
+      `blinded.${hint}`);
     process.exit(2);
   }
 
@@ -83,7 +120,7 @@ async function main() {
     delete next.role;
     console.log(`Revoking role from ${user.email || user.uid}…`);
   } else {
-    // Guard against simultaneous researcher + pi.
+    // One role per account: changing it is a deliberate revoke + grant.
     if (existing.role && existing.role !== args.role) {
       console.error(
           `User already has role=${existing.role}.  Revoke first if you ` +

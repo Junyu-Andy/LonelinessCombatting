@@ -4,9 +4,9 @@
 /// pending distress flags, transcript audit queue, per-agent PPR
 /// aggregates, and cross-referral statistics.
 ///
-/// Gated by the Firebase custom claim `role` (T12, decision 0021):
-/// `researcher` is blinded and sees only arm-neutral sections; `pi` is
-/// unblinded and sees everything (see [DashboardAccess]). The auth
+/// Gated by the Firebase custom claim `role` (T12 decision 0021, renamed
+/// in T19 decision 0029): `blinded` (incl. the PI) sees only arm-neutral
+/// sections; `unblinded` sees everything (see [DashboardAccess]). The auth
 /// check is intentionally strict — if the claim is missing the page
 /// renders an "access denied" state rather than degraded data.
 /// Provision the claim via Firebase Admin SDK (a one-off script on
@@ -19,6 +19,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/feature_flags/feature_flags.dart';
+import '../../../ada/presentation/ada_staff_page.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/dashboard_access.dart';
 
@@ -89,9 +91,9 @@ class _ResearcherDashboardPageState extends State<ResearcherDashboardPage> {
                 padding: const EdgeInsets.all(24),
                 child: Text(
                   isEn
-                      ? 'Access denied. This dashboard requires the '
-                          'researcher role. Ask the admin to provision it.'
-                      : '冇權限。呢個儀錶板需要 researcher 角色，請聯絡管理員。',
+                      ? 'Access denied. This dashboard requires a '
+                          'research-staff role. Ask the admin to provision it.'
+                      : '冇權限。呢個儀錶板需要研究人員角色，請聯絡管理員。',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -135,6 +137,25 @@ class _DashboardBody extends StatelessWidget {
             label: isEn ? 'Pending distress flags' : '未處理嘅 distress flags'),
         const _DistressFlagsList(),
         const SizedBox(height: 24),
+        // T17b (decision 0030) — Phase A day-7 status and phone
+        // completion; own page, never in a Phase B build.
+        if (!FeatureFlags.phaseB) ...[
+          Card(
+            child: ListTile(
+              key: const ValueKey('dashboard_ada_day7'),
+              leading: const Icon(Icons.fact_check_outlined),
+              title: Text(isEn ? 'Day-7 questions: status' : '第 7 日問卷完成情況'),
+              subtitle: Text(isEn
+                  ? 'Not started / in progress / completed / overdue; '
+                      'fill in by phone'
+                  : '未開始／進行中／已完成／已超時；電話代填'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const AdaStaffPage())),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
         _SectionHeader(label: isEn ? 'Engagement' : '參與度'),
         _EngagementSummary(showArmCounts: access.showsArmCounts),
         const SizedBox(height: 24),

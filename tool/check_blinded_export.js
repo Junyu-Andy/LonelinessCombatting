@@ -84,6 +84,8 @@ const DENY_VALUE_PATTERNS = [
 ];
 
 const RESEARCH_ID = /^P[0-9A-HJKMNP-TV-Z]{6}$/;
+// T19: IDs entered at registration (functions/randomization.js).
+const ENROLLED_RESEARCH_ID = /^[A-Z0-9][A-Z0-9-]{1,11}$/;
 const GROUP_CODE = /^Group_[XY]$/;
 const MAX_STRING = 60;
 
@@ -128,8 +130,9 @@ function checkRow(row, where, out) {
     out.push(`${where}: not a JSON object`);
     return;
   }
-  if (!RESEARCH_ID.test(String(row.researchId))) {
-    out.push(`${where}: researchId missing or not in P + 6 characters form`);
+  const rid = String(row.researchId);
+  if (!RESEARCH_ID.test(rid) && !ENROLLED_RESEARCH_ID.test(rid)) {
+    out.push(`${where}: researchId missing or not a research ID`);
   }
   if (row.groupCode !== undefined && row.groupCode !== null &&
       !GROUP_CODE.test(String(row.groupCode))) {

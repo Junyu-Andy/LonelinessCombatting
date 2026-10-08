@@ -60,11 +60,13 @@ class PendingPrompts {
   /// T18 — Phase B in-app W2 DJG (6 items) still open.
   final bool djgW2;
 
-  /// T17 — the Phase A ADA administration due today (null = none).
+  /// T17 — the Phase A ADA administration due today, other than day 7
+  /// (null = none).
   final AdaTimepoint? ada;
 
-  /// T17 — day-7 open questions due.
-  final bool day7Open;
+  /// T17b — the day-7 flow (ADA full form + open questions) parts; empty
+  /// when nothing is due or everything is submitted.
+  final List<Day7Part> day7Flow;
 
   /// Enrolment day used for the checks above (stored with the answers).
   final int? enrolmentDay;
@@ -79,7 +81,7 @@ class PendingPrompts {
     required this.agentDiffW4,
     this.djgW2 = false,
     this.ada,
-    this.day7Open = false,
+    this.day7Flow = const [],
     this.enrolmentDay,
   });
 
@@ -91,7 +93,7 @@ class PendingPrompts {
       agentDiffW4 ||
       djgW2 ||
       ada != null ||
-      day7Open;
+      day7Flow.isNotEmpty;
 }
 
 class PendingPromptsService {
@@ -151,7 +153,7 @@ class PendingPromptsService {
     bool agentDiffW4 = false;
     final djgW2On = DjgW2Gate.active;
     AdaTimepoint? ada;
-    bool day7Open = false;
+    var day7Flow = const <Day7Part>[];
     int? enrolDay;
     final createdAt = profile?.createdAt;
     if (createdAt != null) {
@@ -175,17 +177,27 @@ class PendingPromptsService {
           !await _hasDoc(uid, 'agent_diff', 'timepoint', 'week4')) {
         agentDiffW4 = true;
       }
-      // T17 — Phase A only (never in a PHASE_B build).
+      // T17 — Phase A only (never in a PHASE_B build).  The day-7
+      // timepoint belongs to the day-7 flow card below (T17b).
       final tp = sched.adaTimepointForDay(day);
       if (tp != null &&
+          tp.id != kDay7TimepointId &&
           AdaGate.adaVisible(phaseB: phaseB, config: sched) &&
           !await _isSubmitted(uid, kAdaCollection, tp.id)) {
         ada = tp;
       }
-      if (sched.day7OpenEndedOnDay(day) &&
-          AdaGate.day7OpenVisible(phaseB: phaseB, config: sched) &&
-          !await _isSubmitted(uid, kDay7OpenCollection, kDay7OpenDocId)) {
-        day7Open = true;
+      // T17b (ada.md §6.1–6.2) — one card for the whole day-7 flow, shown
+      // in its window until every part is submitted.
+      final parts = AdaGate.day7Parts(phaseB: phaseB, config: sched);
+      if (parts.isNotEmpty && sched.day7OpenEndedOnDay(day)) {
+        var allDone = true;
+        for (final p in parts) {
+          final done = p == Day7Part.ada
+              ? await _isSubmitted(uid, kAdaCollection, kDay7TimepointId)
+              : await _isSubmitted(uid, kDay7OpenCollection, kDay7OpenDocId);
+          if (!done) allDone = false;
+        }
+        if (!allDone) day7Flow = parts;
       }
     }
 
@@ -201,7 +213,7 @@ class PendingPromptsService {
       agentDiffW4: agentDiffW4,
       djgW2: djgW2,
       ada: ada,
-      day7Open: day7Open,
+      day7Flow: day7Flow,
       enrolmentDay: enrolDay,
     );
   }

@@ -3,7 +3,7 @@
 > 2026-10-07 建立（T13）。来源：T1–T6 报告和 `docs/dev/ci-cd.md`、`docs/dev/architecture.md`。
 > 每一项都要有人核对、写上日期。任何一项没过，不让第一位 phase_b 参与者入组。
 
-**结论先说**：上线前必须手动做的有四类——GitHub 设置、Firebase 密钥和部署、Firestore 里的三个配置文档、研究侧核对（热线、文案、ICF）。Firestore 配置可以用 `tool/prelaunch_config.js` 写，但这个脚本默认只对模拟器执行，对正式项目要另加确认参数。
+**结论先说**：上线前必须手动做的有五类——GitHub 设置、Firebase 密钥和部署、分组准备（非盲研究员上传序列、种子离线保存、HTML 工具停用、审计日志、角色）、Firestore 配置文档、研究侧核对（热线、文案、ICF）。Firestore 配置可以用 `tool/prelaunch_config.js` 写，但这个脚本默认只对模拟器执行，对正式项目要另加确认参数。
 
 ## A. GitHub 仓库设置
 
@@ -21,7 +21,7 @@
 | B1 | Functions 密钥都已设置：`DEEPSEEK_API_KEY`、`SEARCH_API_KEY`、`SMTP_HOST`、`SMTP_USER`、`SMTP_PASS`、`PI_EMAIL` | Google Cloud 控制台 → Secret Manager，六个名字都在、都有版本。`PI_EMAIL` 的值要 PI 本人确认是对的邮箱 | `functions/index.js` 第 17–21、575 行；T2 第 2 节 | |
 | B2 | 规则和 Functions 已按顺序部署 | Actions →「Deploy Firebase」最近一次成功运行的提交号 = 要上线的提交号。Firebase 控制台 → Functions 列表里有 `assignArm`、`proxyDeepSeek`、`dispatchReminders` 等；Firestore → 规则 页显示的内容和仓库 `firestore.rules` 一致 | `docs/dev/architecture.md` 第 9 节 | |
 | B3 | 决策 0017 的改动已部署（请求 `deepseek-flash`） | 部署后在 Firestore `llm_calls` 里看最新一条：`model_requested` = `deepseek-flash` | backlog 第 24 项；T5 | |
-| B4 | 研究员账号有 `role=researcher` 权限 | 用 `tool/provision_researcher.js` 发放；研究员登录后能打开后台页 | T1 C19 | |
+| B4 | 研究人员角色已按 T19 发放：Keran = `unblinded`，PI（Junyu）和其他盲法人员 = `blinded`；没有账号还带旧名字 `pi` / `researcher` | `NODE_PATH=functions/node_modules node tool/provision_researcher.js --list-legacy` 显示 0 个；Keran 登录 App 后直接进「研究員登記」页；PI 登录后看到的是普通 App，没有登记页 | 决策 0029；T19 | |
 | B5 | iOS 推送（APNs）是否配置 | Firebase 控制台 → 项目设置 → Cloud Messaging → Apple 应用配置。没配置时 iOS 手机收不到任何推送（只用 Android 可跳过） | `functions/index.js` `sendTestPush` 注释 | |
 | B6 | Firestore、Storage 的地区；Storage 访问规则 | Firebase 控制台 → Firestore / Storage 设置页记下地区；Storage → 规则 页确认不是公开读写（仓库里没有 `storage.rules`） | T2 第 3.2 节、第 15 条 | |
 
@@ -32,7 +32,7 @@
 ```
 cd functions && npm ci && cd ..
 firebase emulators:exec --only firestore --project demo-prelaunch \
-  "NODE_PATH=functions/node_modules node tool/prelaunch_config.js --phase=b --apply --reset-arm-counter"
+  "NODE_PATH=functions/node_modules node tool/prelaunch_config.js --phase=b --apply"
 ```
 
 对正式项目执行（上线当天，由负责人执行；需要服务账号凭据）：先不带 `--apply` 看一遍会写什么，再带上：
@@ -40,16 +40,30 @@ firebase emulators:exec --only firestore --project demo-prelaunch \
 ```
 NODE_PATH=functions/node_modules node tool/prelaunch_config.js --phase=b \
   --project=loneliness-pilot-dev --production-confirm=loneliness-pilot-dev
-# 确认输出无误后，加 --apply（第一次打开随机前再加 --reset-arm-counter）
+# 确认输出无误后，加 --apply。脚本也检查两条分配序列已上传（只显示长度和指纹）
 ```
 
 | # | 项目 | 正确的值 | 怎么核对 | 来源 | 核对人 / 日期 |
 |---|---|---|---|---|---|
 | C1 | `meta/memory_config` | `enabled: true`、`policy: "C"`、`phaseBArmA: true` | 控制台打开这个文档看三个字段；或不带 `--apply` 跑脚本，三行都显示 `=`。没有这个文档时 Hybrid 组**没有任何记忆** | T1 C05；T4；`functions/memory.js` `loadConfig` | |
-| C2 | `app_config/arm_assignment` | `randomise: true` | 同上。不是 `true` 时**所有人都分到 A 组** | T1 C01；`functions/arm.js` | |
-| C3 | `meta/arm_counter` 在第一位 phase_b 参与者入组前清零 | 4 个层的 `aCount`、`bCount` 都是 0 | 控制台看；脚本的 `--reset-arm-counter` 在已有人随机分组后会拒绝执行 | `docs/dev/architecture.md` 第 9 节 | |
+| C2 | `meta/randomization_config` | `enabled: true`（其余字段 `stratifyBy`、`strata`、`method`、`blockSizes` 只做记录） | 同上。不是 `true` 时研究员**不能登记**，老人一直没有组别（看到规则组界面）；**必须在第一位 phase_b 老人注册前打开**，否则这位老人会被当作 Phase A 分进 A 组 | 决策 0029；`functions/arm.js` | |
+| C3 | 两条分配序列已上传（`randomization_sequences/low`、`high`），都还没人用 | 每条至少 60 个位置，`0 used` | 不带 `--apply` 跑 `tool/prelaunch_config.js`，两行都显示 `= … positions, 0 used`。上传由 Keran 执行，见下面 G 节 | 决策 0029 | |
+| C3b | `app_config/arm_assignment` 已删除（T19 停用） | 文档不存在 | 控制台看；脚本会提示 `randomise is still true` | 决策 0029 | |
 | C4 | `app_config/reminders.m7FollowupPushEnabled` | 研究侧决定。默认不建 = 行动计划提醒不发 | 控制台看。打开后，在 `users/{uid}/events` 能看到 `m7_reminder_sent` | 决策 0022 | |
 | C5 | `app_config/phase_a`（只有 Phase A 用） | 研究侧决定 `w2DayOffset` 等参数；不建就用默认值 14 / 3 | 控制台看 | T2 | |
+
+## G. 分组准备（T19，决策 0029）
+
+**只能由非盲研究员（Keran）做 G1–G3。PI 不能在场看屏幕，不能拿到种子或序列文件。**
+
+| # | 项目 | 怎么做 / 怎么核对 | 核对人 / 日期 |
+|---|---|---|---|
+| G1 | 生成序列 | Keran 自己想一个种子（至少 16 个字符），写进一个只有自己能读的文本文件。在仓库根目录：`NODE_PATH=functions/node_modules node tool/randomization_sequence.js --seed-file=<种子文件>`。屏幕只显示两层的长度和指纹。生成的文件在 `randomization-private/`（已在 `.gitignore`，不会进仓库） | |
+| G2 | 上传序列 | 先对模拟器试一次；正式项目：`... --seed-file=<种子文件> --upload --operator=<Keran 的电邮> --project=loneliness-pilot-dev --production-confirm=loneliness-pilot-dev`。显示两行 `+ … uploaded` 即成功。已上传过会拒绝 | |
+| G3 | **种子已离线保存** | 把 `randomization-private/` 里的文件和种子文件交导师离线保存（例如加密 U 盘），记下指纹；然后从电脑上删掉这两个文件。`git status` 里看不到它们 | |
+| G4 | **HTML 随机化工具已停用** | 研究团队不再使用 v1.3.1 HTML 工具；各人电脑上的副本删除或归档，并写明"已停用，以 App 登记为准" | |
+| G5 | Firestore 数据访问审计日志已开 | Google Cloud 控制台 → 选项目 `loneliness-pilot-dev` → IAM 和管理 → 审计日志 → 在服务列表里勾选 **Cloud Firestore API** → 勾 **数据读取** 和 **数据写入**（"管理员读取"也勾上）→ 保存。核对：日志浏览器（Logs Explorer）里查 `protoPayload.serviceName="firestore.googleapis.com"`，能看到读写记录。注意：通过 Cloud Function 的读写记在函数的服务账号名下；谁登记、谁分组看 `arm_assignment_log` 的 `by` / `byEmail`；控制台里直接打开 `randomization_sequences`、`enrollments`、`arm_assignment_log` 会以本人账号记下 | |
+| G6 | 只有必要的人有项目权限 | Google Cloud 控制台 → IAM：PI 的 Google 账号**不要**有能读 Firestore 的角色（例如 Owner、Editor、Datastore Viewer），否则 PI 能在控制台看到组别和序列 | |
 
 ## D. App 构建
 
@@ -74,6 +88,6 @@ NODE_PATH=functions/node_modules node tool/prelaunch_config.js --phase=b \
 
 | # | 项目 | 怎么核对 |
 |---|---|---|
-| F1 | 第一位参与者分到了组 | 控制台 `users/{uid}`：`arm` 有值，`armAssignedBy: "server"`，`armAssignmentMode: "randomise"` |
+| F1 | 第一位参与者登记后分到了组 | 由 Keran 核对（PI 不看）：登记页显示组别；控制台 `users/{uid}`：`arm` 有值，`armAssignedBy: "server"`，`armAssignmentMode: "randomise"`，`w0Date` 是登记填的日期；`arm_assignment_log` 有一条 `allocate` |
 | F2 | Hybrid 组有记忆写入 | 第一次聊天结束后 30 分钟内，`users/{uid}/mem_summaries` 有内容 |
 | F3 | 规则组没有 LLM 调用 | `llm_calls` 里没有规则组参与者的 uid |

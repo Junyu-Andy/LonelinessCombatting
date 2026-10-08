@@ -10,6 +10,8 @@ const fs = require("fs");
 const path = require("path");
 const {computeLlmFlags} = require("./llm_flags");
 const arm = require("./arm");
+const piAlert = require("./pi_alert");
+const randomization = require("./randomization");
 const memory = require("./memory");
 const llmLog = require("./llm_log");
 const reminders = require("./reminders");
@@ -19,6 +21,7 @@ const safetyClassifier = require("./safety_classifier");
 const featureFlags = require("./feature_flags");
 const blinding = require("./blinding");
 const djgW2 = require("./djg_w2");
+const ada = require("./ada");
 
 admin.initializeApp();
 
@@ -265,7 +268,10 @@ function temperatureFor(agentId) {
 // A missing arm (Phase A pilot, failed signup assignment) is allowed: the
 // Phase A client renders Arm A for everyone.
 // ---------------------------------------------------------------------------
+// T19: entries expire after 10 minutes, so an arm changed by
+// tool/correct_arm_assignment.js reaches every instance within that time.
 const _armCache = new Map();
+const _ARM_CACHE_MS = 10 * 60 * 1000;
 
 /**
  * The participant's stored arm ('A' | 'B'), or null when unassigned.
@@ -273,19 +279,31 @@ const _armCache = new Map();
  * @return {Promise<?string>} Arm code or null.
  */
 async function armFor(uid) {
-  if (_armCache.has(uid)) return _armCache.get(uid);
+  const hit = _armCache.get(uid);
+  if (hit && Date.now() - hit.at < _ARM_CACHE_MS) return hit.arm;
   const snap = await admin.firestore().collection("users").doc(uid).get();
   const arm = snap.exists ? (snap.get("arm") || null) : null;
-  if (arm) _armCache.set(uid, arm);
+  if (arm) _armCache.set(uid, {arm, at: Date.now()});
   return arm;
 }
 
 /**
- * Throws permission-denied for Arm B participants.
+ * Throws permission-denied for Arm B participants, and (T19) logs the
+ * refusal in `llm_denied_log` (no text, no arm field; clients cannot read).
  * @param {string} uid Firebase auth uid.
+ * @param {string} endpoint Which callable refused.
  */
-async function assertLlmAllowed(uid) {
+async function assertLlmAllowed(uid, endpoint) {
   if (await armFor(uid) === "B") {
+    try {
+      await admin.firestore().collection("llm_denied_log").add({
+        uid,
+        endpoint: endpoint || "unknown",
+        ts: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("llm_denied_log write failed:", err.message);
+    }
     throw new HttpsError(
         "permission-denied", "LLM features are not part of this study arm");
   }
@@ -346,7 +364,7 @@ exports.proxyDeepSeek = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in required");
     }
-    await assertLlmAllowed(request.auth.uid);
+    await assertLlmAllowed(request.auth.uid, "proxyDeepSeek");
 
     const payload = request.data || {};
     const messages = payload.messages;
@@ -590,7 +608,7 @@ exports.referralJudgement = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in required");
     }
-    await assertLlmAllowed(request.auth.uid);
+    await assertLlmAllowed(request.auth.uid, "referralJudgement");
     const payload = request.data || {};
     const sourceAgentId = payload.sourceAgentId;
     const targetAgentId = payload.targetAgentId;
@@ -741,7 +759,7 @@ exports.webSearch = onCall(
     // true (decision 0019).  Checked before anything is sent to Brave.
     await featureFlags.assertFeatureEnabled(
         admin.firestore(), "webSearchEnabled");
-    await assertLlmAllowed(request.auth.uid);
+    await assertLlmAllowed(request.auth.uid, "webSearch");
     const payload = request.data || {};
     const query = (payload.query || "").trim();
     if (!query) {
@@ -1097,22 +1115,23 @@ exports.onSafetyEventCreated = onDocumentCreated(
       console.error("isTester lookup failed:", err.message);
     }
 
-    const agentId = data.agentId || "unknown";
-    const alertPayload = {
-      uid,
-      source,
-      inputPoint: data.inputPoint || null,
-      level,
-      agentId,
-      dedupKey,
-      isTester,
-      eventPath: snap.ref.path,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
+    // T19 (decision 0029): the PI is blinded, so the alert carries no
+    // field that differs by arm (pi_alert.js).  The research ID helps the
+    // PI follow up; it is not arm information.
+    let researchId = null;
+    try {
+      const m = await db.collection("research_id_map").doc(uid).get();
+      researchId = m.exists ? (m.get("researchId") || null) : null;
+    } catch (err) {
+      console.error("research ID lookup failed:", err.message);
+    }
+    const alertPayload = piAlert.buildPiAlert({
+      uid, researchId, level, dedupKey, isTester, eventPath: snap.ref.path,
+    }, admin.firestore.FieldValue.serverTimestamp());
 
-    // Always write to pi_alerts — PI dashboard reads from here (Sprint 3).
-    // Tester rows are tagged so the dashboard can filter them out.
-    await db.collection("pi_alerts").add(alertPayload);
+    // Always write to pi_alerts.  Tester rows are tagged so they can be
+    // filtered out.
+    const alertRef = await db.collection("pi_alerts").add(alertPayload);
 
     if (isTester) {
       console.log(`tester acute event ${snap.ref.path}: PI email suppressed`);
@@ -1143,20 +1162,14 @@ exports.onSafetyEventCreated = onDocumentCreated(
       secure: false,
       auth: {user: smtpUser, pass: smtpPass},
     });
+    const mail = piAlert.buildPiEmail({
+      researchId, alertId: alertRef.id, at: new Date(),
+    });
     await transporter.sendMail({
       from: smtpUser,
       to: piEmail,
-      subject: `[LonelinessCombatting] Acute distress alert — ${agentId}`,
-      text: [
-        "An acute distress event was detected.",
-        `Agent: ${agentId}`,
-        `Source: ${source}`,
-        `Input point: ${data.inputPoint || "unknown"}`,
-        `Event path: ${snap.ref.path}`,
-        "",
-        "Review the safety_events collection in the Firebase Console.",
-        "Do NOT reply to this automated message.",
-      ].join("\n"),
+      subject: mail.subject,
+      text: mail.text,
     });
     console.log(`Acute alert email sent to PI for event ${snap.ref.path}`);
   },
@@ -1817,9 +1830,11 @@ function daysBetweenHk(fromIso, toIso) {
 }
 
 // ---------------------------------------------------------------------------
-// assignArm — server-side RCT arm assignment (functions/arm.js).  The app
-// calls this right after creating the profile (and again on login while the
-// profile has no arm).  Idempotent; returns the stored arm on repeat calls.
+// assignArm — called by the app right after creating the profile (and again
+// on login while the profile has no arm).  T19: Phase B allocation is
+// enrollParticipant below; assignArm only returns a stored arm, or gives
+// Phase A / pilot accounts Arm A while meta/randomization_config is off
+// (functions/arm.js).  Idempotent.
 // ---------------------------------------------------------------------------
 exports.assignArm = onCall(
   {region: "asia-east2", enforceAppCheck: false, maxInstances: 10},
@@ -1835,6 +1850,71 @@ exports.assignArm = onCall(
       }
       console.error("assignArm failed", {err: String(err)});
       throw new HttpsError("internal", "assignment_failed");
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// enrollParticipant — T19 (decision 0029).  Only the unblinded researcher
+// (Auth claim role == "unblinded") may call it.  Registers an existing
+// participant account (found by its login email) and allocates the arm
+// from the stratum's permuted-block sequence (functions/randomization.js).
+// dryRun: true checks the input and returns the account's display name for
+// the confirmation step — never the arm.  A repeat submission returns the
+// stored allocation.
+// ---------------------------------------------------------------------------
+const _ENROL_ERRORS = {
+  not_unblinded_researcher: "permission-denied",
+  disabled: "failed-precondition",
+  sequence_missing: "failed-precondition",
+  sequence_exhausted: "resource-exhausted",
+  sequence_corrupt: "internal",
+  account_not_found: "not-found",
+  already_has_arm: "failed-precondition",
+  tester_account: "failed-precondition",
+  research_id_taken: "already-exists",
+  account_has_other_research_id: "already-exists",
+  own_account: "invalid-argument",
+};
+
+exports.enrollParticipant = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+    const token = request.auth.token || {};
+    const data = request.data || {};
+    let uid = "";
+    if (token.role === randomization.UNBLINDED_ROLE &&
+        typeof data.email === "string" && data.email.trim()) {
+      try {
+        uid = (await admin.auth().getUserByEmail(data.email.trim())).uid;
+      } catch (_) {
+        uid = "";
+      }
+    }
+    try {
+      return await randomization.enrol(admin.firestore(), {
+        uid: request.auth.uid,
+        email: token.email || null,
+        role: token.role || null,
+      }, {
+        uid,
+        researchId: data.researchId,
+        w0DjgEmotional: data.w0DjgEmotional,
+        companionVariant: data.companionVariant,
+        w0Date: data.w0Date,
+        confirmed: data.confirmed,
+        dryRun: data.dryRun,
+      });
+    } catch (err) {
+      const code = err && err.enrolCode;
+      if (code) {
+        throw new HttpsError(_ENROL_ERRORS[code] || "invalid-argument", code);
+      }
+      console.error("enrollParticipant failed", {err: String(err)});
+      throw new HttpsError("internal", "enrollment_failed");
     }
   },
 );
@@ -1940,6 +2020,85 @@ exports.onDjgResponseWritten = onDocumentWritten(
     await djgW2.scoreSubmission(admin.firestore(), event.params.uid,
         event.params.timepoint, after);
   },
+);
+
+// ---------------------------------------------------------------------------
+// T17b — Phase A ADA day-7 flow (SPEC:C22, decision 0030).  Phase A only,
+// no LLM.  Off unless app_config/phaseA_schedule turns the ADA or the
+// day-7 open questions on (functions/ada.js).
+//   adaDay7Dispatch: hourly 08:00–21:00 HKT — the day-7 push at the hour
+//     chosen at visit 1, one more 24 h later if not completed, and the
+//     overdue mark after the window (default day 9).  Draft copy carries
+//     【占位】, so nothing is sent until the research team signs it off.
+//   onAdaResponseWritten / onDay7OpenResponseWritten: keep the
+//     server-only ada_status/{uid} (status, research ID) current.
+//   adaStaffDay7Status / adaStaffLoad / adaStaffSave: the researcher page
+//     (role researcher or pi) and phone completion (phone_by_staff).
+// ---------------------------------------------------------------------------
+exports.adaDay7Dispatch = onSchedule(
+  {
+    schedule: "0 8-21 * * *",
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    retryCount: 0,
+  },
+  async (_event) => {
+    await ada.dispatchAdaDay7(admin.firestore(), admin.messaging());
+  },
+);
+
+exports.onAdaResponseWritten = onDocumentWritten(
+  {document: "users/{uid}/ada_responses/{timepoint}", region: "asia-east2"},
+  async (event) => {
+    await ada.refreshStatus(admin.firestore(), event.params.uid);
+  },
+);
+
+exports.onDay7OpenResponseWritten = onDocumentWritten(
+  {
+    document: "users/{uid}/day7_open_responses/{timepoint}",
+    region: "asia-east2",
+  },
+  async (event) => {
+    await ada.refreshStatus(admin.firestore(), event.params.uid);
+  },
+);
+
+/**
+ * Run an ada.js staff call; map its error codes to HttpsError.
+ * @param {function(): Promise<object>} fn
+ * @return {Promise<object>}
+ */
+async function adaStaffCall(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    const known = ["permission-denied", "invalid-argument",
+      "failed-precondition"];
+    if (err && known.indexOf(err.code) >= 0) {
+      throw new HttpsError(err.code, err.message);
+    }
+    console.error("ada staff call failed", {err: String(err)});
+    throw new HttpsError("internal", "ada_staff_failed");
+  }
+}
+
+exports.adaStaffDay7Status = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+  (request) => adaStaffCall(() =>
+    ada.staffDay7Status(admin.firestore(), request.auth)),
+);
+
+exports.adaStaffLoad = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+  (request) => adaStaffCall(() =>
+    ada.staffLoad(admin.firestore(), request.auth, request.data)),
+);
+
+exports.adaStaffSave = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+  (request) => adaStaffCall(() =>
+    ada.staffSave(admin.firestore(), request.auth, request.data)),
 );
 
 // ---------------------------------------------------------------------------

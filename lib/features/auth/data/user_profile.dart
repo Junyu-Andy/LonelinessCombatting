@@ -227,6 +227,11 @@ class UserProfile {
   /// `force_a` (Phase A pilot). Read-only on the client — never in toMap.
   final String? armAssignmentMode;
 
+  /// T19 (decision 0029): the W0 date the unblinded researcher entered at
+  /// registration, `YYYY-MM-DD` (Hong Kong).  Server-written with the arm;
+  /// read-only on the client — never in toMap.  See w0DateFor.
+  final String? w0Date;
+
   /// Timestamps of the first time each agent introduced itself to the
   /// user (Dev Req §3.3). Missing entries mean the intro has not been
   /// shown yet and must be played the next time the agent opens.
@@ -280,6 +285,7 @@ class UserProfile {
     this.weeklyProbeEnabled = false,
     this.memoryEnabled = false,
     this.armAssignmentMode,
+    this.w0Date,
     this.firstIntroSeen = const {},
     this.avoidTopics,
     this.hasCompletedIntake = false,
@@ -317,6 +323,7 @@ class UserProfile {
     bool? weeklyProbeEnabled,
     bool? memoryEnabled,
     String? armAssignmentMode,
+    String? w0Date,
     Map<String, DateTime>? firstIntroSeen,
     String? avoidTopics,
     bool? hasCompletedIntake,
@@ -350,6 +357,7 @@ class UserProfile {
       weeklyProbeEnabled: weeklyProbeEnabled ?? this.weeklyProbeEnabled,
       memoryEnabled: memoryEnabled ?? this.memoryEnabled,
       armAssignmentMode: armAssignmentMode ?? this.armAssignmentMode,
+      w0Date: w0Date ?? this.w0Date,
       firstIntroSeen: firstIntroSeen ?? this.firstIntroSeen,
       avoidTopics: avoidTopics ?? this.avoidTopics,
       hasCompletedIntake: hasCompletedIntake ?? this.hasCompletedIntake,
@@ -476,6 +484,7 @@ class UserProfile {
       weeklyProbeEnabled: (map['weeklyProbeEnabled'] as bool?) ?? false,
       memoryEnabled: (map['memory_enabled'] as bool?) ?? false,
       armAssignmentMode: map['armAssignmentMode'] as String?,
+      w0Date: map['w0Date'] as String?,
       firstIntroSeen: intro,
       avoidTopics: map['avoidTopics'] as String?,
       hasCompletedIntake: (map['hasCompletedIntake'] as bool?) ?? false,

@@ -38,6 +38,9 @@ const EXPORT_VERSION = 2;
 const RID_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const RID_LENGTH = 6;
 const RID_PATTERN = /^P[0-9A-HJKMNP-TV-Z]{6}$/;
+// T19 (decision 0029): research IDs typed by the unblinded researcher at
+// registration (functions/randomization.js RESEARCH_ID_PATTERN).
+const ENROLLED_RID_PATTERN = /^[A-Z0-9][A-Z0-9-]{1,11}$/;
 const RID_MAX_TRIES = 8;
 
 /**
@@ -93,7 +96,9 @@ async function planResearchIdTx(tx, db, uid, randomInt) {
   randomInt = randomInt || defaultRandomInt;
   const mapRef = db.collection("research_id_map").doc(uid);
   const existing = await tx.get(mapRef);
-  if (existing.exists && RID_PATTERN.test(existing.get("researchId"))) {
+  const stored = existing.exists ? existing.get("researchId") : null;
+  if (typeof stored === "string" &&
+      (RID_PATTERN.test(stored) || ENROLLED_RID_PATTERN.test(stored))) {
     return {researchId: existing.get("researchId"), isNew: false};
   }
   for (let i = 0; i < RID_MAX_TRIES; i++) {
@@ -432,6 +437,7 @@ async function writeBlindedExport(bucket, built, dateKey) {
 
 module.exports = {
   CONFIG_DOC, STABLE_KEY_DOC, EXPORT_PREFIX, RID_PATTERN,
+  ENROLLED_RID_PATTERN,
   OUTCOME_COLLECTIONS, OPTIONAL_COLLECTIONS, PARTICIPANT_FIELDS,
   SAFETY_USER_SOURCES, HELD_BACK,
   readBlindingConfig, configFromSnap, newResearchId, planResearchIdTx,

@@ -1,12 +1,21 @@
 #!/usr/bin/env node
 /**
  * tool/prelaunch_config.js — write the server switches Phase B needs
- * (T13, decision 0022).  Without them the Hybrid arm has no memory and
- * everyone is assigned Arm A (T1 report C01 / C05).
+ * (T13, decision 0022; T19, decision 0029).  Without them the Hybrid arm
+ * has no memory and nobody can be registered and allocated.
  *
  *   meta/memory_config          {enabled: true, policy: "C", phaseBArmA: true}
- *   app_config/arm_assignment   {randomise: true}
- *   meta/arm_counter            zeroed, only with --reset-arm-counter
+ *   meta/randomization_config   {enabled: true, stratification, method}
+ *
+ * It also CHECKS (never writes) that the unblinded researcher has uploaded
+ * both allocation sequences (randomization_sequences/{low,high}, at least
+ * 60 positions, nothing allocated yet before launch).  It prints only the
+ * lengths and fingerprints, never the arms, so the PI may run it.  The
+ * upload itself is tool/randomization_sequence.js, run by the unblinded
+ * researcher.
+ *
+ * T19 retired app_config/arm_assignment.randomise and meta/arm_counter
+ * (minimisation); the script reports if the old flag is still on.
  *
  * SAFETY — refuses by default unless it is talking to the Firestore
  * emulator (FIRESTORE_EMULATOR_HOST set).  The real project id
@@ -18,13 +27,12 @@
  *
  * Dry run by default: prints what is there and what it would write.
  * Add --apply to write.  An existing doc with different values is never
- * replaced unless --overwrite is given.  --reset-arm-counter refuses once
- * any participant has been randomised.
+ * replaced unless --overwrite is given.
  *
  * Usage (emulator):
  *   firebase emulators:exec --only firestore --project demo-prelaunch \
  *     "NODE_PATH=functions/node_modules node tool/prelaunch_config.js \
- *      --phase=b --apply --reset-arm-counter"
+ *      --phase=b --apply"
  *
  * Needs firebase-admin (cd functions && npm ci; run with
  * NODE_PATH=functions/node_modules).
@@ -34,9 +42,18 @@
 
 const DESIRED = {
   'meta/memory_config': {enabled: true, policy: 'C', phaseBArmA: true},
-  'app_config/arm_assignment': {randomise: true},
+  // Stratification and method are fixed in functions/randomization.js;
+  // they are written here so the config snapshot records them.
+  'meta/randomization_config': {
+    enabled: true,
+    stratifyBy: 'w0_djg_emotional',
+    strata: 'low=0-1,high=2-3',
+    method: 'permuted_block_v1',
+    blockSizes: '2,4',
+  },
 };
-const CELLS = ['cell_0', 'cell_1', 'cell_2', 'cell_3'];
+const STRATA = ['low', 'high'];
+const MIN_SEQUENCE_LENGTH = 60;
 
 function parseArgs(argv) {
   const out = {};
@@ -122,25 +139,34 @@ async function run(db, args, log) {
     }
   }
 
-  if (args['reset-arm-counter']) {
-    const randomised = await db.collection('users')
-        .where('armAssignmentMode', '==', 'randomise').limit(1).get();
-    if (!randomised.empty) {
-      log('! meta/arm_counter: participants already randomised; ' +
-        'NOT reset');
+  // Sequences: check only.  Never print the arms.
+  for (const st of STRATA) {
+    const seq = await db.doc(`randomization_sequences/${st}`).get();
+    const state = await db.doc(`randomization_state/${st}`).get();
+    if (!seq.exists) {
+      log(`! randomization_sequences/${st}: not uploaded — the unblinded ` +
+        'researcher runs tool/randomization_sequence.js --upload');
       ok = false;
-    } else {
-      const counter = await db.doc('meta/arm_counter').get();
-      log(`${apply ? '+' : '~'} meta/arm_counter: reset to zero ` +
-        `(was ${JSON.stringify(counter.exists ? counter.data() : null)})` +
-        `${apply ? '' : ' (dry run)'}`);
-      if (apply) {
-        const zero = {};
-        for (const c of CELLS) zero[c] = {aCount: 0, bCount: 0};
-        await db.doc('meta/arm_counter')
-            .set({...zero, updatedAt: new Date()});
-      }
+      continue;
     }
+    const len = Number(seq.get('length')) || 0;
+    const used = state.exists ? Number(state.get('next')) || 0 : 0;
+    const fp = String(seq.get('sha256') || '').slice(0, 12);
+    if (len < MIN_SEQUENCE_LENGTH) {
+      log(`! randomization_sequences/${st}: only ${len} positions ` +
+        `(need ${MIN_SEQUENCE_LENGTH})`);
+      ok = false;
+      continue;
+    }
+    log(`= randomization_sequences/${st}: ${len} positions, ${used} used, ` +
+      `fingerprint ${fp}…`);
+  }
+
+  const legacy = await db.doc('app_config/arm_assignment').get();
+  if (legacy.exists && legacy.get('randomise') === true) {
+    log('note app_config/arm_assignment.randomise is still true: retired ' +
+      'in T19 and ignored while meta/randomization_config.enabled is on; ' +
+      'delete it in the console');
   }
   return ok;
 }

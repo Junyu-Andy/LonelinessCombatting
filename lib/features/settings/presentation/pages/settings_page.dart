@@ -22,7 +22,8 @@ import '../../../assessment/presentation/pages/agent_diff_page.dart';
 import '../../../../core/config/phase_a_schedule_config.dart';
 import '../../../ada/data/ada_gate.dart';
 import '../../../ada/presentation/ada_page.dart';
-import '../../../ada/presentation/day7_open_page.dart';
+import '../../../ada/data/survey_draft_store.dart';
+import '../../../ada/presentation/day7_flow_page.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
 import '../../../assessment/presentation/pages/djg_es_page.dart';
 import '../../../assessment/data/djg_w2.dart';
@@ -1145,7 +1146,7 @@ class _SurveyPreviewButtons extends StatelessWidget {
         // the real ones, and a submitted preview can be repeated.
         if (!FeatureFlags.phaseB) ...[
           btn(
-            isEn ? 'ADA (short: A+B+D)' : 'ADA（短版 A+B+D）',
+            isEn ? 'ADA (short: B+D, visit 1)' : 'ADA（短版 B+D，第 1 次到訪）',
             AdaPage(
               timepoint: AdaTimepoint(
                   id: 'preview_short_${DateTime.now().millisecondsSinceEpoch}',
@@ -1153,6 +1154,7 @@ class _SurveyPreviewButtons extends StatelessWidget {
                   dayFrom: 0,
                   dayTo: 0),
               allowSkip: PhaseAScheduleConfig.current.adaAllowSkip,
+              askReminderTime: true,
             ),
           ),
           btn(
@@ -1166,10 +1168,14 @@ class _SurveyPreviewButtons extends StatelessWidget {
               allowSkip: PhaseAScheduleConfig.current.adaAllowSkip,
             ),
           ),
+          // T17b — the whole day-7 flow, kept in memory (writes nothing).
           btn(
-            isEn ? 'Day-7 open questions' : '第 7 日開放題',
-            Day7OpenPage(
-              allowSkip: PhaseAScheduleConfig.current.day7OpenEndedAllowSkip,
+            isEn ? 'Day-7 flow (preview, not saved)' : '第 7 日問卷（預覽，唔儲存）',
+            Day7FlowPage(
+              parts: const [Day7Part.ada, Day7Part.open],
+              adaTimepoint: PhaseAScheduleConfig.defaultAdaTimepoints.last,
+              store: InMemorySurveyDraftStore(),
+              uid: 'preview',
             ),
           ),
         ],

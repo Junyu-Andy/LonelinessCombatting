@@ -15,8 +15,8 @@ import 'user_profile.dart';
 /// [AuthUnavailableException] so callers can show a friendly message.
 class AuthService {
   AuthService({required this.available, ArmAssigner? armAssigner})
-      // The server assigns the arm (functions/arm.js); whether it
-      // randomises is its own app_config/arm_assignment setting.
+      // The server decides the arm (functions/arm.js).  Phase B arms come
+      // from the researcher's registration (T19), not from this call.
       : _armAssigner = armAssigner ?? const ArmAssigner();
 
   /// False when Firebase.initializeApp failed — typically because
