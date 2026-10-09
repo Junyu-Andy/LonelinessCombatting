@@ -191,22 +191,20 @@ class _CheckInArmBState extends State<CheckInArmB> {
     // T8 — the classifier is asked only when its switch is on (same rule
     // as Arm A's gateway); off, this stays the synchronous check.
     const point = SafetyInputPoint.checkInNote;
-    final DistressMatch distress;
+    final SafetyCheckResult check;
     if (core.safety.classifierActiveFor(point)) {
       setState(() => _picking = true);
-      distress = (await core.safety.checkUserTextClassified(note,
-              point: point,
-              uid: profile?.uid,
-              agentId: AgentRegistry.siuYanId))
-          .match;
+      check = await core.safety.checkUserTextClassified(note,
+          point: point,
+          uid: profile?.uid,
+          agentId: AgentRegistry.siuYanId);
     } else {
-      distress = core.safety
-          .checkUserText(note,
-              point: point,
-              uid: profile?.uid,
-              agentId: AgentRegistry.siuYanId)
-          .match;
+      check = core.safety.checkUserText(note,
+          point: point,
+          uid: profile?.uid,
+          agentId: AgentRegistry.siuYanId);
     }
+    final distress = check.match;
 
     // B04 — before this fix Arm B only fired an analytics event; the
     // answers themselves were never persisted (= lost research data).
@@ -269,6 +267,7 @@ class _CheckInArmBState extends State<CheckInArmB> {
       available: authAvailable,
       text: note,
       detector: distress,
+      safetyTurnId: check.turnId,
       userSent: submittedAt,
       replyText:
           ruleReply ?? (isEn ? 'Saved. See you tomorrow.' : '收到喇。聽日再見。'),

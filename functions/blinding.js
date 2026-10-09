@@ -238,6 +238,8 @@ const HELD_BACK = [
   "mem_extractions", "mem_facts", "mem_summaries", "mem_followups",
   "mem_injections", "cross_module_callbacks", "onboarding",
   "pi_alerts", "te_audit_queue", "safety_event_dedup", "stt_usage",
+  // T24 (decision 0033): input_point / turn_id differ by arm.
+  "safety_classifier_calls",
 ];
 
 /**

@@ -8,7 +8,9 @@
 //     skips the model, timeout and failure fall back to the lexicon and
 //     log one row, server-side fallbacks log nothing on the App;
 //   - both arms: the Hybrid path (LlmGateway) and the rule path
-//     (checkUserTextClassified) give the same level and the same event.
+//     (checkUserTextClassified) give the same level and the same event;
+//   - T24 (decision 0033): one message id in both arms — the classifier
+//     call, the safety event and the `turns` doc share the turn id.
 //
 // The fake model stands in for the `classifySafety` Cloud Function; the
 // HTTP side (a real local fake model: ok / slow / failing) is tested in
@@ -23,6 +25,7 @@ import 'package:app_demo/core/safety/distress_detector.dart';
 import 'package:app_demo/core/safety/safety_check.dart';
 import 'package:app_demo/core/safety/safety_classifier.dart';
 import 'package:app_demo/core/safety/safety_event_writer.dart';
+import 'package:app_demo/core/session/chat_session_recorder.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -69,6 +72,7 @@ class _FakeModel implements SafetyClassifier {
   final ClassifierStatus status;
   final bool fail;
   final List<String> asked = [];
+  final List<String> turnIds = [];
 
   @override
   Future<ClassifierVerdict> classify(
@@ -78,6 +82,7 @@ class _FakeModel implements SafetyClassifier {
     required String turnId,
   }) async {
     asked.add(inputPoint);
+    turnIds.add(turnId);
     if (delay > Duration.zero) await Future<void>.delayed(delay);
     if (fail) throw StateError('model down');
     if (status != ClassifierStatus.ok) {
@@ -427,6 +432,105 @@ void main() {
         }
       });
     }
+  });
+
+  group('T24: message id, same in both arms', () {
+    TurnRecord turnFor(LlmResponse r) => TurnRecord(
+          agentId: 'siu_yan',
+          moduleId: 'm2_check_in',
+          userSent: DateTime(2026, 10, 9),
+          replyShown: DateTime(2026, 10, 9),
+          modality: InputModality.text,
+          charCount: 3,
+          detector: r.inputFlag,
+          shortCircuited: r.shortCircuited,
+          ackShown: false,
+          response: r,
+        );
+
+    test('Hybrid: classifier call, event and turns doc share the id',
+        () async {
+      _on();
+      final w = _Writer();
+      final model = _FakeModel(level: DistressLevel.moderateInterrupt);
+      final r = await LlmGateway(
+        safety: SafetyService(writer: w, classifier: model),
+        client: _Client(),
+      ).send(
+        moduleId: 'm2_check_in',
+        systemPrompt: 'sys',
+        history: const [],
+        userInput: _safe,
+        uid: 'u',
+      );
+      final id = r.turnId;
+      expect(id, isNotNull);
+      expect(model.turnIds, [id]);
+      expect(w.rows.single['turnId'], id);
+      final doc = turnFor(r).toMap(participantId: 'u', sessionId: 's');
+      expect(doc['safetyTurnId'], id);
+    });
+
+    test('rule arm: the same three records share the id', () async {
+      _on();
+      final w = _Writer();
+      final model = _FakeModel(level: DistressLevel.moderateInterrupt);
+      final check = await SafetyService(writer: w, classifier: model)
+          .checkUserTextClassified(_safe,
+              point: SafetyInputPoint.checkInNote, uid: 'u');
+      expect(model.turnIds, [check.turnId]);
+      expect(w.rows.single['turnId'], check.turnId);
+      // What RuleSubmissionFlow.record / Tung Tung B log for the turn.
+      final r = LlmResponse(
+        text: '收到喇。',
+        inputFlag: check.match,
+        outputFlag: const DistressMatch(DistressLevel.none),
+        shortCircuited: false,
+        metadata: const TurnMetadata(),
+        status: LlmStatus.ruleBased,
+        turnId: check.turnId,
+      );
+      final doc = turnFor(r).toMap(participantId: 'u', sessionId: 's');
+      expect(doc['safetyTurnId'], check.turnId);
+    });
+
+    test('switch off: the turns doc still carries the event id', () async {
+      final w = _Writer();
+      final r = await LlmGateway(
+        safety: SafetyService(writer: w),
+        client: _Client(),
+      ).send(
+        moduleId: 'm2_check_in',
+        systemPrompt: 'sys',
+        history: const [],
+        userInput: _moderate,
+        uid: 'u',
+      );
+      expect(w.rows.single['turnId'], r.turnId);
+      expect(turnFor(r).toMap(participantId: 'u', sessionId: 's')
+          ['safetyTurnId'], r.turnId);
+    });
+
+    test('gateway reuses a pre-check turn id (Tung Tung search-off)',
+        () async {
+      _on();
+      final w = _Writer();
+      final model = _FakeModel(level: DistressLevel.moderateInterrupt);
+      final r = await LlmGateway(
+        safety: SafetyService(writer: w, classifier: model),
+        client: _Client(),
+      ).send(
+        moduleId: 'tung_tung_chat',
+        systemPrompt: 'sys',
+        history: const [],
+        userInput: _safe,
+        uid: 'u',
+        turnId: 'pre-1',
+      );
+      expect(r.turnId, 'pre-1');
+      expect(model.turnIds, ['pre-1']);
+      expect(w.rows.single['turnId'], 'pre-1');
+    });
   });
 
   group('verdict parsing', () {

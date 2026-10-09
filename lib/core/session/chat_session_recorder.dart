@@ -175,6 +175,11 @@ class TurnRecord {
         'temperature': response.temperature,
       },
       'flags': flags,
+      // T24 (decision 0033) — the safety turn id of this message: the
+      // `turnId` on its `safety_events` doc and the `turn_id` on its
+      // `safety_classifier_calls` rows.  Same field in both arms; null
+      // when the input was not scanned (internal calls).
+      'safetyTurnId': response.turnId,
       'referral': {
         'offered': referralTarget != null,
         'target': referralTarget,

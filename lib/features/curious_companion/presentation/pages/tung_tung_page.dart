@@ -317,8 +317,25 @@ class _TungTungPageState extends State<TungTungPage> {
     // C18 — search-off fixed reply.  Only when the distress check finds
     // nothing; any safety hit takes the normal path below, which runs the
     // full safety flow inside llm.send.
+    // T24 (decision 0033) — with the classifier switch on, the
+    // classifier is asked here too, as Arm B asks it before choosing its
+    // search-off line; a raised level takes the normal path, whose
+    // gateway scan reuses this turn id (one turn to the server).
+    String? preTurnId;
     if (_isSearchOffQuestion(text)) {
-      final flag = CoreServicesScope.of(context).distress.analyze(text);
+      var flag = CoreServicesScope.of(context).distress.analyze(text);
+      final safety = CoreServicesScope.of(context).safety;
+      if (flag.level == DistressLevel.none &&
+          safety.classifierActiveFor(SafetyInputPoint.chatTungTung)) {
+        final pre = await safety.checkUserTextClassified(text,
+            point: SafetyInputPoint.chatTungTung,
+            uid: AppSettingsScope.read(context).profile?.uid,
+            agentId: AgentRegistry.tungTungId,
+            sessionId: _recorder?.sessionId);
+        if (!mounted) return;
+        flag = pre.match;
+        preTurnId = pre.turnId;
+      }
       if (flag.level == DistressLevel.none) {
         await _replySearchOff(
           flag: flag,
@@ -326,6 +343,7 @@ class _TungTungPageState extends State<TungTungPage> {
           modality: usedVoice ? InputModality.voice : InputModality.text,
           voiceMs: voiceMs,
           charCount: text.length,
+          safetyTurnId: preTurnId,
         );
         return;
       }
@@ -436,6 +454,7 @@ class _TungTungPageState extends State<TungTungPage> {
       userInput: text,
       uid: profile?.uid,
       sessionId: _recorder?.sessionId,
+      turnId: preTurnId,
     );
 
     // Safety-flagged turns (moderate/acute, input or output) never enter
@@ -563,6 +582,7 @@ class _TungTungPageState extends State<TungTungPage> {
     required InputModality modality,
     required int? voiceMs,
     required int charCount,
+    String? safetyTurnId,
   }) async {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final analytics = AnalyticsScope.of(context);
@@ -592,6 +612,7 @@ class _TungTungPageState extends State<TungTungPage> {
           sessionId: _recorder?.sessionId,
         ),
         status: LlmStatus.fixedReply,
+        turnId: safetyTurnId,
       ),
       tungTungMode: 'B',
       tungTungSearchInvoked: false,
@@ -627,24 +648,22 @@ class _TungTungPageState extends State<TungTungPage> {
     // T8 — the classifier is asked only when its switch is on (same rule
     // as Arm A's gateway); off, this stays the synchronous check.
     const point = SafetyInputPoint.chatTungTung;
-    final DistressMatch flag;
+    final SafetyCheckResult check;
     if (core.safety.classifierActiveFor(point)) {
-      flag = (await core.safety.checkUserTextClassified(text,
+      check = await core.safety.checkUserTextClassified(text,
               point: point,
               uid: profile?.uid,
               agentId: AgentRegistry.tungTungId,
-              sessionId: _recorder?.sessionId))
-          .match;
+              sessionId: _recorder?.sessionId);
       if (!mounted) return;
     } else {
-      flag = core.safety
-          .checkUserText(text,
-              point: point,
-              uid: profile?.uid,
-              agentId: AgentRegistry.tungTungId,
-              sessionId: _recorder?.sessionId)
-          .match;
+      check = core.safety.checkUserText(text,
+          point: point,
+          uid: profile?.uid,
+          agentId: AgentRegistry.tungTungId,
+          sessionId: _recorder?.sessionId);
     }
+    final flag = check.match;
 
     TurnRecord record(String reply, {required bool acute, bool ack = false}) =>
         TurnRecord(
@@ -668,6 +687,7 @@ class _TungTungPageState extends State<TungTungPage> {
               sessionId: _recorder?.sessionId,
             ),
             status: acute ? LlmStatus.shortCircuited : LlmStatus.ruleBased,
+            turnId: check.turnId,
           ),
           tungTungMode: 'B',
         );

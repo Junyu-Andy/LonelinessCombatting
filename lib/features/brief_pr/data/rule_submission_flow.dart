@@ -34,6 +34,9 @@ class RuleSubmissionFlow {
     String replyText = '',
     InputModality modality = InputModality.text,
     int? voiceDurationMs,
+    /// T24 — the [SafetyCheckResult.turnId] of the submission's safety
+    /// check, stored as `turns.safetyTurnId` (as in Arm A).
+    String? safetyTurnId,
   }) async {
     final rec = ChatSessionRecorder(
       uid: uid,
@@ -64,6 +67,7 @@ class RuleSubmissionFlow {
         shortCircuited: acute,
         metadata: TurnMetadata(agentId: agentId, sessionId: rec.sessionId),
         status: acute ? LlmStatus.shortCircuited : LlmStatus.ruleBased,
+        turnId: safetyTurnId,
       ),
     ));
     await rec.end(

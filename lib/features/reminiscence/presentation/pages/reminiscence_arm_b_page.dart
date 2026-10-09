@@ -96,22 +96,20 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
     // T8 — the classifier is asked only when its switch is on (same rule
     // as Arm A's gateway); off, this stays the synchronous check.
     const point = SafetyInputPoint.reminiscenceNote;
-    final DistressMatch distress;
+    final SafetyCheckResult check;
     if (core.safety.classifierActiveFor(point)) {
       setState(() => _busy = true);
-      distress = (await core.safety.checkUserTextClassified(body,
-              point: point,
-              uid: profile?.uid,
-              agentId: AgentRegistry.ahJanAhBakId))
-          .match;
+      check = await core.safety.checkUserTextClassified(body,
+          point: point,
+          uid: profile?.uid,
+          agentId: AgentRegistry.ahJanAhBakId);
     } else {
-      distress = core.safety
-          .checkUserText(body,
-              point: point,
-              uid: profile?.uid,
-              agentId: AgentRegistry.ahJanAhBakId)
-          .match;
+      check = core.safety.checkUserText(body,
+          point: point,
+          uid: profile?.uid,
+          agentId: AgentRegistry.ahJanAhBakId);
     }
+    final distress = check.match;
     if (mounted) setState(() => _busy = true);
     if (profile != null) {
       final store = M3SessionStore(available: auth.available);
@@ -173,6 +171,7 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
       available: auth.available,
       text: body,
       detector: distress,
+      safetyTurnId: check.turnId,
       userSent: submittedAt,
       modality: usedVoice ? InputModality.voice : InputModality.text,
       voiceDurationMs: voiceMs,

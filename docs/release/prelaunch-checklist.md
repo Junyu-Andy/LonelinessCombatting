@@ -84,6 +84,20 @@ NODE_PATH=functions/node_modules node tool/prelaunch_config.js --phase=b \
 | E5 | 研究文件里的模型名已改为 DeepSeek-V4.1-Flash | 登记表、protocol、ICF、DMP、HREC 材料 | backlog 第 23 项；决策 0017 | |
 | E6 | 打 `phaseB-v1.0.0` tag，保存配置快照 | tag 指向上线提交；把 C1–C4 的值记进 `STUDY_CHANGELOG` | `docs/dev/memory-and-entry-spec.md` 第 6 节；CLAUDE.md | |
 
+## H. 安全分类器（LoRA）接入（T24，决策 0025、0033）
+
+两组共用已定（10/8）。**没有模型之前两个开关都保持关**，本节整节可以不做、不影响上线；要打开时逐项核对。
+
+| # | 项目 | 怎么核对 | 来源 | 核对人 / 日期 |
+|---|---|---|---|---|
+| H1 | **部署机器**已定 | 线上 Cloud Function 连不到个人电脑。建议放在 `asia-east2`（香港）的 Cloud Run 或同区域服务器，与 Functions 同区；数据出境和存放地点与 DMP 一致。记下项目名、区域、服务名 | T8 报告第 5 节；backlog 59 | |
+| H2 | **地址**已填 | 一个 HTTPS 地址，接受 `POST`，正文 `{"text": "..."}`，返回 `{"level": "none / low / moderate_review / moderate_interrupt / acute", "score": 0–1, "model_version": "…"}`。填进 Firestore `meta/safety_config.classifierUrl`（客户端读不到）。只给分数时要研究侧先给分数到级别的切点并改代码 | `functions/safety_classifier.js` | |
+| H3 | **鉴权**已配 | 现在支持 Bearer 密钥：Functions 环境变量 `SAFETY_CLASSIFIER_TOKEN`（建议改放 Secret Manager，和 B1 一起）。模型那边只接受带这个密钥的请求。若用 Cloud Run IAM（Google 身份令牌）要先改代码 | T8 报告第 2、5 节 | |
+| H4 | 延迟和截断参数 | 实测延迟后定：`meta/safety_config.classifierTimeoutMs`（默认 1200）、`classifierMaxChars`（默认 1000）、`app_config/phase_a.safetyClassifierTimeoutMs`（默认 1500，限 200–5000） | T8 报告第 2 节 | |
+| H5 | 评估通过 | 用 T6 的 20 句和 `docs/safety/distress_detector_performance_v1.0.md` 的语料测召回、误报、延迟，研究侧和 PI 签字接受 | backlog 59、60 | |
+| H6 | 文件已改 | DMP、ICF 写明两组老人的文字（去掉电话等）会发给安全分类器、只返回风险等级；HREC 是否修订有结论 | 决策 0033；backlog 85 | |
+| H7 | 打开开关 | 先开服务器 `meta/safety_config.classifierEnabled: true`，再开 App `app_config/phase_a.safetyClassifierEnabled: true`（App 启动时读）。核对：用测试账号两组各发一句，`safety_classifier_calls` 各有一条 `status: ok`，`turn_id` 能在该账号 `users/{uid}/turns` 的 `safetyTurnId` 里找到。当天在 STUDY_CHANGELOG 补一行 | 决策 0033 | |
+
 ## F. 上线后第一天
 
 | # | 项目 | 怎么核对 |

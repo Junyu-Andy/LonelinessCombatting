@@ -1,5 +1,6 @@
 /**
- * T8 — safety-classifier relay (SPEC C13, decision 0025 — proposed).
+ * T8 — safety-classifier relay (SPEC C13, decision 0025; both arms confirmed
+ * by decision 0033).
  *
  * `classifySafety` (index.js) hands participant text to a separate safety
  * classifier (the research team's LoRA model) and returns only a risk

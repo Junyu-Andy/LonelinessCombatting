@@ -94,6 +94,10 @@ class LlmGateway {
     /// theme lock actually receives the value its "Context injection" block
     /// promises.  `[模組] {moduleId}` is appended for every agent call.
     String? theme,
+    /// T24 — reuse the turn id of a safety check the page already ran on
+    /// this same input (Tung Tung's search-off pre-check), so both scans
+    /// are one turn to the server's dedup.  Null = a fresh id.
+    String? turnId,
   }) async {
     assert(
       systemPrompt != null || promptKey != null,
@@ -107,7 +111,7 @@ class LlmGateway {
     // dropped connection stand between an acutely distressed user and the
     // crisis surface.
     final point = SafetyInputPoint.forModule(moduleId);
-    final turnId = SafetyService.newTurnId();
+    final safetyTurnId = turnId ?? SafetyService.newTurnId();
     // T8 — the classifier slot is asked only when its switch is on; off,
     // this stays the synchronous lexicon check (same timing as before).
     final inputFlag = skipSafetyScan
@@ -119,7 +123,7 @@ class LlmGateway {
                 uid: uid,
                 agentId: agentId,
                 sessionId: sessionId,
-                turnId: turnId,
+                turnId: safetyTurnId,
               ))
                 .match
             : _safety
@@ -129,7 +133,7 @@ class LlmGateway {
                   uid: uid,
                   agentId: agentId,
                   sessionId: sessionId,
-                  turnId: turnId,
+                  turnId: safetyTurnId,
                 )
                 .match;
 
@@ -147,7 +151,7 @@ class LlmGateway {
           sessionId: sessionId,
         ),
         status: LlmStatus.shortCircuited,
-        turnId: turnId,
+        turnId: safetyTurnId,
       );
     }
 
@@ -183,7 +187,7 @@ class LlmGateway {
         : _safety
             .checkAiOutput(
               raw.text,
-              turnId: turnId,
+              turnId: safetyTurnId,
               inputMatch: inputFlag,
               point: point,
               uid: uid,
@@ -240,7 +244,7 @@ class LlmGateway {
       latencyMs: latencyMs,
       temperature: raw.temperature,
       promptVersion: raw.promptVersion,
-      turnId: turnId,
+      turnId: safetyTurnId,
       hotlineReplaced: raw.hotlineReplaced + clientReplaced,
     );
   }

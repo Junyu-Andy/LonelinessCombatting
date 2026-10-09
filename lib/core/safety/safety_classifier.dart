@@ -1,5 +1,6 @@
 /// T8 — the pluggable safety-classifier slot behind [SafetyService]
-/// (SPEC C13, decision 0025 — proposed, switch off by default).
+/// (SPEC C13, decision 0025; both arms confirmed by decision 0033 — switch
+/// still off by default, no model yet).
 ///
 /// The lexicon ([DistressDetector]) always runs first and always counts.
 /// When `PhaseAConfig.safetyClassifierEnabled` is on, [SafetyService]
