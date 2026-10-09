@@ -151,7 +151,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 - **推送**（`functions/ada.js`，定时函数 `adaDay7Dispatch`，每小时 08:00–21:00）：窗口第一天到老人选的整点推一次（visit1 文档 `day7ReminderTime`，没选用 `adaDay7ReminderDefaultTime`），`adaDay7ReminderHours`（24）小时后没做完再推一次，过窗口记已超时。推送文字带【占位】不发。只推 Phase A 参与者，不推测试账号。
 - **服务器状态** `ada_status/{uid}`：第 7 日状态（未开始 / 进行中 / 已完成 / 已超时）、推送和超时时间、研究编号（从 `research_id_map` 抄，只读不新建）。触发器 `onAdaResponseWritten`、`onDay7OpenResponseWritten` 保持最新。客户端不能读写。
 - **研究员页面**（`ada_staff_page.dart`，研究员后台进入）：callable `adaStaffDay7Status` 列出每个 Phase A 参与者的状态；"電話代填"用同样的页面，经 `adaStaffLoad` / `adaStaffSave` 读写，服务器盖 `channel: "phone_by_staff"` 和研究员 uid，并用词库检查代填文字、命中写 `safety_events`。要 `role: blinded` 或 `unblinded`（决策 0029）；研究编号只给 `unblinded` 看。
-- **旧的“陪伴者区分评估”**（`agent_diff`，第 14、28 天）：Phase B 包默认不显示（开关 `LEGACY_AGENT_DIFF_PHASE_B`）；Phase A 包在 `adaEnabled` 打开后不显示，关着时和以前一样。旧数据不动不进新版盲法导出（T22，列在“揭盲前不导出”里）；旧版导出（盲法开关关着时）和 `tool/admin_dump.js` 仍会导出。
+- **旧的“陪伴者区分评估”**（`agent_diff`，第 14、28 天）：Phase B 包默认不显示（开关 `LEGACY_AGENT_DIFF_PHASE_B`）；Phase A 包在 `adaEnabled` 打开后不显示，关着时和以前一样。旧数据不动；不进新版盲法导出（T22，列在“揭盲前不导出”里）；旧版导出（盲法开关关着时）和 `tool/admin_dump.js` 仍会导出。
 
 ## 7. 记忆
 
