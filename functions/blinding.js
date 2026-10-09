@@ -184,10 +184,11 @@ const OPTIONAL_COLLECTIONS = ["brief_pr"];
 // users/{uid}/<collection> → exported fields.  Outcome measures that both
 // arms answer.  Dropped on purpose: brief_pr.sessionRef (session ids),
 // weekly_pr.sessionCountThisWeek/referentRule (usage-derived),
-// agent_diff.freeResponse (free text), daily_mood.source_surface,
-// every `arm` (replaced by groupCode).
+// daily_mood.source_surface, every `arm` (replaced by groupCode).
 // Never here: ada_responses and day7_open_responses (T17, decision 0026)
-// are Phase A only and stay out of the Phase B blinded export.
+// are Phase A only and stay out of the Phase B blinded export.  The old
+// agent_diff is not a Phase B measure either (registry C15, T22): held
+// back below.
 const OUTCOME_COLLECTIONS = {
   brief_pr: [
     "schemaVersion", "agentId", "understanding", "validation", "caring",
@@ -208,9 +209,6 @@ const OUTCOME_COLLECTIONS = {
     "scoringVersion", "outsideWindow", "w0Date", "windowStartDate",
     "windowEndDate", "pushSentAt", "reminderSentAt", "startedAt",
     "submittedAt", "missedAt",
-  ],
-  agent_diff: [
-    "wave", "timepoint", "usageFreq", "personality", "function", "answeredAt",
   ],
   daily_mood: [
     "mood", "date_iso", "is_primary", "entry_seq_today", "prompted_at",
@@ -238,6 +236,8 @@ const HELD_BACK = [
   "mem_extractions", "mem_facts", "mem_summaries", "mem_followups",
   "mem_injections", "cross_module_callbacks", "onboarding",
   "pi_alerts", "te_audit_queue", "safety_event_dedup", "stt_usage",
+  // T22: old W2/W4 companion assessment, not a Phase B measure (C15).
+  "agent_diff",
 ];
 
 /**

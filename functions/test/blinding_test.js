@@ -121,6 +121,19 @@ test("checker passes a clean export", () => {
   assert.deepStrictEqual(checker.checkExport([dir]).findings, []);
 });
 
+test("T22: old agent_diff is held back from the Phase B blinded export",
+    () => {
+      assert.ok(!("agent_diff" in blinding.OUTCOME_COLLECTIONS));
+      assert.ok(blinding.HELD_BACK.indexOf("agent_diff") >= 0);
+      assert.ok(checker.ALLOWED_FILES.indexOf("agent_diff") < 0);
+      const dir = writeExport({agent_diff: [{researchId: "P0ZAHQ5",
+        groupCode: "Group_X", wave: 2, timepoint: "week2"}]});
+      const findings = checker.checkExport([dir]).findings;
+      assert.strictEqual(findings.length, 1);
+      assert.ok(/agent_diff.*must not be exported/.test(findings[0]),
+          findings[0]);
+    });
+
 test("T17: Phase A ADA never enters the Phase B blinded export", () => {
   for (const n of ["ada_responses", "day7_open_responses"]) {
     assert.ok(!(n in blinding.OUTCOME_COLLECTIONS), n);
@@ -148,7 +161,7 @@ test("checker flags every kind of leak", () => {
       Object.assign({agentId: "a".repeat(28)}, rid),
     ],
     safety_events: [Object.assign({source: "gateway_output"}, rid)],
-    agent_diff: [Object.assign({personality: {siu_yan: {x: "長".repeat(80)}}},
+    weekly_pr: [Object.assign({items: {siu_yan: {x: "長".repeat(80)}}},
         rid)],
     djg_responses: [Object.assign({timepoint: "W2", arm: "A",
       source: "cf_djgW2Dispatch"}, rid)],
@@ -170,7 +183,7 @@ test("checker flags every kind of leak", () => {
   has(/brief_pr:2\.status: value "rule_based" names the rule-based arm/);
   has(/brief_pr:3\.agentId: .* raw Firebase uid/);
   has(/safety_events:1\.source: field not allowed/);
-  has(/agent_diff:1\.personality\.siu_yan\.x: 80-character string/);
+  has(/weekly_pr:1\.items\.siu_yan\.x: 80-character string/);
   has(/djg_responses:1\.arm: field not allowed/);
   has(/djg_responses:1\.source: field not allowed/);
 });

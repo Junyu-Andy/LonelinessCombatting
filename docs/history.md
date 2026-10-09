@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-10-09 T22 旧 agent_diff 收尾（SPEC:C15、C22，PR 草稿，未合并）
+
+- **做了**：新版盲法导出不再导出旧的“陪伴者区分评估”（`agent_diff`），清单里列为“揭盲前不导出”，检查脚本见到它会报错。Phase A 打开 `adaEnabled` 后不弹旧问卷，T17 已经做了，这次补了测试。没有新开关。
+- 没删旧集合、旧页面，没动已有数据。报告：`docs/dev-reports/T22-legacy-agent-diff-20261009.md`。待办第 78–79 项。
+
 ## 2026-10-07 T19、T17b 合成一个 PR
 
 - T19（分组重做）和 T17b（ADA 按 `docs/spec/instruments/ada.md` 补做）各一个云端会话，合成这一个 PR。交接文档 `docs/dev-reports/T19-T17b-handoff-20261007.md`。
