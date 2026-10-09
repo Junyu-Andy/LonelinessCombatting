@@ -95,7 +95,7 @@ NODE_PATH=functions/node_modules node tool/prelaunch_config.js --phase=b \
 | H3 | **部署机器**：模型跑在哪台机器、哪个地区 | 线上 Cloud Function 连不到个人电脑；建议 asia-east2 的 Cloud Run 或同区域服务器。数据出境与 DMP 一致；记下机器、地区和负责人 | T8 报告第 5 节；backlog 59 | |
 | H4 | 延迟、输入长度、评估结果 | 实测延迟后定 `meta/safety_config.classifierTimeoutMs`（默认 1200）和 `app_config/phase_a.safetyClassifierTimeoutMs`（默认 1500）、`classifierMaxChars`（默认 1000）；用 T6 句子和词库性能语料测召回、误报 | T8 报告第 5 节；backlog 60 | |
 | H5 | DMP、ICF 写明规则组的原话（去掉电话等）也发给分类器；HREC 是否修订已定 | 对照决策 0033 | 决策 0033；backlog 58 | |
-| H6 | 打开开关：`meta/safety_config.classifierEnabled` 和 `app_config/phase_a.safetyClassifierEnabled` 都设为 true | 两个都开才生效。打开当天在 `STUDY_CHANGELOG` 补一行。各组各发一句合成句子，`safety_classifier_calls` 和 `safety_events` 的 `turn_id` / `turnId` 与 `turns.safetyTurnId` 对得上 | 决策 0033 | |
+| H6 | 打开开关：`meta/safety_config.classifierEnabled` 和 `app_config/phase_a.safetyClassifierEnabled` 都设为 true | **先确认 backlog 85（通通 Hybrid 组搜索类问题也走同一个检测）已改好，否则不能打开。** 两个都开才生效。打开当天在 `STUDY_CHANGELOG` 补一行。各组各发一句合成句子，`safety_classifier_calls` 和 `safety_events` 的 `turn_id` / `turnId` 与 `turns.safetyTurnId` 对得上 | 决策 0033 | |
 
 ## F. 上线后第一天
 
