@@ -11,6 +11,13 @@
 - **做了**：新版盲法导出不再导出旧的“陪伴者区分评估”（`agent_diff`），清单里列为“揭盲前不导出”，检查脚本见到它会报错。Phase A 打开 `adaEnabled` 后不弹旧问卷，T17 已经做了，这次补了测试。没有新开关。
 - 没删旧集合、旧页面，没动已有数据。报告：`docs/dev-reports/T22-legacy-agent-diff-20261009.md`。待办第 78–79 项。
 
+## 2026-10-09 产品窗口 10/8 交接和 10/9 决定排进第六批（T25–T29）；登记表 v5
+
+- **定了**（10/9 第 1–3 条和补充）：盲法导出维持决策 0021，数据收集期间不含 Brief PR 和每人会话数，另做全体合并的完成率；语音改为 App 录音上传服务器 STT v2（`chirp_2`，`asia-southeast1`），只存文字，失败退 global 区先做成配置项；有效会话按"完成一个互动单元"（自由聊天 3 条消息，签到和回忆按完成模块流程，规则组一次提交算一次，决策 0015 保留）；LoRA 两组共用；试跑编号 PILOT-01 起、不收集收款资料。
+- 登记表在 v4 上改为 v5（C13、C14、C16、C18）。任务单 `docs/dev-tasks/dev-tasks-1009b.md`：T25 会话与 Brief PR、T26 LoRA 两组共用、T27 语音改走服务器、T28 试跑支持、T29 操纵检验抽样导出。第四、五批（`dev-tasks-1008.md`、`dev-tasks-1009.md`）照 T22 → T21 → T24 → T23 的顺序做。
+- 统筹会话的现状报告 `docs/dev-reports/product-reply-20261009.md`：记忆读写和共享、Brief PR 字段缺口、STT 现状（App 现用手机系统识别，不经服务器；录音上传代码 main 上没有）、Hybrid 签到和回忆的流程及有效会话提议、产出窗口 24 条核对。
+- 之前统筹会话按自己的编号开的三个会话（T21、会话与 Brief PR、LoRA 和探针）和第四批计划冲突，已停掉；LoRA 那个留下一个没开 PR 的分支 `feat/lora-both-arms`，T26 改用 `feat/lora-both-arms-v2`。
+
 ## 2026-10-07 T19、T17b 合成一个 PR
 
 - T19（分组重做）和 T17b（ADA 按 `docs/spec/instruments/ada.md` 补做）各一个云端会话，合成这一个 PR。交接文档 `docs/dev-reports/T19-T17b-handoff-20261007.md`。
