@@ -567,7 +567,7 @@ test("T10 confirmation reply: off by default and never a draft", () => {
   assert.strictEqual(m.forgetAck([{role: "user", content: "你好"}]), "");
 });
 
-// ------------------------------------------------- T31 (decision 0034)
+// ------------------------------------------------- T31 (decision 0035)
 test("T31 layers: switch off unless true", () => {
   assert.strictEqual(m.t10Flags({}).layersEnabled, false);
   assert.strictEqual(m.t10Flags({layersEnabled: "yes"}).layersEnabled, false);

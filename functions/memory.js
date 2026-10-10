@@ -34,7 +34,7 @@
  * summary; tool/delete_memory.js sets memoryWithdrawnAt, which stops
  * memory for good, Phase B Arm A included.
  *
- * T31 (decision 0034, meta/memory_config.layersEnabled, default off):
+ * T31 (decision 0035, meta/memory_config.layersEnabled, default off):
  * every item belongs to the shared layer (all three companions) or the
  * private layer (only the companion who heard it). Facts in
  * SHARED_LAYER_CATEGORIES that are not sensitive are shared; everything
@@ -77,7 +77,7 @@ const CATEGORIES = [
 const SHARED_CATEGORIES = new Set(["name", "family", "living"]);
 
 /**
- * T31 (decision 0034): categories in the shared layer when layersEnabled
+ * T31 (decision 0035): categories in the shared layer when layersEnabled
  * is on — 稱呼, 家人和身邊的人, 居住情況和日常作息, 喜好和興趣. Every other
  * category (health, event and the v3 categories feeling / story / grief)
  * is private, and so is anything classified sensitive.
@@ -784,7 +784,7 @@ function t10Flags(d) {
     honourMemoryWithdrawal: d.honourMemoryWithdrawal !== false,
     sensitiveFactQuota: d.sensitiveFactQuota !== false,
     strictFactValidation: d.strictFactValidation !== false,
-    // T31 (decision 0034): shared / private layers. Off unless true.
+    // T31 (decision 0035): shared / private layers. Off unless true.
     layersEnabled: d.layersEnabled === true,
     extractionPrompt: EXTRACTION_PROMPTS.includes(d.extractionPrompt) ?
       d.extractionPrompt : DEFAULT_EXTRACTION_PROMPT,

@@ -1,4 +1,4 @@
-/// T31 (decision 0034) — S7, the memory-layers notice at the top of the
+/// T31 (decision 0035) — S7, the memory-layers notice at the top of the
 /// 「我記得嘅嘢」 page.  Copied word for word from
 /// `docs/spec/copy/short-texts.md` (S7); test/memory_layers_copy_test.dart
 /// checks it against that file.  Shown only while

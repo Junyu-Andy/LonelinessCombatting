@@ -11,7 +11,7 @@
 | 2 | 记忆和入口的 P0 | `docs/dev/memory-and-entry-spec.md` 第 3 节 | 等负责人调研完记忆架构 |
 | 21 | `llm_calls` 数据删除时一起删 | 决策 0016 | 盲法导出部分按决策 0021：揭盲前不导出 |
 | 70 | **T19 App 内分组重做**（研究员登记、置换区组序列、事务分配和日志、客户端不能读写分组/计数器/序列，原第 3、4、51 项一并做了） | 决策 0029；`docs/dev-reports/T19-randomization-20261007.md` | PR 草稿（分支 `fix/randomization`）。合并后删这一行 |
-| 89 | **T31 记忆分层**（共享层 / 私有层、按陪伴者过滤、删除覆盖两层、剂量分层计、抽取 prompt v3 未切换、S7） | 决策 0034；`docs/dev-reports/T31-memory-layers-20261010.md` | PR 草稿（分支 `feat/memory-layers`）。合并后删这一行。上线：PI 审 v3 → 研究侧定日期切 `extractionPrompt`；`layersEnabled` 和 `memoryLayersNoticeEnabled` 一起开 |
+| 89 | **T31 记忆分层**（共享层 / 私有层、按陪伴者过滤、删除覆盖两层、剂量分层计、抽取 prompt v3 未切换、S7） | 决策 0035；`docs/dev-reports/T31-memory-layers-20261010.md` | PR 草稿（分支 `feat/memory-layers`）。合并后删这一行。上线：PI 审 v3 → 研究侧定日期切 `extractionPrompt`；`layersEnabled` 和 `memoryLayersNoticeEnabled` 一起开 |
 | 71 | **T21 Phase A 与 Phase B 的配置分开**：参与者带研究期字段（登记时由研究员写），按研究期读配置和筛数据，盲法导出只含 Phase B，名单互斥 | `docs/dev-tasks/dev-tasks-1007b.md` T21 | 用 T19 的研究员登记入口，排在 T19 之后 |
 
 ## 2. 上线前必须做（负责人操作）
@@ -35,7 +35,7 @@
 | 11 | **自由对话在规则组隐藏**，和「界面完全一致」原则冲突 | 决策 0006 | 负责人 |
 | 13 | 分组前（显示规则组界面）的数据算不算。T19 起 Phase B 每个人从注册到研究员登记之间都处在这个状态 | 决策 0004；第 72 项 | 负责人 |
 | 14 | Hybrid 组有人留在研究里但要求删除全部记忆：要不要让服务器停止记新的 | 现在删了还会继续记 | 负责人 |
-| 15 | phase_a 用记忆 v0 还是 v1 | **10/9 已定**：v1（含 T31 分层），由 T32 做 | — |
+| 15 | phase_a 用记忆 v0 还是 v1 | 规格倾向 v1 | 负责人 |
 | 16 | 安全词库 v5 的临床取舍 | 搁置，先沿用（决策 0012） | PI |
 | 18 | 通通规则组模板的文化顾问审核 | 未审核 | 负责人 |
 | 19 | CODEOWNERS：安全文件改动必须 PI 审核 | 需要 PI 的 GitHub 账号 | 负责人 |

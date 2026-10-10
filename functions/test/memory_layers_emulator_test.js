@@ -1,5 +1,5 @@
 /**
- * T31 memory layers (decision 0034) against the Firestore emulator:
+ * T31 memory layers (decision 0035) against the Firestore emulator:
  * extraction writes layer + sourceAgent, injection filters by layer and
  * logs the dose, 「唔好記住」 and deletion cover both layers, and the
  * switch off leaves everything as before. The model is a stub.

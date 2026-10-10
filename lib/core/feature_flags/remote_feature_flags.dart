@@ -18,7 +18,7 @@
 ///                               line ([TungTungSearchIntent]).  The line
 ///                               is a placeholder until the research team
 ///                               signs it off.
-///   - [memoryLayersNoticeEnabled] — T31 (decision 0034): the S7 notice
+///   - [memoryLayersNoticeEnabled] — T31 (decision 0035): the S7 notice
 ///                               about shared / private memory at the top
 ///                               of 「我記得嘅嘢」.  Switch on together with
 ///                               `meta/memory_config.layersEnabled`.
