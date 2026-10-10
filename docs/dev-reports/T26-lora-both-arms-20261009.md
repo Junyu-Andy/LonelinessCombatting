@@ -22,7 +22,7 @@
 ### 给 T34（告警邮件）：`safety_events` 的分类器字段没有改名
 
 T26 没有改 `safety_events` 的任何字段（`lib/core/safety/safety_event_writer.dart`）。判断"LoRA 是否参与判定"可用：
-- `detector`：`lexicon`（只有词库）/ `classifier`（只有分类器给出这个级别）/ `both`（两边级别相同）；开关关着时没有这个字段。
+- `detector`：`classifier`（分类器把级别调高了）/ `both`（两边级别相同且已升级）/ `lexicon`（级别来自词库，包括分类器没回、出错或给得更低）；只在问过分类器时写（`lib/core/safety/safety_classifier.dart` `detectorLabel`）。
 - `classifierStatus`（`ok` / `timeout` / `error` / `disabled` 等）、`classifierLevel`、`classifierScore`、`classifierVersion`：问过分类器才有。
 
 （另：10/10 产品窗口第 10 条 Phase A 暂停，决策 0034 在 PR #55 草稿里。本 PR 写的"Phase A 也用"不影响：Phase A 恢复时照样同一套。）
