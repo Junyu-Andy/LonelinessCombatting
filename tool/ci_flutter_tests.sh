@@ -4,7 +4,8 @@
 # Runs every build variant the tests care about and reports all failures
 # at the end instead of stopping at the first one:
 #   1. default (Phase A) build — the full suite
-#   2. PHASE_B=true           — arm gating / parity tests
+#   2. PHASE_B=true           — arm gating / parity tests; the safety
+#                               classifier (T26: same in every build)
 #   3. PHASE_B + FORCE_ARM=B  — Arm B pages (rule-based Tung Tung)
 #   4. MEMORY_V1=true         — memory v1 client tests (memory branch)
 #   5. RULE_TEMPLATE_REPLIES=true — placeholder guard keeps pages unchanged
@@ -34,7 +35,7 @@ run "phase A (default build)"
 run "phase B arm gating" --dart-define=PHASE_B=true \
   test/arm_gate_test.dart test/parity/ test/memory_v1_client_test.dart \
   test/djg_w2_test.dart \
-  test/ada_test.dart
+  test/ada_test.dart test/safety_classifier_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
   test/tung_tung_arm_b_test.dart test/my_story_arm_test.dart

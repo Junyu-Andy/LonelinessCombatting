@@ -12,7 +12,7 @@
 | 21 | `llm_calls` 数据删除时一起删 | 决策 0016 | 盲法导出部分按决策 0021：揭盲前不导出 |
 | 70 | **T19 App 内分组重做**（研究员登记、置换区组序列、事务分配和日志、客户端不能读写分组/计数器/序列，原第 3、4、51 项一并做了） | 决策 0029；`docs/dev-reports/T19-randomization-20261007.md` | PR 草稿（分支 `fix/randomization`）。合并后删这一行 |
 | 71 | **T21 Phase A 与 Phase B 的配置分开**：参与者带研究期字段（登记时由研究员写），按研究期读配置和筛数据，盲法导出只含 Phase B，名单互斥 | `docs/dev-tasks/dev-tasks-1007b.md` T21 | 用 T19 的研究员登记入口，排在 T19 之后 |
-| 84 | **T26 LoRA 两组共用**（决策 0033；`turns.safetyTurnId`；上线清单 H 节） | `docs/dev-reports/T26-lora-both-arms-20261009.md` | PR 草稿（分支 `feat/lora-both-arms-v2`）。合并后删这一行 |
+| 84 | **T26 LoRA 两组、两期和试跑共用**（决策 0033；`turns.safetyTurnId`；上线清单 H 节；10/10 补 Phase A 和试跑） | `docs/dev-reports/T26-lora-both-arms-20261009.md` | PR 草稿（分支 `feat/lora-both-arms-v2`）。合并后删这一行 |
 
 ## 2. 上线前必须做（负责人操作）
 
@@ -74,6 +74,8 @@
 | 60 | 安全分类器的两个遗留问题：① 离线时规则组只用词库（新的组间不对等），要不要联网后补测；② 只升不降会让误报减少 Hybrid 组的 AI 回复次数、规则组的模板回应，可接受的误报率是多少 | 决策 0025 第 4、6 点 | 研究侧 / PI |
 | 85 | **通通 Hybrid 组"搜一搜关闭"的固定回应不问分类器**：通通固定回应开关打开时，Hybrid 组问搜索类问题、词库没命中，就直接给固定句，不经过 `checkUserTextClassified`，也不写 `safetyTurnId`；规则组同一句话会问分类器。分类器开关打开前要改成两组一样（改法：固定句之前也走同一个检测） | T26 报告第 4 节；`tung_tung_page.dart` `_replySearchOff` 之前 | 开发（分类器打开前） |
 | 86 | CLAUDE.md「规则组永远不能调用 LLM」和 LoRA 分类器：分类器本身可能是一个微调的语言模型。决策 0033 按"不生成文字、不是对话模型"处理，`assertLlmAllowed` 没动。要不要在 CLAUDE.md、protocol 里把这句写清楚（例如"不调用对话模型；安全分类器除外"） | 决策 0033 第 4 点 | 研究侧 |
+| 87 | **研究员电话代填的 Phase A 问卷文字不问分类器**：ADA 自由作答、第 7 日开放题由研究员代填时，服务器只查词库（`functions/ada.js`）；老人自己填会问分类器。要不要也问（研究员当时在电话上） | T26 报告 10/10 补充 | 研究侧 |
+| 88 | **T21 拆配置时分类器开关不分期**：`app_config/phase_a.safetyClassifierEnabled`、`safetyClassifierTimeoutMs` 和 `meta/safety_config` 保持全局一份，不拆成 Phase A / Phase B 各一份（决策 0033 第 7 条） | 决策 0033；T26 报告 10/10 补充 | 开发（T21） |
 | 61 | ADA 定稿：**10/7 已给** `docs/spec/instruments/ada.md`。T17b 已按它补做（PR 草稿，决策 0030，截图见 T17b 报告第 4 节）；**PI 书面确认截图前 ADA 开关保持关** | T17b 报告；决策 0026、0030；ada.md | PI 审截图 |
 | 62 | 第 7 日 3 道开放题的题目（现为【占位】）；ADA、开放题横幅和第 2 周横幅新副标题的措辞 | T17 报告第 8 节 | 研究侧 |
 | 63 | T21 拆分配置时把 `app_config/phaseA_schedule` 整份归入 Phase A；`ada_responses`、`day7_open_responses` 按研究期筛选（文档里已有 `studyPhase: "A"`）；ADA 文档存的是 uid，研究编号在服务器专用的 `ada_status/{uid}`（T17b），Phase A 导出时按 uid 对上；`functions/ada.js` 的 `isPhaseAParticipant` 换成研究期字段 | T17 报告第 4、6 节；T17b 报告 | 开发（T21） |

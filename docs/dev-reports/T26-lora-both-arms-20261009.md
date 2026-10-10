@@ -1,6 +1,28 @@
-# T26 LoRA 两组共用（2026-10-09，SPEC:C13）
+# T26 LoRA 两组共用（2026-10-09，SPEC:C13；10/10 补 Phase A 和试跑）
 
 > 分支 `feat/lora-both-arms-v2`。决策 0033（取代 0025 里"两组是否都用"的部分）。没有连生产 Firestore；测试只用合成句子和假模型。
+
+## 10/10 补充：Phase A 和试跑也用（`dev-tasks-1010.md` 第三节 T26）
+
+结论：**代码本来就不分研究期，没改功能代码；补了测试和文档。** Phase A、Phase B、试跑用同一个分类器、同一套安全流程、同两个开关。
+
+1. **先把 main 合进本分支**（含 `dev-tasks-1010.md`、登记表 v7、陪伴者图片）。只有 `STUDY_CHANGELOG.md`、`history.md`、`backlog.md` 冲突，都是两边各加一行，两边都留。
+2. **App 端不分研究期**：
+   - 开关 `app_config/phase_a.safetyClassifierEnabled` 名字里有 phase_a，但它是全局配置：两种构建都在启动时读（`lib/main.dart` `PhaseAConfig.load`，不看 `FeatureFlags.phaseB`）。
+   - 是否问分类器只看开关、有没有接分类器、输入点（`lib/core/safety/safety_check.dart` `classifierActiveFor`）；不读构建、组别、研究期。
+   - Phase A 特有的输入也问分类器：ADA 自由作答（`lib/features/ada/presentation/ada_page.dart`，`adaFreeText`）、第 7 日开放题（`lib/features/ada/presentation/day7_open_page.dart`，`day7OpenEnded`），都走 `checkAndRoute`。
+3. **服务器不分研究期**：`classifySafety`（`functions/index.js`）和 `functions/safety_classifier.js` 不读用户文档、组别或研究期；开关 `meta/safety_config.classifierEnabled` 只有一份。
+4. **试跑**：研究期字段还没做（T21 未合并）。试跑参与者按选定版本走 Hybrid 或规则组的页面，安全检测和两组一样，所以也一样用分类器。
+5. **新增测试**：
+   - App：`test/safety_classifier_test.dart` 新组 `Phase A, Phase B and pilot`：开关打开时每个老人输入点都问分类器（Phase A 特有的两个也是）；ADA、第 7 日开放题和签到留言得到同样的级别和同样的安全事件。这个测试文件现在也在 `PHASE_B=true` 那套里跑（`tool/ci_flutter_tests.sh`），两种构建结果相同。
+   - 服务器：`functions/test/safety_classifier_emulator_test.js` 新测试：Phase A、Phase B、试跑和规则组的合成账号（`users.cohort` 和 `enrollments.studyPeriod` 两种写法都放了）得到同样的答案、同样字段的记录，记录里没有组别和研究期。
+6. **开关不变**：两个开关都默认关，没有新开关。
+7. 决策 0033 还没合并，本次在同一份里补了第 7 条"两期和试跑也一样"，标题和影响范围跟着改；0025 没动。
+
+### 两期不一样的地方（本次没改）
+
+- **研究员电话代填的 ADA 和第 7 日开放题**（只有 Phase A 有）：文字在服务器上只查词库（`functions/ada.js` `lexicon.analyze`），不问分类器。老人自己填的那条路径会问。记 backlog 87。
+- **T21 拆配置时**：`app_config/phase_a` 里的分类器开关和 `meta/safety_config` 不能拆成每期一份，否则可能一期开、一期关。记 backlog 88，T21 照做。
 
 ## 结论先说
 
@@ -68,6 +90,12 @@ T8 原有的两组一致测试（T6 的 20 句）不变，仍通过。
 - 服务器、`firestore.rules`、`lib/core/safety/`：没改。
 
 ## 要带回研究侧的发现
+
+（10/10 补充）
+
+0. 两期和试跑现在就是同一个分类器、同一套流程，不用另外打开。两点要研究侧知道：① 研究员电话代填的 Phase A 问卷文字只查词库、不问分类器（研究员当时就在电话上），要不要也问（backlog 87）；② 开关只有一套，打开就是两期、试跑、两组同时打开。
+
+（10/9 原有）
 
 1. **接真实模型前要研究侧给**：地址、鉴权方式、部署机器和地区、返回格式（只给分数的话要切点）、实测延迟（上线清单 H1–H4，backlog 59）。
 2. **DMP、ICF、HREC**：规则组的原话（去掉电话等）会发给分类器，要写明；HREC 是否修订（H5，backlog 58）。

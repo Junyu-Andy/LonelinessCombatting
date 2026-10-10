@@ -8,7 +8,10 @@
 //     skips the model, timeout and failure fall back to the lexicon and
 //     log one row, server-side fallbacks log nothing on the App;
 //   - both arms: the Hybrid path (LlmGateway) and the rule path
-//     (checkUserTextClassified) give the same level and the same event.
+//     (checkUserTextClassified) give the same level and the same event;
+//   - T26 (dev-tasks-1010 §3): Phase A, Phase B and the pilot — the
+//     switch and the inputs it covers do not depend on the build or the
+//     study period (this file also runs in the PHASE_B=true suite).
 //
 // The fake model stands in for the `classifySafety` Cloud Function; the
 // HTTP side (a real local fake model: ok / slow / failing) is tested in
@@ -18,6 +21,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:app_demo/core/config/phase_a_config.dart';
+import 'package:app_demo/core/feature_flags/feature_flags.dart';
 import 'package:app_demo/core/llm/llm_gateway.dart';
 import 'package:app_demo/core/safety/distress_detector.dart';
 import 'package:app_demo/core/safety/safety_check.dart';
@@ -511,6 +515,50 @@ void main() {
       expect(w.rows.single['turnId'], r.turnId);
       expect(turn(r).toMap(participantId: 'u', sessionId: 's')['safetyTurnId'],
           r.turnId);
+    });
+  });
+
+  // T26 (dev-tasks-1010 §3) — Phase A, Phase B and the pilot share the
+  // same classifier and the same flow.  Nothing in the safety check reads
+  // the build (PHASE_B) or a study period; this group runs in the default
+  // (Phase A) suite and in the PHASE_B=true suite (tool/ci_flutter_tests.sh).
+  group('Phase A, Phase B and pilot', () {
+    test('every participant input is covered, in this build too', () {
+      _on();
+      final s = SafetyService(classifier: _FakeModel());
+      for (final p in SafetyInputPoint.values) {
+        final expected = p != SafetyInputPoint.systemGenerated &&
+            p != SafetyInputPoint.searchQuery;
+        expect(s.classifierActiveFor(p), expected,
+            reason: '${p.code} (PHASE_B=${FeatureFlags.phaseB})');
+      }
+      // Phase A-only inputs (ADA Part D, day-7 open questions).
+      expect(s.classifierActiveFor(SafetyInputPoint.adaFreeText), isTrue);
+      expect(s.classifierActiveFor(SafetyInputPoint.day7OpenEnded), isTrue);
+    });
+
+    test('Phase A-only inputs get the same level and event as a chat note',
+        () async {
+      _on();
+      final results = <String, Map<String, Object?>>{};
+      for (final p in [
+        SafetyInputPoint.checkInNote,
+        SafetyInputPoint.adaFreeText,
+        SafetyInputPoint.day7OpenEnded,
+      ]) {
+        final w = _Writer();
+        final model = _FakeModel(level: DistressLevel.moderateInterrupt);
+        final r = await SafetyService(writer: w, classifier: model)
+            .checkUserTextClassified(_safe, point: p, uid: 'u', turnId: 't');
+        expect(r.level, DistressLevel.moderateInterrupt, reason: p.code);
+        expect(model.asked, [p.code]);
+        final row = Map<String, Object?>.from(w.rows.single)
+          ..remove('inputPoint')
+          ..remove('source');
+        results[p.code] = row;
+      }
+      expect(results['ada_free_text'], results['check_in_note']);
+      expect(results['day7_open_ended'], results['check_in_note']);
     });
   });
 
