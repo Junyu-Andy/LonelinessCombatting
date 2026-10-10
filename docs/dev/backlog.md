@@ -1,7 +1,7 @@
 # 待办与待决定
 
 > 随时更新。做完的移到 `docs/history.md`，划掉或删掉这里的条目。
-> 最后更新：2026-10-10（陪伴者形象）
+> 最后更新：2026-10-10（T31 记忆分层）
 
 ## 1. 已决定、待开发
 
@@ -11,6 +11,7 @@
 | 2 | 记忆和入口的 P0 | `docs/dev/memory-and-entry-spec.md` 第 3 节 | 等负责人调研完记忆架构 |
 | 21 | `llm_calls` 数据删除时一起删 | 决策 0016 | 盲法导出部分按决策 0021：揭盲前不导出 |
 | 70 | **T19 App 内分组重做**（研究员登记、置换区组序列、事务分配和日志、客户端不能读写分组/计数器/序列，原第 3、4、51 项一并做了） | 决策 0029；`docs/dev-reports/T19-randomization-20261007.md` | PR 草稿（分支 `fix/randomization`）。合并后删这一行 |
+| 89 | **T31 记忆分层**（共享层 / 私有层、按陪伴者过滤、删除覆盖两层、剂量分层计、抽取 prompt v3 未切换、S7） | 决策 0035；`docs/dev-reports/T31-memory-layers-20261010.md` | PR 草稿（分支 `feat/memory-layers`）。合并后删这一行。上线：PI 审 v3 → 研究侧定日期切 `extractionPrompt`；`layersEnabled` 和 `memoryLayersNoticeEnabled` 一起开 |
 | 71 | **T21 Phase A 与 Phase B 的配置分开**：参与者带研究期字段（登记时由研究员写），按研究期读配置和筛数据，盲法导出只含 Phase B，名单互斥 | `docs/dev-tasks/dev-tasks-1007b.md` T21 | 用 T19 的研究员登记入口，排在 T19 之后 |
 
 ## 2. 上线前必须做（负责人操作）

@@ -7,10 +7,12 @@ import 'package:app_demo/core/agent_context/rolling_summary_compiler.dart';
 import 'package:app_demo/core/agent_context/shared_context_service.dart';
 import 'package:app_demo/core/agents/persona_resolver.dart';
 import 'package:app_demo/core/feature_flags/feature_flags.dart';
+import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
 import 'package:app_demo/core/llm/llm_gateway.dart';
 import 'package:app_demo/core/memory/memory_mode.dart';
 import 'package:app_demo/core/memory/memory_v1_service.dart';
 import 'package:app_demo/features/auth/data/user_profile.dart';
+import 'package:app_demo/features/memory/data/memory_layers_copy.dart';
 import 'package:app_demo/features/memory/presentation/pages/remembered_page.dart';
 import 'package:app_demo/features/onboarding/presentation/pages/agent_onboarding_page.dart';
 import 'package:flutter/material.dart';
@@ -208,6 +210,31 @@ void main() {
       await tester.tap(find.text('唔好記').last);
       await tester.pumpAndSettle();
       expect(mem.deleted, ['f1']);
+    });
+
+    testWidgets('T31: S7 notice only with its switch on', (tester) async {
+      addTearDown(
+          () => RemoteFeatureFlags.current = const RemoteFeatureFlags());
+      final notice = find.byKey(const Key('memory_layers_notice'));
+      await tester.pumpWidget(page(_FakeMemory([fact])));
+      await tester.pumpAndSettle();
+      expect(notice, findsNothing);
+
+      RemoteFeatureFlags.current =
+          const RemoteFeatureFlags(memoryLayersNoticeEnabled: true);
+      await tester.pumpWidget(page(_FakeMemory([fact])));
+      await tester.pumpAndSettle();
+      expect(find.text(MemoryLayersCopy.s7), findsOneWidget);
+      expect(find.text('飲早茶'), findsOneWidget);
+
+      // Also above the empty state; never for someone without memory.
+      await tester.pumpWidget(page(_FakeMemory(const [])));
+      await tester.pumpAndSettle();
+      expect(notice, findsOneWidget);
+      expect(find.text('暫時未記住任何嘢。'), findsOneWidget);
+      await tester.pumpWidget(page(_FakeMemory([fact]), memory: false));
+      await tester.pumpAndSettle();
+      expect(notice, findsNothing);
     });
 
     testWidgets('memory off shows a notice, not the lists', (tester) async {

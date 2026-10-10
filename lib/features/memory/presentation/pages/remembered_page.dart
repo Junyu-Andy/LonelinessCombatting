@@ -5,15 +5,20 @@
 /// items the server extracted wait here for an explicit go-ahead before
 /// any companion uses them. The page can only read, delete and confirm
 /// (firestore.rules); it can never add or edit what is remembered.
+///
+/// T31: with [RemoteFeatureFlags.memoryLayersNoticeEnabled] on, the S7
+/// notice (which companion remembers what) sits at the top of the lists.
 library;
 
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../../core/memory/memory_v1_service.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
+import '../../data/memory_layers_copy.dart';
 
 class RememberedPage extends StatelessWidget {
   const RememberedPage({super.key, this.service = const MemoryV1Service()});
@@ -66,17 +71,27 @@ class _Lists extends StatelessWidget {
                 !facts.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
+            final notice = RemoteFeatureFlags
+                    .current.memoryLayersNoticeEnabled
+                ? const _LayersNotice()
+                : null;
             if (pending.isEmpty && active.isEmpty && fu.isEmpty &&
                 su.isEmpty) {
-              return _Empty(
+              final empty = _Empty(
                 text: isEn
                     ? 'Nothing remembered yet.'
                     : '暫時未記住任何嘢。',
+              );
+              if (notice == null) return empty;
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                children: [notice, empty],
               );
             }
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               children: [
+                if (notice != null) notice,
                 if (pending.isNotEmpty) ...[
                   _Header(
                     isEn ? 'Should I remember these?' : '呢啲要唔要記住？',
@@ -107,6 +122,25 @@ class _Lists extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+/// S7, word for word (the copy is final in Cantonese only).
+class _LayersNotice extends StatelessWidget {
+  const _LayersNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      key: const Key('memory_layers_notice'),
+      margin: const EdgeInsets.only(bottom: 12),
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(MemoryLayersCopy.s7, style: theme.textTheme.bodyLarge),
       ),
     );
   }

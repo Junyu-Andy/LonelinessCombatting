@@ -80,6 +80,7 @@ flowchart TD
 - **可见范围**：称呼、家人、居住算「基本事实」，三个 agent 共享；其余只给来源 agent。敏感内容永远不共享。
 - **纠正**：老人纠正时，旧说法标为 superseded（不删除），新说法记 `user_corrected`。同一事实改动 3 次以上会标 `needs_review`，不再注入，等研究者人工查看。
 - **共享策略**：`meta/memory_config.policy` 可切换 A（全共享）/ B（全隔离）/ C（分层，默认）。过滤在服务器上执行，不依赖 prompt。
+- **记忆分层（T31，决策 0035）**：`layersEnabled` 打开后，上面“可见范围”改为共享层（称呼、家人、居住、作息、兴趣、喜好）和私有层（其余、摘要、待跟进），策略 A、C 都按分层，B 仍不共享。详见 `docs/dev/architecture.md` 第 7 节。
 
 ## 注入
 

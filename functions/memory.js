@@ -34,6 +34,16 @@
  * summary; tool/delete_memory.js sets memoryWithdrawnAt, which stops
  * memory for good, Phase B Arm A included.
  *
+ * T31 (decision 0035, meta/memory_config.layersEnabled, default off):
+ * every item belongs to the shared layer (all three companions) or the
+ * private layer (only the companion who heard it). Facts in
+ * SHARED_LAYER_CATEGORIES that are not sensitive are shared; everything
+ * else — sensitive facts, health, events, feelings, stories, grief,
+ * every summary and every follow-up — is private. The server writes
+ * `layer` and `sourceAgent`; items written before T31 get their layer
+ * from the same rule when read (itemLayer). Injection logs count shared
+ * and private items separately (the memory dose).
+ *
  * Retrieval memory (RAG) is out of scope for v1.
  */
 
@@ -65,6 +75,26 @@ const CATEGORIES = [
 
 /** "Basic facts" shared with every agent under policy C. */
 const SHARED_CATEGORIES = new Set(["name", "family", "living"]);
+
+/**
+ * T31 (decision 0035): categories in the shared layer when layersEnabled
+ * is on — 稱呼, 家人和身邊的人, 居住情況和日常作息, 喜好和興趣. Every other
+ * category (health, event and the v3 categories feeling / story / grief)
+ * is private, and so is anything classified sensitive.
+ */
+const SHARED_LAYER_CATEGORIES = new Set([
+  "name", "family", "living", "routine", "hobby", "preference",
+]);
+
+/**
+ * Extra categories of extraction prompt v3 (T31), all private:
+ * 心事和情緒, 回憶故事, 哀傷內容.
+ */
+const V3_EXTRA_CATEGORIES = [
+  "feeling", // 心事和情緒
+  "story", // 回憶故事
+  "grief", // 哀傷內容
+];
 
 /** Categories that are always sensitive, whatever the model says. */
 const SENSITIVE_CATEGORIES = new Set(["health"]);
@@ -125,7 +155,9 @@ const LIMITS = {
 const COMPANION_NAMES = ["陪伴者", "小欣", "阿珍", "阿伯", "通通"];
 
 /** Extraction prompt files (functions/prompts/<name>.txt). */
-const EXTRACTION_PROMPTS = ["memory_extraction.v1", "memory_extraction.v2"];
+const EXTRACTION_PROMPTS = [
+  "memory_extraction.v1", "memory_extraction.v2", "memory_extraction.v3",
+];
 const DEFAULT_EXTRACTION_PROMPT = "memory_extraction.v2";
 const FORGET_ACK_PROMPT = "memory_forget_ack.v1";
 /** A prompt file still holding this is a draft and is never used. */
@@ -133,9 +165,20 @@ const DRAFT_MARK = "【待研究側定稿】";
 
 /** Category order when facts must be trimmed. */
 const CATEGORY_PRIORITY = [
-  "name", "family", "living", "routine", "hobby", "event", "preference",
-  "health",
+  "name", "family", "living", "routine", "hobby", "event", "story",
+  "preference", "feeling", "grief", "health",
 ];
+
+/**
+ * The categories an extraction prompt may use. v1 and v2 keep the
+ * original eight, so their prompt text and validation are unchanged.
+ * @param {string} promptName
+ * @return {Array<string>}
+ */
+function categoriesFor(promptName) {
+  return promptName === "memory_extraction.v3" ?
+    CATEGORIES.concat(V3_EXTRA_CATEGORIES) : CATEGORIES;
+}
 
 // ---------------------------------------------------------------------------
 // Time helpers (Hong Kong)
@@ -220,6 +263,60 @@ function visibilityFor(category, sensitivity) {
   return SHARED_CATEGORIES.has(category) ? "shared" : "agent";
 }
 
+/**
+ * T31: the layer a fact belongs to. Sensitive content is private even in
+ * a shared category.
+ * @param {string} category
+ * @param {string} sensitivity normal | sensitive
+ * @return {string} shared | private
+ */
+function layerFor(category, sensitivity) {
+  if ((sensitivity || "normal") !== "normal") return "private";
+  return SHARED_LAYER_CATEGORIES.has(category) ? "shared" : "private";
+}
+
+/**
+ * T31: the layer of a stored item. Summaries and follow-ups are always
+ * private. A fact without `layer` (written before T31) gets it from
+ * layerFor; a stored layer never makes a sensitive fact shared.
+ * @param {object} item a mem_* doc
+ * @param {string} kind fact | summary | followup
+ * @return {string} shared | private
+ */
+function itemLayer(item, kind) {
+  if (kind !== "fact") return "private";
+  if ((item.sensitivity || "normal") !== "normal") return "private";
+  if (item.layer === "shared" || item.layer === "private") return item.layer;
+  return layerFor(item.category, item.sensitivity);
+}
+
+/**
+ * T31: the companion who heard an item (`sourceAgent`, or `agent_id` for
+ * items written before T31).
+ * @param {object} item
+ * @return {string}
+ */
+function itemSource(item) {
+  return item.sourceAgent || item.agent_id;
+}
+
+/**
+ * T31: may this agent use the item? Its own items always; another
+ * agent's only when the item is in the shared layer and sharing is on
+ * (policy B — sharedContextUse consent off, decision 0020 — shares
+ * nothing). With layers on, policies A and C both mean "the layer rule".
+ * @param {object} item
+ * @param {string} kind fact | summary | followup
+ * @param {string} agentId
+ * @param {string} policy A | B | C
+ * @return {boolean}
+ */
+function visibleInLayers(item, kind, agentId, policy) {
+  if (itemSource(item) === agentId) return true;
+  if (policy === "B") return false;
+  return itemLayer(item, kind) === "shared";
+}
+
 // ---------------------------------------------------------------------------
 // Extraction: prompt + validation
 // ---------------------------------------------------------------------------
@@ -253,7 +350,7 @@ function buildExtractionPrompt({turns, activeFacts, todayKey, promptName}) {
   const system = loadPromptFile(name)
       .split("{{TODAY}}").join(todayKey)
       .split("{{WEEKDAY}}").join(weekdayZh(todayKey))
-      .split("{{CATEGORIES}}").join(CATEGORIES.join(", "));
+      .split("{{CATEGORIES}}").join(categoriesFor(name).join(", "));
 
   const factLines = activeFacts.length === 0 ? "（暫時冇）" :
     activeFacts.map((f) =>
@@ -280,6 +377,8 @@ function buildExtractionPrompt({turns, activeFacts, todayKey, promptName}) {
  *                    and follow-ups are dropped too; a summary the App
  *                    lexicon flags is dropped
  *   omitSensitiveSummary  a summary classified sensitive is not kept
+ *   categories       allowed categories (default CATEGORIES; v3 adds more,
+ *                    see categoriesFor)
  *
  * @param {object} raw parsed JSON from the model
  * @param {{turns: Array<{fromUser: boolean, text: string}>,
@@ -287,7 +386,8 @@ function buildExtractionPrompt({turns, activeFacts, todayKey, promptName}) {
  *   activeFactCategories: (Map<string, string>|undefined),
  *   strictFacts: (boolean|undefined), excludeSafety: (boolean|undefined),
  *   safetyTurns: (number|undefined),
- *   omitSensitiveSummary: (boolean|undefined)}} ctx
+ *   omitSensitiveSummary: (boolean|undefined),
+ *   categories: (Array<string>|undefined)}} ctx
  * @return {object} {ok, error} on rejection; {ok, summary, facts,
  *   followups, dropped} otherwise
  */
@@ -326,7 +426,7 @@ function validateExtraction(raw, ctx) {
         return {ok: false, error: `fact_${k}`};
       }
     }
-    if (!CATEGORIES.includes(f.category)) {
+    if (!(ctx.categories || CATEGORIES).includes(f.category)) {
       return {ok: false, error: "fact_category"};
     }
     if (!quoted(f.quote)) {
@@ -484,19 +584,23 @@ function visibleTo(item, agentId, policy) {
  *   followups: Array<object>}} mem loaded docs (with id)
  * @param {{agentId: string, policy: string, todayKey: string,
  *   sessionStart: boolean, sensitiveQuota: (boolean|undefined),
- *   omitSensitiveSummary: (boolean|undefined)}} opts T10:
+ *   omitSensitiveSummary: (boolean|undefined),
+ *   layers: (boolean|undefined)}} opts T10:
  *   sensitiveQuota gives confirmed sensitive facts LIMITS.sensitiveFacts
  *   places of their own; omitSensitiveSummary leaves out summaries
- *   classified sensitive (written before the fix)
+ *   classified sensitive (written before the fix). T31: layers filters
+ *   by layer (visibleInLayers) instead of the old policy rule
  * @return {{followups: Array<object>, facts: Array<object>,
  *   sensitiveFacts: Array<object>, summaryDays: Array<object>}}
  */
 function selectForInjection(mem, opts) {
   const {agentId, policy, todayKey, sessionStart} = opts;
+  const layers = opts.layers === true;
   const expireBefore = addDays(todayKey, -LIMITS.followupExpireDays);
 
   const followups = !sessionStart ? [] : mem.followups
-      .filter((f) => f.agent_id === agentId && f.status === "pending")
+      .filter((f) => (layers ? itemSource(f) : f.agent_id) === agentId &&
+        f.status === "pending")
       .filter((f) => f.due_date <= todayKey && f.due_date >= expireBefore)
       .filter((f) => (f.sensitivity || "normal") === "normal")
       .sort((a, b) => b.due_date.localeCompare(a.due_date))
@@ -504,7 +608,8 @@ function selectForInjection(mem, opts) {
 
   const usable = mem.facts
       .filter((f) => f.status === "active" && !f.needs_review)
-      .filter((f) => visibleTo(f, agentId, policy))
+      .filter((f) => (layers ? visibleInLayers(f, "fact", agentId, policy) :
+        visibleTo(f, agentId, policy)))
       .sort((a, b) => {
         const pa = CATEGORY_PRIORITY.indexOf(a.category);
         const pb = CATEGORY_PRIORITY.indexOf(b.category);
@@ -522,7 +627,9 @@ function selectForInjection(mem, opts) {
   const byDay = new Map();
   // Summaries are agent-private except under policy A.
   for (const s of mem.summaries
-      .filter((x) => visibleTo(x, agentId, policy === "A" ? "A" : "B"))
+      .filter((x) => (layers ?
+        visibleInLayers(x, "summary", agentId, policy) :
+        visibleTo(x, agentId, policy === "A" ? "A" : "B")))
       .filter((x) => x.summary)
       .filter((x) => opts.omitSensitiveSummary !== true ||
         (x.sensitivity || "normal") === "normal")
@@ -619,6 +726,43 @@ function renderMemoryBlock(sel) {
   };
 }
 
+/**
+ * T31 memory dose: how many injected items came from each layer, and from
+ * which companion. Counts only what made it into the block after
+ * trimming (ids from renderMemoryBlock); a day of summaries counts each
+ * summary.
+ * @param {object} sel from selectForInjection
+ * @param {Array<string>} ids renderMemoryBlock(sel).ids
+ * @param {string} agentId the agent the prompt is for
+ * @return {{layer_counts: {shared: number, private: number},
+ *   source_agents: {shared: object, private: object}}}
+ */
+function injectionDose(sel, ids, agentId) {
+  const meta = new Map();
+  const note = (x, kind) => meta.set(x.id,
+      {layer: itemLayer(x, kind), source: itemSource(x) || agentId});
+  sel.followups.forEach((x) => note(x, "followup"));
+  sel.facts.forEach((x) => note(x, "fact"));
+  sel.sensitiveFacts.forEach((x) => note(x, "fact"));
+  for (const d of sel.summaryDays) {
+    for (const id of d.ids) {
+      meta.set(id, {layer: "private", source: agentId});
+    }
+  }
+  const out = {
+    layer_counts: {shared: 0, private: 0},
+    source_agents: {shared: {}, private: {}},
+  };
+  for (const id of ids) {
+    const m = meta.get(id);
+    if (!m) continue;
+    out.layer_counts[m.layer]++;
+    const by = out.source_agents[m.layer];
+    by[m.source] = (by[m.source] || 0) + 1;
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Firestore I/O
 // ---------------------------------------------------------------------------
@@ -640,6 +784,8 @@ function t10Flags(d) {
     honourMemoryWithdrawal: d.honourMemoryWithdrawal !== false,
     sensitiveFactQuota: d.sensitiveFactQuota !== false,
     strictFactValidation: d.strictFactValidation !== false,
+    // T31 (decision 0035): shared / private layers. Off unless true.
+    layersEnabled: d.layersEnabled === true,
     extractionPrompt: EXTRACTION_PROMPTS.includes(d.extractionPrompt) ?
       d.extractionPrompt : DEFAULT_EXTRACTION_PROMPT,
   };
@@ -787,12 +933,18 @@ function forgetAck(messages) {
  * follow-up as asked, and log the injection. Returns "" when memory is
  * off for this user/module. Never throws: memory must not break a chat.
  *
+ * T31: with layersEnabled the selection follows the layers and the log
+ * also records the dose (layer_counts, source_agents) and session_id.
+ *
  * @param {object} db
  * @param {{uid: string, agentId: ?string, moduleId: string,
- *   messages: Array<object>, now: (Date|undefined)}} args
+ *   messages: Array<object>, now: (Date|undefined),
+ *   sessionId: (?string|undefined)}} args sessionId: the App's session
+ *   id when it sends one (T25), else null in the log
  * @return {Promise<string>}
  */
-async function injectMemory(db, {uid, agentId, moduleId, messages, now}) {
+async function injectMemory(db,
+    {uid, agentId, moduleId, messages, now, sessionId}) {
   try {
     if (!uid || !AGENTS.includes(agentId)) return "";
     if (!INJECT_MODULES.test(moduleId)) return "";
@@ -809,6 +961,7 @@ async function injectMemory(db, {uid, agentId, moduleId, messages, now}) {
       agentId, policy: active.policy, todayKey, sessionStart,
       sensitiveQuota: active.cfg.sensitiveFactQuota,
       omitSensitiveSummary: active.cfg.omitSensitiveSummary,
+      layers: active.cfg.layersEnabled,
     });
     const block = renderMemoryBlock(sel);
     const ack = active.cfg.forgetAckReply ? forgetAck(messages) : "";
@@ -823,7 +976,7 @@ async function injectMemory(db, {uid, agentId, moduleId, messages, now}) {
         asked_at: new Date(),
       });
     }
-    batch.set(u.collection("mem_injections").doc(), {
+    const log = {
       agent_id: agentId,
       module_id: moduleId,
       memory_ids: block.ids,
@@ -831,7 +984,15 @@ async function injectMemory(db, {uid, agentId, moduleId, messages, now}) {
       policy: active.policy,
       chars: block.text.length,
       created_at: new Date(),
-    });
+    };
+    if (active.cfg.layersEnabled) {
+      Object.assign(log, injectionDose(sel, block.ids, agentId), {
+        layers_enabled: true,
+        session_id: typeof sessionId === "string" && sessionId ?
+          sessionId.slice(0, 128) : null,
+      });
+    }
+    batch.set(u.collection("mem_injections").doc(), log);
     await batch.commit();
     return ack ? `${block.text}\n${ack}` : block.text;
   } catch (err) {
@@ -987,11 +1148,17 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
       return "done";
     }
 
+    // T31: with layers on, the extractor sees what injection would show
+    // this agent: its own facts and the shared layer.
+    const layers = cfg.layersEnabled;
+    const canSee = (f) => (layers ?
+      visibleInLayers(f, "fact", agentId, policy) :
+      visibleTo(f, agentId, policy));
     const existing = await u.collection("mem_facts")
         .where("status", "==", "active").get();
     const activeFacts = existing.docs
         .map((d) => ({id: d.id, ...d.data()}))
-        .filter((f) => visibleTo(f, agentId, policy));
+        .filter(canSee);
     const prompt = buildExtractionPrompt({turns, activeFacts, todayKey,
       promptName: cfg.extractionPrompt});
     rawText = await callModel(prompt);
@@ -1010,8 +1177,12 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
       excludeSafety: cfg.excludeSafetyTurns,
       safetyTurns,
       omitSensitiveSummary: cfg.omitSensitiveSummary,
+      categories: categoriesFor(cfg.extractionPrompt),
     });
     if (!v.ok) throw new Error(`schema:${v.error}`);
+    // T31: layer and source companion, written by the server only.
+    const layerFields = (layer) => (layers ?
+      {layer, sourceAgent: agentId} : {});
 
     const byId = new Map(existing.docs.map((d) => [d.id, d]));
     const stamp = now || new Date();
@@ -1032,6 +1203,7 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
         visibility: "agent",
         sensitivity: classifySensitivity("event", v.summary, false),
         source_session_id: extractionId,
+        ...layerFields("private"),
       });
     }
 
@@ -1041,7 +1213,7 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
       if (!old) {
         old = existing.docs.find((d) =>
           d.get("category") === f.category && d.get("key") === f.key &&
-          visibleTo({id: d.id, ...d.data()}, agentId, policy)) || null;
+          canSee({id: d.id, ...d.data()})) || null;
       }
       const revisions = old ? (old.get("revision_count") || 0) + 1 : 0;
       const ref = u.collection("mem_facts").doc();
@@ -1065,6 +1237,7 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
         source_session_id: extractionId,
         created_at: stamp,
         updated_at: stamp,
+        ...layerFields(layerFor(f.category, f.sensitivity)),
       });
       if (old) {
         batch.update(old.ref, {
@@ -1086,6 +1259,7 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
         asked_at: null,
         source_session_id: extractionId,
         created_at: stamp,
+        ...layerFields("private"),
       });
     }
 
@@ -1176,6 +1350,30 @@ async function forgetRelated(db, uid, turns, hit, withSummary) {
     summaries: all.length - nFacts - nFollowups};
 }
 
+/** T31: shortest deleted wording that also deletes summaries quoting it. */
+const LAYER_DELETE_MIN_CHARS = 4;
+
+/**
+ * T31: matchers for "the same thing" as a deleted item, in both layers.
+ * @param {object} item the deleted fact or follow-up
+ * @return {{fact: function(object): boolean,
+ *   followup: function(object): boolean,
+ *   summary: function(object): boolean}}
+ */
+function sameThing(item) {
+  const words = normalize(typeof item.value === "string" ? item.value :
+    item.description);
+  const key = typeof item.key === "string" ? normalize(item.key) : "";
+  const sameWords = (t) => words.length >= 2 && normalize(t) === words;
+  return {
+    fact: (x) => sameWords(x.value) || (key.length >= 2 &&
+      x.category === item.category && normalize(x.key) === key),
+    followup: (x) => sameWords(x.description),
+    summary: (x) => words.length >= LAYER_DELETE_MIN_CHARS &&
+      normalize(x.summary).includes(words),
+  };
+}
+
 /**
  * T10 deleteSummaryWithItem: when a fact or follow-up is deleted (the
  * 「我記得嘅嘢」 page), the same content goes everywhere else too, so it
@@ -1183,6 +1381,15 @@ async function forgetRelated(db, uid, turns, hit, withSummary) {
  *   - the summary of the session the item came from;
  *   - other facts / follow-ups with exactly the same wording (the model
  *     sometimes stores one sentence twice, e.g. as "event" and "living").
+ * T31 (layersEnabled): "the same thing" in either layer, from any
+ * companion, also covers (sameThing):
+ *   - facts / follow-ups whose wording matches once spaces and
+ *     punctuation are ignored;
+ *   - facts of the same category with the same key (each companion keeps
+ *     its own private copy of what it heard, e.g. health「膝頭」);
+ *   - summaries containing the deleted wording (at least
+ *     LAYER_DELETE_MIN_CHARS characters, so a bare name does not wipe
+ *     every summary that mentions it).
  * Called by the onDocumentDeleted triggers in index.js.
  * @param {object} db
  * @param {string} uid
@@ -1212,6 +1419,20 @@ async function deleteSummaryForItem(db, uid, item) {
         .where("description", "==", item.description).get()
         .then((q) => q.docs.map((d) => d.ref)));
   }
+  if (cfg.layersEnabled) {
+    reads.push(Promise.all([
+      u.collection("mem_facts").get(),
+      u.collection("mem_followups").get(),
+      u.collection("mem_summaries").get(),
+    ]).then(([facts, followups, summaries]) => {
+      const match = sameThing(item);
+      return [
+        ...facts.docs.filter((d) => match.fact(d.data())),
+        ...followups.docs.filter((d) => match.followup(d.data())),
+        ...summaries.docs.filter((d) => match.summary(d.data())),
+      ].map((d) => d.ref);
+    }));
+  }
   const refs = new Map();
   for (const list of await Promise.all(reads)) {
     for (const r of list) refs.set(r.path, r);
@@ -1234,6 +1455,15 @@ module.exports = {
   hitsSafety,
   classifySensitivity,
   visibilityFor,
+  layerFor,
+  itemLayer,
+  itemSource,
+  visibleInLayers,
+  injectionDose,
+  sameThing,
+  categoriesFor,
+  SHARED_LAYER_CATEGORIES,
+  V3_EXTRA_CATEGORIES,
   buildExtractionPrompt,
   validateExtraction,
   visibleTo,

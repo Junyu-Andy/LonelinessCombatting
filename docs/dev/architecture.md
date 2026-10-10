@@ -174,6 +174,8 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 **记忆安全、「唔好記住」、删除（T10，决策 0024）**：服务器整理记忆前，用 App 同一份安全词库（`functions/safety_lexicon.json`，从 `lib/core/safety/distress_detector.dart` 生成，`test/safety_lexicon_export_test.dart` 保证一致）查老人原话，命中的轮次不进任何一层，那次会话不写摘要；摘要不写敏感内容；老人说「唔好記住」等（`functions/memory_forget.js`），整段不记并删除相关旧条目；页面删一条，触发器连带删摘要和同样措辞的条目；`tool/delete_memory.js` 写 `memoryWithdrawnAt` 后不再记录（Phase B A 组也一样）。抽取 prompt 改为文件 `functions/prompts/memory_extraction.v2.txt`（v1 保留）。开关都在 `meta/memory_config`，修复默认开，陪伴者确认句 `forgetAckReply` 默认关。改了 App 词库要重新生成 JSON（`UPDATE_SAFETY_LEXICON=1 flutter test test/safety_lexicon_export_test.dart`）。
 
+**记忆分层（T31，决策 0035）**：开关 `meta/memory_config.layersEnabled` 默认关。打开后，服务器写每条记忆的 `layer`（`shared` / `private`）和 `sourceAgent`：称呼、家人、居住、作息、兴趣、喜好归共享层，三位陪伴者都能用；健康、重要事件、心事、回忆、哀伤，以及所有摘要和待跟进归私有层，只给听到的那位；判为敏感的一律私有（`functions/memory.js` `layerFor`、`itemLayer`、`visibleInLayers`）。没有 `layer` 的旧条目读取时按同样规则推算。老人关了共享同意时仍什么都不共享。`mem_injections` 多记 `layer_counts`（共享、私有各几条）、`source_agents`（各来自哪位）、`session_id`（App 在 `proxyDeepSeek` 里传 `sessionId` 时）。设置里删一条时（`deleteSummaryForItem`），另删措辞去掉标点后相同的条目、同类目同标题的事实、原文含这条内容（≥4 字）的摘要。抽取 prompt v3（`memory_extraction.v3.txt`，多 `feeling`、`story`、`grief` 三类）可用 `extractionPrompt` 选，默认仍是 v2。App「我記得嘅嘢」顶部的 S7 说明由 `app_config/feature_flags.memoryLayersNoticeEnabled` 控制，默认关。
+
 **v1 生效需要服务器开关**：Firestore `meta/memory_config` = `{enabled: true, policy: "C", phaseBArmA: true}`。没有这个文档时 v1 不工作；而 App 对 Phase B A 组已经不再做 v0 摘要，所以**这时 A 组两套记忆都没有**。上线时这个文档必须写。
 
 ## 8. 数据：Firestore 里有什么
@@ -192,8 +194,8 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | `memory/{moduleId}/entries` | 各模块的会话摘要（回忆、反思、社交建议、行动计划） | App |
 | `shared_context` | 三个陪伴者共用：最近情绪、安全标记、行动计划 | App |
 | `agent_greetings` | 每天预生成的个性化开场白（只 A 组） | App |
-| `mem_facts` / `mem_summaries` / `mem_followups` | v1 记忆 | 服务器；App 只能读、删、确认 |
-| `mem_injections` / `mem_extractions` | v1 注入日志、抽取记录 | 服务器；App 不能读 |
+| `mem_facts` / `mem_summaries` / `mem_followups` | v1 记忆；T31 开关打开后带 `layer`、`sourceAgent` | 服务器；App 只能读、删、确认 |
+| `mem_injections` / `mem_extractions` | v1 注入日志（T31：分层剂量、会话编号）、抽取记录 | 服务器；App 不能读 |
 | `action_plans`、`thought_records`、`reminders`、`fcm_tokens` 等 | 各功能自己的数据。`reminders` 由 App 写入，服务器 `dispatchReminders` 发送后写回 `delivered`、`dispatchStatus` 等 | App；发送状态由服务器写 |
 
 **全局**
@@ -204,7 +206,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 |---|---|
 | `app_config/arm_assignment` | 已停用（T19）。以前是 `{randomise: bool}` 最小化分配开关 |
 | `app_config/reminders` | `{m7FollowupPushEnabled: bool}`：行动计划提醒发不发，默认关（决策 0022） |
-| `app_config/feature_flags` | 搜一搜、语音、通通固定回应三个开关（第 12 节）。没有这份文档 = 全关 |
+| `app_config/feature_flags` | 搜一搜、语音、通通固定回应、记忆分层说明（T31）四个开关（第 12 节）。没有这份文档 = 全关 |
 | `app_config/usage_copy` | 提到使用频率的 7 处文字（决策 0028，键名见 `lib/core/config/usage_copy.dart`）。没有文档、字段为空或带【占位】= 显示原文；两组相同；客户端只读 |
 | `app_config/phase_b` | **只属于 Phase B** 的参数（`PhaseBConfig`，服务器 `functions/djg_w2.js` 也读）：`djgW2InAppEnabled`（默认关）、`djgW2DayOffset`（14）、`djgW2WindowDays`（7）、`djgW2PushHour`（10）、`djgW2ReminderHours`（24）。不建 = 关 |
 | `app_config/phaseA_schedule` | **只属于 Phase A**：`adaEnabled`、`adaAllowSkip`、`adaTimepoints`、`day7OpenEndedEnabled`、`day7OpenEndedDayFrom`、`day7OpenEndedDayTo`、`day7OpenEndedAllowSkip`（第 6.1 节）。没有这份文档 = 都关。Phase B 包不读 |
@@ -215,7 +217,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `enrollments/{uid}` | T19 登记记录：研究编号、W0 情感分、层、阿珍/阿伯、W0 日期、组别、序列位置、`studyPeriod`、登记时间和研究员。客户端不能读写 |
 | `arm_assignment_log` | T19 分配日志：`allocate` / `resubmit` / `correction`，研究编号、层、序列位置、组别、时间、操作人；更正带理由和原组别。客户端不能读写 |
 | `llm_denied_log` | T19：规则组调用 LLM 接口被拒的记录（uid、接口、时间）。客户端不能读写 |
-| `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开 |
+| `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开、T10 修复开关、抽取 prompt 版本、记忆分层 `layersEnabled`（T31） |
 | `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列（T19 起 `pi_alerts` 只有 uid、研究编号、级别、`dedupKey`、`isTester`、`eventPath`、时间）。事件字段：`source`（user_input / ai_output_scan / form）、`inputPoint`、`turnId`、级别、命中词、文字的哈希；服务器补 `dedup_key`、`isDuplicate`、`duplicateOf`、`escalatedBy`。分析只数 `isDuplicate == false`（决策 0018） |
 | `hotline_filter_log` | Hybrid 组 AI 回复里被替换的电话号码：时间、uid、模块、个数、种类、是否在批准清单里。不存原文和号码。只有服务器写 |
 | `meta/safety_config` | 热线规则和热线过滤的开关（`hotlinePromptRule`、`hotlineOutputFilter`），没有这个文档 = 都开。T8 分类器：`classifierEnabled`（默认关）、`classifierUrl`、`classifierTimeoutMs`、`classifierMaxChars` |

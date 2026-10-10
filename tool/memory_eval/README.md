@@ -50,6 +50,16 @@ NODE_USE_ENV_PROXY=1 firebase emulators:exec --only firestore --project demo-t4m
 node tool/memory_eval/score.js --run=t10_run5 --review-summaries
 ```
 
+## T31 抽取 prompt v3 分层（2026-10-10）
+
+- 脚本 `run_v3_layers.js`：用 v3 跑 30 段一次，按服务器规则（`functions/memory.js` `layerFor`）列出每条事实进共享层还是私有层。不经 Firestore，每段从空记忆开始；「唔好記住」的段落不调用模型。
+- 结果 `results/t31_v3_run1/`（`layers.md` 逐条，`raw.json` 原始输出）；调用次数记在 `results/ledger_t31.json`（每段上限 3 次）。`--mode=replay` 用录下的输出重算，不联网。报告 `docs/dev-reports/T31-memory-layers-20261010.md`。
+
+```bash
+NODE_USE_ENV_PROXY=1 node tool/memory_eval/run_v3_layers.js --run=t31_v3_run1
+node tool/memory_eval/run_v3_layers.js --run=t31_v3_run1 --mode=replay
+```
+
 ## 不进 CI 的原因
 
 它会真实调用 DeepSeek，而且有一部分要人工判定。不需要模型的那几项（规则组零抽取零注入、分层共享不泄露、删除后不注入、香港日期）另写成 `functions/test/memory_acceptance_emulator_test.js`，CI 会跑。

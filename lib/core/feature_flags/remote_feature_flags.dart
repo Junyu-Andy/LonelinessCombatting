@@ -18,6 +18,10 @@
 ///                               line ([TungTungSearchIntent]).  The line
 ///                               is a placeholder until the research team
 ///                               signs it off.
+///   - [memoryLayersNoticeEnabled] — T31 (decision 0035): the S7 notice
+///                               about shared / private memory at the top
+///                               of 「我記得嘅嘢」.  Switch on together with
+///                               `meta/memory_config.layersEnabled`.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -30,11 +34,13 @@ class RemoteFeatureFlags {
     this.webSearchEnabled = false,
     this.voiceInputEnabled = false,
     this.searchOffReplyEnabled = false,
+    this.memoryLayersNoticeEnabled = false,
   });
 
   final bool webSearchEnabled;
   final bool voiceInputEnabled;
   final bool searchOffReplyEnabled;
+  final bool memoryLayersNoticeEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -70,5 +76,6 @@ class RemoteFeatureFlags {
         webSearchEnabled: map['webSearchEnabled'] == true,
         voiceInputEnabled: map['voiceInputEnabled'] == true,
         searchOffReplyEnabled: map['searchOffReplyEnabled'] == true,
+        memoryLayersNoticeEnabled: map['memoryLayersNoticeEnabled'] == true,
       );
 }

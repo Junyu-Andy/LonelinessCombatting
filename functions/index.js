@@ -395,6 +395,9 @@ exports.proxyDeepSeek = onCall(
       agentId,
       moduleId,
       messages,
+      // T31: logged with the memory dose when layers are on (T25 sends it).
+      sessionId: typeof payload.sessionId === "string" ?
+        payload.sessionId : null,
     });
     if (memoryBlock) {
       systemPrompt = `${systemPrompt}\n\n${stripPII(memoryBlock)}`;
