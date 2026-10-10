@@ -276,9 +276,9 @@ _AgentPalette _paletteFor(String agentId) {
     case AgentRegistry.ahJanAhBakId:
       return const _AgentPalette(
         initial: '珍',
-        initialColor: Color(0xFF3C3489),
-        halo: Color(0xFFEEEDFE),
-        ring: Color(0xFFB3ACDE),
+        initialColor: Color(0xFF6A3A78),
+        halo: Color(0xFFF6EEF8),
+        ring: Color(0xFFC9A9D4),
       );
     case AgentRegistry.tungTungId:
       return const _AgentPalette(

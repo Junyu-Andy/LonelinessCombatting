@@ -1,44 +1,49 @@
-# Illustration MVP brief
+# 插图清单
 
-Goal: a small, **drop-in static pool** that warms up the app without any
-runtime LLM image generation. Generate once (Midjourney / DALL·E /
-Firefly / human illustrator), drop the PNG/WebP into `assets/images/`,
-swap the placeholder in code. No backend needed.
+**结论**：三位陪伴者的形象已经定稿并在用（见下面第 1 部分），是圆头机械人，不是真人。第 2–5 部分（首页、入门、文章、心情脸）还没有图，只是出图要求。
 
-## Style guide (prepend to every prompt)
+## 第 1 部分：陪伴者形象（已在用）
+
+四个角色、每个两张图，放在 `assets/agents/`。阿珍和阿伯是同一个陪伴者，老人选了哪个就只看到哪个。
+
+| 角色 | 定位 | 形象 | 主题色（代码） | 图片 |
+|---|---|---|---|---|
+| 小欣 | 日常陪伴 | 珊瑚橙色机械人；天线顶是一颗心，胸口心形；双手捧一杯花纹茶杯；大眼睛、笑 | 珊瑚 `#F0997B` | `siu_yan_avatar.png`、`siu_yan_fullbody.png` |
+| 阿珍 | 听你讲往事（女版） | 藕紫色身体，耳朵和胸口淡粉；胸前小花刺绣；拿一把淡粉折扇；天线是扇形；眼神温和、微微侧头 | 藕紫 `#C4A3CE` | `ah_jan_avatar.png`、`ah_jan_fullbody.png` |
+| 阿伯 | 听你讲往事（男版） | 灰紫色身体，方形脸屏；一手拿笔、一手拿笔记本；天线像一卷书轴；表情沉稳 | 藕紫 `#C4A3CE` | `ah_bak_avatar.png`、`ah_bak_fullbody.png` |
+| 通通 | 好奇的街坊 | 薄荷绿身体配黄边；天线顶是一本打开的书；一手放大镜、一手拿书；胸口灯泡和问号；张嘴笑 | 薄荷 `#5DCAA5` | `tung_tung_avatar.png`、`tung_tung_fullbody.png` |
+
+**在哪里用**
+
+- 头像（`*_avatar.png`）：首页卡片、聊天页、入门介绍、第一次自我介绍、转介卡片、每周问卷、ADA。代码在 `lib/core/agents/agent_avatar.dart`（`AgentAvatar`）和 `lib/features/ada/presentation/ada_widgets.dart`，路径登记在 `lib/core/agents/agent_registry.dart`。
+- 全身图（`*_fullbody.png`）：陪伴者介绍页顶部。路径在 `lib/features/agent_profile/data/agent_profile_content.dart`。
+- 图片找不到时，头像显示主题色圆圈加名字第一个字。
+
+**图片规格**
+
+- 1254×1254 正方形 PNG，**透明背景**（RGBA）。2026-10-10 起：原图把灰白格子画在了图里（并不透明），已用 `tool/assets/remove_checker_background.py` 去掉。
+- 换新图时直接覆盖同名文件，必须是真正的透明背景，不要带格子或白底。放到深色和橙色底上各看一次，边缘不能有白边。
+- 头像会被裁成圆形（`BoxFit.cover`），所以头和上半身要在画面中间。
+
+**颜色**
+
+- 2026-10-10 起阿珍、阿伯改成紫色系（决策 0031），原来阿珍是薄荷绿、阿伯是灰蓝，和通通撞色。只改了色相，深浅不变，用的是 `tool/assets/recolor_hue.py`。
+- 以后重画或调色：通通保持绿色，阿珍/阿伯保持紫色系，**不要把颜色调浅**（调浅后胸口和扇子像半透明）。
+- 改了图的颜色，代码里的主题色也要一起改：`agent_registry.dart`、`agent_profile_content.dart`、`agent_tile_row.dart`、`continue_chat_card.dart`。
+
+---
+
+## 第 2–5 部分：未做的插图（出图要求，英文原稿）
+
+下面是早期写的出图要求，还没有做。风格要求：
 
 > Soft, warm, gentle illustration for a Hong Kong elderly-friendly
 > wellbeing app. Warm earth tones — terracotta, sand, cream, dusty rose,
 > sage. Hand-drawn watercolour or soft flat-shaded style. No embedded
 > text. No identifiable faces unless specified. Calm and unhurried.
 
-Target palette (matches the new app theme tokens):
-- Primary terracotta `#C2703F`
-- Warm off-white `#F7F5F1`
-- Warm ink `#3A3330`
-- Agent rings: `#E0A98E` (Siu Yan) · `#B3ACDE` (Ah Jan/Ah Bak) · `#7FCBAE` (Tung Tung)
-
-Export at **2× display size** so retina/HiDPI looks crisp.
-
----
-
-## Tier 1 — Agent personas (highest impact, 6 images)
-
-The three companions need illustrated avatars instead of the current
-icon-in-circle. Two variants for Ah Jan/Ah Bak (gender choice in
-onboarding). Drop into `assets/images/agents/`.
-
-| Path | Agent | Prompt |
-|---|---|---|
-| `agents/siu_yan.png` | 小欣 (Siu Yan) — daily check-in confidante | Round portrait, kind young-adult Hong Kong woman with a soft warm smile, terracotta blouse, neutral sand-cream background, watercolour. 512×512, square. |
-| `agents/ah_jan.png` | 阿珍 — reminiscence partner (female variant) | Round portrait, warm middle-aged Hong Kong auntie with short permed hair and reading glasses, light lavender blouse, dusty rose background, watercolour. 512×512, square. |
-| `agents/ah_bak.png` | 阿伯 — reminiscence partner (male variant) | Round portrait, warm middle-aged Hong Kong uncle with greying hair and gentle eyes, slate-grey collared shirt, dusty rose background, watercolour. 512×512, square. |
-| `agents/tung_tung.png` | 通通 — curious companion | Round portrait, friendly mascot-style character (animal or stylised) in sage green, big curious eyes, holding a small notebook or a tea cup, cream background, watercolour. 512×512, square. |
-| `agents/siu_yan_listening.png` | Siu Yan reaction — listening | Same character/style as `siu_yan.png`, slight head tilt, hand to chin, attentive expression. |
-| `agents/tung_tung_thinking.png` | Tung Tung reaction — thinking | Same character/style as `tung_tung.png`, finger to lip, looking up, thought-bubble feel. |
-
-**Swap location:** `lib/core/agents/agent_avatar.dart` — replace the
-`Icon(...)` fallback in `AgentAvatar` with `Image.asset('assets/images/agents/${agent.id}.png', fit: BoxFit.cover)`. (Reaction variants are used by the chat bubble code, optional v2.)
+Target palette: primary terracotta `#C2703F`, warm off-white `#F7F5F1`,
+warm ink `#3A3330`. Export at **2× display size**.
 
 ---
 
@@ -134,6 +139,5 @@ for visual consistency. Drop into `assets/images/mood/`.
 
 ## Priority order for MVP
 
-If budget / time is limited, do **Tier 1 (agent personas)** first — that
-alone transforms how the app feels. Then Tier 2 (hero). Tier 3-5 are
+Tier 1 (agent personas) is done (see 第 1 部分). Next: Tier 2 (hero). Tier 3-5 are
 polish.
