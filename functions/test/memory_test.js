@@ -567,5 +567,156 @@ test("T10 confirmation reply: off by default and never a draft", () => {
   assert.strictEqual(m.forgetAck([{role: "user", content: "你好"}]), "");
 });
 
+// ------------------------------------------------- T31 (decision 0034)
+test("T31 layers: switch off unless true", () => {
+  assert.strictEqual(m.t10Flags({}).layersEnabled, false);
+  assert.strictEqual(m.t10Flags({layersEnabled: "yes"}).layersEnabled, false);
+  assert.strictEqual(m.t10Flags({layersEnabled: true}).layersEnabled, true);
+});
+
+test("T31 layers: category → layer, sensitive is always private", () => {
+  for (const c of ["name", "family", "living", "routine", "hobby",
+    "preference"]) {
+    assert.strictEqual(m.layerFor(c, "normal"), "shared", c);
+    assert.strictEqual(m.layerFor(c, "sensitive"), "private", c);
+  }
+  for (const c of ["health", "event", "feeling", "story", "grief"]) {
+    assert.strictEqual(m.layerFor(c, "normal"), "private", c);
+  }
+});
+
+test("T31 layers: items without a layer get it from the rule", () => {
+  assert.strictEqual(m.itemLayer({category: "hobby",
+    sensitivity: "normal"}, "fact"), "shared");
+  assert.strictEqual(m.itemLayer({category: "event"}, "fact"), "private");
+  // A stored layer never makes a sensitive fact shared.
+  assert.strictEqual(m.itemLayer({category: "family", layer: "shared",
+    sensitivity: "sensitive"}, "fact"), "private");
+  assert.strictEqual(m.itemLayer({layer: "shared"}, "summary"), "private");
+  assert.strictEqual(m.itemLayer({layer: "shared"}, "followup"), "private");
+  assert.strictEqual(m.itemSource({agent_id: "siu_yan"}), "siu_yan");
+  assert.strictEqual(m.itemSource({agent_id: "siu_yan",
+    sourceAgent: "tung_tung"}), "tung_tung");
+});
+
+const LAYER_MEM = {
+  facts: [
+    {id: "name", agent_id: "siu_yan", category: "name", key: "稱呼",
+      value: "陳太", sensitivity: "normal", status: "active",
+      visibility: "shared"},
+    {id: "hobby", agent_id: "siu_yan", category: "hobby", key: "飲茶",
+      value: "鍾意飲早茶", sensitivity: "normal", status: "active"},
+    {id: "routine", agent_id: "siu_yan", category: "routine", key: "晨運",
+      value: "朝早去公園", sensitivity: "normal", status: "active",
+      layer: "shared", sourceAgent: "siu_yan"},
+    {id: "health", agent_id: "siu_yan", category: "health", key: "膝頭",
+      value: "膝頭痛", sensitivity: "sensitive", status: "active"},
+    {id: "story", agent_id: "siu_yan", category: "story", key: "舊時",
+      value: "後生喺工廠做", sensitivity: "normal", status: "active"},
+    {id: "fam_sens", agent_id: "siu_yan", category: "family", key: "個仔",
+      value: "同個仔嗌交", sensitivity: "sensitive", status: "active"},
+  ],
+  summaries: [{id: "s1", agent_id: "siu_yan", summary: "飲早茶",
+    day_key: "2026-09-28", sensitivity: "normal"}],
+  followups: [{id: "fu", agent_id: "siu_yan", description: "去飲宴",
+    due_date: TODAY, status: "pending", sensitivity: "normal"}],
+};
+const layerIds = (sel) =>
+  [...sel.followups, ...sel.facts, ...sel.sensitiveFacts].map((x) => x.id)
+      .concat(...sel.summaryDays.map((d) => d.ids)).sort();
+
+test("T31 layers: other companions get the shared layer only", () => {
+  const sel = m.selectForInjection(LAYER_MEM, {agentId: "ah_jan_ah_bak",
+    policy: "C", todayKey: TODAY, sessionStart: true, layers: true});
+  assert.deepStrictEqual(layerIds(sel), ["hobby", "name", "routine"]);
+  // Policy A does not open the private layer once layers are on.
+  const a = m.selectForInjection(LAYER_MEM, {agentId: "tung_tung",
+    policy: "A", todayKey: TODAY, sessionStart: true, layers: true});
+  assert.deepStrictEqual(layerIds(a), ["hobby", "name", "routine"]);
+});
+
+test("T31 layers: the companion who heard it gets everything", () => {
+  const sel = m.selectForInjection(LAYER_MEM, {agentId: "siu_yan",
+    policy: "C", todayKey: TODAY, sessionStart: true, layers: true});
+  assert.deepStrictEqual(layerIds(sel), ["fam_sens", "fu", "health", "hobby",
+    "name", "routine", "s1", "story"]);
+});
+
+test("T31 layers: consent off (policy B) shares nothing", () => {
+  const sel = m.selectForInjection(LAYER_MEM, {agentId: "tung_tung",
+    policy: "B", todayKey: TODAY, sessionStart: true, layers: true});
+  assert.deepStrictEqual(layerIds(sel), []);
+});
+
+test("T31 layers off: the old policy C rule (name/family/living)", () => {
+  const sel = m.selectForInjection(LAYER_MEM, {agentId: "tung_tung",
+    policy: "C", todayKey: TODAY, sessionStart: true});
+  assert.deepStrictEqual(layerIds(sel), ["name"]);
+});
+
+test("T31 dose: shared / private counts and source companions", () => {
+  const sel = m.selectForInjection(LAYER_MEM, {agentId: "siu_yan",
+    policy: "C", todayKey: TODAY, sessionStart: true, layers: true});
+  const block = m.renderMemoryBlock(sel);
+  const dose = m.injectionDose(sel, block.ids, "siu_yan");
+  assert.deepStrictEqual(dose.layer_counts, {shared: 3, private: 5});
+  assert.deepStrictEqual(dose.source_agents,
+      {shared: {siu_yan: 3}, private: {siu_yan: 5}});
+  const other = m.selectForInjection(LAYER_MEM, {agentId: "tung_tung",
+    policy: "C", todayKey: TODAY, sessionStart: true, layers: true});
+  const d2 = m.injectionDose(other, m.renderMemoryBlock(other).ids,
+      "tung_tung");
+  assert.deepStrictEqual(d2.layer_counts, {shared: 3, private: 0});
+  assert.deepStrictEqual(d2.source_agents.shared, {siu_yan: 3});
+  // Only what survived trimming is counted.
+  assert.deepStrictEqual(m.injectionDose(sel, ["name"], "siu_yan")
+      .layer_counts, {shared: 1, private: 0});
+});
+
+test("T31 prompt v3: own categories; v2 unchanged", () => {
+  const v3 = m.buildExtractionPrompt({turns, activeFacts: [],
+    todayKey: TODAY, promptName: "memory_extraction.v3"}).system;
+  assert.ok(v3.includes(m.categoriesFor("memory_extraction.v3").join(", ")));
+  for (const w of ["feeling", "story", "grief", "共享", "私有",
+    "safety_concern"]) {
+    assert.ok(v3.includes(w), w);
+  }
+  assert.ok(!v3.includes("{{"));
+  const v2 = m.buildExtractionPrompt({turns, activeFacts: [],
+    todayKey: TODAY}).system;
+  assert.ok(v2.includes(`category 只可以用：${m.CATEGORIES.join(", ")}。`));
+  assert.ok(!v2.includes("grief"));
+  assert.deepStrictEqual(m.categoriesFor("memory_extraction.v2"),
+      m.CATEGORIES);
+  // v3 is selectable but not the default.
+  assert.strictEqual(m.t10Flags({extractionPrompt: "memory_extraction.v3"})
+      .extractionPrompt, "memory_extraction.v3");
+});
+
+test("T31 validation: v3 categories only when allowed", () => {
+  const raw = {summary: "", facts: [{op: "add", category: "story",
+    key: "工廠", value: "後生喺工廠做", quote: "我鍾意飲早茶"}]};
+  assert.strictEqual(m.validateExtraction(raw, ctx).error, "fact_category");
+  const v = m.validateExtraction(raw,
+      {...ctx, categories: m.categoriesFor("memory_extraction.v3")});
+  assert.ok(v.ok);
+  assert.strictEqual(v.facts[0].category, "story");
+});
+
+test("T31 same thing: wording, same key, summaries quoting it", () => {
+  const match = m.sameThing({category: "health", key: "膝頭",
+    value: "膝頭痛"});
+  assert.ok(match.fact({category: "health", key: "膝頭", value: "好痛"}));
+  assert.ok(match.fact({category: "event", key: "x", value: "膝頭 痛！"}));
+  assert.ok(!match.fact({category: "family", key: "膝頭", value: "x"}));
+  // Three characters: too short to match inside a summary.
+  assert.ok(!match.summary({summary: "講起膝頭痛"}));
+  const long = m.sameThing({category: "hobby", key: "飲茶",
+    value: "鍾意飲早茶"});
+  assert.ok(long.summary({summary: "陳太講起鍾意飲早茶。"}));
+  assert.ok(m.sameThing({description: "去飲宴"})
+      .followup({description: "去飲宴。"}));
+});
+
 console.log(`\n${passed} passed, ${failures.length} failed.`);
 if (failures.length) process.exit(1);
