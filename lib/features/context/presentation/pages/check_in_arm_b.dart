@@ -248,7 +248,8 @@ class _CheckInArmBState extends State<CheckInArmB> {
         mood: face.rank,
         analytics: analytics,
       );
-      ruleReply = entry == null ? null : (isEn ? entry.en : entry.zh);
+      // T33 — final copy is Cantonese only; English UI shows it too.
+      ruleReply = entry?.zh;
       if (!mounted) return;
     }
     if (!mounted) return;

@@ -12,23 +12,23 @@ class RuleReplyService {
   final RuleReplyHistoryStore store;
   const RuleReplyService({required this.store});
 
-  /// The next reply for [agentId] × [theme] × [mood] (1..5, or null when
-  /// no mood was picked).  Records it in the user's recent list and logs
-  /// `rule_template_reply`.  Null only when the sub-pool is empty.
+  /// The next reply for [agentId] × [mood] (1..5, or null when no mood was
+  /// picked).  [grief] (reminiscence text that hit `moderate_review`)
+  /// ignores the mood and uses the Z5 group (T33).  [theme] is logged
+  /// only; since T33 the pool has no theme dimension.  Records the reply
+  /// in the user's recent list and logs `rule_template_reply`.  Null only
+  /// when the sub-pool is empty.
   Future<RuleReplyEntry?> next({
     required String? uid,
     required String agentId,
     required String moduleId,
     required String theme,
     required int? mood,
+    bool grief = false,
     AnalyticsService? analytics,
   }) async {
-    final band = RuleReplyPool.bandFor(mood);
-    final pool = RuleReplyPool.subPool(
-      agent: agentId,
-      theme: theme,
-      band: band,
-    );
+    final band = grief ? RuleReplyPool.bandGrief : RuleReplyPool.bandFor(mood);
+    final pool = RuleReplyPool.subPool(agent: agentId, band: band);
     final recent = await store.recent(uid: uid, agentId: agentId);
     final entry = RuleReplyPicker.pick(pool, recent);
     if (entry == null) return null;

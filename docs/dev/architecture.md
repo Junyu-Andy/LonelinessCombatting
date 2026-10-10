@@ -57,7 +57,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | 模块 | Hybrid 组（A） | 规则组（B） |
 |---|---|---|
 | M2 小欣签到 | LLM 对话 + 记忆 | 心情脸 + 3 道选择题 + 一段文字（`check_in_arm_b.dart`）；开关 `RULE_TEMPLATE_REPLIES` 开时，提交后按心情给一条模板回应（决策 0023，默认关） |
-| M3 阿珍/阿伯回忆 | LLM 对话 + 周摘要 | 固定主题开场 + 一个输入框（`reminiscence_arm_b_page.dart`）；开关开时多一个选填心情脸，提交后按心情 × 每周主题给一条模板回应（决策 0023，默认关） |
+| M3 阿珍/阿伯回忆 | LLM 对话 + 周摘要 | 固定主题开场 + 一个输入框（`reminiscence_arm_b_page.dart`）；开关开时多一个选填心情脸，提交后按五档心情给一条模板回应，哀伤内容用 Z5（决策 0023、0032，默认关） |
 | 阿珍/阿伯自由对话 | LLM | **入口隐藏**（决策 0006） |
 | 通通 | LLM 闲聊 + 文章问答（网络搜索默认关，决策 0019） | 同一页面，开场题库每天换一条，回应按 10 类话题从模板选（`tung_tung_rule_responder.dart`，决策 0005） |
 | M5 反思 | 按上下文生成题目 | 固定题库轮换 |
@@ -126,7 +126,9 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 **B 组**：同样的页面外壳，第 2 步一样（同一个 `SafetyService`）；第 3 步换成本地规则选模板，`turns` 里标 `llmStatus: rule_based`。不调 LLM，不写记忆。
 
-**B 组签到、回忆的模板回应**（决策 0023，开关 `RULE_TEMPLATE_REPLIES`，默认关）：提交时先做安全检测；命中 moderate 或 acute 不给模板，走原来的安全流程；没命中就从 `lib/features/rule_replies/data/rule_reply_pool.dart` 按「陪伴者 × 主题 × 心情档」选一条，近 3 次不重复（记录在 `users/{uid}/rule_reply_history/{agentId}`），写进 `turns` 的回复，并记分析事件 `rule_template_reply`。模板现在都是【占位】文字；有占位文字时，即使开了开关也不生效，除非另加 `RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true`（只用于截图和测试）。
+**B 组签到、回忆的模板回应**（决策 0023、0032，开关 `RULE_TEMPLATE_REPLIES`，默认关）：提交时先做安全检测。没命中：从 `lib/features/rule_replies/data/rule_reply_pool.dart` 按「陪伴者 × 心情档（五档）」选一条，回忆没选心情用 G-1。回忆命中 `moderate_review`（哀伤、旧日艰难）：不看心情，从 Z5 选，同时照常走安全流程。命中 `moderate_interrupt`、`acute`（签到还有 `moderate_review`）：不给模板，只走安全流程。近 3 次不重复（记录在 `users/{uid}/rule_reply_history/{agentId}`），写进 `turns` 的回复，记分析事件 `rule_template_reply`（`template_id` 用定稿编号 X1-1 … G-1）。41 条文字照抄 `docs/spec/copy/rule-templates.md`（`test/final_copy_test.dart` 逐字比对）。有疑似错字待确认的条目带 `pending`；只要还有一条，开关打开也不生效，除非另加 `RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true`（只用于截图和测试）。
+
+**定稿短文字**（T33，`docs/spec/copy/short-texts.md`）：S1a 通通固定回应（`tung_tung_search_intent.dart`）、S3 人生點滴入口（`reminiscence_landing.dart`）、S4a 行动计划提醒推送正文（`functions/reminders.js`）、S2「唔好記住」确认句（`functions/prompts/memory_forget_ack.v2.txt`；文件带「待研究側確認用字」标记时服务器不用）。开关都没变。
 
 ## 6. 会话和 Brief PR
 
@@ -298,8 +300,8 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `--dart-define=MEMORY_V1=true` | 测试人员可在设置里自愿开启记忆 v1 |
 | `--dart-define=TESTER_PIN=…` | 解锁测试工具（日程模拟器、测试推送） |
 | `--dart-define=WEEKLY_PROBE=true` | 显示周度孤独感问卷 |
-| `--dart-define=RULE_TEMPLATE_REPLIES=true` | 规则组签到、回忆提交后给模板回应（决策 0023）。模板还有占位文字时不生效 |
-| `--dart-define=RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true` | 允许用占位模板，只用于截图和测试，**不能用于发布** |
+| `--dart-define=RULE_TEMPLATE_REPLIES=true` | 规则组签到、回忆提交后给模板回应（决策 0023、0032）。模板还有占位文字或待确认的字时不生效 |
+| `--dart-define=RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true` | 允许用占位或待确认的模板，只用于截图和测试，**不能用于发布** |
 | `--dart-define=LEGACY_AGENT_DIFF_PHASE_B=true` | Phase B 包里恢复旧的“陪伴者区分评估”（第 6.1 节）。默认关（登记表 v2 C15） |
 
 运行时开关（不用重新编译）：`app_config/phase_a` 的 `safetyScanAllInputs`（新增输入点的安全检测）、`hotlineFilterClient`（App 端号码过滤），默认都开；服务器的 `meta/safety_config` 见第 8 节。

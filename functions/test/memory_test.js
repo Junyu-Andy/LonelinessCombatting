@@ -562,7 +562,8 @@ test("T10 scope: withdrawal stops memory, Phase B Arm A included", () => {
 
 test("T10 confirmation reply: off by default and never a draft", () => {
   const msgs = [{role: "user", content: "你唔好記住呢件事呀"}];
-  // The shipped file still holds the draft mark, so nothing is added.
+  // The shipped file still holds a draft / pending mark (T33), so nothing
+  // is added.
   assert.strictEqual(m.forgetAck(msgs), "");
   assert.strictEqual(m.forgetAck([{role: "user", content: "你好"}]), "");
 });
