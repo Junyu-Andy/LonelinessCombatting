@@ -19,6 +19,14 @@
 6. **开关不变**：两个开关都默认关，没有新开关。
 7. 决策 0033 还没合并，本次在同一份里补了第 7 条"两期和试跑也一样"，标题和影响范围跟着改；0025 没动。
 
+### 给 T34（告警邮件）：`safety_events` 的分类器字段没有改名
+
+T26 没有改 `safety_events` 的任何字段（`lib/core/safety/safety_event_writer.dart`）。判断"LoRA 是否参与判定"可用：
+- `detector`：`lexicon`（只有词库）/ `classifier`（只有分类器给出这个级别）/ `both`（两边级别相同）；开关关着时没有这个字段。
+- `classifierStatus`（`ok` / `timeout` / `error` / `disabled` 等）、`classifierLevel`、`classifierScore`、`classifierVersion`：问过分类器才有。
+
+（另：10/10 产品窗口第 10 条 Phase A 暂停，决策 0034 在 PR #55 草稿里。本 PR 写的"Phase A 也用"不影响：Phase A 恢复时照样同一套。）
+
 ### 两期不一样的地方（本次没改）
 
 - **研究员电话代填的 ADA 和第 7 日开放题**（只有 Phase A 有）：文字在服务器上只查词库（`functions/ada.js` `lexicon.analyze`），不问分类器。老人自己填的那条路径会问。记 backlog 87。
