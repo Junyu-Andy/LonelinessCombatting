@@ -142,10 +142,12 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
         userEdited: false,
       );
     }
-    // Decision 0023 — template reply only for a safe submission; a safety
-    // hit gets no reply and runs the safety flow below as before.
+    // Decision 0023 / T33 — a safe submission gets a mood template; a
+    // moderate_review hit (grief / past hardship) gets a Z5 template; any
+    // other safety hit gets no reply and runs the safety flow below.
+    final route = ruleReplyRoute(distress, griefTemplates: true);
     String? ruleReply;
-    if (ruleReplies && allowsTemplateReply(distress)) {
+    if (ruleReplies && route != RuleReplyRoute.none) {
       final entry = await RuleReplyService(
         store: widget.replyHistory ??
             FirestoreRuleReplyHistoryStore(available: auth.available),
@@ -155,13 +157,11 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
         moduleId: 'm3_reminiscence_w${widget.theme.weekIndex}',
         theme: RuleReplyPool.themeForWeek(widget.theme.weekIndex),
         mood: _face?.rank,
+        grief: route == RuleReplyRoute.grief,
         analytics: analytics,
       );
-      if (entry != null) {
-        final isEn = mounted &&
-            Localizations.localeOf(context).languageCode == 'en';
-        ruleReply = isEn ? entry.en : entry.zh;
-      }
+      // T33 — final copy is Cantonese only; English UI shows it too.
+      ruleReply = entry?.zh;
     }
     // Decision 0015 — the saved memory is one agent session, like a chat.
     final rec = await RuleSubmissionFlow.record(

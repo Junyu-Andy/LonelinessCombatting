@@ -173,9 +173,10 @@ void main() {
       }
     });
 
-    test('reply is a placeholder until the research team signs it off', () {
-      expect(TungTungSearchIntent.reply(isEn: false), contains('占位'));
-      expect(TungTungSearchIntent.reply(isEn: true), contains('PLACEHOLDER'));
+    // T33 — the final text S1a; verbatim check in final_copy_test.dart.
+    test('reply is the final S1a text, no placeholder left', () {
+      expect(TungTungSearchIntent.reply(isEn: false), isNot(contains('占位')));
+      expect(TungTungSearchIntent.reply(isEn: true), isNot(contains('PLACEHOLDER')));
     });
   });
 

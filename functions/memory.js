@@ -127,7 +127,8 @@ const COMPANION_NAMES = ["陪伴者", "小欣", "阿珍", "阿伯", "通通"];
 /** Extraction prompt files (functions/prompts/<name>.txt). */
 const EXTRACTION_PROMPTS = ["memory_extraction.v1", "memory_extraction.v2"];
 const DEFAULT_EXTRACTION_PROMPT = "memory_extraction.v2";
-const FORGET_ACK_PROMPT = "memory_forget_ack.v1";
+/** T33: v2 carries the final text S2 (docs/spec/copy/short-texts.md). */
+const FORGET_ACK_PROMPT = "memory_forget_ack.v2";
 /** A prompt file still holding this is a draft and is never used. */
 const DRAFT_MARK = "【待研究側定稿】";
 
@@ -763,9 +764,8 @@ async function loadMemory(db, uid) {
 
 /**
  * forgetAckReply (default off): when the user's latest message asks the
- * companion not to remember, a one-line instruction to confirm it. The
- * wording is a draft for the research team; a file still holding
- * DRAFT_MARK is never used.
+ * companion not to remember, a one-line instruction to confirm it with
+ * S2. A file still holding DRAFT_MARK is never used.
  * @param {Array<object>} messages the chat so far
  * @return {string} "" or the instruction
  */
@@ -1249,6 +1249,7 @@ module.exports = {
   processExtraction,
   screenTurns,
   forgetAck,
+  FORGET_ACK_PROMPT,
   forgetRelated,
   deleteSummaryForItem,
   t10Flags,

@@ -561,9 +561,11 @@ test("T10 scope: withdrawal stops memory, Phase B Arm A included", () => {
 });
 
 test("T10 confirmation reply: off by default and never a draft", () => {
+  assert.strictEqual(m.t10Flags({}).forgetAckReply, false);
   const msgs = [{role: "user", content: "你唔好記住呢件事呀"}];
-  // The shipped file still holds the draft mark, so nothing is added.
-  assert.strictEqual(m.forgetAck(msgs), "");
+  // T33: v2 holds the final S2 text (no draft mark), so a forget request
+  // gets the instruction; anything else gets nothing.
+  assert.ok(m.forgetAck(msgs).includes("今次傾嘅嘢我唔會記住"));
   assert.strictEqual(m.forgetAck([{role: "user", content: "你好"}]), "");
 });
 
