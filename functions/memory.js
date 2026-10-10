@@ -131,12 +131,6 @@ const DEFAULT_EXTRACTION_PROMPT = "memory_extraction.v2";
 const FORGET_ACK_PROMPT = "memory_forget_ack.v2";
 /** A prompt file still holding this is a draft and is never used. */
 const DRAFT_MARK = "【待研究側定稿】";
-/**
- * T33: final copy with a character the research team has not confirmed
- * yet (rule-templates.md 「待确认的字」). Never used while present; the
- * confirmed text goes in a new prompt version without the mark.
- */
-const PENDING_MARK = "【待研究側確認用字】";
 
 /** Category order when facts must be trimmed. */
 const CATEGORY_PRIORITY = [
@@ -771,7 +765,7 @@ async function loadMemory(db, uid) {
 /**
  * forgetAckReply (default off): when the user's latest message asks the
  * companion not to remember, a one-line instruction to confirm it with
- * S2. A file still holding DRAFT_MARK or PENDING_MARK is never used.
+ * S2. A file still holding DRAFT_MARK is never used.
  * @param {Array<object>} messages the chat so far
  * @return {string} "" or the instruction
  */
@@ -785,15 +779,7 @@ function forgetAck(messages) {
   } catch (_) {
     return "";
   }
-  return ackUsable(text) ? text : "";
-}
-
-/**
- * @param {string} text a forget-ack prompt file
- * @return {boolean} false while the file is a draft or awaits confirmation
- */
-function ackUsable(text) {
-  return !text.includes(DRAFT_MARK) && !text.includes(PENDING_MARK);
+  return text.includes(DRAFT_MARK) ? "" : text;
 }
 
 /**
@@ -1263,9 +1249,7 @@ module.exports = {
   processExtraction,
   screenTurns,
   forgetAck,
-  ackUsable,
   FORGET_ACK_PROMPT,
-  PENDING_MARK,
   forgetRelated,
   deleteSummaryForItem,
   t10Flags,

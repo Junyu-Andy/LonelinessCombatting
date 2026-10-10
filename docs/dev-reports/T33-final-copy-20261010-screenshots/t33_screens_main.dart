@@ -6,16 +6,16 @@
 //     -t docs/dev-reports/T33-final-copy-20261010-screenshots/t33_screens_main.dart \
 //     --dart-define=RULE_TEMPLATE_REPLIES=true \
 //     --dart-define=RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true
-//   open index.html?page=checkin_b|remi_b
+//   open index.html?page=checkin_b|remi_b|onboarding_s5
 //
-// ALLOW_PLACEHOLDER is needed because the pool still holds unconfirmed
-// characters (rule-templates.md 「待确认的字」).  No LLM is called.
+// No LLM is called.  `onboarding_s5` turns the S5 switch on locally.
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
 import 'package:app_demo/app/app_theme.dart';
 import 'package:app_demo/core/agent_context/agent_context_service.dart';
 import 'package:app_demo/core/agent_context/shared_context_service.dart';
 import 'package:app_demo/core/agents/persona_resolver.dart';
+import 'package:app_demo/core/config/usage_copy.dart';
 import 'package:app_demo/core/core_services_scope.dart';
 import 'package:app_demo/core/cross_referral/handoff_executor.dart';
 import 'package:app_demo/core/cross_referral/referral_routing_service.dart';
@@ -29,7 +29,9 @@ import 'package:app_demo/core/safety/distress_state.dart';
 import 'package:app_demo/features/analytics/data/analytics_service.dart';
 import 'package:app_demo/features/analytics/presentation/analytics_scope.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
+import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:app_demo/features/auth/presentation/auth_service_scope.dart';
+import 'package:app_demo/features/onboarding/presentation/pages/agent_onboarding_page.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_arm_b.dart';
 import 'package:app_demo/features/reminiscence/data/reminiscence_themes.dart';
 import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_arm_b_page.dart';
@@ -63,15 +65,25 @@ void main() {
   final Widget home = switch (page) {
     'remi_b' => ReminiscenceArmBPage(
         theme: week1, replyHistory: InMemoryRuleReplyHistoryStore()),
+    'onboarding_s5' => const AgentOnboardingPage(),
     _ => CheckInArmB(replyHistory: InMemoryRuleReplyHistoryStore()),
   };
+  if (page == 'onboarding_s5') {
+    UsageCopy.current = const UsageCopy({}, true);
+  }
   final llm = LlmGateway(client: _NoLlm());
   final agentContext = AgentContextService(available: false);
   final sharedContext = SharedContextService(available: false);
   final memory = MemoryStore(available: false);
   final state = DistressState();
   runApp(AppSettingsScope(
-    settings: AppSettings(locale: const Locale('zh')),
+    settings: AppSettings(
+        locale: const Locale('zh'),
+        // Onboarding needs a profile; the Arm B pages run without one
+        // (no Firestore writes).
+        profile: page == 'onboarding_s5'
+            ? const UserProfile(uid: 'u', email: 'e', displayName: 'd')
+            : null),
     child: AuthServiceScope(
       authService: AuthService(available: false),
       child: AnalyticsScope(

@@ -41,13 +41,9 @@ void main() {
       );
     });
 
-    test('pending characters keep the pool off by default', () {
-      expect(RuleReplyPool.hasPlaceholderText, isFalse);
-      expect(RuleReplyPool.hasPendingConfirmation, isTrue);
-      expect(RuleReplyPool.hasPlaceholders, isTrue);
-      if (!FeatureFlags.ruleTemplateRepliesAllowPlaceholder) {
-        expect(RuleReplyPool.enabled, isFalse);
-      }
+    test('no placeholder left: the compile switch alone decides', () {
+      expect(RuleReplyPool.hasPlaceholders, isFalse);
+      expect(RuleReplyPool.enabled, FeatureFlags.ruleTemplateReplies);
     });
 
     test('mood rank → band (5 = 好開心 … 1 = 好唔開心), none when not picked',

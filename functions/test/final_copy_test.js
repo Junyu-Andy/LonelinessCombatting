@@ -1,7 +1,6 @@
 /**
  * T33 — server-side final copy matches docs/spec/copy/short-texts.md
- * word for word (S2 forget confirmation, S4a M7 reminder push), and S2
- * stays off while it holds an unconfirmed character.
+ * word for word (S2 forget confirmation, S4a M7 reminder push).
  *
  * Run:  cd functions && node test/final_copy_test.js
  */
@@ -61,15 +60,9 @@ test("S2: v1 is kept unchanged (no overwrite)", () => {
   assert.ok(prompt("memory_forget_ack.v1").includes("【待研究側定稿】"));
 });
 
-test("S2: unconfirmed character keeps the confirmation off", () => {
-  const v2 = prompt("memory_forget_ack.v2");
-  assert.ok(v2.includes(m.PENDING_MARK));
-  assert.strictEqual(m.ackUsable(v2), false);
+test("S2: the confirmation is used on a forget request", () => {
   const msgs = [{role: "user", content: "你唔好記住呢件事呀"}];
-  assert.strictEqual(m.forgetAck(msgs), "");
-  // Once the mark is gone (a later version) the text is used.
-  assert.strictEqual(m.ackUsable(v2.replace(m.PENDING_MARK, "")), true);
-  assert.strictEqual(m.ackUsable("【待研究側定稿】"), false);
+  assert.ok(m.forgetAck(msgs).includes(specText("S2")));
 });
 
 console.log(`\n${passed} passed, ${failures.length} failed.`);

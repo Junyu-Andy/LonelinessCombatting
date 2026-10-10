@@ -1,13 +1,14 @@
 // T33 — final copy in the app matches docs/spec/copy/ word for word.
-//   - rule-templates.md: all 41 Arm B template replies, their mood group,
-//     agent and the 「待确认的字」 flags.
-//   - short-texts.md: S1a (Tung Tung search-off reply) and S3
-//     (reminiscence landing).  S2 / S4a are server-side, see
+//   - rule-templates.md: all 41 Arm B template replies, their mood group
+//     and agent.
+//   - short-texts.md: S1a (Tung Tung search-off reply), S3 (reminiscence
+//     landing) and S5 (onboarding usage advice).  S2 / S4a are server-side, see
 //     functions/test/final_copy_test.js.
 import 'dart:io';
 
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
+import 'package:app_demo/core/config/usage_copy.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
 import 'package:app_demo/features/auth/presentation/auth_service_scope.dart';
 import 'package:app_demo/features/curious_companion/data/tung_tung_search_intent.dart';
@@ -67,23 +68,14 @@ void main() {
       }
     });
 
-    test('pending flags = the 「待确认的字」 table', () {
-      final idRef = RegExp(r'[XZ]\d-\d|G-1');
-      final pendingRows = templateRows
-          .where((r) => r.length == 3 && idRef.hasMatch(r[2]))
-          .toList();
-      expect(pendingRows.length, 6);
-      final pendingIds = {
-        for (final r in pendingRows) ...idRef.allMatches(r[2]).map((m) => m[0]!),
-      };
-      final chars = [for (final r in pendingRows) r[0]];
-      for (final e in RuleReplyPool.entries) {
-        expect(e.pending, pendingIds.contains(e.id), reason: e.id);
-        // And the flag really follows the text: a pending entry holds one
-        // of the listed characters, a confirmed one holds none.
-        expect(chars.any(e.zh.contains), e.pending, reason: e.id);
+    test('no placeholder left, no uncorrected character', () {
+      expect(RuleReplyPool.hasPlaceholders, isFalse);
+      // The 「已更正的字」 table: none of the old characters remain.
+      for (final old in ['侾', '傳', '諦', '゗', '捣', '鐘意']) {
+        for (final e in RuleReplyPool.entries) {
+          expect(e.zh.contains(old), isFalse, reason: '${e.id} $old');
+        }
       }
-      expect(RuleReplyPool.hasPendingConfirmation, isTrue);
     });
   });
 
@@ -121,6 +113,10 @@ void main() {
       await tester.pump();
       expect(find.textContaining(short['S3']!), findsOneWidget);
       expect(find.textContaining('4 個禮拜'), findsNothing);
+    });
+
+    test('S5: onboarding usage advice', () {
+      expect(UsageCopy.onboardingUsageAdviceS5, short['S5']);
     });
   });
 }

@@ -8,7 +8,9 @@
 ///   3. Captures the Ah Jan / Ah Bak gender variant (required step —
 ///      gates progression on this screen).
 ///   4. Captures Tung Tung's interest profile via a multi-select.
-///   5. Surfaces per-agent transcript retention toggles (Dev Req §4.5).
+///   5. T33 — when `app_config/usage_copy.onboardingUsageAdviceEnabled`
+///      is true, one more screen with the S5 usage advice (both arms).
+///   6. Surfaces per-agent transcript retention toggles (Dev Req §4.5).
 ///      Phase A copy defaults each toggle to ON because the pilot needs
 ///      transcript data, but participants may turn any of them off.
 ///
@@ -26,6 +28,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/config/phase_a_config.dart';
+import '../../../../core/config/usage_copy.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_profile.dart';
@@ -62,6 +65,9 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
 
   bool _busy = false;
   String? _error;
+
+  /// T33 — read once so the page count never changes mid-flow.
+  final bool _usageAdvice = UsageCopy.current.onboardingUsageAdviceEnabled;
 
   /// Research Review v2 Item 4: 24-candidate interest pool across 6 categories.
   /// Cultural advisor review required before Phase A recruitment opens.
@@ -140,7 +146,7 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
     );
   }
 
-  int get _pageCount => 4;
+  int get _pageCount => _usageAdvice ? 5 : 4;
 
   Future<void> _finish() async {
     final auth = AuthServiceScope.of(context);
@@ -264,8 +270,11 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
                         }
                       }
                     }),
-                    errorMessage: _error,
+                    errorMessage: _usageAdvice ? null : _error,
+                    showDoneHint: !_usageAdvice,
                   ),
+                  if (_usageAdvice)
+                    _UsageAdviceSlide(isEn: isEn, errorMessage: _error),
                 ],
               ),
             ),
@@ -651,12 +660,75 @@ class _VariantChoice extends StatelessWidget {
   }
 }
 
+/// The last screen's "tap 完成" hint and the save error (unchanged text).
+List<Widget> _finishFooter(
+    BuildContext context, bool isEn, String? errorMessage) {
+  final theme = Theme.of(context);
+  return [
+    const SizedBox(height: 20),
+    Text(
+      isEn
+          ? 'Tap "Done" to finish setup and meet your companions.'
+          : '撳「完成」就可以開始同夥伴傾偈。',
+      style: theme.textTheme.bodyMedium?.copyWith(
+        color: theme.colorScheme.onSurface,
+      ),
+    ),
+    if (errorMessage != null) ...[
+      const SizedBox(height: 12),
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.errorContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          errorMessage,
+          style: TextStyle(color: theme.colorScheme.onErrorContainer),
+        ),
+      ),
+    ],
+  ];
+}
+
+/// T33 — S5, the final usage advice.  Only the final text is shown (no
+/// heading: none is finalised); same in both arms.  The text has no
+/// English final copy, so the English UI shows it too.
+class _UsageAdviceSlide extends StatelessWidget {
+  final bool isEn;
+  final String? errorMessage;
+  const _UsageAdviceSlide({required this.isEn, this.errorMessage});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final agent = AgentRegistry.byId(AgentRegistry.siuYanId);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(child: AgentAvatar(agent: agent, size: 96)),
+          const SizedBox(height: 22),
+          Text(
+            UsageCopy.onboardingUsageAdviceS5,
+            key: const Key('onboarding_usage_advice'),
+            style: theme.textTheme.titleMedium?.copyWith(height: 1.6),
+          ),
+          ..._finishFooter(context, isEn, errorMessage),
+        ],
+      ),
+    );
+  }
+}
+
 class _TungTungSlide extends StatelessWidget {
   final bool isEn;
   final List<_InterestSeed> seeds;
   final Set<String> selected;
   final ValueChanged<String> onToggle;
   final String? errorMessage;
+  final bool showDoneHint;
 
   const _TungTungSlide({
     required this.isEn,
@@ -664,6 +736,7 @@ class _TungTungSlide extends StatelessWidget {
     required this.selected,
     required this.onToggle,
     this.errorMessage,
+    this.showDoneHint = true,
   });
 
   @override
@@ -759,29 +832,8 @@ class _TungTungSlide extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 20),
-          Text(
-            isEn
-                ? 'Tap "Done" to finish setup and meet your companions.'
-                : '撳「完成」就可以開始同夥伴傾偈。',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          if (errorMessage != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                errorMessage!,
-                style: TextStyle(color: theme.colorScheme.onErrorContainer),
-              ),
-            ),
-          ],
+          // T33: with the S5 screen on, the hint moves there.
+          if (showDoneHint) ..._finishFooter(context, isEn, errorMessage),
         ],
       ),
     );

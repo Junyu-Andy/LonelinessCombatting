@@ -20,9 +20,22 @@
 library;
 
 class UsageCopy {
-  const UsageCopy([this._values = const {}]);
+  const UsageCopy([
+    this._values = const {},
+    this.onboardingUsageAdviceEnabled = false,
+  ]);
 
   final Map<String, String> _values;
+
+  /// T33 — show the S5 usage advice as the last onboarding screen.  Field
+  /// `onboardingUsageAdviceEnabled` in the same document; only a literal
+  /// `true` turns it on.  Default off.
+  final bool onboardingUsageAdviceEnabled;
+
+  /// S5 (`docs/spec/copy/short-texts.md`, final 10/10), verbatim.  Not a
+  /// config value: the switch only decides whether it is shown.
+  static const String onboardingUsageAdviceS5 =
+      '建議你每日都嚟傾下偈，例如食完早餐或者瞓覺之前。為咗研究準確，希望你每個禮拜最少用五次。唔係硬性規定，用多用少都唔會影響你參加研究或者收到嘅報酬。';
 
   /// Firestore document holding the copy.  Read-only for clients.
   static const String remotePath = 'app_config/usage_copy';
@@ -73,7 +86,7 @@ class UsageCopy {
         }
       }
     }
-    return UsageCopy(values);
+    return UsageCopy(values, map['onboardingUsageAdviceEnabled'] == true);
   }
 
   /// The configured text for [key], or [fallback] (today's text).

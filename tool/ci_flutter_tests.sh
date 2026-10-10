@@ -7,7 +7,8 @@
 #   2. PHASE_B=true           — arm gating / parity tests
 #   3. PHASE_B + FORCE_ARM=B  — Arm B pages (rule-based Tung Tung)
 #   4. MEMORY_V1=true         — memory v1 client tests (memory branch)
-#   5. RULE_TEMPLATE_REPLIES=true — placeholder guard keeps pages unchanged
+#   5. RULE_TEMPLATE_REPLIES=true — final templates on (T33: no placeholder
+#      left, so the switch alone turns them on)
 #   6. RULE_TEMPLATE_REPLIES + ALLOW_PLACEHOLDER — Arm B template replies
 #      (decision 0023)
 #
@@ -40,7 +41,7 @@ run "phase B arm B pages" \
   test/tung_tung_arm_b_test.dart test/my_story_arm_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \
   --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
-run "rule template replies (placeholder guard)" \
+run "rule template replies (switch only)" \
   --dart-define=RULE_TEMPLATE_REPLIES=true \
   test/rule_reply_pool_test.dart test/rule_reply_pages_test.dart
 run "rule template replies on" \

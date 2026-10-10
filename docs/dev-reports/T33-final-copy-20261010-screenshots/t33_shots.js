@@ -1,9 +1,9 @@
 // T33 screenshots: Arm B check-in (five moods) and reminiscence (five
-// moods, no mood, grief).  Serve the web build on BASE first, e.g.
+// moods, no mood, grief) and the onboarding S5 screen.  Serve the web build on BASE first, e.g.
 //   npx http-server build/web -p 8733
 // Writes raw_*.png; the three sheets in this folder were stitched from
 // them with PIL (5 check-in moods; 5 reminiscence moods; no mood + grief)
-// and the raw files deleted.  The web build needs a local, uncommitted
+// and the raw files deleted; 4_onboarding_S5.png is written directly.  The web build needs a local, uncommitted
 // one-line patch to SafetyService.newTurnId (see the T33 report).
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const BASE = process.env.BASE || 'http://127.0.0.1:8733';
@@ -53,5 +53,11 @@ async function remi(browser, text, face, file) {
   for (let i = 0; i < 5; i++) await remi(browser, '細個住喺深水埗，成日喺樓下玩。', FACES[i], `raw_remi_${5 - i}.png`);
   await remi(browser, '細個住喺深水埗，成日喺樓下玩。', null, 'raw_remi_none.png');
   await remi(browser, '老伴走咗之後，我成日諗起佢。', '好好', 'raw_remi_grief.png');
+  // Onboarding with the S5 switch on: walk to the last screen.
+  const p = await open(browser, 'onboarding_s5', 915);
+  await btn(p, '下一步'); await btn(p, '下一步');
+  await btn(p, '阿珍（同輩女性）'); await btn(p, '下一步'); await btn(p, '下一步');
+  await p.waitForTimeout(1000);
+  await p.screenshot({ path: OUT + '/4_onboarding_S5.png' }); await p.close();
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });
