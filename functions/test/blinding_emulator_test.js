@@ -252,7 +252,8 @@ test("v2 export of a synthetic two-arm cohort passes the checker",
 
       const files = fs.readdirSync(dir).sort();
       for (const held of ["turns", "events", "sessions", "llm_turn_features",
-        "mem_facts", "check_in_responses", "users", "pi_alerts"]) {
+        "mem_facts", "check_in_responses", "users", "pi_alerts",
+        "agent_diff"]) {
         assert.ok(files.indexOf(`${held}.ndjson`) < 0, held);
       }
       // Only the two randomised, non-tester participants.
@@ -292,6 +293,9 @@ test("v2 export of a synthetic two-arm cohort passes the checker",
         assert.strictEqual(r.startedAtLocal, undefined);
         assert.strictEqual(r.scoredAt, undefined);
       }
+      // T22: seeded agent_diff rows stay out; the manifest says so.
+      assert.ok(built.manifest.heldBackUntilUnblinding
+          .indexOf("agent_diff") >= 0);
       // Brief PR is held back unless asked for (decision 0021).
       assert.strictEqual(readNdjson(dir, "brief_pr").length, 0);
       // No raw uid anywhere in any file.
