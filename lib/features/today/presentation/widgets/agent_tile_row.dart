@@ -40,10 +40,10 @@ _AgentPalette _paletteFor(String agentId) {
       );
     case AgentRegistry.ahJanAhBakId:
       return const _AgentPalette(
-        halo: Color(0xFFEEEDFE),
-        ring: Color(0xFFB3ACDE),
-        pillBg: Color(0xFFB3ACDE),
-        pillFg: Color(0xFF2A2454),
+        halo: Color(0xFFF6EEF8),
+        ring: Color(0xFFC9A9D4),
+        pillBg: Color(0xFFC9A9D4),
+        pillFg: Color(0xFF3B2347),
       );
     case AgentRegistry.tungTungId:
       return const _AgentPalette(
