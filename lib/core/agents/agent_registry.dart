@@ -213,8 +213,8 @@ class AgentRegistry {
     AgentDefinition(
       id: ahJanAhBakId,
       role: 'reflective_peer_listener',
-      // Lavender — Spec §3 / agent profile page.
-      accentColor: Color(0xFFAFA9EC),
+      // Mauve — matches the Ah Jan / Ah Bak artwork (decision 0031).
+      accentColor: Color(0xFFC4A3CE),
       pprSubcomponent: PprSubcomponent.understanding,
       primaryModules: ['m3_reminiscence', 'm5_reflective_dialogue'],
       systemPromptKey: 'ah_jan_ah_bak_v1',
