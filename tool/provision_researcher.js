@@ -11,25 +11,37 @@
  * Usage:
  *   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
  *   NODE_PATH=functions/node_modules node tool/provision_researcher.js \
- *     --email=keran@example.org --role=unblinded
- *   ... --email=junyu@example.org --role=blinded
+ *     --email=junyu@example.org --role=unblinded
+ *   ... --email=keran@example.org --role=blinded          (W4 assessor)
+ *   ... --email=mingyan@example.org --role=blinded        (backup assessor)
+ *   ... --email=calvin@example.org --role=sequence_uploader
  *   ... --email=someone@example.org --revoke
+ *   ... --list            every account that holds a role (check: both
+ *                         assessors show role=blinded, nobody else does)
  *
- * Roles (T19, decision 0029 — replaces T12's names):
- *   unblinded — the unblinded researcher (Keran).  Registers participants
- *               and triggers allocation (App 研究員登記 page →
- *               enrollParticipant), sees the arm there for the briefing,
- *               reads the research-ID lookup, sees per-arm counts on the
- *               dashboard, and generates / uploads the allocation
- *               sequence (tool/randomization_sequence.js).
- *   blinded   — blinded staff, including the PI (Junyu) as blinded
- *               assessor.  Dashboard without per-arm counts or single-arm
- *               sections; blinded export only.
+ * Roles (T30, dev-tasks-1014 §二 rule 9; replaces the T19 wording):
+ *   unblinded          Junyu.  Not blinded, but never generates or sees
+ *                      the allocation sequence.  Registers participants
+ *                      and triggers allocation (App 研究員登記 page →
+ *                      enrollParticipant), sees the arm there for the
+ *                      briefing, reads the research-ID lookup, the
+ *                      safety-alert list, per-arm counts and the process
+ *                      export; sees outcome data only as pooled completion
+ *                      rates before the data lock.
+ *   blinded            the independent W4 outcome assessors: Keran, backup
+ *                      Mingyan Wang.  After login the App opens the
+ *                      assessor view only (W4 due list, paper DJG-ES
+ *                      entry); no dashboard, no arm, no process data, no
+ *                      participant pushes, not held by the enrolment gate.
+ *   sequence_uploader  Calvin only.  Generates the allocation sequence on
+ *                      his own machine and uploads it through the
+ *                      uploadRandomizationSequence callable with his own
+ *                      login (tool/randomization_sequence.js); reads
+ *                      nothing in Firestore.
  *
  * Migration from T12: the old names grant nothing now ('pi' used to be
  * the UNBLINDED role).  For each account that holds one, run --revoke,
- * then grant the new role: Keran → unblinded, the PI → blinded, other
- * old 'researcher' accounts → blinded.  --list-legacy prints them.
+ * then grant the new role.  --list-legacy prints them.
  *
  * Side effects:
  *   - Forces token refresh on the user's next sign-in so the claim takes
@@ -45,7 +57,12 @@
 
 'use strict';
 
-const admin = require('firebase-admin');
+// Loaded lazily so the module (ROLES) can be required without NODE_PATH.
+let admin = null;
+function loadAdmin() {
+  if (!admin) admin = require('firebase-admin');
+  return admin;
+}
 
 function parseArgs() {
   const out = {};
@@ -56,6 +73,8 @@ function parseArgs() {
       out.confirm = true;
     } else if (a === '--list-legacy') {
       out.listLegacy = true;
+    } else if (a === '--list') {
+      out.list = true;
     } else if (a.startsWith('--')) {
       const [k, v] = a.slice(2).split('=');
       out[k] = v === undefined ? true : v;
@@ -64,7 +83,7 @@ function parseArgs() {
   return out;
 }
 
-const ROLES = ['unblinded', 'blinded'];
+const ROLES = ['unblinded', 'blinded', 'sequence_uploader'];
 const LEGACY_ROLES = ['pi', 'researcher'];
 
 async function listLegacy(auth) {
@@ -85,8 +104,32 @@ async function listLegacy(auth) {
   console.log(`${n} account(s) with a legacy role.`);
 }
 
+/** T30: every account with a role claim (current or legacy). */
+async function listRoles(auth) {
+  let token;
+  let n = 0;
+  do {
+    const page = await auth.listUsers(1000, token);
+    for (const u of page.users) {
+      const role = (u.customClaims || {}).role;
+      if (!role) continue;
+      n++;
+      const note = ROLES.includes(role) ? '' : ' (legacy — grants nothing)';
+      console.log(`${u.email || u.uid}: role=${role}${note}`);
+    }
+    token = page.pageToken;
+  } while (token);
+  console.log(`${n} account(s) with a role.`);
+}
+
 async function main() {
   const args = parseArgs();
+  const admin = loadAdmin();
+  if (args.list) {
+    admin.initializeApp();
+    await listRoles(admin.auth());
+    return;
+  }
   if (args.listLegacy) {
     admin.initializeApp();
     await listLegacy(admin.auth());
@@ -97,14 +140,15 @@ async function main() {
     process.exit(2);
   }
   if (!args.revoke && !args.role) {
-    console.error('Need --role=unblinded OR --role=blinded (or --revoke).');
+    console.error('Need --role=unblinded | blinded | sequence_uploader ' +
+      '(or --revoke).');
     process.exit(2);
   }
   if (args.role && !ROLES.includes(args.role)) {
     const hint = LEGACY_ROLES.includes(args.role) ?
       ' The T12 names were replaced in T19: the PI is now "blinded".' : '';
-    console.error(`Invalid role: ${args.role}.  Must be unblinded or ` +
-      `blinded.${hint}`);
+    console.error(`Invalid role: ${args.role}.  Must be one of ` +
+      `${ROLES.join(', ')}.${hint}`);
     process.exit(2);
   }
 
@@ -140,7 +184,11 @@ async function main() {
               'to land on the client.');
 }
 
-main().catch((err) => {
-  console.error('[provision] Fatal:', err);
-  process.exit(1);
-});
+module.exports = {ROLES, LEGACY_ROLES, parseArgs};
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('[provision] Fatal:', err);
+    process.exit(1);
+  });
+}

@@ -245,6 +245,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               authService: widget.authService,
               analytics: widget.analytics,
               onAuthUidChanged: _onAuthUidChanged,
+              // T30: staff accounts (assessors, the registering
+              // researcher) get no participant pushes.
+              onStaffRoute: widget.fcm.suppressForStaff,
             ),
           ),
           ),

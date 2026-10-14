@@ -229,6 +229,67 @@ test('--rewrite-exports removes only that person\'s rows', async () => {
   assert.strictEqual(meta.metadata.rowCount, '2');
 });
 
+// T30 (dev-tasks-1010 §四 T30 §5.1): with --allocation-record the whole
+// person goes, including the allocation-log rows that carry the uid, and
+// ONE row allocation_records/{researchId} stays: research ID, stratum,
+// arm, allocation time, withdrawal date — no uid, name or contact.
+test('--allocation-record keeps one row without personal data and ' +
+    'deletes the allocation log rows; T30 collections are covered', async () => {
+  await clearAll();
+  await seedUser(UID);
+  await seedUser(OTHER);
+  await db.collection('enrollments').doc(UID).set({uid: UID,
+    researchId: 'PB-017', studyPeriod: 'B', stratum: 'high', arm: 'A',
+    sequencePosition: 4, companionVariant: 'feminine',
+    enrolledAt: new Date('2026-11-01T02:00:00Z'),
+    enrolledByEmail: 'junyu@example.invalid'});
+  await db.collection('arm_assignment_log').add({action: 'allocate', uid: UID,
+    researchId: 'PB-017', arm: 'A'});
+  await db.collection('arm_assignment_log').add({action: 'allocate',
+    uid: OTHER, researchId: 'PB-018', arm: 'B'});
+  await db.collection('outcome_entries').add({uid: UID, researchId: 'PB-017',
+    instrument: 'DJG-ES', answers: {q1: 'yes'}});
+  await db.collection('pairing_change_log').add({uid: UID, from: 'feminine',
+    to: 'masculine'});
+  await db.collection('weekly_status').doc(UID).set({w4VisitDate: '2026-11-27'});
+  // Without the flag (T19 behaviour): the log rows are not in the plan.
+  const dry = await tool.run(ctx());
+  const byDry = Object.fromEntries(dry.found.firestore.map((g) =>
+    [g.location, g.count]));
+  assert.strictEqual(byDry['arm_assignment_log'], undefined);
+  assert.strictEqual(byDry['outcome_entries'], 1);
+  assert.strictEqual(byDry['pairing_change_log'], 1);
+  assert.strictEqual(byDry['weekly_status'], 1);
+  assert.ok(String(dry.allocationRecord).startsWith('not requested'));
+  // With the flag.
+  const r = await tool.run(ctx({confirm: true, allocationRecord: true,
+    now: new Date('2026-11-20T03:00:00Z')}));
+  assert.strictEqual(r.verified, true, JSON.stringify(r.remaining));
+  assert.deepStrictEqual(r.allocationRecord.path,
+      'allocation_records/PB-017');
+  assert.deepStrictEqual(await residue(UID), []);
+  assert.strictEqual((await db.collection('arm_assignment_log')
+      .where('uid', '==', UID).get()).size, 0, 'log row with uid deleted');
+  assert.strictEqual((await db.collection('arm_assignment_log')
+      .where('uid', '==', OTHER).get()).size, 1, 'other person untouched');
+  const rec = (await db.collection('allocation_records').doc('PB-017').get())
+      .data();
+  assert.deepStrictEqual(Object.keys(rec).sort(), ['allocatedAt', 'arm',
+    'researchId', 'sequencePosition', 'stratum', 'studyPeriod', 'withdrawnAt',
+    'writtenBy']);
+  assert.strictEqual(rec.arm, 'A');
+  assert.strictEqual(rec.stratum, 'high');
+  assert.strictEqual(rec.withdrawnAt.toDate().toISOString(),
+      '2026-11-20T03:00:00.000Z');
+  // The receipt names the uid on purpose (it is the operator's record of
+  // whom it deleted); the kept row and its receipt entry must not.
+  const json = JSON.stringify(rec) + JSON.stringify(r.allocationRecord);
+  assert.ok(!json.includes(UID), 'uid in the kept row');
+  assert.ok(!json.includes('example.invalid'), 'e-mail kept');
+  assert.ok(!json.includes('Synth'), 'name kept');
+  assert.ok(!r.notCovered.some((l) => l.startsWith('arm_assignment_log')));
+});
+
 test('row matching: uidHash, participantId or the raw uid in a path', () => {
   const h = tool.hashUid(UID, SALT);
   assert.ok(tool.rowMatches(JSON.stringify({uidHash: h}), UID, h));
