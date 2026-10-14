@@ -1,6 +1,6 @@
 # T37 报告：登记后的入组引导顺序、显示设定保存（2026-10-14）
 
-分支 `fix/onboarding-settings`，叠在 T21（PR #59，`fix/phase-config-split`）之上。SPEC:C01、C19。PR 草稿，未合并。
+分支 `fix/onboarding-settings`，从 T21（PR #59，已合并进 `main`）出发，已合并 `main` e851205，对 `main` 的差异只有 T37。SPEC:C01、C19。PR 草稿，未合并。
 
 ## 1. 一句话结论
 
@@ -8,7 +8,6 @@
 - **修复 2 做好了，没有开关**：字体、高对比、「安靜時段」「語音讀出內容」保存在手机本机，关掉 App 再开仍保持。随下一个 App 版本生效。
 - 两组相同；没有新的老人看得到的文字；规则组仍不会调用 LLM。
 - 测试：新加 26 个 Flutter 测试、6 个 Firestore 规则测试，全部通过；全套 CI 脚本结果见第 6 节。截图在 `docs/dev-reports/T37-onboarding-settings-20261014-screenshots/`。
-- 这个 PR 包含 T21（#59）的提交，#59 合并后本 PR 只剩 T37 的改动；合并顺序：#59 先。
 
 ## 2. 修复 1：登记后仍做入组引导
 
@@ -105,7 +104,7 @@ Firestore 规则、Cloud Functions 都没改。
 
 ### 6.1 全套结果
 
-提交前在本机跑（合并 T21 8d65535 之后）：
+提交前在本机跑（合并 T21 8d65535 之后；之后再合并 `main` e851205，只有文档变动，没有重跑）：
 
 | 命令 | 结果 |
 |---|---|
@@ -134,7 +133,7 @@ Firestore 规则、Cloud Functions 都没改。
 
 | PR | 可能同时碰的文件 | 说明 |
 |---|---|---|
-| T21 `fix/phase-config-split`（#59） | `docs/*`、`lib/core/feature_flags/remote_feature_flags.dart`、`lib/features/enrollment/**` | 本分支从它出发并已合并它到 8d65535；#59 先合并，本 PR 再合并只剩 T37。普通 `git merge` 可以继续用 |
+| T21 `fix/phase-config-split`（#59，已合并） | `docs/*`、`lib/core/feature_flags/remote_feature_flags.dart`、`lib/features/enrollment/**` | 本分支从它出发，已合并 `main` e851205，没有冲突；普通 `git merge` 可以继续用 |
 | T34 `feat/safety-alert-email` | `docs/STUDY_CHANGELOG.md`、`docs/history.md`、`docs/dev/backlog.md`、`functions/**` | 只有文档会冲突（都在表格最上面加行），保留两边 |
 | T25 `feat/session-briefpr` | `docs/*`、`lib/features/analytics/data/analytics_service.dart`（如果它加日志） | 文档同上；analytics 若同时加方法，保留两边 |
 | T36 `chore/apk-phase-b-templates` | `pubspec.lock`、CI 文件 | 两边都改 lock 时以重新 `flutter pub get`（3.35.3）为准 |
