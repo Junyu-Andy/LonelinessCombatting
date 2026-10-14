@@ -43,12 +43,19 @@ GitHub → Actions → **Build APK** → Run workflow → 选分支（合并后�
 
 ## 四、测试运行
 
-在本分支上手动跑一次 Build APK（`phase_b_templates`）：
+在本分支上手动跑了三次 Build APK（`phase_b_templates`），都成功。以第 8 次为准（它已合入 #59 之后的 main，含 T21 的登记页、等待页）：
 
-- 运行编号：（待填：运行编号）
-- 运行链接：（待填）
-- 产物名：（待填：产物名）
-- 日志核对：（待填：`flutter build apk --release` 那一行带 `--dart-define=PHASE_B=true --dart-define=RULE_TEMPLATE_REPLIES=true`，没有 `FORCE_ARM`）
+| 项目 | 第 8 次运行 |
+|---|---|
+| 运行编号 | 8（run id 38553862382），提交 `e114346` |
+| 运行链接 | https://github.com/Junyu-Andy/LonelinessCombatting/actions/runs/38553862382 |
+| 产物名 | `peizhu-phase_b_templates-chore-apk-phase-b-templates-8`（zip 37.4 MB，内含 `app-release.apk` 68.1 MB） |
+| 日志核对 | Build 步骤打印 `dart-defines: --dart-define=PHASE_B=true --dart-define=RULE_TEMPLATE_REPLIES=true`；`case "phase_b_templates" in` 走的是新分支；没有 `FORCE_ARM`、没有 `RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER`；`TESTER_PIN` 未设置（提示"tester tools stay locked"） |
+| 用时 | 6 分 20 秒（Gradle 344 秒） |
+
+第 6 次（`1b063e0`，不含 T21）和第 7 次（`e9c1dce`，加了打印 dart-define 的一行）同样成功；第 7 次起日志里能直接看到 dart-define。为了让这一项可核对，工作流在 `flutter build` 前多打印一行 `dart-defines: …`（GitHub 会把密钥打码）。
+
+另见日志里一句 `Changed 8 dependencies!`：仓库的 `pubspec.lock` 是用更新的 Flutter 生成的，3.35.3 解析时会把 8 个传递依赖降版。不影响打包，T37（#63）已用 3.35.3 重新生成 lock 文件。
 
 ## 五、和其他 PR 的交叉
 
