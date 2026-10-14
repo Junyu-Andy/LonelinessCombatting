@@ -23,8 +23,9 @@ class _FakeBackend implements EnrollmentBackend {
     return EnrollmentResult(
       alreadyEnrolled: already,
       sameInput: true,
-      arm: dryRun ? null : 'B',
+      arm: input.isPilot ? input.pilotArm : (dryRun ? null : 'B'),
       researchId: input.researchId.trim().toUpperCase(),
+      studyPeriod: input.studyPeriod,
       stratum: input.stratum,
       displayName: 'Synthetic elder',
       accountCreatedAt: '2026-10-07T02:00:00.000Z',
@@ -34,9 +35,22 @@ class _FakeBackend implements EnrollmentBackend {
 
 Future<void> _fill(WidgetTester tester, {int score = 2}) async {
   await tester.enterText(find.byKey(const Key('enroll_email')), 'e@x.org');
-  await tester.enterText(find.byKey(const Key('enroll_research_id')), 'b001');
+  await tester.enterText(
+      find.byKey(const Key('enroll_research_id')), 'pb-001');
+  await tester.pump();
   await tester.tap(find.byKey(Key('enroll_score_$score')));
   await tester.tap(find.byKey(const Key('enroll_variant_masculine')));
+  await tester.pump();
+}
+
+/// T21: a pilot-run registration (PILOT- prefix, version picked).
+Future<void> _fillPilot(WidgetTester tester, {String arm = 'A'}) async {
+  await tester.enterText(find.byKey(const Key('enroll_email')), 'e@x.org');
+  await tester.enterText(
+      find.byKey(const Key('enroll_research_id')), 'pilot-01');
+  await tester.pump();
+  await tester.tap(find.byKey(Key('enroll_pilot_arm_$arm')));
+  await tester.tap(find.byKey(const Key('enroll_variant_feminine')));
   await tester.pump();
 }
 
@@ -116,13 +130,107 @@ void main() {
     expect(b.calls.length, 2);
     expect(b.calls.last.dryRun, isFalse);
     final payload = b.calls.last.input.toPayload(dryRun: false);
-    expect(payload['researchId'], 'B001');
+    expect(payload['researchId'], 'PB-001');
     expect(payload['w0DjgEmotional'], 2);
     expect(payload['companionVariant'], 'masculine');
     expect(payload['w0Date'], '2026-10-07');
     expect(payload['confirmed'], isTrue);
     expect(find.byKey(const Key('enroll_arm')), findsOneWidget);
     expect(find.textContaining('B 組（規則組）'), findsOneWidget);
+  });
+
+  group('T21 study period from the research-ID prefix', () {
+    test('PB- is Phase B, PILOT- the pilot run, anything else null', () {
+      expect(enrollmentPeriodOf(' pb-017 '), 'B');
+      expect(enrollmentPeriodOf('PILOT-01'), 'PILOT');
+      for (final bad in ['PA-001', 'B001', 'PB-', 'PILOT-', 'PB001',
+        'PILOT-1234567', '']) {
+        expect(enrollmentPeriodOf(bad), isNull, reason: bad);
+      }
+    });
+
+    testWidgets('PA- or no prefix: hint shown, check stays off',
+        (tester) async {
+      final b = _FakeBackend();
+      await tester.pumpWidget(_app(b));
+      await tester.enterText(find.byKey(const Key('enroll_email')), 'e@x.org');
+      for (final rid in ['pa-001', 'b001']) {
+        await tester.enterText(
+            find.byKey(const Key('enroll_research_id')), rid);
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('enroll_score_1')));
+        await tester.tap(find.byKey(const Key('enroll_variant_feminine')));
+        await tester.pump();
+        expect(find.byKey(const Key('enroll_prefix_hint')), findsOneWidget);
+        expect(
+            tester
+                .widget<FilledButton>(find.byKey(const Key('enroll_check')))
+                .onPressed,
+            isNull,
+            reason: rid);
+      }
+      expect(b.calls, isEmpty);
+    });
+
+    testWidgets('PB- shows the score and W0 date, not the version',
+        (tester) async {
+      await tester.pumpWidget(_app(_FakeBackend()));
+      await tester.enterText(
+          find.byKey(const Key('enroll_research_id')), 'PB-002');
+      await tester.pump();
+      expect(find.text('研究期：Phase B'), findsOneWidget);
+      expect(find.byKey(const Key('enroll_score_0')), findsOneWidget);
+      expect(find.text('W0 入組日期'), findsOneWidget);
+      expect(find.byKey(const Key('enroll_pilot_arm_A')), findsNothing);
+    });
+
+    testWidgets(
+        'PILOT-: version instead of score, picked twice, no W0 score sent',
+        (tester) async {
+      final b = _FakeBackend();
+      await tester.pumpWidget(_app(b));
+      await tester.enterText(
+          find.byKey(const Key('enroll_research_id')), 'pilot-01');
+      await tester.pump();
+      expect(find.text('研究期：試跑'), findsOneWidget);
+      expect(find.byKey(const Key('enroll_score_0')), findsNothing);
+      expect(find.text('W0 入組日期'), findsNothing);
+      await _fillPilot(tester, arm: 'A');
+      await tester.tap(find.byKey(const Key('enroll_check')));
+      await tester.pumpAndSettle();
+
+      expect(b.calls.single.dryRun, isTrue);
+      expect(find.textContaining('版本：A 組（Hybrid'), findsOneWidget);
+      final confirm = find.byKey(const Key('enroll_confirm'));
+      expect(tester.widget<FilledButton>(confirm).onPressed, isNull);
+      await tester.tap(find.byKey(const Key('enroll_pilot_arm_again_B')));
+      await tester.pump();
+      expect(tester.widget<FilledButton>(confirm).onPressed, isNull);
+      expect(find.textContaining('兩次揀嘅版本唔一樣'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('enroll_pilot_arm_again_A')));
+      await tester.pump();
+      await tester.tap(confirm);
+      await tester.pumpAndSettle();
+
+      final payload = b.calls.last.input.toPayload(dryRun: false);
+      expect(payload['researchId'], 'PILOT-01');
+      expect(payload['pilotArm'], 'A');
+      expect(payload.containsKey('w0DjgEmotional'), isFalse);
+      expect(payload.containsKey('w0Date'), isFalse);
+      expect(payload['confirmed'], isTrue);
+      expect(find.text('研究期：試跑'), findsOneWidget);
+      expect(find.text('版本由研究員指定，冇用分配序列。'), findsOneWidget);
+      expect(find.textContaining('A 組（Hybrid'), findsWidgets);
+    });
+
+    testWidgets('server prefix refusal is shown in words', (tester) async {
+      final b = _FakeBackend()..failWith = 'research_id_prefix';
+      await tester.pumpWidget(_app(b));
+      await _fill(tester);
+      await tester.tap(find.byKey(const Key('enroll_check')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('PA- 唔收'), findsWidgets);
+    });
   });
 
   testWidgets('cancel in the dialog allocates nothing', (tester) async {

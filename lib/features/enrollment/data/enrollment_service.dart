@@ -16,34 +16,61 @@ const unblindedRole = 'unblinded';
 bool isUnblindedClaims(Map<String, dynamic>? claims) =>
     claims?['role'] == unblindedRole;
 
-/// What the researcher types in.
+/// T21 (registry v8 C01): the study period from the research-ID prefix,
+/// the same rule as the server (functions/study_period.js): `PB-…` →
+/// `'B'` (Phase B), `PILOT-…` → `'PILOT'` (pilot run).  Null for `PA-…`
+/// (Phase A is paused, decision 0034), no prefix, or nothing after it.
+/// The server checks again; this only picks the fields to show.
+String? enrollmentPeriodOf(String researchId) {
+  final id = researchId.trim().toUpperCase();
+  final rest = RegExp(r'^[A-Z0-9][A-Z0-9-]*$');
+  if (id.length > 12) return null;
+  if (id.startsWith('PB-') && rest.hasMatch(id.substring(3))) return 'B';
+  if (id.startsWith('PILOT-') && rest.hasMatch(id.substring(6))) {
+    return 'PILOT';
+  }
+  return null;
+}
+
+/// What the researcher types in.  T21: a `PB-` ID needs the W0 score
+/// and W0 date (Phase B, sequence allocation); a `PILOT-` ID needs the
+/// version the researcher chose instead ([pilotArm], `'A'` Hybrid or
+/// `'B'` rule-based) and starts on the registration date.
 class EnrollmentInput {
   final String email;
   final String researchId;
-  final int w0DjgEmotional;
+  final int? w0DjgEmotional;
   final String companionVariant; // 'feminine' (阿珍) | 'masculine' (阿伯)
-  final String w0Date; // YYYY-MM-DD
-
-  // T21 will add the study period here (Phase A / Phase B).  The sequence
-  // path is Phase B only, so the server records 'B' for now.
+  final String? w0Date; // YYYY-MM-DD
+  final String? pilotArm; // 'A' | 'B', PILOT- only
 
   const EnrollmentInput({
     required this.email,
     required this.researchId,
-    required this.w0DjgEmotional,
+    this.w0DjgEmotional,
     required this.companionVariant,
-    required this.w0Date,
+    this.w0Date,
+    this.pilotArm,
   });
 
-  /// Low = 0–1, high = 2–3 (same rule as the server's stratumFor).
-  String get stratum => w0DjgEmotional <= 1 ? 'low' : 'high';
+  /// `'B'` | `'PILOT'` | null (see [enrollmentPeriodOf]).
+  String? get studyPeriod => enrollmentPeriodOf(researchId);
+
+  bool get isPilot => studyPeriod == 'PILOT';
+
+  /// Low = 0–1, high = 2–3 (same rule as the server's stratumFor); empty
+  /// for a pilot account (no score, no stratum).
+  String get stratum => w0DjgEmotional == null
+      ? ''
+      : (w0DjgEmotional! <= 1 ? 'low' : 'high');
 
   Map<String, dynamic> toPayload({required bool dryRun}) => {
         'email': email.trim(),
         'researchId': researchId.trim().toUpperCase(),
-        'w0DjgEmotional': w0DjgEmotional,
+        if (isPilot) 'pilotArm': pilotArm,
+        if (!isPilot) 'w0DjgEmotional': w0DjgEmotional,
         'companionVariant': companionVariant,
-        'w0Date': w0Date,
+        if (!isPilot) 'w0Date': w0Date,
         'dryRun': dryRun,
         'confirmed': !dryRun,
       };
@@ -55,6 +82,11 @@ class EnrollmentResult {
   final bool sameInput;
   final String? arm;
   final String researchId;
+
+  /// T21: `'B'` or `'PILOT'`.
+  final String? studyPeriod;
+
+  /// `'low'` | `'high'`; empty for a pilot account.
   final String stratum;
   final int? w0DjgEmotional;
   final String? companionVariant;
@@ -67,6 +99,7 @@ class EnrollmentResult {
     required this.sameInput,
     required this.arm,
     required this.researchId,
+    this.studyPeriod,
     required this.stratum,
     this.w0DjgEmotional,
     this.companionVariant,
@@ -84,6 +117,7 @@ class EnrollmentResult {
       sameInput: m['sameInput'] != false,
       arm: m['arm'] as String?,
       researchId: (m['researchId'] as String?) ?? '',
+      studyPeriod: m['studyPeriod'] as String?,
       stratum: (m['stratum'] as String?) ?? '',
       w0DjgEmotional: (m['w0DjgEmotional'] as num?)?.toInt(),
       companionVariant: m['companionVariant'] as String?,
