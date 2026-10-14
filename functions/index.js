@@ -23,6 +23,7 @@ const featureFlags = require("./feature_flags");
 const blinding = require("./blinding");
 const djgW2 = require("./djg_w2");
 const ada = require("./ada");
+const weeklySchedule = require("./weekly_schedule");
 
 admin.initializeApp();
 
@@ -1546,6 +1547,7 @@ const _EXPORT_BLINDED_COLLECTIONS = [
   "pgic",
   "djg_es",
   "djg_responses",
+  "social_contact_probes",
   "agent_diff",
   "daily_mood",
   "response_feedback",
@@ -1652,7 +1654,8 @@ exports.blindedDataExport = onSchedule(
         "events", "ppr_responses", "llm_turn_features",
         "thought_exercise", "loneliness_probes",
         "turns", "sessions", "brief_pr", "weekly_pr", "pgic", "djg_es",
-        "djg_responses", "agent_diff", "daily_mood", "response_feedback",
+        "djg_responses", "social_contact_probes", "agent_diff", "daily_mood",
+        "response_feedback",
       ]) {
         const sub = await userDoc.ref.collection(subName).get();
         for (const d of sub.docs) {
@@ -1931,6 +1934,44 @@ exports.weeklySurveyReminder = onSchedule(
     retryCount: 0,
   },
   async (_event) => {
+    const db = admin.firestore();
+    // T24: with the study-week schedule on, Phase B / pilot participants
+    // get their weekly questionnaire from weeklyBundleDispatch (per person,
+    // by study day).  The Sunday reminder then goes per device only to the
+    // accounts the schedule does not cover (functions/weekly_schedule.js
+    // legacyWeeklyReminderTarget) — never as a topic broadcast, so no
+    // participant hears two weekly pushes.  Switch off: exactly as before.
+    const wsCfg = await weeklySchedule.readConfig(db);
+    if (wsCfg.enabled) {
+      const gateOn = await studyPeriod.enrollmentGateOn(db);
+      const usersSnap = await db.collection("users").get();
+      const weekIso = isoWeekLabel(new Date());
+      let sent = 0;
+      for (const userDoc of usersSnap.docs) {
+        const data = userDoc.data() || {};
+        if (!weeklySchedule.legacyWeeklyReminderTarget(data, {gateOn})) {
+          continue;
+        }
+        try {
+          const res = await weeklySchedule.sendToDevices(admin.messaging(),
+              userDoc, _TEST_PUSH_COPY.weekly_survey_reminder,
+              "weekly_survey_reminder");
+          await userDoc.ref.collection("events").add({
+            name: "weekly_pr_pushed",
+            params: {weekIso, channel: "fcm_token", tokens: res.tokens,
+              delivered: res.delivered},
+            source: "cf_weeklySurveyReminder",
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          sent++;
+        } catch (err) {
+          console.error(`weekly reminder failed for ${userDoc.id}:`,
+              err.message);
+        }
+      }
+      console.log(`weeklySurveyReminder (per person): ${sent} users`);
+      return;
+    }
     await sendDoorbell(
       "陪住",
       "今個禮拜過得點？得閒入嚟答幾條，想答先答，唔想都冇問題。",
@@ -1940,7 +1981,6 @@ exports.weeklySurveyReminder = onSchedule(
     // topic broadcast, so per-device receipt is unknown; this records that
     // the push was issued for the account (testers excluded).
     try {
-      const db = admin.firestore();
       const usersSnap = await db.collection("users").get();
       const weekIso = isoWeekLabel(new Date());
       const writes = [];
@@ -2203,6 +2243,62 @@ exports.onDjgResponseWritten = onDocumentWritten(
       event.data.after.data() : null;
     await djgW2.scoreSubmission(admin.firestore(), event.params.uid,
         event.params.timepoint, after);
+    // T24: study-week stamps on the bundle's DJG (W1–W3; a record without
+    // `bundle` that is not a weekly-bundle timepoint is left alone).
+    await weeklySchedule.stampPartRecord(admin.firestore(), event.params.uid,
+        weeklySchedule.DJG_COLLECTION, event.params.timepoint, after);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// T24 — study weeks and the weekly questionnaire bundle (SPEC:C15, C17).
+// Phase B and pilot, both arms identical, no LLM.  Off unless
+// app_config/phase_b.weeklyScheduleV2Enabled === true
+// (functions/weekly_schedule.js).
+//   weeklyBundleDispatch: hourly 08:00–21:00 HKT — per-person push when a
+//     bundle's window opens (weeklyPushHour on the bundle days), T18's one
+//     reminder 24 h later if a part is still open, the missed marks after
+//     the window.  Draft copy carries 【占位】, so nothing is sent yet.
+//   onWeeklyPrWritten / onPgicWritten / onSocialContactProbeWritten:
+//     server-written study-week fields on each part record.
+//   onBriefPrWritten: studyWeek / studyDay by session end (T25 records).
+// ---------------------------------------------------------------------------
+exports.weeklyBundleDispatch = onSchedule(
+  {
+    schedule: "0 8-21 * * *",
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    retryCount: 0,
+  },
+  async (_event) => {
+    await weeklySchedule.dispatchWeeklyBundles(admin.firestore(),
+        admin.messaging());
+  },
+);
+
+function weeklyPartTrigger(collection) {
+  return onDocumentWritten(
+      {document: `users/{uid}/${collection}/{docId}`, region: "asia-east2"},
+      async (event) => {
+        const after = event.data && event.data.after &&
+          event.data.after.exists ? event.data.after.data() : null;
+        await weeklySchedule.stampPartRecord(admin.firestore(),
+            event.params.uid, collection, event.params.docId, after);
+      });
+}
+exports.onWeeklyPrWritten =
+  weeklyPartTrigger(weeklySchedule.WEEKLY_PR_COLLECTION);
+exports.onPgicWritten = weeklyPartTrigger(weeklySchedule.PGIC_COLLECTION);
+exports.onSocialContactProbeWritten =
+  weeklyPartTrigger(weeklySchedule.SOCIAL_COLLECTION);
+
+exports.onBriefPrWritten = onDocumentWritten(
+  {document: "users/{uid}/brief_pr/{docId}", region: "asia-east2"},
+  async (event) => {
+    const after = event.data && event.data.after && event.data.after.exists ?
+      event.data.after.data() : null;
+    await weeklySchedule.stampBriefPr(admin.firestore(), event.params.uid,
+        event.params.docId, after);
   },
 );
 

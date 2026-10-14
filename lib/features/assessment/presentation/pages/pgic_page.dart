@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../weekly_bundle/presentation/weekly_part_header.dart';
 import '../../../weekly_pr/data/weekly_pr_response.dart';
 import '../../data/pgic_response.dart';
 
@@ -15,7 +16,14 @@ class PgicPage extends StatefulWidget {
   /// Tue 23:59 window a Monday answer rates the *previous* week, so the
   /// banner passes it explicitly; `isoWeek` alone would mislabel it.
   final String? weekIso;
-  const PgicPage({super.key, this.weekIso});
+
+  /// T24 — inside the weekly bundle: the record is `users/{uid}/pgic/{bundle}`
+  /// with a `bundle` field, the page shows 「第 n 部分，共 m 部分」 and pops
+  /// `true` once saved.  Null = the Sunday-window page, unchanged.
+  final String? bundle;
+  final WeeklyPartPosition? part;
+
+  const PgicPage({super.key, this.weekIso, this.bundle, this.part});
 
   @override
   State<PgicPage> createState() => _PgicPageState();
@@ -58,14 +66,21 @@ class _PgicPageState extends State<PgicPage> {
           answeredAt: now,
           isoWeek: PgicResponse.isoWeekFor(now),
         );
-        await FirebaseFirestore.instance
+        final col = FirebaseFirestore.instance
             .collection('users')
             .doc(profile.uid)
-            .collection('pgic')
-            .add({
+            .collection('pgic');
+        final data = {
           ...response.toFirestore(),
           'weekIso': widget.weekIso ?? WeeklyPrResponse.currentWeekIso(now),
-        });
+        };
+        final bundle = widget.bundle;
+        if (bundle != null) {
+          // T24: one record per bundle; a retry overwrites the same doc.
+          await col.doc(bundle).set({...data, 'bundle': bundle}, SetOptions(merge: true));
+        } else {
+          await col.add(data);
+        }
       } catch (_) {
         // Graceful degradation: Firebase unavailable in guest mode.
       }
@@ -75,6 +90,7 @@ class _PgicPageState extends State<PgicPage> {
       _saving = false;
       _saved = true;
     });
+    if (widget.bundle != null) Navigator.of(context).pop(true);
   }
 
   @override
@@ -87,7 +103,9 @@ class _PgicPageState extends State<PgicPage> {
         title: Text(isEn ? 'Weekly check-in' : '每週感受變化'),
       ),
       body: SafeArea(
-        child: ListView(
+        child: Column(children: [
+          if (widget.part != null) WeeklyPartHeader(part: widget.part!),
+          Expanded(child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
           children: [
             Text(
@@ -226,7 +244,8 @@ class _PgicPageState extends State<PgicPage> {
                 ),
               ),
           ],
-        ),
+        )),
+        ]),
       ),
     );
   }

@@ -20,6 +20,11 @@ import '../../../../core/config/phase_a_schedule_config.dart';
 import '../../../ada/presentation/ada_page.dart';
 import '../../../ada/data/ada_gate.dart';
 import '../../../ada/presentation/day7_flow_page.dart';
+import '../../../weekly_bundle/data/weekly_bundle.dart';
+import '../../../weekly_bundle/presentation/weekly_bundle_flow_page.dart';
+import '../../../../core/scheduling/w0_date.dart';
+import '../../../../core/scheduling/weekly_schedule.dart';
+import '../../../../core/config/phase_b_config.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
 import '../../../assessment/data/djg_w2.dart';
@@ -170,6 +175,32 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
     if (mounted) setState(() => _pending = null);
   }
 
+  /// T24 — the weekly bundle flow (study-week schedule).  Same page for
+  /// both arms; the arm is only stored on the Weekly PR record as before.
+  Future<void> _openWeeklyBundle(WeeklyBundleDue due) async {
+    final profile = AppSettingsScope.read(context).profile;
+    if (profile == null) return;
+    final mode = WeeklySchedule.modeForCohort(profile.cohort);
+    final w0 = w0DateFor(profile);
+    if (mode == null || w0 == null) return;
+    final analytics = AnalyticsScope.of(context);
+    unawaited(analytics.logEvent('weekly_bundle_opened', {'bundle': due.bundle.id}));
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => WeeklyBundleFlowPage.forUser(
+          uid: profile.uid,
+          arm: Arm.of(context)?.code ?? profile.arm?.code ?? 'A',
+          bundle: due.bundle,
+          referentRange: WeeklySchedule.referentRangeFor(
+              due.bundle, w0, PhaseBConfig.current, mode),
+          initialStatus: due.status,
+        ),
+      ),
+    );
+    if (mounted) setState(() => _pending = null);
+    _maybeLoad();
+  }
+
   Future<void> _openAgentDiff(int wave) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => AgentDiffPage(wave: wave)),
@@ -248,6 +279,19 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
                 : '幾分鐘：最近嘅感受，同三個夥伴嘅比較。')
             : (isEn ? 'A few minutes: how things feel.' : '幾分鐘：最近嘅感受。'),
         onTap: _openWeek2,
+      ));
+    }
+    final wb = p.weeklyBundle;
+    if (wb != null) {
+      // T24 — draft copy (【占位】), research team to sign off.
+      tiles.add(_BannerTile(
+        key: const ValueKey('weekly_bundle_card'),
+        icon: Icons.assignment_outlined,
+        title: kWeeklyBundleTitle,
+        subtitle: wb.bundle.parts.length == 1
+            ? '【占位】一條問題，好快答完。'
+            : '【占位】分 ${wb.bundle.parts.length} 部分，可以分開做。',
+        onTap: () => _openWeeklyBundle(wb),
       ));
     }
     if (p.djgW2) {
