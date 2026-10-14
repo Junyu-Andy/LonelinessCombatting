@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-10-14 Phase B 包隐藏点赞点踩和第一周提示（PR 草稿，分支 `fix/phase-b-hide-feedback-nudge`）
+
+- 负责人核对 W0 流程时发现：点赞点踩只有 Hybrid 组的签到、回忆、反思对话有（通通、文章两组都有），登记表没写这项差异；第一周提示读 Phase A 配置，Phase B 老人也会看到。负责人定：先关掉，保主干。
+- 做法：`PHASE_B=true` 的包里两处都不渲染，两组相同；两个远程开关 `replyFeedbackEnabled`、`week1NudgeEnabled`（`app_config/feature_flags`）设为 `true` 可恢复。Phase A 包不变。编号待开发窗口分配。报告：`docs/dev-reports/phase-b-hide-feedback-nudge-20261014.md`。
+
 ## 2026-10-14 T21 研究期和登记，第一部分（SPEC:C01，PR 草稿，未合并）
 
 - **做了**：研究编号只认 `PB-`、`PILOT-`，`PA-` 和没有前缀的登记时拒绝（Phase A 暂停，决策 0034）；服务器按前缀写 `users/{uid}.cohort`（`phase_b` / `pilot`，决策 0011 的字段）和 `enrollments.studyPeriod`；试跑在登记页由负责人选版本、再选一次确认，不占序列，研究日从登记日算，记 `pilot_assignment_log`；试跑 Hybrid 账号有服务器记忆，试跑不进盲法导出、不收旧的 Phase A 第 2 周推送。

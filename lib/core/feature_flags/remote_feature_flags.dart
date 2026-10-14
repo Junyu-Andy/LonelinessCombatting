@@ -26,12 +26,27 @@
 ///                               about shared / private memory at the top
 ///                               of 「我記得嘅嘢」.  Switch on together with
 ///                               `meta/memory_config.layersEnabled`.
+///   - [replyFeedbackEnabled]  — 10/14 lead's decision: in a `PHASE_B=true`
+///                               build the 👍/👎 reply feedback
+///                               ([ThumbsFeedback]) is hidden in both arms
+///                               unless this is true (it existed only on
+///                               Hybrid chat pages, an unregistered
+///                               between-arm difference; Phase B does not
+///                               collect single-reply feedback).  Phase A
+///                               builds are unaffected.
+///   - [week1NudgeEnabled]     — same decision: the Phase A first-week
+///                               「你仲未同 X 傾過」 home banner
+///                               ([Week1NudgeBanner], enrolment days 3 and
+///                               6) is hidden in a `PHASE_B=true` build
+///                               unless this is true.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+
+import 'feature_flags.dart';
 
 class RemoteFeatureFlags {
   const RemoteFeatureFlags({
@@ -40,6 +55,8 @@ class RemoteFeatureFlags {
     this.searchOffReplyEnabled = false,
     this.enrollmentGateEnabled = false,
     this.memoryLayersNoticeEnabled = false,
+    this.replyFeedbackEnabled = false,
+    this.week1NudgeEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -47,6 +64,8 @@ class RemoteFeatureFlags {
   final bool searchOffReplyEnabled;
   final bool enrollmentGateEnabled;
   final bool memoryLayersNoticeEnabled;
+  final bool replyFeedbackEnabled;
+  final bool week1NudgeEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -84,5 +103,17 @@ class RemoteFeatureFlags {
         searchOffReplyEnabled: map['searchOffReplyEnabled'] == true,
         enrollmentGateEnabled: map['enrollmentGateEnabled'] == true,
         memoryLayersNoticeEnabled: map['memoryLayersNoticeEnabled'] == true,
+        replyFeedbackEnabled: map['replyFeedbackEnabled'] == true,
+        week1NudgeEnabled: map['week1NudgeEnabled'] == true,
       );
+
+  /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply
+  /// feedback in both arms unless [replyFeedbackEnabled] (10/14).
+  static bool get hideReplyFeedback =>
+      FeatureFlags.phaseB && !_current.replyFeedbackEnabled;
+
+  /// Phase B hides the Phase A first-week nudge banner unless
+  /// [week1NudgeEnabled] (10/14).
+  static bool get hideWeek1Nudge =>
+      FeatureFlags.phaseB && !_current.week1NudgeEnabled;
 }

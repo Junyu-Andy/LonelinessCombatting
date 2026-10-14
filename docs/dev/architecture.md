@@ -325,6 +325,8 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `webSearchEnabled` | 关 | 通通"幫我查"按钮（只 Hybrid 组）；服务器 `webSearch` |
 | `voiceInputEnabled` | 关 | 所有页面的麦克风按钮（两组）；服务器 `transcribeAudio` |
 | `searchOffReplyEnabled` | 关 | 搜一搜关闭时，通通对"要上网查"的问题回固定一句（文字未定稿） |
+| `replyFeedbackEnabled` | 关 | 10/14：`PHASE_B=true` 的包里，聊天回复旁的点赞点踩（`ThumbsFeedback`）两组都隐藏；设为 `true` 才显示。Phase A 包不受影响 |
+| `week1NudgeEnabled` | 关 | 10/14：`PHASE_B=true` 的包里，首页第一周提示「你仲未同 X 傾過」（Phase A 的第 3、6 天提示，`week1_nudge_banner.dart`）隐藏；设为 `true` 才显示 |
 | `enrollmentGateEnabled` | 关 | T21 登记门：没登记、不是测试账号的人只看到等待页 S8；服务器拒绝它的 LLM 调用和研究数据写入（第 4 节）。服务器最多 1 分钟后生效；Firestore 规则立即生效 |
 
 > ⚠️ **重要功能：HREC 批准 STT 后开启 `voiceInputEnabled`。** 开之前先定是否允许系统云端识别（`voice_input_button.dart` 的 `_onDeviceOnly`）。打开属于行为改动，要在 `docs/STUDY_CHANGELOG.md` 写明生效日期和组别。

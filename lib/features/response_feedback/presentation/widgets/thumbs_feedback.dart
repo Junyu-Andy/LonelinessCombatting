@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/safety/safety_check.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
@@ -204,6 +205,9 @@ class _ThumbsFeedbackState extends State<ThumbsFeedback> {
 
   @override
   Widget build(BuildContext context) {
+    // 10/14: Phase B shows no single-reply feedback in either arm unless
+    // app_config/feature_flags.replyFeedbackEnabled is true.
+    if (RemoteFeatureFlags.hideReplyFeedback) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final selected = _selectedRating;
     return Padding(
