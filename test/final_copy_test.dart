@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
 import 'package:app_demo/core/config/usage_copy.dart';
+import 'package:app_demo/core/voice/voice_copy.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
 import 'package:app_demo/features/auth/presentation/auth_service_scope.dart';
 import 'package:app_demo/features/curious_companion/data/tung_tung_search_intent.dart';
@@ -85,6 +86,11 @@ void main() {
     test('S1a: Tung Tung search-off reply', () {
       expect(TungTungSearchIntent.reply(isEn: false), short['S1a']);
       expect(TungTungSearchIntent.reply(isEn: true), short['S1a']);
+    });
+
+    // T27 — shown next to the input box after a failed transcription.
+    test('S6: voice transcription failed', () {
+      expect(VoiceCopy.s6TranscriptionFailed, short['S6']);
     });
 
     test('S3: reminiscence landing count sentence', () {

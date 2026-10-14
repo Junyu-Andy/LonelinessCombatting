@@ -255,7 +255,9 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
     if (done != null) {
       await done.future.timeout(const Duration(seconds: 2), onTimeout: () {});
     }
-    await _sub?.cancel();
+    // Not awaited: on an already-closed stream cancel() hands back a
+    // root-zone completed future, which never resumes under fake async.
+    unawaited(_sub?.cancel());
     _sub = null;
     _pcm = null;
     _streamDone = null;
@@ -326,7 +328,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
       } catch (_) {
         // Best effort; _suppressResult already guards the result path.
       }
-      await _sub?.cancel();
+      unawaited(_sub?.cancel());
       _sub = null;
       _pcm = null;
       _streamDone = null;
