@@ -12,6 +12,7 @@ const {computeLlmFlags} = require("./llm_flags");
 const arm = require("./arm");
 const piAlert = require("./pi_alert");
 const randomization = require("./randomization");
+const studyPeriod = require("./study_period");
 const memory = require("./memory");
 const llmLog = require("./llm_log");
 const reminders = require("./reminders");
@@ -290,23 +291,38 @@ async function armFor(uid) {
 /**
  * Throws permission-denied for Arm B participants, and (T19) logs the
  * refusal in `llm_denied_log` (no text, no arm field; clients cannot read).
+ * T21: with the enrolment gate on, an account that is neither enrolled
+ * (cohort phase_b / pilot) nor a tester is refused too; that row carries
+ * reason "not_enrolled".  The user doc is read fresh for this check, so
+ * a registration takes effect at once.
  * @param {string} uid Firebase auth uid.
  * @param {string} endpoint Which callable refused.
  */
 async function assertLlmAllowed(uid, endpoint) {
-  if (await armFor(uid) === "B") {
-    try {
-      await admin.firestore().collection("llm_denied_log").add({
-        uid,
-        endpoint: endpoint || "unknown",
-        ts: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    } catch (err) {
-      console.error("llm_denied_log write failed:", err.message);
-    }
-    throw new HttpsError(
-        "permission-denied", "LLM features are not part of this study arm");
+  let reason = await armFor(uid) === "B" ? "rule_arm" : null;
+  // T21: the enrolment gate (app_config/feature_flags.enrollmentGateEnabled,
+  // default off; functions/study_period.js).
+  if (!reason && await studyPeriod.enrollmentGateOn(admin.firestore())) {
+    const snap = await admin.firestore().collection("users").doc(uid).get();
+    reason = studyPeriod.llmRefusal({
+      gateOn: true, user: snap.exists ? snap.data() : null});
   }
+  if (!reason) return;
+  try {
+    const row = {
+      uid,
+      endpoint: endpoint || "unknown",
+      ts: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    // Rule-arm rows stay as T19 wrote them (no reason, no arm field).
+    if (reason === "not_enrolled") row.reason = reason;
+    await admin.firestore().collection("llm_denied_log").add(row);
+  } catch (err) {
+    console.error("llm_denied_log write failed:", err.message);
+  }
+  throw new HttpsError("permission-denied", reason === "not_enrolled" ?
+    "Not registered for the study yet" :
+    "LLM features are not part of this study arm");
 }
 
 // T7 — safety switches live in safety_config.js (`meta/safety_config`).
@@ -1663,9 +1679,10 @@ exports.memorySweep = onSchedule(
     const queries = [db.collection("users")
         .where("memory_enabled", "==", true).get()];
     if (cfg.phaseBArmA) {
+      // T21: pilot accounts set to Arm A by the researcher too.
       queries.push(db.collection("users")
           .where("arm", "==", "A")
-          .where("armAssignmentMode", "==", "randomise").get());
+          .where("armAssignmentMode", "in", studyPeriod.PHASE_B_MODES).get());
     }
     const byId = new Map();
     for (const snap of await Promise.all(queries)) {
@@ -1878,6 +1895,9 @@ const _ENROL_ERRORS = {
   research_id_taken: "already-exists",
   account_has_other_research_id: "already-exists",
   own_account: "invalid-argument",
+  // T21: PB- / PILOT- only; the pilot needs a version.
+  research_id_prefix: "invalid-argument",
+  invalid_pilot_arm: "invalid-argument",
 };
 
 exports.enrollParticipant = onCall(
@@ -1908,6 +1928,7 @@ exports.enrollParticipant = onCall(
         w0DjgEmotional: data.w0DjgEmotional,
         companionVariant: data.companionVariant,
         w0Date: data.w0Date,
+        pilotArm: data.pilotArm,
         confirmed: data.confirmed,
         dryRun: data.dryRun,
       });
@@ -1935,6 +1956,7 @@ exports.week2Push = onSchedule(
     // T18 (decision 0027): with the in-app W2 DJG on, djgW2Dispatch owns
     // the Week 2 push for Phase B participants — one push, not two.
     const djgCfg = await djgW2.readConfig(db);
+    const gateOn = await studyPeriod.enrollmentGateOn(db);
     const today = hkDateKey(new Date());
     const usersSnap = await db.collection("users").get();
     let sent = 0;
@@ -1943,6 +1965,8 @@ exports.week2Push = onSchedule(
       if (data.isTester === true) continue;
       if (data.w2PushSentAt) continue;
       if (djgW2.week2PushShouldSkip(djgCfg, data)) continue;
+      // T21: not for pilot-run accounts, nor (gate on) unregistered ones.
+      if (studyPeriod.skipsPhaseAWeek2Push({gateOn, user: data})) continue;
       const createdRaw = data.createdAt;
       if (!createdRaw) continue;
       const createdIso = typeof createdRaw === "string" ?

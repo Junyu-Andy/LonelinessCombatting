@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-14 T21 研究期和登记，第一部分（SPEC:C01，PR 草稿，未合并）
+
+- **做了**：研究编号只认 `PB-`、`PILOT-`，`PA-` 和没有前缀的登记时拒绝（Phase A 暂停，决策 0034）；服务器按前缀写 `users/{uid}.cohort`（`phase_b` / `pilot`，决策 0011 的字段）和 `enrollments.studyPeriod`；试跑在登记页由负责人选版本、再选一次确认，不占序列，研究日从登记日算，记 `pilot_assignment_log`；试跑 Hybrid 账号有服务器记忆，试跑不进盲法导出、不收旧的 Phase A 第 2 周推送。
+- 登记门（`app_config/feature_flags.enrollmentGateEnabled`，默认关）：开时没登记、不是测试账号的账号只看到 S8，服务器拒绝 LLM 调用（`llm_denied_log` 记 `not_enrolled`），Firestore 规则拒绝写研究数据。
+- 没做、待定：`PHASE_B` 编译开关去留；广播推送对未登记账号的筛选（T24）；盲法人员账号（T30）。报告 `docs/dev-reports/T21-phase-config-20261014.md`。
+- **10/14 第二次更新**：再合 main `46d3ef9`（#60）；负责人对 6 件待定事的答复是“改动最少、可以回退”，六项都按现有做法（`PHASE_B` 保留、`pilot` 指试跑、`isTester` 不改、试跑研究日从登记日算、登记门默认关、开的时间待定），写成决策 0037（提议中，待 Junyu 确认），0011 顶上加一行“`pilot` 的含义已由 0037 取代”；评估员账号和登记门的关系交 T30（`dev-tasks-1014.md`）。代码行为没改；backlog 加第 96 项（`isTester` 客户端可写）。
+
 ## 2026-10-14 产品窗口 10/14 第 1–4 条排进第九批（T35）；登记表 v9
 
 - **定了**：数据收集 10/19 开始；W4 结局评估员是 Keran，后备 Mingyan Wang，评估员视图只剩 W4；W8 不再有评估员，App 在第 56 天推送 DJG-ES、PGIC、UCLA-3，第 63 天关闭，超窗作答照记并标记；W8 不推 PHQ-9、GAD-7。

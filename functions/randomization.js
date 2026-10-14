@@ -24,17 +24,29 @@
  * Sequences are generated offline by the unblinded researcher with her own
  * seed (tool/randomization_sequence.js); the seed never reaches Firestore
  * or the repository.
+ *
+ * T21 (registry v8 C01, dev-tasks-1010b): the research-ID prefix decides
+ * the study period (functions/study_period.js).  "PB-…" takes the path
+ * above and is marked cohort "phase_b".  "PILOT-…" is the pilot run: no
+ * W0 score, no sequence; the researcher picks the version (Arm A Hybrid or
+ * Arm B rule-based) on the registration page, the study day starts on the
+ * registration date, and the choice is logged in pilot_assignment_log.
+ * "PA-…" (Phase A is paused, decision 0034) and IDs without a prefix are
+ * refused.
  */
 
 "use strict";
 
 const crypto = require("crypto");
+const studyPeriod = require("./study_period");
 
 const CONFIG_DOC = "meta/randomization_config";
 const SEQ_COLLECTION = "randomization_sequences";
 const STATE_COLLECTION = "randomization_state";
 const ENROLL_COLLECTION = "enrollments";
 const LOG_COLLECTION = "arm_assignment_log";
+// T21: the pilot run's version choices (no stratum, no sequence position).
+const PILOT_LOG_COLLECTION = "pilot_assignment_log";
 const STRATA = ["low", "high"];
 const MIN_SEQUENCE_LENGTH = 60;
 const BLOCK_SIZES = [2, 4];
@@ -224,9 +236,11 @@ function enrolError(code, detail) {
  * @param {object} db admin.firestore()
  * @param {{uid: string, email: ?string, role: ?string}} caller
  * @param {{uid: string, researchId: *, w0DjgEmotional: *,
- *     companionVariant: *, w0Date: *, confirmed: *, dryRun: *}} input
+ *     companionVariant: *, w0Date: *, pilotArm: *, confirmed: *,
+ *     dryRun: *}} input
  *     `uid` is the participant's account (resolved from the email by the
- *     callable wrapper)
+ *     callable wrapper).  `pilotArm` ("A" | "B") only for a PILOT- ID,
+ *     which needs no score or W0 date (T21)
  * @param {{now: (Date|undefined)}=} opts
  * @return {Promise<object>}
  */
@@ -243,6 +257,12 @@ async function enrol(db, caller, input, opts) {
   if (uid === caller.uid) throw enrolError("own_account");
   const researchId = normaliseResearchId(input.researchId);
   if (!researchId) throw enrolError("invalid_research_id");
+  // T21: PB- or PILOT- only; PA- (Phase A paused) and no prefix refused.
+  const period = studyPeriod.periodForResearchId(researchId);
+  if (!period) throw enrolError("research_id_prefix");
+  if (period.studyPeriod === "PILOT") {
+    return enrolPilot(db, caller, uid, researchId, input, now);
+  }
   const score = input.w0DjgEmotional;
   const stratum = stratumFor(score);
   if (!stratum) throw enrolError("invalid_score");
@@ -277,24 +297,11 @@ async function enrol(db, caller, input, opts) {
     };
 
     if (existing.exists) {
-      const e = existing.data();
-      const same = e.researchId === researchId &&
-        e.w0DjgEmotional === score && e.companionVariant === variant;
-      if (!dryRun) {
-        tx.create(logRef, {
-          action: "resubmit", uid, researchId: e.researchId,
-          stratum: e.stratum, sequencePosition: e.sequencePosition,
-          arm: e.arm, sameInput: same, at: now,
-          by: caller.uid, byEmail: caller.email || null,
-        });
-      }
-      return {
-        alreadyEnrolled: true, sameInput: same, account,
-        researchId: e.researchId, stratum: e.stratum,
-        w0DjgEmotional: e.w0DjgEmotional,
-        companionVariant: e.companionVariant, w0Date: e.w0Date,
-        arm: dryRun ? null : e.arm,
-      };
+      const same = existing.get("researchId") === researchId &&
+        existing.get("w0DjgEmotional") === score &&
+        existing.get("companionVariant") === variant;
+      return resubmission(tx, db, caller, uid, existing, same, account,
+          dryRun, now);
     }
 
     if (u.arm === "A" || u.arm === "B") throw enrolError("already_has_arm");
@@ -311,7 +318,8 @@ async function enrol(db, caller, input, opts) {
     if (next >= arms.length) throw enrolError("sequence_exhausted");
 
     if (dryRun) {
-      return {alreadyEnrolled: false, account, researchId, stratum,
+      return {alreadyEnrolled: false, account, researchId,
+        studyPeriod: period.studyPeriod, stratum,
         w0DjgEmotional: score, companionVariant: variant, w0Date,
         arm: null};
     }
@@ -330,14 +338,15 @@ async function enrol(db, caller, input, opts) {
       armAssignedAt: now,
       w0Date,
       ahJanAhBakVariant: variant,
+      // T21: the study period, from the PB- prefix (decision 0011 label).
+      cohort: period.cohort,
     }, {merge: true});
     tx.create(enrolRef, {
       uid, researchId, w0DjgEmotional: score, stratum, companionVariant:
         variant, w0Date, arm, sequencePosition: position,
       sequenceSha256: seq.get("sha256") || null,
-      // T21 will let the researcher choose the study period here; the
-      // sequence path is Phase B only.
-      studyPeriod: "B",
+      // T21: from the research-ID prefix; the sequence path is PB- only.
+      studyPeriod: period.studyPeriod,
       enrolledAt: now, enrolledBy: caller.uid,
       enrolledByEmail: caller.email || null,
     });
@@ -352,8 +361,145 @@ async function enrol(db, caller, input, opts) {
       sequencePosition: position, arm, at: now,
       by: caller.uid, byEmail: caller.email || null,
     });
-    return {alreadyEnrolled: false, account, researchId, stratum,
+    return {alreadyEnrolled: false, account, researchId,
+      studyPeriod: period.studyPeriod, stratum,
       w0DjgEmotional: score, companionVariant: variant, w0Date, arm};
+  });
+}
+
+/**
+ * A repeat registration of an enrolled account: nothing is re-allocated;
+ * the stored record is returned (no arm on a dry run) and, on a real
+ * submission, the repeat is logged where the first registration was.
+ * @param {object} tx transaction
+ * @param {object} db
+ * @param {{uid: string, email: ?string}} caller
+ * @param {string} uid
+ * @param {object} existing enrollments/{uid} snapshot
+ * @param {boolean} same the input matches the stored registration
+ * @param {object} account display name and creation time
+ * @param {boolean} dryRun
+ * @param {Date} now
+ * @return {object}
+ */
+function resubmission(tx, db, caller, uid, existing, same, account, dryRun,
+    now) {
+  const e = existing.data();
+  const pilot = e.studyPeriod === "PILOT";
+  if (!dryRun) {
+    const log = {
+      action: "resubmit", uid, researchId: e.researchId, arm: e.arm,
+      sameInput: same, at: now, by: caller.uid, byEmail: caller.email || null,
+    };
+    if (!pilot) {
+      log.stratum = e.stratum;
+      log.sequencePosition = e.sequencePosition;
+    }
+    tx.create(db.collection(pilot ? PILOT_LOG_COLLECTION : LOG_COLLECTION)
+        .doc(), log);
+  }
+  return {
+    alreadyEnrolled: true, sameInput: same, account,
+    researchId: e.researchId, studyPeriod: e.studyPeriod || "B",
+    stratum: e.stratum || null,
+    w0DjgEmotional: e.w0DjgEmotional == null ? null : e.w0DjgEmotional,
+    companionVariant: e.companionVariant, w0Date: e.w0Date,
+    arm: dryRun ? null : e.arm,
+  };
+}
+
+/**
+ * T21 — register a pilot-run account (PILOT- research ID).  The
+ * researcher chose the version ("A" Hybrid / "B" rule-based) on the
+ * registration page and confirmed it a second time; no W0 score, no
+ * stratum, no sequence position.  The study day starts on the
+ * registration date (Hong Kong), stored as w0Date like Phase B's W0 so
+ * the existing date logic applies.  Logged in pilot_assignment_log
+ * (research ID, version, time, operator).
+ * @param {object} db
+ * @param {{uid: string, email: ?string}} caller
+ * @param {string} uid participant account
+ * @param {string} researchId normalised, PILOT- prefix
+ * @param {object} input see enrol
+ * @param {Date} now
+ * @return {Promise<object>}
+ */
+async function enrolPilot(db, caller, uid, researchId, input, now) {
+  const arm = input.pilotArm;
+  if (arm !== "A" && arm !== "B") throw enrolError("invalid_pilot_arm");
+  const variant = input.companionVariant;
+  if (VARIANTS.indexOf(variant) < 0) throw enrolError("invalid_variant");
+  const dryRun = input.dryRun === true;
+  if (!dryRun && input.confirmed !== true) {
+    throw enrolError("not_confirmed");
+  }
+  const w0Date = hkDateKey(now);
+  const period = studyPeriod.periodForResearchId(researchId);
+
+  const userRef = db.collection("users").doc(uid);
+  const enrolRef = db.collection(ENROLL_COLLECTION).doc(uid);
+  const ridRef = db.collection("research_ids").doc(researchId);
+  const mapRef = db.collection("research_id_map").doc(uid);
+
+  return db.runTransaction(async (tx) => {
+    const [user, existing, rid, map] = await Promise.all([
+      tx.get(userRef), tx.get(enrolRef), tx.get(ridRef), tx.get(mapRef),
+    ]);
+    if (!user.exists) throw enrolError("account_not_found");
+    const u = user.data() || {};
+    const account = {
+      displayName: u.displayName || null,
+      createdAt: toIso(u.createdAt),
+    };
+    if (existing.exists) {
+      const same = existing.get("researchId") === researchId &&
+        existing.get("arm") === arm &&
+        existing.get("companionVariant") === variant;
+      return resubmission(tx, db, caller, uid, existing, same, account,
+          dryRun, now);
+    }
+    if (u.arm === "A" || u.arm === "B") throw enrolError("already_has_arm");
+    if (u.isTester === true) throw enrolError("tester_account");
+    if (rid.exists && rid.get("uid") !== uid) {
+      throw enrolError("research_id_taken");
+    }
+    if (map.exists && map.get("researchId") !== researchId) {
+      throw enrolError("account_has_other_research_id");
+    }
+    // The researcher picked the version, so the preview may show it.
+    const out = {alreadyEnrolled: false, account, researchId,
+      studyPeriod: period.studyPeriod, stratum: null, w0DjgEmotional: null,
+      companionVariant: variant, w0Date, arm};
+    if (dryRun) return out;
+
+    tx.set(userRef, {
+      arm,
+      armAssignmentMode: studyPeriod.PILOT_MODE,
+      armAssignmentMethod: studyPeriod.PILOT_METHOD,
+      armAssignedBy: "researcher",
+      armAssignedAt: now,
+      w0Date,
+      ahJanAhBakVariant: variant,
+      cohort: period.cohort,
+    }, {merge: true});
+    tx.create(enrolRef, {
+      uid, researchId, studyPeriod: period.studyPeriod, arm,
+      companionVariant: variant, w0Date, w0DjgEmotional: null,
+      stratum: null, sequencePosition: null,
+      enrolledAt: now, enrolledBy: caller.uid,
+      enrolledByEmail: caller.email || null,
+    });
+    if (!rid.exists) {
+      tx.create(ridRef, {uid, createdAt: now, via: "enrollment"});
+    }
+    if (!map.exists) {
+      tx.set(mapRef, {researchId, createdAt: now, via: "enrollment"});
+    }
+    tx.create(db.collection(PILOT_LOG_COLLECTION).doc(), {
+      action: "designate", uid, researchId, arm, at: now,
+      by: caller.uid, byEmail: caller.email || null,
+    });
+    return out;
   });
 }
 
@@ -392,10 +538,13 @@ async function correctArm(db, p, opts) {
     if (previousArm === p.arm) throw enrolError("same_arm");
     tx.set(userRef, {arm: p.arm, armCorrectedAt: now}, {merge: true});
     tx.update(enrolRef, {arm: p.arm, correctedAt: now});
-    tx.create(db.collection(LOG_COLLECTION).doc(), {
+    // T21: a pilot account's version change goes to the pilot log.
+    const pilot = e.get("studyPeriod") === "PILOT";
+    tx.create(db.collection(pilot ? PILOT_LOG_COLLECTION : LOG_COLLECTION)
+        .doc(), {
       action: "correction", uid: p.uid, researchId: e.get("researchId"),
-      stratum: e.get("stratum"),
-      sequencePosition: e.get("sequencePosition"),
+      stratum: e.get("stratum") || null,
+      sequencePosition: e.get("sequencePosition") || null,
       previousArm, arm: p.arm, reason, at: now, by: p.operator,
       byEmail: null,
     });
@@ -405,8 +554,9 @@ async function correctArm(db, p, opts) {
 
 module.exports = {
   CONFIG_DOC, SEQ_COLLECTION, STATE_COLLECTION, ENROLL_COLLECTION,
-  LOG_COLLECTION, STRATA, MIN_SEQUENCE_LENGTH, BLOCK_SIZES, METHOD,
-  GENERATOR_VERSION, RESEARCH_ID_PATTERN, VARIANTS, UNBLINDED_ROLE,
+  LOG_COLLECTION, PILOT_LOG_COLLECTION, STRATA, MIN_SEQUENCE_LENGTH,
+  BLOCK_SIZES, METHOD, GENERATOR_VERSION, RESEARCH_ID_PATTERN, VARIANTS,
+  UNBLINDED_ROLE,
   configFromSnap, stratumFor, normaliseResearchId, hkDateKey, validW0Date,
   seededRandomInt, generateSequences, sequenceHash, sequenceValid, enrol,
   correctArm,
