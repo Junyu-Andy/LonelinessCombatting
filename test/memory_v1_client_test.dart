@@ -94,6 +94,13 @@ void main() {
           FeatureFlags.phaseB ? MemoryMode.phaseB : MemoryMode.off);
     });
 
+    test('T21: a pilot-run Arm A account (pilot_designated) is v1 too', () {
+      expect(MemoryModes.of(p(arm: ArmAssignment.a, mode: 'pilot_designated')),
+          FeatureFlags.phaseB ? MemoryMode.phaseB : MemoryMode.off);
+      expect(MemoryModes.of(p(arm: ArmAssignment.b, mode: 'pilot_designated')),
+          MemoryMode.off);
+    });
+
     test('Phase A pilot users (force_a) keep v0', () {
       expect(MemoryModes.of(p(arm: ArmAssignment.a, mode: 'force_a')),
           MemoryMode.off);

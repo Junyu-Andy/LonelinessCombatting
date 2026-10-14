@@ -5,6 +5,7 @@ import '../../../../app/main_shell.dart';
 import '../../../../shared/widgets/app_loading_indicator.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../consent/presentation/consent_gate.dart';
+import '../../../enrollment/presentation/enrollment_wait_gate.dart';
 import '../../../enrollment/presentation/staff_gate.dart';
 import '../../data/auth_service.dart';
 import '../../data/user_profile.dart';
@@ -79,11 +80,16 @@ class _AuthGateState extends State<AuthGate> {
           return LoginPage(authService: widget.authService);
         }
         // T19: the unblinded researcher's account opens the registration
-        // page; everyone else gets the participant App.
+        // page; everyone else gets the participant App.  T21: with the
+        // enrolment gate on, an unregistered participant (not a tester)
+        // sees only the waiting page S8 — before consent and intake.
         return StaffGate(
           uid: profile.uid,
           onSignOut: widget.authService.signOut,
-          child: const ConsentGate(child: MainShell()),
+          child: EnrollmentWaitGate(
+            profile: profile,
+            child: const ConsentGate(child: MainShell()),
+          ),
         );
       },
     );

@@ -3,7 +3,8 @@
 ///
 ///   off     — memory v0 (per-agent rolling summary), or none for Arm B
 ///   phaseB  — memory v1, mandatory for Phase B Arm A (assigned while the
-///             server was randomising); no opt-out toggle
+///             server was randomising, or — T21 — a pilot-run account the
+///             researcher set to Arm A); no opt-out toggle
 ///   optIn   — memory v1 for a tester who switched it on in a MEMORY_V1
 ///             build
 ///
@@ -21,6 +22,10 @@ extension MemoryModeX on MemoryMode {
   bool get isV1 => this != MemoryMode.off;
 }
 
+/// Assignment modes that get the Phase B intervention as allocated
+/// (mirror of PHASE_B_MODES in functions/study_period.js).
+const phaseBAssignmentModes = {'randomise', 'pilot_designated'};
+
 class MemoryModes {
   const MemoryModes._();
 
@@ -30,7 +35,7 @@ class MemoryModes {
     }
     if (FeatureFlags.phaseB &&
         profile.arm == ArmAssignment.a &&
-        profile.armAssignmentMode == 'randomise') {
+        phaseBAssignmentModes.contains(profile.armAssignmentMode)) {
       return MemoryMode.phaseB;
     }
     if (FeatureFlags.memoryV1 && profile.memoryEnabled) {
