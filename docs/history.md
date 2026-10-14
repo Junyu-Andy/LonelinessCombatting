@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-10-14 T36 Build APK 加 `phase_b_templates` 选项（PR 草稿，分支 `chore/apk-phase-b-templates`）
+
+- 手动打包工作流多一个选项：`PHASE_B=true` 加 `RULE_TEMPLATE_REPLIES=true`，给参与者和内部测试用；不带 `FORCE_ARM`。只改手动打包，不改 CI 和部署。
+- 签名仍是调试密钥；换正式密钥的步骤和影响写在报告第三节，要负责人定。报告：`docs/dev-reports/T36-apk-phase-b-templates-20261014.md`。
+
 ## 2026-10-14 产品窗口 10/14 第 1–4 条排进第九批（T35）；登记表 v9
 
 - **定了**：数据收集 10/19 开始；W4 结局评估员是 Keran，后备 Mingyan Wang，评估员视图只剩 W4；W8 不再有评估员，App 在第 56 天推送 DJG-ES、PGIC、UCLA-3，第 63 天关闭，超窗作答照记并标记；W8 不推 PHQ-9、GAD-7。

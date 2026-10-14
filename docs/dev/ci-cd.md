@@ -5,7 +5,7 @@
 | 工作流 | 什么时候跑 | 做什么 |
 |---|---|---|
 | **CI** (`ci.yml`) | 每次 push、每个 PR 自动跑 | Flutter 静态检查 + 四种构建模式的测试（Phase A、Phase B、B 组页面、记忆 v1）；Cloud Functions 测试 + Firestore 规则测试（在模拟器里跑） |
-| **Build APK** (`build-apk.yml`) | 手动 | 为任意分支打一个可以装到安卓手机的 APK，可选 phase_a / phase_b / memory_v1 |
+| **Build APK** (`build-apk.yml`) | 手动 | 为任意分支打一个可以装到安卓手机的 APK，可选 phase_a / phase_b / memory_v1 / phase_b_templates。`phase_b_templates` 是给参与者和内部测试用的 Phase B 包（`PHASE_B=true` 加规则组模板 `RULE_TEMPLATE_REPLIES=true`，T36） |
 | **Deploy Firebase** (`deploy-firebase.yml`) | 手动，需要审批 | 先跑后端测试，再把 Firestore 规则和/或 Cloud Functions 部署到 `loneliness-pilot-dev` |
 
 ## 看测试结果
@@ -18,7 +18,7 @@
 ## 自己在手机上试
 
 1. Actions → **Build APK** → **Run workflow**；
-2. 选分支（通常是 `main`）和版本（例如 `phase_b`）；
+2. 选分支（通常是 `main`）和版本（参与者和内部测试用 `phase_b_templates`；`phase_b` 是不带规则组模板的旧选项）；
 3. 大约 10 分钟后，打开这次运行，在页面底部 **Artifacts** 下载 zip，解压得到 APK；
 4. 传到安卓手机上安装（需要允许「安装未知来源应用」）。
 
