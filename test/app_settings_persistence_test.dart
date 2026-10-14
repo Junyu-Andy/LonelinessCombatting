@@ -131,9 +131,9 @@ void main() {
     expect(find.text('特大'), findsOneWidget);
     expect(find.text('高對比模式'), findsOneWidget);
     expect(find.text('安靜時段'), findsOneWidget);
-    expect(find.text('語音讀出內容'), findsOneWidget);
+    // 10/14: 「語音讀出內容」 is hidden until something reads it (backlog 97).
+    expect(find.text('語音讀出內容'), findsNothing);
     expect(tester.widget<Switch>(switchIn('安靜時段')).value, isTrue);
-    expect(tester.widget<Switch>(switchIn('語音讀出內容')).value, isFalse);
 
     await tester.tap(find.text('特大'));
     await tester.pumpAndSettle();
@@ -141,12 +141,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(switchIn('安靜時段'));
     await tester.pumpAndSettle();
-    await tester.tap(switchIn('語音讀出內容'));
-    await tester.pumpAndSettle();
     expect(settings.fontScale, AppFontScale.xLarge);
     expect(settings.highContrast, isTrue);
     expect(settings.quietHours, isFalse);
-    expect(settings.voiceReadback, isTrue);
+    expect(settings.voiceReadback, isFalse, reason: 'row hidden, value untouched');
     expect(tester.widget<Switch>(switchIn('安靜時段')).value, isFalse);
 
     // "Close and reopen the App".
@@ -154,6 +152,6 @@ void main() {
     expect(reopened.fontScale, AppFontScale.xLarge);
     expect(reopened.highContrast, isTrue);
     expect(reopened.quietHours, isFalse);
-    expect(reopened.voiceReadback, isTrue);
+    expect(reopened.voiceReadback, isFalse);
   });
 }
