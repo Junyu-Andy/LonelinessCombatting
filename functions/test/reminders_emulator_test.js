@@ -110,7 +110,7 @@ test("due reminder is sent once, to both arms, without the plan text",
       assert.strictEqual(m.sent.length, 3);
       for (const msg of m.sent) {
         assert.deepStrictEqual(msg.notification,
-            {title: "陪住", body: "件事點呀？"});
+            {title: "陪住", body: "你今日有個小計劃，得閒打開睇下。"});
         assert.ok(!JSON.stringify(msg).includes("公園"));
         assert.strictEqual(msg.data.kind, "m7_followup");
       }

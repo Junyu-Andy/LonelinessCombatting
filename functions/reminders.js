@@ -31,16 +31,17 @@
  * A run that dies mid-send leaves the doc "sending" and it is not retried
  * (a missed reminder is better than a duplicate).
  *
- * The notification copy is the existing doorbell title and the reminder's
- * existing title 「件事點呀？」.  The plan text (bodyZh) is NOT sent, so the
- * participant's own words never show on a lock screen.
+ * The notification copy is the existing doorbell title and, since T33,
+ * the final text S4a (docs/spec/copy/short-texts.md).  The plan text
+ * (bodyZh) is NOT sent, so the participant's own words never show on a
+ * lock screen.
  */
 
 "use strict";
 
 const KIND = "m7_followup";
 const PUSH_TITLE = "陪住";
-const PUSH_BODY = "件事點呀？";
+const PUSH_BODY = "你今日有個小計劃，得閒打開睇下。"; // S4a
 const DEFAULTS = {staleHours: 12, maxAttempts: 3};
 const TERMINAL = new Set([
   "sending", "sent", "failed", "no_tokens", "skipped_stale",

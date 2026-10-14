@@ -57,7 +57,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | 模块 | Hybrid 组（A） | 规则组（B） |
 |---|---|---|
 | M2 小欣签到 | LLM 对话 + 记忆 | 心情脸 + 3 道选择题 + 一段文字（`check_in_arm_b.dart`）；开关 `RULE_TEMPLATE_REPLIES` 开时，提交后按心情给一条模板回应（决策 0023，默认关） |
-| M3 阿珍/阿伯回忆 | LLM 对话 + 周摘要 | 固定主题开场 + 一个输入框（`reminiscence_arm_b_page.dart`）；开关开时多一个选填心情脸，提交后按心情 × 每周主题给一条模板回应（决策 0023，默认关） |
+| M3 阿珍/阿伯回忆 | LLM 对话 + 周摘要 | 固定主题开场 + 一个输入框（`reminiscence_arm_b_page.dart`）；开关开时多一个选填心情脸，提交后按五档心情给一条模板回应，哀伤内容用 Z5（决策 0023、0032，默认关） |
 | 阿珍/阿伯自由对话 | LLM | **入口隐藏**（决策 0006） |
 | 通通 | LLM 闲聊 + 文章问答（网络搜索默认关，决策 0019） | 同一页面，开场题库每天换一条，回应按 10 类话题从模板选（`tung_tung_rule_responder.dart`，决策 0005） |
 | M5 反思 | 按上下文生成题目 | 固定题库轮换 |
@@ -126,7 +126,9 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 **B 组**：同样的页面外壳，第 2 步一样（同一个 `SafetyService`）；第 3 步换成本地规则选模板，`turns` 里标 `llmStatus: rule_based`。不调 LLM，不写记忆。
 
-**B 组签到、回忆的模板回应**（决策 0023，开关 `RULE_TEMPLATE_REPLIES`，默认关）：提交时先做安全检测；命中 moderate 或 acute 不给模板，走原来的安全流程；没命中就从 `lib/features/rule_replies/data/rule_reply_pool.dart` 按「陪伴者 × 主题 × 心情档」选一条，近 3 次不重复（记录在 `users/{uid}/rule_reply_history/{agentId}`），写进 `turns` 的回复，并记分析事件 `rule_template_reply`。模板现在都是【占位】文字；有占位文字时，即使开了开关也不生效，除非另加 `RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true`（只用于截图和测试）。
+**B 组签到、回忆的模板回应**（决策 0023、0032，开关 `RULE_TEMPLATE_REPLIES`，默认关）：提交时先做安全检测。没命中：从 `lib/features/rule_replies/data/rule_reply_pool.dart` 按「陪伴者 × 心情档（五档）」选一条，回忆没选心情用 G-1。回忆命中 `moderate_review`（哀伤、旧日艰难）：不看心情，从 Z5 选，同时照常走安全流程。命中 `moderate_interrupt`、`acute`（签到还有 `moderate_review`）：不给模板，只走安全流程。近 3 次不重复（记录在 `users/{uid}/rule_reply_history/{agentId}`），写进 `turns` 的回复，记分析事件 `rule_template_reply`（`template_id` 用定稿编号 X1-1 … G-1）。41 条文字照抄 `docs/spec/copy/rule-templates.md`（`test/final_copy_test.dart` 逐字比对）。模板里还有【占位】文字时，开关打开也不生效，除非另加 `RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true`（只用于截图和测试）；定稿后已没有占位。
+
+**定稿短文字**（T33，`docs/spec/copy/short-texts.md`）：S1a 通通固定回应（`tung_tung_search_intent.dart`）、S3 人生點滴入口（`reminiscence_landing.dart`）、S4a 行动计划提醒推送正文（`functions/reminders.js`）、S2「唔好記住」确认句（`functions/prompts/memory_forget_ack.v2.txt`）、S5 使用建议（入组引导最后一屏，`agent_onboarding_page.dart` `_UsageAdviceSlide`，开关 `app_config/usage_copy.onboardingUsageAdviceEnabled`，默认关；关时引导仍是 4 屏）。开关都没变。
 
 ## 6. 会话和 Brief PR
 
@@ -174,6 +176,8 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 **记忆安全、「唔好記住」、删除（T10，决策 0024）**：服务器整理记忆前，用 App 同一份安全词库（`functions/safety_lexicon.json`，从 `lib/core/safety/distress_detector.dart` 生成，`test/safety_lexicon_export_test.dart` 保证一致）查老人原话，命中的轮次不进任何一层，那次会话不写摘要；摘要不写敏感内容；老人说「唔好記住」等（`functions/memory_forget.js`），整段不记并删除相关旧条目；页面删一条，触发器连带删摘要和同样措辞的条目；`tool/delete_memory.js` 写 `memoryWithdrawnAt` 后不再记录（Phase B A 组也一样）。抽取 prompt 改为文件 `functions/prompts/memory_extraction.v2.txt`（v1 保留）。开关都在 `meta/memory_config`，修复默认开，陪伴者确认句 `forgetAckReply` 默认关。改了 App 词库要重新生成 JSON（`UPDATE_SAFETY_LEXICON=1 flutter test test/safety_lexicon_export_test.dart`）。
 
+**记忆分层（T31，决策 0035）**：开关 `meta/memory_config.layersEnabled` 默认关。打开后，服务器写每条记忆的 `layer`（`shared` / `private`）和 `sourceAgent`：称呼、家人、居住、作息、兴趣、喜好归共享层，三位陪伴者都能用；健康、重要事件、心事、回忆、哀伤，以及所有摘要和待跟进归私有层，只给听到的那位；判为敏感的一律私有（`functions/memory.js` `layerFor`、`itemLayer`、`visibleInLayers`）。没有 `layer` 的旧条目读取时按同样规则推算。老人关了共享同意时仍什么都不共享。`mem_injections` 多记 `layer_counts`（共享、私有各几条）、`source_agents`（各来自哪位）、`session_id`（App 在 `proxyDeepSeek` 里传 `sessionId` 时）。设置里删一条时（`deleteSummaryForItem`），另删措辞去掉标点后相同的条目、同类目同标题的事实、原文含这条内容（≥4 字）的摘要。抽取 prompt v3（`memory_extraction.v3.txt`，多 `feeling`、`story`、`grief` 三类）可用 `extractionPrompt` 选，默认仍是 v2。App「我記得嘅嘢」顶部的 S7 说明由 `app_config/feature_flags.memoryLayersNoticeEnabled` 控制，默认关。
+
 **v1 生效需要服务器开关**：Firestore `meta/memory_config` = `{enabled: true, policy: "C", phaseBArmA: true}`。没有这个文档时 v1 不工作；而 App 对 Phase B A 组已经不再做 v0 摘要，所以**这时 A 组两套记忆都没有**。上线时这个文档必须写。
 
 ## 8. 数据：Firestore 里有什么
@@ -183,7 +187,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | 字段 / 子集合 | 内容 | 写入者 |
 |---|---|---|
 | 用户文档本身 | 资料、年龄段、UCLA 基线、`arm`、`strataCell`、分组时间和方式、同意设定、`memory_enabled` | App；分组字段由服务器写 |
-| `sessions` / `turns` | 每次会话、每一轮对话（含模型、`promptVersion`、延迟、安全等级） | App |
+| `sessions` / `turns` | 每次会话、每一轮对话（含模型、`promptVersion`、延迟、安全等级；`safetyTurnId` = 这一轮安全记录的编号，两组都写，T26） | App |
 | `events` | 行为事件（打开页面、推送、按钮等） | App |
 | `brief_pr`、`weekly_pr`、`daily_mood`、`djg_es`、`pgic`、`ppr_responses`、`loneliness_probes`、`check_in_responses` | 问卷和量表 | App |
 | `djg_responses/W2` | Phase B 第 2 周 DJG（6 题，决策 0027）：原始答案（q1–q6 → yes / mostly / no / skipped）、状态、开始和提交时间；服务器补 `scores`（情感、社交、总分，跳题的分量表为空）、`outsideWindow`、窗口日期、`pushSentAt`、`reminderSentAt`、缺失标记。开关打开后取代 Phase B 的 `djg_es`（旧集合保留） | App 写答案；分数等由服务器写，App 不能改；提交或缺失后 App 不能再改 |
@@ -192,8 +196,8 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | `memory/{moduleId}/entries` | 各模块的会话摘要（回忆、反思、社交建议、行动计划） | App |
 | `shared_context` | 三个陪伴者共用：最近情绪、安全标记、行动计划 | App |
 | `agent_greetings` | 每天预生成的个性化开场白（只 A 组） | App |
-| `mem_facts` / `mem_summaries` / `mem_followups` | v1 记忆 | 服务器；App 只能读、删、确认 |
-| `mem_injections` / `mem_extractions` | v1 注入日志、抽取记录 | 服务器；App 不能读 |
+| `mem_facts` / `mem_summaries` / `mem_followups` | v1 记忆；T31 开关打开后带 `layer`、`sourceAgent` | 服务器；App 只能读、删、确认 |
+| `mem_injections` / `mem_extractions` | v1 注入日志（T31：分层剂量、会话编号）、抽取记录 | 服务器；App 不能读 |
 | `action_plans`、`thought_records`、`reminders`、`fcm_tokens` 等 | 各功能自己的数据。`reminders` 由 App 写入，服务器 `dispatchReminders` 发送后写回 `delivered`、`dispatchStatus` 等 | App；发送状态由服务器写 |
 
 **全局**
@@ -204,7 +208,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 |---|---|
 | `app_config/arm_assignment` | 已停用（T19）。以前是 `{randomise: bool}` 最小化分配开关 |
 | `app_config/reminders` | `{m7FollowupPushEnabled: bool}`：行动计划提醒发不发，默认关（决策 0022） |
-| `app_config/feature_flags` | 搜一搜、语音、通通固定回应三个开关（第 12 节）。没有这份文档 = 全关 |
+| `app_config/feature_flags` | 搜一搜、语音、通通固定回应、记忆分层说明（T31）四个开关（第 12 节）。没有这份文档 = 全关 |
 | `app_config/usage_copy` | 提到使用频率的 7 处文字（决策 0028，键名见 `lib/core/config/usage_copy.dart`）。没有文档、字段为空或带【占位】= 显示原文；两组相同；客户端只读 |
 | `app_config/phase_b` | **只属于 Phase B** 的参数（`PhaseBConfig`，服务器 `functions/djg_w2.js` 也读）：`djgW2InAppEnabled`（默认关）、`djgW2DayOffset`（14）、`djgW2WindowDays`（7）、`djgW2PushHour`（10）、`djgW2ReminderHours`（24）。不建 = 关 |
 | `app_config/phaseA_schedule` | **只属于 Phase A**：`adaEnabled`、`adaAllowSkip`、`adaTimepoints`、`day7OpenEndedEnabled`、`day7OpenEndedDayFrom`、`day7OpenEndedDayTo`、`day7OpenEndedAllowSkip`（第 6.1 节）。没有这份文档 = 都关。Phase B 包不读 |
@@ -215,7 +219,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `enrollments/{uid}` | T19 登记记录：研究编号、W0 情感分、层、阿珍/阿伯、W0 日期、组别、序列位置、`studyPeriod`、登记时间和研究员。客户端不能读写 |
 | `arm_assignment_log` | T19 分配日志：`allocate` / `resubmit` / `correction`，研究编号、层、序列位置、组别、时间、操作人；更正带理由和原组别。客户端不能读写 |
 | `llm_denied_log` | T19：规则组调用 LLM 接口被拒的记录（uid、接口、时间）。客户端不能读写 |
-| `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开 |
+| `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开、T10 修复开关、抽取 prompt 版本、记忆分层 `layersEnabled`（T31） |
 | `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列（T19 起 `pi_alerts` 只有 uid、研究编号、级别、`dedupKey`、`isTester`、`eventPath`、时间）。事件字段：`source`（user_input / ai_output_scan / form）、`inputPoint`、`turnId`、级别、命中词、文字的哈希；服务器补 `dedup_key`、`isDuplicate`、`duplicateOf`、`escalatedBy`。分析只数 `isDuplicate == false`（决策 0018） |
 | `hotline_filter_log` | Hybrid 组 AI 回复里被替换的电话号码：时间、uid、模块、个数、种类、是否在批准清单里。不存原文和号码。只有服务器写 |
 | `meta/safety_config` | 热线规则和热线过滤的开关（`hotlinePromptRule`、`hotlineOutputFilter`），没有这个文档 = 都开。T8 分类器：`classifierEnabled`（默认关）、`classifierUrl`、`classifierTimeoutMs`、`classifierMaxChars` |
@@ -270,7 +274,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 - **被安全标记的轮次不进入记忆**（决策 0013）。记忆 v1 在服务器上再查一次自杀、自残等词。
 - **两组都通知 PI**（决策 0014）。
 - **统一入口**（决策 0018）：`SafetyService`。老人的每一处自由输入两组都经过它：聊天、签到和回忆留言、Thought Exercise、入组开放题、陪伴者比较页、「其他」反馈框、行动计划和跟进笔记、每周问卷自由题、回忆总结修改、搜一搜的搜索词、Phase A 的 ADA 自由作答和第 7 日开放题（`ada_free_text`、`day7_open_ended`）。表单页用 `checkAndRoute`：先保存，再弹危机页或支援面板。
-- **安全分类器槽位**（决策 0025，提议中，开关默认关）：`SafetyService` 后面可以接一个分类器（LoRA），两组相同。开关开时，词库之后再经 Cloud Function `classifySafety` 问分类器，取较高级别（只升不降）；词库已是 acute 不问；超时 1.5 秒或失败只用词库。分类器只返回级别和分数。关着时一切照旧（同步检测）。代码：`lib/core/safety/safety_classifier.dart`、`functions/safety_classifier.js`。
+- **安全分类器槽位**（决策 0025；两组共用已由决策 0033 定下，开关默认关）：`SafetyService` 后面可以接一个分类器（LoRA），两组相同。开关开时，词库之后再经 Cloud Function `classifySafety` 问分类器，取较高级别（只升不降）；词库已是 acute 不问；超时 1.5 秒或失败只用词库。分类器只返回级别和分数。关着时一切照旧（同步检测）。代码：`lib/core/safety/safety_classifier.dart`、`functions/safety_classifier.js`。同一轮的分类器调用（`safety_classifier_calls.turn_id`）、安全事件（`safety_events.turnId`）和消息记录（`turns.safetyTurnId`）用同一个编号（决策 0033）。Phase A、Phase B 和试跑同一套：App 和服务器都不按构建或研究期决定问不问分类器；`app_config/phase_a` 里的开关名字带 phase_a，实际是全局的。例外：研究员电话代填的 Phase A 问卷文字只在服务器查词库。
 - **热线过滤**（只 Hybrid 组，决策 0018）：AI 不写号码；写了也在服务器和 App 各换一次成危机页链接。
 
 ## 11. 版本追溯
@@ -298,7 +302,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `--dart-define=MEMORY_V1=true` | 测试人员可在设置里自愿开启记忆 v1 |
 | `--dart-define=TESTER_PIN=…` | 解锁测试工具（日程模拟器、测试推送） |
 | `--dart-define=WEEKLY_PROBE=true` | 显示周度孤独感问卷 |
-| `--dart-define=RULE_TEMPLATE_REPLIES=true` | 规则组签到、回忆提交后给模板回应（决策 0023）。模板还有占位文字时不生效 |
+| `--dart-define=RULE_TEMPLATE_REPLIES=true` | 规则组签到、回忆提交后给模板回应（决策 0023、0032）。模板还有占位文字时不生效 |
 | `--dart-define=RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true` | 允许用占位模板，只用于截图和测试，**不能用于发布** |
 | `--dart-define=LEGACY_AGENT_DIFF_PHASE_B=true` | Phase B 包里恢复旧的“陪伴者区分评估”（第 6.1 节）。默认关（登记表 v2 C15） |
 

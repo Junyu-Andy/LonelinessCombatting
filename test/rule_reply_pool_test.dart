@@ -10,78 +10,66 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('pool format', () {
-    test('ids are unique', () {
+    test('ids are unique; 41 entries', () {
       final ids = RuleReplyPool.entries.map((e) => e.id).toList();
       expect(ids.toSet().length, ids.length);
+      expect(ids.length, 41);
     });
 
-    test('every sub-pool the pages can ask for is non-empty', () {
-      for (final band in ['low', 'mid', 'high', 'none']) {
-        expect(
-          RuleReplyPool.subPool(
-            agent: 'siu_yan',
-            theme: 'check_in',
-            band: band,
-          ),
-          isNotEmpty,
-          reason: 'siu_yan check_in $band',
-        );
-        for (var w = 1; w <= 4; w++) {
-          expect(
-            RuleReplyPool.subPool(
-              agent: 'ah_jan_ah_bak',
-              theme: RuleReplyPool.themeForWeek(w),
-              band: band,
-            ),
-            isNotEmpty,
-            reason: 'ah_jan w$w $band',
+    test('each mood band has 4 entries per agent; G-1 for none', () {
+      for (final agent in ['siu_yan', 'ah_jan_ah_bak']) {
+        for (var mood = 1; mood <= 5; mood++) {
+          final pool = RuleReplyPool.subPool(
+            agent: agent,
+            band: RuleReplyPool.bandFor(mood),
           );
+          expect(pool.length, 4, reason: '$agent mood $mood');
+          expect(pool.every((e) => e.agent == agent), isTrue);
         }
-      }
-    });
-
-    test('pool still holds placeholder text, so it is off by default', () {
-      expect(RuleReplyPool.hasPlaceholders, isTrue);
-      for (final e in RuleReplyPool.entries) {
         expect(
-          e.zh.startsWith(RuleReplyPool.placeholderMarker),
-          isTrue,
-          reason: e.id,
+          RuleReplyPool.subPool(agent: agent, band: 'none').map((e) => e.id),
+          ['G-1'],
         );
-        expect(e.en.startsWith('[PLACEHOLDER]'), isTrue, reason: e.id);
-      }
-      if (!FeatureFlags.ruleTemplateRepliesAllowPlaceholder) {
-        expect(RuleReplyPool.enabled, isFalse);
       }
     });
 
-    test('mood bands: 1–2 low, 3 mid, 4–5 high, none when not picked', () {
+    test('grief → Z5, whatever the agent asks for', () {
+      expect(
+        RuleReplyPool.subPool(agent: 'ah_jan_ah_bak', band: 'grief')
+            .map((e) => e.id),
+        ['Z5-1', 'Z5-2', 'Z5-3', 'Z5-4'],
+      );
+    });
+
+    test('no placeholder left: the compile switch alone decides', () {
+      expect(RuleReplyPool.hasPlaceholders, isFalse);
+      expect(RuleReplyPool.enabled, FeatureFlags.ruleTemplateReplies);
+    });
+
+    test('mood rank → band (5 = 好開心 … 1 = 好唔開心), none when not picked',
+        () {
       expect([1, 2, 3, 4, 5, null].map(RuleReplyPool.bandFor).toList(), [
-        'low',
-        'low',
-        'mid',
-        'high',
-        'high',
+        'very_unhappy',
+        'not_good',
+        'so_so',
+        'good',
+        'very_happy',
         'none',
       ]);
-    });
-
-    test('check-in has no "none" sub-pool and falls back to mid', () {
-      final none = RuleReplyPool.subPool(
-        agent: 'siu_yan',
-        theme: 'check_in',
-        band: 'none',
-      );
-      expect(none.every((e) => e.band == 'mid'), isTrue);
+      String group(int mood) => RuleReplyPool.subPool(
+            agent: 'siu_yan',
+            band: RuleReplyPool.bandFor(mood),
+          ).first.id.substring(0, 2);
+      expect([5, 4, 3, 2, 1].map(group).toList(),
+          ['X1', 'X2', 'X3', 'X4', 'X5']);
     });
   });
 
   group('picker', () {
     final pool = RuleReplyPool.subPool(
       agent: 'siu_yan',
-      theme: 'check_in',
-      band: 'low',
-    ); // 3 entries
+      band: 'very_unhappy',
+    ); // 4 entries
 
     test('first unused entry, in pool order', () {
       expect(RuleReplyPicker.pick(pool, const [])!.id, pool[0].id);
@@ -107,15 +95,14 @@ void main() {
           expect(window.contains(seen[i]), isFalse, reason: 'step $i');
         }
       }
-      // Two-entry sub-pool with N = 3: alternates, oldest first.
-      final two = RuleReplyPool.subPool(
-        agent: 'ah_jan_ah_bak',
-        theme: 'w1',
-        band: 'mid',
+      // Four-entry sub-pool with N = 3: the one not in the last 3.
+      expect(
+        RuleReplyPicker.pick(pool, [pool[3].id, pool[0].id, pool[1].id])!.id,
+        pool[2].id,
       );
-      expect(two.length, 2);
-      expect(RuleReplyPicker.pick(two, [two[0].id, two[1].id])!.id, two[0].id);
-      expect(RuleReplyPicker.pick(two, [two[1].id, two[0].id])!.id, two[1].id);
+      // One-entry sub-pool (G-1): always that entry.
+      final g = RuleReplyPool.subPool(agent: 'ah_jan_ah_bak', band: 'none');
+      expect(RuleReplyPicker.pick(g, [g[0].id])!.id, 'G-1');
     });
 
     test('remember keeps the last N ids', () {
@@ -127,7 +114,7 @@ void main() {
     final store = InMemoryRuleReplyHistoryStore();
     final s = RuleReplyService(store: store);
     final ids = <String>[];
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < 4; i++) {
       final e = await s.next(
         uid: null,
         agentId: 'siu_yan',
@@ -137,7 +124,20 @@ void main() {
       );
       ids.add(e!.id);
     }
-    expect(ids.toSet().length, 3);
+    expect(ids, ['X5-1', 'X5-2', 'X5-3', 'X5-4']);
+  });
+
+  test('service: grief ignores the mood and uses Z5', () async {
+    final s = RuleReplyService(store: InMemoryRuleReplyHistoryStore());
+    final e = await s.next(
+      uid: null,
+      agentId: 'ah_jan_ah_bak',
+      moduleId: 'm3_reminiscence_w1',
+      theme: 'w1',
+      mood: 5,
+      grief: true,
+    );
+    expect(e!.id, 'Z5-1');
   });
 
   test('safety gate: moderate / acute block the reply, low does not', () {
@@ -155,5 +155,16 @@ void main() {
       ),
       isFalse,
     );
+  });
+
+  test('T33 route: grief → Z5 on reminiscence only; crisis never', () {
+    const d = DistressDetector();
+    RuleReplyRoute r(String t, {required bool remi}) =>
+        ruleReplyRoute(d.analyze(t), griefTemplates: remi);
+    expect(r('今日去咗飲茶', remi: true), RuleReplyRoute.byMood);
+    expect(r('老伴走咗之後好難過', remi: true), RuleReplyRoute.grief);
+    expect(r('老伴走咗之後好難過', remi: false), RuleReplyRoute.none);
+    expect(r('冇人理我', remi: true), RuleReplyRoute.none);
+    expect(r('我真係想死', remi: true), RuleReplyRoute.none);
   });
 }

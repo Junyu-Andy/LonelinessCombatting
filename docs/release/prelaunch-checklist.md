@@ -46,6 +46,7 @@ NODE_PATH=functions/node_modules node tool/prelaunch_config.js --phase=b \
 | # | 项目 | 正确的值 | 怎么核对 | 来源 | 核对人 / 日期 |
 |---|---|---|---|---|---|
 | C1 | `meta/memory_config` | `enabled: true`、`policy: "C"`、`phaseBArmA: true` | 控制台打开这个文档看三个字段；或不带 `--apply` 跑脚本，三行都显示 `=`。没有这个文档时 Hybrid 组**没有任何记忆** | T1 C05；T4；`functions/memory.js` `loadConfig` | |
+| C1a | 记忆分层（T31） | 研究侧决定上线分层时：`meta/memory_config.layersEnabled: true` 和 `app_config/feature_flags.memoryLayersNoticeEnabled: true` **同一天一起开**；抽取 prompt 要切 v3 时另写 `extractionPrompt: "memory_extraction.v3"`（PI 审过后） | 控制台看这三个字段；只开一个时，页面说明和实际共享范围对不上 | 决策 0035；T31 报告 | |
 | C2 | `meta/randomization_config` | `enabled: true`（其余字段 `stratifyBy`、`strata`、`method`、`blockSizes` 只做记录） | 同上。不是 `true` 时研究员**不能登记**，老人一直没有组别（看到规则组界面）；**必须在第一位 phase_b 老人注册前打开**，否则这位老人会被当作 Phase A 分进 A 组 | 决策 0029；`functions/arm.js` | |
 | C3 | 两条分配序列已上传（`randomization_sequences/low`、`high`），都还没人用 | 每条至少 60 个位置，`0 used` | 不带 `--apply` 跑 `tool/prelaunch_config.js`，两行都显示 `= … positions, 0 used`。上传由 Keran 执行，见下面 G 节 | 决策 0029 | |
 | C3b | `app_config/arm_assignment` 已删除（T19 停用） | 文档不存在 | 控制台看；脚本会提示 `randomise is still true` | 决策 0029 | |
@@ -83,6 +84,19 @@ NODE_PATH=functions/node_modules node tool/prelaunch_config.js --phase=b \
 | E4 | ICF、DMP 与代码一致（记忆强制开启、发给 DeepSeek、保留期、删除方式） | 对照 T2 报告第 4 节逐条看 | T2；backlog 第 8 项 | |
 | E5 | 研究文件里的模型名已改为 DeepSeek-V4.1-Flash | 登记表、protocol、ICF、DMP、HREC 材料 | backlog 第 23 项；决策 0017 | |
 | E6 | 打 `phaseB-v1.0.0` tag，保存配置快照 | tag 指向上线提交；把 C1–C4 的值记进 `STUDY_CHANGELOG` | `docs/dev/memory-and-entry-spec.md` 第 6 节；CLAUDE.md | |
+
+## H. 安全分类器（LoRA）接入（T26，决策 0025、0033；只在研究侧决定打开时做）
+
+两组共用，Phase A、Phase B 和试跑也同一套（同两个开关，一开全开）。开关默认关，没有模型时**整节跳过**，参与者没有任何变化。
+
+| # | 项目 | 怎么核对 | 来源 | 核对人 / 日期 |
+|---|---|---|---|---|
+| H1 | **模型地址**：一个 HTTPS 地址，接受 `POST {"text": "..."}`，返回 `{"level": "none / low / moderate_review / moderate_interrupt / acute", "score": 0–1, "model_version": "…"}`，不返回文字 | 研究侧给出地址；写进 Firestore `meta/safety_config.classifierUrl`（客户端读不到）。用一句合成句子在模拟器上试调一次，`safety_classifier_calls` 出现 `status: ok` | T8 报告第 1、5 节；`functions/safety_classifier.js` | |
+| H2 | **鉴权**：服务器怎么证明自己 | 现在支持 Bearer 密钥：放 Functions 环境变量 `SAFETY_CLASSIFIER_TOKEN`（定了改 Secret Manager），不进 App 安装包。若用 Google 身份（Cloud Run IAM）要另改代码 | T8 报告第 2、5 节 | |
+| H3 | **部署机器**：模型跑在哪台机器、哪个地区 | 线上 Cloud Function 连不到个人电脑；建议 asia-east2 的 Cloud Run 或同区域服务器。数据出境与 DMP 一致；记下机器、地区和负责人 | T8 报告第 5 节；backlog 59 | |
+| H4 | 延迟、输入长度、评估结果 | 实测延迟后定 `meta/safety_config.classifierTimeoutMs`（默认 1200）和 `app_config/phase_a.safetyClassifierTimeoutMs`（默认 1500）、`classifierMaxChars`（默认 1000）；用 T6 句子和词库性能语料测召回、误报 | T8 报告第 5 节；backlog 60 | |
+| H5 | DMP、ICF 写明规则组的原话（去掉电话等）也发给分类器；HREC 是否修订已定 | 对照决策 0033 | 决策 0033；backlog 58 | |
+| H6 | 打开开关：`meta/safety_config.classifierEnabled` 和 `app_config/phase_a.safetyClassifierEnabled` 都设为 true | **先确认 backlog 85（通通 Hybrid 组搜索类问题也走同一个检测）已改好，否则不能打开。** 两个都开才生效。打开当天在 `STUDY_CHANGELOG` 补一行。各组各发一句合成句子，`safety_classifier_calls` 和 `safety_events` 的 `turn_id` / `turnId` 与 `turns.safetyTurnId` 对得上 | 决策 0033 | |
 
 ## F. 上线后第一天
 

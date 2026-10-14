@@ -49,8 +49,37 @@ Future<DistressMatch> ruleReplyCheckAndRoute(
   return result.match;
 }
 
+/// T33 — which template, if any, a submission gets.
+enum RuleReplyRoute {
+  /// By the picked mood (or G-1 when none was picked).
+  byMood,
+
+  /// Reminiscence `moderate_review` (grief / past hardship): the Z5 group,
+  /// whatever mood was picked.
+  grief,
+
+  /// No template: the safety flow runs on its own.
+  none,
+}
+
+/// T33 (rule-templates.md rule 3–4).  [griefTemplates] is true on the
+/// reminiscence page only: there a `moderate_review` hit gets a Z5
+/// template.  `moderate_interrupt` and `acute` never get a template, on
+/// either page; neither does `moderate_review` on the check-in page.
+RuleReplyRoute ruleReplyRoute(
+  DistressMatch match, {
+  required bool griefTemplates,
+}) {
+  if (!match.isEscalation) return RuleReplyRoute.byMood;
+  if (griefTemplates && match.level == DistressLevel.moderateReview) {
+    return RuleReplyRoute.grief;
+  }
+  return RuleReplyRoute.none;
+}
+
 /// A template reply is shown only when the text raised no safety flag
 /// that is written to `safety_events` (moderate review / interrupt,
 /// acute).  On a hit the page gives no template and runs the safety flow.
-/// `low` is not a safety event and keeps the reply.
+/// `low` is not a safety event and keeps the reply.  Check-in rule; the
+/// reminiscence page uses [ruleReplyRoute].
 bool allowsTemplateReply(DistressMatch match) => !match.isEscalation;
