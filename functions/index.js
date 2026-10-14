@@ -20,6 +20,7 @@ const hotline = require("./hotline_filter");
 const {safetyConfig} = require("./safety_config");
 const safetyClassifier = require("./safety_classifier");
 const featureFlags = require("./feature_flags");
+const stt = require("./stt");
 const blinding = require("./blinding");
 const djgW2 = require("./djg_w2");
 const ada = require("./ada");
@@ -28,6 +29,7 @@ const assessor = require("./assessor");
 const sequenceUpload = require("./sequence_upload");
 const processExport = require("./process_export");
 const pairingLog = require("./pairing_log");
+const weeklySchedule = require("./weekly_schedule");
 
 admin.initializeApp();
 
@@ -840,28 +842,18 @@ exports.webSearch = onCall(
 
 // ---------------------------------------------------------------------------
 // transcribeAudio — Cantonese voice-to-text via Google Cloud Speech-to-Text
-// v2 (NOT Whisper: OpenAI is unavailable in HK and rewrites Cantonese into
-// written Mandarin, losing 嘅/唔/咗/佢/冇). Auth is ADC (the Firebase project
-// IS the GCP project) — no API key / secret. Audio arrives base64-inline in
-// the callable; it is NOT stored.
+// v2 (T27, SPEC:C18).  Model, region, request fields, retry and failure
+// categories live in ./stt.js.  asia-southeast1 / chirp_2 only — the old
+// second tier (global / long) is gone and is not configurable (10/9 #13).
+// Auth is ADC (the Firebase project IS the GCP project).  Audio arrives
+// base64-inline, is passed to Google and dropped: not stored, not logged.
+// The transcript is returned to the caller only and never logged.
 //
-// Two-tier model with auto-fallback (see TASK_stt_vertical_slice):
-//   A: asia-southeast1 / chirp_2  (must set apiEndpoint or v2 hits global)
-//   B: global / long
-//
-// Request:  { audioBase64, mimeType, languageCode?, model? }
-// Response: { transcript, confidence, model, region, latencyMs }
-// Slice limit: 60s / 10MB sync recognize; larger → error (batch is later).
+// Request:  { audioBase64 }            (WAV, <= 60 s, built by the app)
+// Response: { transcript, confidence, model, region, latencyMs, attempts }
+// Failure:  HttpsError with details { category, attempts } where category
+//           is timeout | server_error | no_speech | too_long | unavailable.
 // ---------------------------------------------------------------------------
-const STT_TIERS = [
-  {
-    location: "asia-southeast1",
-    model: "chirp_2",
-    apiEndpoint: "asia-southeast1-speech.googleapis.com",
-  },
-  {location: "global", model: "long", apiEndpoint: undefined},
-];
-
 exports.transcribeAudio = onCall(
   {
     region: "asia-east2",
@@ -882,93 +874,60 @@ exports.transcribeAudio = onCall(
 
     const payload = request.data || {};
     const audioBase64 = payload.audioBase64;
-    const languageCode = payload.languageCode || "yue-Hant-HK";
-    const forcedModel = payload.model || null;
-
     if (typeof audioBase64 !== "string" || audioBase64.length === 0) {
       throw new HttpsError("invalid-argument", "audioBase64 required");
     }
-
     const content = Buffer.from(audioBase64, "base64");
-    if (content.length > 10 * 1024 * 1024) {
-      throw new HttpsError(
-        "invalid-argument",
-        "audio too large for sync recognize",
-      );
+    const size = stt.sizeProblem(content);
+    if (size) {
+      throw new HttpsError(stt.HTTPS_CODE[size], `stt ${size}`,
+          {category: size, attempts: 0});
     }
 
-    // Lazy require so cold starts of other functions aren't slowed by it.
-    const {SpeechClient} = require("@google-cloud/speech").v2;
     const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+    const recognize = request.sttRecognize || stt.googleRecognize();
+    const req = stt.buildRecognizeRequest({projectId, content});
 
-    let lastErr;
-    const tiers = forcedModel ?
-      STT_TIERS.filter((t) => t.model === forcedModel) :
-      STT_TIERS;
-
-    for (const tier of tiers) {
-      const t0 = Date.now();
+    // Best-effort usage row: counts and timings only — never audio, never
+    // text (collection is excluded from exports, functions/blinding.js).
+    const usage = async (row) => {
       try {
-        const client = new SpeechClient(
-          tier.apiEndpoint ? {apiEndpoint: tier.apiEndpoint} : {},
-        );
-        const [resp] = await client.recognize({
-          recognizer:
-            `projects/${projectId}/locations/${tier.location}/recognizers/_`,
-          config: {
-            autoDecodingConfig: {},
-            languageCodes: [languageCode],
-            model: tier.model,
-            features: {enableAutomaticPunctuation: true},
-          },
-          content,
-        });
-
-        const results = resp.results || [];
-        const transcript = results
-          .map((r) => (r.alternatives && r.alternatives[0] &&
-            r.alternatives[0].transcript) || "")
-          .join("")
-          .trim();
-        const confidence =
-          (results[0] && results[0].alternatives &&
-            results[0].alternatives[0] &&
-            results[0].alternatives[0].confidence) || null;
-        const latencyMs = Date.now() - t0;
-
-        // Best-effort cost/usage log (audio seconds ≈ latency is not the
-        // duration, so we log payload bytes as a proxy for now).
-        try {
-          await admin.firestore().collection("stt_usage").add({
-            uid: request.auth.uid,
-            model: tier.model,
-            region: tier.location,
-            bytes: content.length,
-            latencyMs,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-        } catch (logErr) {
-          // non-fatal
-        }
-
-        return {
-          transcript,
-          confidence,
-          model: tier.model,
-          region: tier.location,
-          latencyMs,
-        };
-      } catch (e) {
-        console.warn(
-          `stt tier ${tier.location}/${tier.model} failed: ${e.message}`,
-        );
-        lastErr = e;
+        await admin.firestore().collection("stt_usage").add(Object.assign({
+          uid: request.auth.uid,
+          model: stt.STT_MODEL,
+          region: stt.STT_LOCATION,
+          bytes: content.length,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, row));
+      } catch (logErr) {
+        // non-fatal
       }
+    };
+
+    try {
+      const out = await stt.transcribeWithRetry(recognize, req);
+      await usage({ok: true, attempts: out.attempts, latencyMs: out.latencyMs});
+      return {
+        transcript: out.transcript,
+        confidence: out.confidence,
+        model: stt.STT_MODEL,
+        region: stt.STT_LOCATION,
+        latencyMs: out.latencyMs,
+        attempts: out.attempts,
+      };
+    } catch (e) {
+      const category = e instanceof stt.SttError ?
+        e.category : stt.CATEGORIES.serverError;
+      const attempts = e instanceof stt.SttError ? e.attempts : 1;
+      // Ops log: category and gRPC code only.  No message text (it could
+      // echo request fields), no audio, no transcript.
+      console.warn("stt failed", {
+        category, attempts, grpcCode: e && e.grpcCode ? e.grpcCode : null,
+      });
+      await usage({ok: false, attempts, category});
+      throw new HttpsError(stt.HTTPS_CODE[category], `stt ${category}`,
+          {category, attempts});
     }
-    throw new HttpsError(
-      "internal",
-      `all stt tiers failed: ${lastErr && lastErr.message}`,
-    );
   },
 );
 
@@ -1551,6 +1510,7 @@ const _EXPORT_BLINDED_COLLECTIONS = [
   "pgic",
   "djg_es",
   "djg_responses",
+  "social_contact_probes",
   "agent_diff",
   "daily_mood",
   "response_feedback",
@@ -1689,7 +1649,8 @@ exports.blindedDataExport = onSchedule(
         "events", "ppr_responses", "llm_turn_features",
         "thought_exercise", "loneliness_probes",
         "turns", "sessions", "brief_pr", "weekly_pr", "pgic", "djg_es",
-        "djg_responses", "agent_diff", "daily_mood", "response_feedback",
+        "djg_responses", "social_contact_probes", "agent_diff", "daily_mood",
+        "response_feedback",
       ]) {
         const sub = await userDoc.ref.collection(subName).get();
         for (const d of sub.docs) {
@@ -1968,6 +1929,44 @@ exports.weeklySurveyReminder = onSchedule(
     retryCount: 0,
   },
   async (_event) => {
+    const db = admin.firestore();
+    // T24: with the study-week schedule on, Phase B / pilot participants
+    // get their weekly questionnaire from weeklyBundleDispatch (per person,
+    // by study day).  The Sunday reminder then goes per device only to the
+    // accounts the schedule does not cover (functions/weekly_schedule.js
+    // legacyWeeklyReminderTarget) — never as a topic broadcast, so no
+    // participant hears two weekly pushes.  Switch off: exactly as before.
+    const wsCfg = await weeklySchedule.readConfig(db);
+    if (wsCfg.enabled) {
+      const gateOn = await studyPeriod.enrollmentGateOn(db);
+      const usersSnap = await db.collection("users").get();
+      const weekIso = isoWeekLabel(new Date());
+      let sent = 0;
+      for (const userDoc of usersSnap.docs) {
+        const data = userDoc.data() || {};
+        if (!weeklySchedule.legacyWeeklyReminderTarget(data, {gateOn})) {
+          continue;
+        }
+        try {
+          const res = await weeklySchedule.sendToDevices(admin.messaging(),
+              userDoc, _TEST_PUSH_COPY.weekly_survey_reminder,
+              "weekly_survey_reminder");
+          await userDoc.ref.collection("events").add({
+            name: "weekly_pr_pushed",
+            params: {weekIso, channel: "fcm_token", tokens: res.tokens,
+              delivered: res.delivered},
+            source: "cf_weeklySurveyReminder",
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          sent++;
+        } catch (err) {
+          console.error(`weekly reminder failed for ${userDoc.id}:`,
+              err.message);
+        }
+      }
+      console.log(`weeklySurveyReminder (per person): ${sent} users`);
+      return;
+    }
     await sendDoorbell(
       "陪住",
       "今個禮拜過得點？得閒入嚟答幾條，想答先答，唔想都冇問題。",
@@ -1977,7 +1976,6 @@ exports.weeklySurveyReminder = onSchedule(
     // topic broadcast, so per-device receipt is unknown; this records that
     // the push was issued for the account (testers excluded).
     try {
-      const db = admin.firestore();
       const usersSnap = await db.collection("users").get();
       const weekIso = isoWeekLabel(new Date());
       const writes = [];
@@ -2353,6 +2351,62 @@ exports.onDjgResponseWritten = onDocumentWritten(
       event.data.after.data() : null;
     await djgW2.scoreSubmission(admin.firestore(), event.params.uid,
         event.params.timepoint, after);
+    // T24: study-week stamps on the bundle's DJG (W1–W3; a record without
+    // `bundle` that is not a weekly-bundle timepoint is left alone).
+    await weeklySchedule.stampPartRecord(admin.firestore(), event.params.uid,
+        weeklySchedule.DJG_COLLECTION, event.params.timepoint, after);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// T24 — study weeks and the weekly questionnaire bundle (SPEC:C15, C17).
+// Phase B and pilot, both arms identical, no LLM.  Off unless
+// app_config/phase_b.weeklyScheduleV2Enabled === true
+// (functions/weekly_schedule.js).
+//   weeklyBundleDispatch: hourly 08:00–21:00 HKT — per-person push when a
+//     bundle's window opens (weeklyPushHour on the bundle days), T18's one
+//     reminder 24 h later if a part is still open, the missed marks after
+//     the window.  Draft copy carries 【占位】, so nothing is sent yet.
+//   onWeeklyPrWritten / onPgicWritten / onSocialContactProbeWritten:
+//     server-written study-week fields on each part record.
+//   onBriefPrWritten: studyWeek / studyDay by session end (T25 records).
+// ---------------------------------------------------------------------------
+exports.weeklyBundleDispatch = onSchedule(
+  {
+    schedule: "0 8-21 * * *",
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    retryCount: 0,
+  },
+  async (_event) => {
+    await weeklySchedule.dispatchWeeklyBundles(admin.firestore(),
+        admin.messaging());
+  },
+);
+
+function weeklyPartTrigger(collection) {
+  return onDocumentWritten(
+      {document: `users/{uid}/${collection}/{docId}`, region: "asia-east2"},
+      async (event) => {
+        const after = event.data && event.data.after &&
+          event.data.after.exists ? event.data.after.data() : null;
+        await weeklySchedule.stampPartRecord(admin.firestore(),
+            event.params.uid, collection, event.params.docId, after);
+      });
+}
+exports.onWeeklyPrWritten =
+  weeklyPartTrigger(weeklySchedule.WEEKLY_PR_COLLECTION);
+exports.onPgicWritten = weeklyPartTrigger(weeklySchedule.PGIC_COLLECTION);
+exports.onSocialContactProbeWritten =
+  weeklyPartTrigger(weeklySchedule.SOCIAL_COLLECTION);
+
+exports.onBriefPrWritten = onDocumentWritten(
+  {document: "users/{uid}/brief_pr/{docId}", region: "asia-east2"},
+  async (event) => {
+    const after = event.data && event.data.after && event.data.after.exists ?
+      event.data.after.data() : null;
+    await weeklySchedule.stampBriefPr(admin.firestore(), event.params.uid,
+        event.params.docId, after);
   },
 );
 

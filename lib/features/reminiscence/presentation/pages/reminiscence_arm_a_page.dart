@@ -218,6 +218,10 @@ clay-pot rice stand..."
         onIdleTimeout: _onIdleTimeout,
         onSwitchedAway: _onSwitchedAway,
       );
+      // T27 — a failed server transcription goes into this session's
+      // log (voice_transcription_failed), both arms identical.
+      _voice.onTranscriptionFailed =
+          (c) => _recorder?.logVoiceTranscriptionFailed(c);
     }
     if (!_priorLoaded) {
       _priorLoaded = true;

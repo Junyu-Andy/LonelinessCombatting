@@ -118,13 +118,18 @@ abstract class DjgW2Store {
 }
 
 class FirestoreDjgW2Store implements DjgW2Store {
-  FirestoreDjgW2Store(this.uid, {FirebaseFirestore? db}) : _db = db ?? FirebaseFirestore.instance;
+  /// [timepoint] defaults to T18's `W2`; the T24 weekly bundle passes its
+  /// bundle id (`W1`…`W3`), which is also written as `bundle`.
+  FirestoreDjgW2Store(this.uid, {FirebaseFirestore? db, String? timepoint})
+      : _db = db ?? FirebaseFirestore.instance,
+        timepoint = timepoint ?? DjgW2Items.timepoint;
 
   final String uid;
+  final String timepoint;
   final FirebaseFirestore _db;
 
   DocumentReference<Map<String, dynamic>> get _ref =>
-      _db.collection('users').doc(uid).collection('djg_responses').doc(DjgW2Items.timepoint);
+      _db.collection('users').doc(uid).collection('djg_responses').doc(timepoint);
 
   @override
   Future<DjgW2Saved> load() async {
@@ -140,7 +145,8 @@ class FirestoreDjgW2Store implements DjgW2Store {
   Future<void> save(Map<String, String> answers, {required bool submit, required bool first}) async {
     final now = DateTime.now().toIso8601String();
     final data = <String, dynamic>{
-      'timepoint': DjgW2Items.timepoint,
+      'timepoint': timepoint,
+      if (timepoint != DjgW2Items.timepoint) 'bundle': timepoint,
       'itemsVersion': DjgW2Items.version,
       'answers': Map<String, String>.from(answers),
       'status': submit ? 'submitted' : 'in_progress',

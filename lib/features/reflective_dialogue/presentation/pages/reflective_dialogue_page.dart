@@ -134,6 +134,10 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
         onIdleTimeout: _onIdleTimeout,
         onSwitchedAway: _onSwitchedAway,
       );
+      // T27 — a failed server transcription goes into this session's
+      // log (voice_transcription_failed), both arms identical.
+      _voice.onTranscriptionFailed =
+          (c) => _recorder?.logVoiceTranscriptionFailed(c);
     }
     if (!_openerLoaded) {
       _openerLoaded = true;

@@ -148,6 +148,16 @@ class WeeklyPrTrigger {
     DateTime ratedMonday,
   ) async {
     final (start, end) = WeeklyPrWindow.referentRange(ratedMonday);
+    return referentForRange(uid, start, end);
+  }
+
+  /// T24 — the same referent rule over an arbitrary `[start, end)` range
+  /// (the weekly bundle passes WeeklySchedule.referentRangeFor).
+  Future<ReferentChoice> referentForRange(
+    String uid,
+    DateTime start,
+    DateTime end,
+  ) async {
     try {
       final snap = await _db
           .collection('users')
@@ -192,6 +202,21 @@ class WeeklyPrTrigger {
     DateTime ratedMonday,
   ) async {
     final choice = await referentForRatedWeek(uid, ratedMonday);
+    return usageOf(choice);
+  }
+
+  /// T24 — [referentForRange] as the page's usage model.
+  Future<WeeklyPrAgentUsage?> referentUsageForRange(
+    String uid,
+    DateTime start,
+    DateTime end,
+  ) async {
+    final choice = await referentForRange(uid, start, end);
+    return usageOf(choice);
+  }
+
+  /// The page's usage model of a [ReferentChoice]; null without an agent.
+  static WeeklyPrAgentUsage? usageOf(ReferentChoice choice) {
     final a = choice.agent;
     if (a == null) return null;
     return WeeklyPrAgentUsage(
@@ -263,7 +288,8 @@ class WeeklyPrTrigger {
 
   /// Writes a no_referent record when no agents were used this week
   /// (M-2: the 12 items are missing-by-design; only PGIC was asked).
-  Future<void> writeNoReferent(String uid, String arm, {String? weekIso}) async {
+  Future<void> writeNoReferent(String uid, String arm,
+      {String? weekIso, String? bundle}) async {
     try {
       final now = DateTime.now();
       final resp = WeeklyPrResponse(
@@ -278,11 +304,14 @@ class WeeklyPrTrigger {
         arm: arm,
         referentRule: ReferentRule.none,
       );
-      await _db
-          .collection('users')
-          .doc(uid)
-          .collection('weekly_pr')
-          .add(resp.toFirestore());
+      final col = _db.collection('users').doc(uid).collection('weekly_pr');
+      if (bundle != null) {
+        // T24: the bundle's Weekly PR record, id = bundle.
+        await col.doc(bundle).set(
+            {...resp.toFirestore(), 'bundle': bundle}, SetOptions(merge: true));
+      } else {
+        await col.add(resp.toFirestore());
+      }
     } catch (_) {}
   }
 }

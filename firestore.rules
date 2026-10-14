@@ -49,6 +49,9 @@ rules_version = '2';
 //   allocation_records/{researchId}              -> T30 the one row kept after whole-person deletion (server only)
 //   meta/data_lock, analysis_export_log/{id},
 //   process_export_log/{id}                      -> T30 data lock + export run logs (server only)
+//   users/{uid}/social_contact_probes/{Wn}       -> T24 weekly social-contact probe (client: answers 0–3; server: study-week stamps)
+//   users/{uid}/weekly_pr|pgic|brief_pr          -> T24: studyWeek/studyDay/window/missed fields are server-only
+//   weekly_status/{uid}                          -> T24 weekly bundle status, research ID, push times (server only)
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -158,18 +161,47 @@ service cloud.firestore {
     // ============================================================
     // The owner reads/writes anything under their own user doc.
     // ============================================================
+    // T24: on the weekly-bundle part records (weekly_pr, pgic, the
+    // social-contact probe) and on brief_pr, the study-week fields are
+    // written by Cloud Functions only (functions/weekly_schedule.js
+    // SERVER_ONLY_FIELDS).  A client create may not carry them and a
+    // client update may not touch them; everything else is as before.
+    function weekStampedCollections() {
+      return ['brief_pr', 'weekly_pr', 'pgic', 'social_contact_probes'];
+    }
+
+    function serverOnlyWeekFields() {
+      return ['studyWeek', 'studyDay', 'submittedStudyDay', 'pushedAt',
+              'windowStart', 'windowEnd', 'missed', 'missedAt',
+              'scheduleMode', 'stampedAt', 'studyWeekBasis'];
+    }
+
+    function leavesWeekStampsAlone(collection) {
+      return !(collection in weekStampedCollections())
+        || request.method == 'delete'
+        || (request.method == 'create'
+              ? !request.resource.data.keys().hasAny(serverOnlyWeekFields())
+              : !request.resource.data.diff(resource.data).affectedKeys()
+                   .hasAny(serverOnlyWeekFields()));
+    }
+
     match /users/{uid}/{collection}/{document=**} {
       allow read: if isOwner(uid) && !collection.matches('mem_.*')
         && collection != 'djg_responses'
+        && collection != 'social_contact_probes'
         && !(collection in phaseASurveyCollections());
       allow write: if isOwner(uid) && !collection.matches('mem_.*')
         && collection != 'djg_responses'
+        && collection != 'social_contact_probes'
         && !(collection in phaseASurveyCollections())
-        && researchWriteOpen(uid, collection);
+        && researchWriteOpen(uid, collection)
+        && leavesWeekStampsAlone(collection);
     }
 
     // ============================================================
     // T18 (decision 0027) — W2 DJG, users/{uid}/djg_responses/W2.
+    // T24: the weekly bundle stores W1, W2 and W3 here (same schema;
+    // `bundle` = the doc id; study-week fields server-only as above).
     // The owner writes only the raw answers, status (in_progress →
     // submitted) and the start / submit times.  Scores, outsideWindow,
     // the window dates, push / reminder times and the missed mark are
@@ -179,15 +211,20 @@ service cloud.firestore {
     function djgClientKeys() {
       return ['timepoint', 'itemsVersion', 'answers', 'status', 'startedAt',
               'startedAtLocal', 'submittedAt', 'submittedAtLocal',
-              'updatedAt'];
+              'updatedAt', 'bundle'];
+    }
+
+    function djgTimepoints() {
+      return ['W1', 'W2', 'W3'];
     }
 
     function djgAnswerOk(a, k) {
       return !(k in a) || a[k] in ['yes', 'mostly', 'no', 'skipped'];
     }
 
-    function djgValid(d) {
-      return d.timepoint == 'W2'
+    function djgValid(d, tp) {
+      return d.timepoint == tp
+        && d.get('bundle', tp) == tp
         && d.status in ['in_progress', 'submitted']
         && d.answers is map
         && d.answers.keys().hasOnly(['q1', 'q2', 'q3', 'q4', 'q5', 'q6'])
@@ -201,17 +238,67 @@ service cloud.firestore {
 
     match /users/{uid}/djg_responses/{timepoint} {
       allow read: if isOwner(uid);
-      allow create: if isOwner(uid) && timepoint == 'W2'
+      allow create: if isOwner(uid) && timepoint in djgTimepoints()
         && researchWriteOpen(uid, 'djg_responses')
         && request.resource.data.keys().hasOnly(djgClientKeys())
-        && djgValid(request.resource.data);
+        && djgValid(request.resource.data, timepoint);
       allow update: if isOwner(uid)
         && researchWriteOpen(uid, 'djg_responses')
         && resource.data.status in ['pending', 'in_progress']
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(djgClientKeys())
-        && djgValid(request.resource.data);
+        && djgValid(request.resource.data, timepoint);
       allow delete: if false;
+    }
+
+    // ============================================================
+    // T24 — weekly social-contact probe (S12, two items, raw 0–3),
+    // users/{uid}/social_contact_probes/{W1…W4}.  Same shape as the
+    // DJG rule: the owner writes answers, status and times; the
+    // study-week stamps and the missed mark are the server's; frozen
+    // once submitted or missed; no client deletes.
+    // ============================================================
+    function socialClientKeys() {
+      return ['bundle', 'itemsVersion', 'answers', 'status', 'startedAt',
+              'startedAtLocal', 'submittedAt', 'submittedAtLocal',
+              'updatedAt'];
+    }
+
+    function socialAnswerOk(a, k) {
+      return !(k in a) || (a[k] is int && a[k] >= 0 && a[k] <= 3);
+    }
+
+    function socialValid(d, id) {
+      return d.bundle == id
+        && d.status in ['in_progress', 'submitted']
+        && d.answers is map
+        && d.answers.keys().hasOnly(['q1', 'q2'])
+        && socialAnswerOk(d.answers, 'q1') && socialAnswerOk(d.answers, 'q2')
+        && (d.status == 'submitted'
+              ? d.submittedAt == request.time
+              : !('submittedAt' in d));
+    }
+
+    match /users/{uid}/social_contact_probes/{bundleId} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && bundleId.matches('W[1-9]')
+        && researchWriteOpen(uid, 'social_contact_probes')
+        && request.resource.data.keys().hasOnly(socialClientKeys())
+        && socialValid(request.resource.data, bundleId);
+      allow update: if isOwner(uid)
+        && researchWriteOpen(uid, 'social_contact_probes')
+        && resource.data.status in ['pending', 'in_progress']
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(socialClientKeys())
+        && socialValid(request.resource.data, bundleId);
+      allow delete: if false;
+    }
+
+    // T24 — server-only weekly bundle status (functions/weekly_schedule.js):
+    // research ID, per-bundle push / reminder / missed times.  No client
+    // reads it (decision 0021: the App never sees a research ID).
+    match /weekly_status/{uid} {
+      allow read, write: if false;
     }
 
     // ============================================================

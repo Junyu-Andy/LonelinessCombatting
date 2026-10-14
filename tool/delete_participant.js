@@ -20,7 +20,10 @@
  *              uid field), hotline_filter_log (T7), research_id_map
  *              (doc id) and research_ids (T12), enrollments (doc id) and
  *              llm_denied_log (T19), ada_status (doc id, T17b: day-7
- *              status and research ID).
+ *              status and research ID), weekly_status (doc id, T24:
+ *              weekly bundle push / missed times and research ID; the
+ *              T24 part records weekly_pr, pgic, djg_responses and
+ *              social_contact_probes are subcollections, walked above).
  *   Storage    any file under users/{uid}/ (the App writes none today);
  *              rows in the weekly blinded exports exports/{date}/*.ndjson
  *              — see "Exports" below.
@@ -102,6 +105,7 @@ const TOP_LEVEL = [
   // server-side pairing-change log and T24's per-person weekly status.
   {collection: 'outcome_entries', field: 'uid'},
   {collection: 'pairing_change_log', field: 'uid'},
+  // T24: weekly bundle status, push / reminder / missed times, research ID.
   {collection: 'weekly_status', field: 'uid', docIdIsUid: true},
 ];
 
@@ -434,7 +438,7 @@ async function main() {
 }
 
 module.exports = {run, hashUid, rowMatches, pattern, TOP_LEVEL,
-  ALLOCATION_LOGS, ALLOCATION_RECORDS, allocationRecordFor};
+  ALLOCATION_LOGS, ALLOCATION_RECORDS, allocationRecordFor, NOT_COVERED};
 
 if (require.main === module) {
   main().catch((err) => {

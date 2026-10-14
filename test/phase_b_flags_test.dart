@@ -22,14 +22,21 @@ import 'package:app_demo/features/analytics/data/analytics_service.dart';
 import 'package:app_demo/features/analytics/presentation/analytics_scope.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
 import 'package:app_demo/features/auth/presentation/auth_service_scope.dart';
+import 'package:app_demo/core/voice/transcription_repository.dart';
 import 'package:app_demo/core/voice/voice_input_button.dart';
+import 'package:app_demo/core/voice/voice_recorder.dart';
 import 'package:app_demo/features/curious_companion/data/search_repository.dart';
 import 'package:app_demo/features/curious_companion/data/tung_tung_search_intent.dart';
 import 'package:app_demo/features/curious_companion/presentation/pages/tung_tung_page.dart';
+import 'dart:typed_data';
+
+import 'package:app_demo/core/voice/voice_copy.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'voice_stt_test.dart' show FakeClient, FakeRecorder;
 
 class _CountingClient implements LlmClient {
   int calls = 0;
@@ -249,6 +256,70 @@ void main() {
       final acute = SafetyCopy.acuteAck('tung_tung', isEn: false);
       expect(find.textContaining(acute, findRichText: true,
           skipOffstage: false), findsWidgets);
+    });
+
+    // T27 — the server transcript is only put into the input box; sending
+    // is the ordinary send, so it meets the same safety flow as typing.
+    testWidgets('voice on: a dictated distress sentence keeps the safety '
+        'flow and never reaches the LLM', (tester) async {
+      RemoteFeatureFlags.current =
+          const RemoteFeatureFlags(voiceInputEnabled: true);
+      final rec = FakeRecorder(chunks: [Uint8List(3200)]);
+      final stt = FakeClient(const TranscriptionResult.ok('我真係想自殺'));
+      VoiceInputButton.debugRecorderFactory = () => rec;
+      VoiceInputButton.debugTranscriptionClient = stt;
+      addTearDown(() {
+        VoiceInputButton.debugRecorderFactory = null;
+        VoiceInputButton.debugTranscriptionClient = null;
+      });
+      mockOnline(tester);
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.mic_none_rounded), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.mic_none_rounded));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.byIcon(Icons.stop_circle_rounded));
+      await tester.pumpAndSettle();
+      expect(stt.received, hasLength(1));
+      final field = tester.widget<TextField>(find.byType(TextField).first);
+      expect(field.controller!.text, '我真係想自殺',
+          reason: 'transcript sits in the box; the elder can still edit it');
+      await tester.tap(find.byIcon(Icons.arrow_upward_rounded).first);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(client.calls, 0, reason: 'acute input never reaches the model');
+      final acute = SafetyCopy.acuteAck('tung_tung', isEn: false);
+      expect(find.textContaining(acute, findRichText: true,
+          skipOffstage: false), findsWidgets);
+    });
+
+    testWidgets('voice on: a failed transcription shows S6 by the box, '
+        'adds no bubble and sends nothing', (tester) async {
+      RemoteFeatureFlags.current =
+          const RemoteFeatureFlags(voiceInputEnabled: true);
+      final rec = FakeRecorder(chunks: [Uint8List(3200)]);
+      VoiceInputButton.debugRecorderFactory = () => rec;
+      VoiceInputButton.debugTranscriptionClient =
+          FakeClient(const TranscriptionResult.failed('timeout'));
+      addTearDown(() {
+        VoiceInputButton.debugRecorderFactory = null;
+        VoiceInputButton.debugTranscriptionClient = null;
+      });
+      mockOnline(tester);
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+      final bubbles = find.byType(ListView);
+      final before = tester.widget<ListView>(bubbles.first).semanticChildCount;
+      await tester.tap(find.byIcon(Icons.mic_none_rounded));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.byIcon(Icons.stop_circle_rounded));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text(VoiceCopy.s6TranscriptionFailed), findsOneWidget);
+      expect(tester.widget<ListView>(bubbles.first).semanticChildCount, before,
+          reason: 'S6 is not a chat bubble');
+      expect(client.calls, 0);
+      expect(tester.widget<TextField>(find.byType(TextField).first)
+          .controller!.text, isEmpty);
     });
   }, skip: FeatureFlags.phaseB);
 }

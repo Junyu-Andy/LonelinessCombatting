@@ -15,6 +15,31 @@
 - 删除可保留一行分配记录（`allocation_records`）；配对改动服务器日志 `pairing_change_log`；`tool/analysis_export.js` 锁库 + 导出 + 合成数据。
 - 七个开关全部默认关。报告：`docs/dev-reports/T30-roles-exports-20261014.md`（含三份决策草稿、架构观察）。
 
+## 2026-10-14 T24 研究周和每周问卷（PR 草稿，分支 `feat/weekly-schedule`）
+
+- 做了什么：研究周换算函数（服务器 `functions/study_week.js`、App `lib/core/scheduling/study_week.dart`，同一张测试表 `test/fixtures/study_week_table.json`）；每周问卷按研究周排程（`functions/weekly_schedule.js`、`lib/core/scheduling/weekly_schedule.dart`，同一张表 `test/fixtures/weekly_schedule_table.json`）；一个流程四部分（`lib/features/weekly_bundle/`）；按人推送、提醒、记缺失的定时函数 `weeklyBundleDispatch`；记录的研究周字段只由服务器写（触发器 + 规则）；`brief_pr` 按会话结束时间补周次（`onBriefPrWritten`）；社会接触探针 S12（`social_contact_probes`）。T34 的 `pi_alert.js` 改用共享函数。
+- 开关：`app_config/phase_b.weeklyScheduleV2Enabled`、`socialContactProbeEnabled` 都默认关。推送、流程文字仍是【占位】。
+- 没做 / 待定：W4 面访日期延长（T30 没合并，留了 `week4CloseFor(w0, w4VisitDate)` 钩子，现在只按第 29 天关）；推送钟点默认 20:00（沿用现在的每周推送），要 Junyu 定；W8 由 T35 做。
+- 报告：`docs/dev-reports/T24-weekly-schedule-20261014.md`。
+## 2026-10-14 T27 语音改走服务器 STT v2（SPEC:C18，PR 草稿，分支 `feat/stt-server`）
+
+- **做了**：App 的麦克风按钮不再用手机系统识别，改为用 `record` 包把 16 kHz 单声道 PCM 录进内存（不写文件），包成 WAV 上传 `transcribeAudio`，文字填进输入框。服务器新模块 `functions/stt.js`：Google STT v2 `chirp_2`，**只用 `asia-southeast1`**（原来 `functions/index.js` 第 848–855 行的两档 `STT_TIERS` 删掉，不做配置项），每次调用最多两次尝试（瞬时失败重试 1 次），再失败返回类别 `timeout` / `server_error` / `no_speech` / `too_long` / `unavailable`；请求只有 6 个字段，没有任何数据记录参数，`functions/test/stt_test.js` 逐字段检查并扫描日志语句。App 失败时在麦克风上方贴一张 S6 小卡（不是聊天气泡、不写 turns 和记忆），`events` 记 `voice_transcription_failed`（`sessionId`、`agentId`、`category`、`at`）。`speech_to_text` 依赖删掉。
+- **没变**：开关 `voiceInputEnabled` 默认关；关着时按钮不显示、不碰麦克风、服务器拒绝。两组代码路径完全相同。
+- **讨论过**：S6 怎样“在输入框旁”显示——13 个页面各自放一个提示要改每个页面；改为按钮自己用 `OverlayPortal` 贴在麦克风上方，所有页面一致。`no_speech` 和 `too_long` 不重试（同一段音频再试也一样）。英文界面的 S6 没有定稿，用【占位】。
+- **待定**（见报告「要 Junyu 定的事」）：控制台核对 data logging 的截图归档；`stt_usage` 要不要保留；开关打开前要不要先在试跑账号试一周。报告：`docs/dev-reports/T27-stt-server-20261014.md`。
+
+---
+
+## 2026-10-14 T32 第 6 条：旧测试员数据批量清理脚本（PR 草稿，分支 `feat/phase-a-final`）
+
+- Phase A 暂停（决策 0034），T32 只剩第 6 条。新脚本 `tool/purge_tester_data.js`：列出 `isTester` 账号和没有研究期（`cohort` 不是 `phase_b` / `pilot`）的账号及每人的数据量；默认只列不删；`--confirm --production --project=… --production-confirm=…` 才逐人调用 `tool/delete_participant.js` 删除，并写服务器专用的运行记录 `admin_runs`（只有数量）。已登记的 `phase_b` / `pilot` 账号和 `unblinded` / `blinded` 角色的账号永远不碰。由 Junyu 在 10/19 登记前自己跑（上线清单新增 I 节），开发只在模拟器上测（`test/delete_participant/purge_tester_data_test.js`，已接进 `tool/ci_backend_tests.sh`）。
+- 待定：没登记的账号要不要一并删（backlog 102）。报告 `docs/dev-reports/T32-phase-a-final-20261014.md`。
+
+---
+
+## 2026-10-14 设置页「語音讀出內容」隐藏、「安靜時段」接成真功能（PR 草稿，分支 `fix/quiet-hours-hide-readback`）
+
+- 负责人定：语音读出先隐藏（没有功能读它）；安静时段接上：开关写到 `users/{uid}.quietHoursEnabled`，服务器按人发推送前查 `functions/quiet_hours.js`，窗口在 `app_config/reminders` 配置（默认 22:00–08:00）。行动计划提醒已接；T24 的每周推送器要接。编号待开发窗口分配。报告：`docs/dev-reports/quiet-hours-hide-readback-20261014.md`。
 ## 2026-10-14 T25 会话定义与 Brief PR 第二版（SPEC:C16、C14，PR 草稿，分支 `feat/session-briefpr`）
 
 - **做了**：会话规则（`lib/core/session/session_rules.dart`）：结束方式 `close_button` / `back` / `switch_agent` / `timeout`（30 分钟）/ `recovered` / `crisis`，有效会话按“完成一个互动单元”（自由聊天 ≥3 条有回复；Hybrid 签到 = 心情 + ≥1 条有回复；Hybrid 回忆 = 按儲存；规则组 = 一次完整提交）。Brief PR 第二版：只在有效会话后、每位陪伴者每天 1 次、危机不邀请、列表页评价卡（S10a / S10b）、2 小时过期、一题一屏问卷、记录按会话编号去重、五种最终状态 + `everShown`。两组同一套。`llm_calls` 加 `session_id`，`usage_weekly` 加 `validSessionCount`。**开关 `app_config/phase_b.sessionBriefPrV2Enabled` 默认关**，关着时一切照旧。
