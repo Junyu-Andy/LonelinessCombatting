@@ -28,6 +28,7 @@
 | 24 | 部署决策 0017 的改动 | 现在线上的 Functions 还在请求旧名 `deepseek-chat`，DeepSeek 停用旧名当天 Hybrid 组会全部报错。合并后尽快部署 Functions |
 | 25 | PI 核对危机页热线号码 | `functions/prompts/crisis_resources.json` 的 `verifiedDate` 还是空的。见 T6 报告 |
 | 26 | 手动建两份配置并上传序列 | `meta/memory_config`、`meta/randomization_config`（T19）；非盲研究员上传分配序列。可用 `tool/prelaunch_config.js`（它也检查序列）；逐项核对见 `docs/release/prelaunch-checklist.md`。`app_config/arm_assignment` 已停用，可删 |
+| 101 | **10/19 登记前清掉试用期的测试员数据**（T32 第 6 条） | 先列不删、再 `--confirm --production`，步骤见 `docs/release/prelaunch-checklist.md` I 节。脚本 `tool/purge_tester_data.js`；报告 `docs/dev-reports/T32-phase-a-final-20261014.md` |
 
 ## 3. 待决定
 
@@ -106,6 +107,7 @@
 | 98 | **T30 接入**：评估员录入 W4 纸本 PHQ-9 时，在提交处调用 `functions/questionnaire_safety.js` `recordQuestionnaireSafetyEvent(db, {uid, source: 'assessor_entry', instrument: 'PHQ-9', item: 9, rawValue, enteredBy, researchId})`（第 9 题为 0 自动不写）。默认级别 acute 待 Junyu 定（T34 报告「要 Junyu 定的事」第 1 条） | T34 报告第 6 节 | T30 |
 | 99 | `PI_EMAIL` 密钥何时停用：`meta/alert_config` 打开并填了 `primaryEmail` 后，密钥只做兜底；研究侧确认后可以从 `onSafetyEventCreated` / `escalateAlerts` 的 `secrets` 列表里去掉 | T34 报告第 4 节；上线清单 B1 | 开关打开后 |
 | 100 | 告警邮件的「研究第几天」对试跑账号：现在也从 `users/{uid}.w0Date` 算（T21 登记时写）；任务原文说试跑「从登记日算」，T24 的共享函数定下来后对齐 | dev-tasks-1010b T34 §1.3；T34 报告第 5 节 | T24 |
+| 102 | **没登记的账号算不算“测试员”**：`tool/purge_tester_data.js` 把没有 `cohort` 的账号（`unenrolled`）和 `isTester` 一起列为可删。10/19 前如果有真实老人已装 App 注册、还没由 Junyu 登记，会出现在这个名单里。选项：(a) 删除前逐个核对名单（现做法，I1）；(b) 只删 `--only=testers`，没登记的账号留到登记门打开后再处理；(c) 用 `--created-before=<日期>` 只删某天之前建的账号 | T32 报告「要 Junyu 定的事」 | Junyu，10/19 前 |
 
 ## 4. 暂缓或以后再做
 

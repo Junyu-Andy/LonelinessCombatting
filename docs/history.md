@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-14 T32 第 6 条：旧测试员数据批量清理脚本（PR 草稿，分支 `feat/phase-a-final`）
+
+- Phase A 暂停（决策 0034），T32 只剩第 6 条。新脚本 `tool/purge_tester_data.js`：列出 `isTester` 账号和没有研究期（`cohort` 不是 `phase_b` / `pilot`）的账号及每人的数据量；默认只列不删；`--confirm --production --project=… --production-confirm=…` 才逐人调用 `tool/delete_participant.js` 删除，并写服务器专用的运行记录 `admin_runs`（只有数量）。已登记的 `phase_b` / `pilot` 账号和 `unblinded` / `blinded` 角色的账号永远不碰。由 Junyu 在 10/19 登记前自己跑（上线清单新增 I 节），开发只在模拟器上测（`test/delete_participant/purge_tester_data_test.js`，已接进 `tool/ci_backend_tests.sh`）。
+- 待定：没登记的账号要不要一并删（backlog 102）。报告 `docs/dev-reports/T32-phase-a-final-20261014.md`。
+
+---
+
 ## 2026-10-14 Phase B 包隐藏点赞点踩和第一周提示（PR 草稿，分支 `fix/phase-b-hide-feedback-nudge`）
 
 - 负责人核对 W0 流程时发现：点赞点踩只有 Hybrid 组的签到、回忆、反思对话有（通通、文章两组都有），登记表没写这项差异；第一周提示读 Phase A 配置，Phase B 老人也会看到。负责人定：先关掉，保主干。

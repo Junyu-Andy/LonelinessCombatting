@@ -1,7 +1,7 @@
 # 陪住 App 技术文档
 
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 补 T34 安全告警邮件（开关 `meta/alert_config.enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
-> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）；2026-10-14 T32 第 6 条：旧测试员数据批量清理脚本 `tool/purge_tester_data.js` 和服务器专用的运行记录 `admin_runs`（第 8 节“删除”；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
 ## 1. 一句话
@@ -243,8 +243,11 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `export_blind_keys` | 盲法导出时组别 → Group_X / Group_Y 的对照。新版用固定的 `stable_v2`，不再每周换 |
 | `research_id_map/{uid}`、`research_ids/{researchId}` | 研究编号对照表（决策 0021）。T19 起 Phase B 的编号是登记时研究员输入的（`via: "enrollment"`）。只有服务器写，只有非盲角色（`role: unblinded`）能读 |
 | `meta/blinding_config` | 盲法开关：`enabled`、`includeBriefPr`、`includeUsageSummary`，都默认 false。客户端不能读写 |
+| `admin_runs` | 管理脚本的运行记录（T32）：`tool/purge_tester_data.js` 带 `--confirm` 跑完写一条——模式、时间、操作者、每个账号的 uid / 类别 / 删除是否复查通过、保留了谁和原因。只有数量，不存字段值、不存原话、不存电邮。`firestore.rules` 没有这个集合的规则 = 客户端不能读写，只有服务器（Admin SDK）能写 |
 
 **删除**：`tool/delete_memory.js` 只删记忆（保留研究数据）；`tool/delete_participant.js` 删整个参与者（Auth 账号、`users/{uid}` 整棵树（含 `djg_es`、`djg_responses`）、顶层集合里按 `uid` 找到的记录、Storage `users/{uid}/`），默认试运行，`--confirm` 才删，删完复查并写存证（只有数量）。周度导出 `exports/` 默认只数不改，`--rewrite-exports` 才重写。详见 T11 报告。
+
+**批量清理旧测试员（T32 第 6 条）**：`tool/purge_tester_data.js` 把 Auth 账号和 `users/*` 文档合在一起看，列出两类人——`isTester: true` 的测试账号，和没有研究期的账号（`cohort` 不是 `phase_b` / `pilot`，判断用 `functions/study_period.js` 的 `isEnrolled`，包括没有 `users/{uid}` 文档的 Auth 账号和旧的 `phase_a`）——并用 `delete_participant.js` 的试运行算出每人的数据量（每个子集合的文档数、顶层集合里的行数、Auth 账号、Storage 文件、导出行数）。**永远不碰**：已登记的 `phase_b` / `pilot` 账号（即使也标了 `isTester`）、有 `enrollments/{uid}` 记录的账号、Auth 自定义声明 `role` 是 `unblinded` / `blinded`（和旧名 `pi` / `researcher`）的研究员和评估员账号、`--keep` 列出的 uid；它们在输出里单列“保留”和原因。默认只列不删；`--confirm` 才逐人调用 `delete_participant.js`（每人一份存证），删完写 `admin_runs` 一条运行记录和本地 JSON。模拟器外，`--confirm` 要同时给 `--production --project=<id> --production-confirm=<id>`（`tool/firestore_target.js` 的确认方式）。`delete_participant.js` 不删的东西（`arm_assignment_log`、`pilot_assignment_log`、已用的序列位置、Cloud Logging、周度导出的行）这里同样不删。测试：`test/delete_participant/purge_tester_data_test.js`。
 
 ## 9. Cloud Functions
 
@@ -342,7 +345,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 
 ```bash
 tool/ci_flutter_tests.sh     # Flutter：默认、Phase B 分组（含 ADA 入口检查）、B 组页面、记忆 v1、规则组模板回应（占位保护 / 开）六套
-tool/ci_backend_tests.sh     # Cloud Functions + Firestore 规则（需要 Firebase 模拟器）
+tool/ci_backend_tests.sh     # Cloud Functions + Firestore 规则 + 删除 / 共享同意 / 测试员清理脚本（需要 Firebase 模拟器）
 ```
 
 注意：Flutter 工具会改 `analysis_options.yaml` 和 `pubspec.lock`，提交前 `git checkout` 这两个文件。
