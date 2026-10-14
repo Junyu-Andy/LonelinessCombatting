@@ -115,6 +115,11 @@
 | 102 | `stt_usage` 集合（每次转写一行：uid、字节数、耗时、次数、成功与否、失败类别）要不要保留；保留的话删除脚本 `tool/delete_participant.js` 要一起删这个人的行（现在没有） | T27 报告第 5 节 | Junyu |
 | 103 | 英文界面的 S6 没有定稿，现在是【占位】（只有测试员和研究员会看到英文界面）；要不要补一句英文定稿 | T27 报告第 2 节 | 研究侧（低优先） |
 | 102 | **没登记的账号算不算“测试员”**：`tool/purge_tester_data.js` 把没有 `cohort` 的账号（`unenrolled`）和 `isTester` 一起列为可删。10/19 前如果有真实老人已装 App 注册、还没由 Junyu 登记，会出现在这个名单里。选项：(a) 删除前逐个核对名单（现做法，I1）；(b) 只删 `--only=testers`，没登记的账号留到登记门打开后再处理；(c) 用 `--created-before=<日期>` 只删某天之前建的账号 | T32 报告「要 Junyu 定的事」 | Junyu，10/19 前 |
+| 103 | **每周推送钟点**：`weeklyPushHour` 默认 20（沿用现在星期日 20:00 的每周推送）。T18 的 DJG 推送是 10:00。20:00 推送意味着窗口在第 10 天 20:00 关，老人晚上收推送。Junyu 定钟点后在控制台改一个数字即可 | T24 报告「要 Junyu 定的事」 | Junyu，开关打开前 |
+| 104 | **W4 问卷延到面访当天结束**：`week4CloseFor(w0Date, w4VisitDate)` 已留钩子，所有调用处现在传 null（只按第 29 天关）。T30 合并后把评估员录入的 W4 施测日期接进去（服务器 `functions/weekly_schedule.js` `windowFor` 的 `opts.w4VisitDate`、App `PendingPromptsService.weeklyBundleDue`） | T24 报告第 3 节 | T30 之后 |
+| 105 | **每日心情提醒仍是主题广播**（`dailyMoodReminder`，`topic: all`），没登记的账号也收到，也不看安静时段。T24 只把每周提醒改成按人发。要不要改成按人发（成本：每天 72 人 × 设备数的单发） | T21 报告 4.5；T24 报告「交叉」 | Junyu |
+| 106 | **流程、推送的最终文字**：每周问卷的推送两句、流程开头说明、四个部分的名称、首页卡片两句，全部是【占位】（`functions/weekly_schedule.js` `PUSH_BODY` / `REMINDER_BODY`、`lib/features/weekly_bundle/presentation/weekly_bundle_flow_page.dart` `weeklyPartTitle`、`pending_prompts_banner.dart`）。研究侧定稿后替换，推送去掉【占位】才会发 | T24 报告第 7 节 | 研究侧，开关打开前 |
+| 107 | **旧的每周孤独探针代码**（`lib/features/loneliness_probe/`、`weeklyLonelinessProbe`）现在没有任何页面挂它，`WEEKLY_PROBE` 编译开关默认关，服务器只给 `weeklyProbeEnabled: true` 的用户排队。登记表 C15 写「不含」，可以在 Phase A 代码清理时一起删 | T24 报告第 8 节 | T32 以后 |
 
 ## 4. 暂缓或以后再做
 

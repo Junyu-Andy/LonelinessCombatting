@@ -78,6 +78,9 @@ async function seedUser(uid) {
     'djg_es/d1': {timepoint: 'week2', score: 3},
     'djg_responses/W2': {timepoint: 'W2', answers: {q1: 'yes'},
       scores: {emotional: null, social: null, total: null}},
+    // T24: weekly bundle part record (S12 probe) with study-week stamps.
+    'social_contact_probes/W1': {bundle: 'W1', answers: {q1: 2, q2: 0},
+      status: 'submitted', studyWeek: 1, studyDay: 7},
     // T17 (decision 0026): Phase A ADA + day-7 open questions.
     'ada_responses/visit1': {uid, timepoint: 'visit1', formVersion: 'short',
       freeText: SECRET, status: 'submitted'},
@@ -99,6 +102,9 @@ async function seedUser(uid) {
   // T17b: server-only day-7 status (doc id = uid).
   await db.collection('ada_status').doc(uid).set({uid, researchId: null,
     day7Status: 'in_progress'});
+  // T24: server-only weekly bundle status (doc id = uid).
+  await db.collection('weekly_status').doc(uid).set({uid, researchId: null,
+    scheduleMode: 'standard', bundles: {W1: {pushedAt: new Date()}}});
   await bucket.file(`users/${uid}/note.txt`).save('synthetic file');
 }
 
@@ -163,9 +169,10 @@ test('dry run lists everything and deletes nothing', async () => {
   assert.strictEqual(by['users/{uid}/onboarding/*'], 1);
   assert.strictEqual(by['users/{uid}/ada_responses/*'], 1);
   assert.strictEqual(by['users/{uid}/day7_open_responses/*'], 1);
+  assert.strictEqual(by['users/{uid}/social_contact_probes/*'], 1);
   for (const c of ['llm_calls', 'safety_events', 'safety_event_dedup',
     'pi_alerts', 'te_audit_queue', 'stt_usage',
-    'pending_loneliness_probes', 'ada_status']) {
+    'pending_loneliness_probes', 'ada_status', 'weekly_status']) {
     assert.strictEqual(by[c], 1, c);
   }
   assert.strictEqual(by['safety_classifier_calls'], 0);
@@ -173,7 +180,9 @@ test('dry run lists everything and deletes nothing', async () => {
   assert.strictEqual(r.found.storageUserFiles, 1);
   assert.deepStrictEqual(r.found.exports.map((e) => e.rows), [2]);
   assert.deepStrictEqual(await residue(UID).then((l) => l.length > 0), true);
-  assert.strictEqual((await residue(UID)).length, 13, 'all still there');
+  // 14 places: the user tree (2) + the top-level collections incl. T24's
+  // weekly_status.
+  assert.strictEqual((await residue(UID)).length, 14, 'all still there');
 });
 
 test('--confirm deletes everything of that person, nothing else', async () => {
@@ -183,7 +192,9 @@ test('--confirm deletes everything of that person, nothing else', async () => {
   // The other participant is untouched.
   const again = await tool.run(ctx({uid: OTHER}));
   const n = again.found.firestore.reduce((s, g) => s + g.count, 0);
-  assert.strictEqual(n, 32); // incl. djg_es + djg_responses (T18), ada + day-7 (T17), ada_status (T17b)
+  // incl. djg_es + djg_responses (T18), ada + day-7 (T17), ada_status
+  // (T17b), social_contact_probes + weekly_status (T24)
+  assert.strictEqual(n, 34);
   assert.strictEqual(again.found.auth, 1);
   // Exports are only counted by default.
   assert.strictEqual(r.exportsPolicy, 'counted only, files not modified');

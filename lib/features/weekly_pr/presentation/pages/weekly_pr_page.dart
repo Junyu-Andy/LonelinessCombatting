@@ -22,6 +22,7 @@ import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/survey/likert_scale.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../weekly_bundle/presentation/weekly_part_header.dart';
 import '../../data/weekly_pr_response.dart';
 import '../../data/weekly_pr_trigger.dart';
 
@@ -33,7 +34,20 @@ class WeeklyPrPage extends StatefulWidget {
   /// week).  Defaults to the current ISO week for the tester entry point.
   final String? weekIso;
 
-  const WeeklyPrPage({super.key, required this.agent, this.weekIso});
+  /// T24 — inside the weekly bundle: the record is
+  /// `users/{uid}/weekly_pr/{bundle}` with a `bundle` field, the page shows
+  /// 「第 n 部分，共 m 部分」 and pops `true` when done.  Null = the Sunday
+  /// window page, unchanged.
+  final String? bundle;
+  final WeeklyPartPosition? part;
+
+  const WeeklyPrPage({
+    super.key,
+    required this.agent,
+    this.weekIso,
+    this.bundle,
+    this.part,
+  });
 
   @override
   State<WeeklyPrPage> createState() => _WeeklyPrPageState();
@@ -113,11 +127,18 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
       // froze the questionnaire on a permanent spinner.
       unawaited(() async {
         try {
-          await FirebaseFirestore.instance
+          final col = FirebaseFirestore.instance
               .collection('users')
               .doc(profile.uid)
-              .collection('weekly_pr')
-              .add(resp.toFirestore());
+              .collection('weekly_pr');
+          final bundle = widget.bundle;
+          if (bundle != null) {
+            // T24: one record per bundle; a retry overwrites the same doc.
+            await col.doc(bundle).set(
+                {...resp.toFirestore(), 'bundle': bundle}, SetOptions(merge: true));
+          } else {
+            await col.add(resp.toFirestore());
+          }
         } catch (_) {}
       }());
     }
@@ -142,7 +163,7 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
 
   Future<void> _finish() async {
     if (!mounted) return;
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(widget.bundle != null ? true : null);
   }
 
   void _prev() {
@@ -188,6 +209,7 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
       body: SafeArea(
         child: Column(
           children: [
+            if (widget.part != null) WeeklyPartHeader(part: widget.part!),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),

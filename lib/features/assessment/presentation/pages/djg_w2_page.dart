@@ -12,11 +12,23 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../weekly_bundle/presentation/weekly_part_header.dart';
 import '../../data/djg_w2.dart';
 
 class DjgW2Page extends StatefulWidget {
   final DjgW2Store store;
-  const DjgW2Page({super.key, required this.store});
+
+  /// T24 — inside the weekly bundle: 「第 n 部分，共 m 部分」 and the
+  /// bundle's title.  Null = T18's stand-alone W2 page, unchanged.
+  final WeeklyPartPosition? part;
+  final String title;
+
+  const DjgW2Page({
+    super.key,
+    required this.store,
+    this.part,
+    this.title = '第 2 週問卷',
+  });
 
   @override
   State<DjgW2Page> createState() => _DjgW2PageState();
@@ -101,9 +113,17 @@ class _DjgW2PageState extends State<DjgW2Page> {
         onBack: _index > 0 ? _back : null,
       );
     }
+    final part = widget.part;
     return Scaffold(
-      appBar: AppBar(title: const Text('第 2 週問卷')),
-      body: SafeArea(child: body),
+      appBar: AppBar(title: Text(widget.title)),
+      body: SafeArea(
+        child: part == null
+            ? body
+            : Column(children: [
+                WeeklyPartHeader(part: part),
+                Expanded(child: body),
+              ]),
+      ),
     );
   }
 }

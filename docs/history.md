@@ -11,6 +11,12 @@
 - 负责人核实：新装 App 第一次注册/登录后控制台开关不生效（启动时读开关、那时没登录、规则拒绝、之后不再读）。登记门开着时后果是老人直接进同意页、问卷答案被悄悄拒绝。修法：登录后再读一次开关并重建门（`auth_gate.dart`）。
 - 顺带修：T34 第一封告警发不出去时下一次巡检直接转后备（`primaryFailedAt`）；T25 补问卡没有定稿时间说法时不显示【占位】、记 `due_not_invited: copy_pending`；「安靜時段」登录后和服务器对齐。`isTester` 客户端可写维持待办 96。编号待开发窗口分配。报告：`docs/dev-reports/fixes-after-review-20261014.md`。
 
+## 2026-10-14 T24 研究周和每周问卷（PR 草稿，分支 `feat/weekly-schedule`）
+
+- 做了什么：研究周换算函数（服务器 `functions/study_week.js`、App `lib/core/scheduling/study_week.dart`，同一张测试表 `test/fixtures/study_week_table.json`）；每周问卷按研究周排程（`functions/weekly_schedule.js`、`lib/core/scheduling/weekly_schedule.dart`，同一张表 `test/fixtures/weekly_schedule_table.json`）；一个流程四部分（`lib/features/weekly_bundle/`）；按人推送、提醒、记缺失的定时函数 `weeklyBundleDispatch`；记录的研究周字段只由服务器写（触发器 + 规则）；`brief_pr` 按会话结束时间补周次（`onBriefPrWritten`）；社会接触探针 S12（`social_contact_probes`）。T34 的 `pi_alert.js` 改用共享函数。
+- 开关：`app_config/phase_b.weeklyScheduleV2Enabled`、`socialContactProbeEnabled` 都默认关。推送、流程文字仍是【占位】。
+- 没做 / 待定：W4 面访日期延长（T30 没合并，留了 `week4CloseFor(w0, w4VisitDate)` 钩子，现在只按第 29 天关）；推送钟点默认 20:00（沿用现在的每周推送），要 Junyu 定；W8 由 T35 做。
+- 报告：`docs/dev-reports/T24-weekly-schedule-20261014.md`。
 ## 2026-10-14 T27 语音改走服务器 STT v2（SPEC:C18，PR 草稿，分支 `feat/stt-server`）
 
 - **做了**：App 的麦克风按钮不再用手机系统识别，改为用 `record` 包把 16 kHz 单声道 PCM 录进内存（不写文件），包成 WAV 上传 `transcribeAudio`，文字填进输入框。服务器新模块 `functions/stt.js`：Google STT v2 `chirp_2`，**只用 `asia-southeast1`**（原来 `functions/index.js` 第 848–855 行的两档 `STT_TIERS` 删掉，不做配置项），每次调用最多两次尝试（瞬时失败重试 1 次），再失败返回类别 `timeout` / `server_error` / `no_speech` / `too_long` / `unavailable`；请求只有 6 个字段，没有任何数据记录参数，`functions/test/stt_test.js` 逐字段检查并扫描日志语句。App 失败时在麦克风上方贴一张 S6 小卡（不是聊天气泡、不写 turns 和记忆），`events` 记 `voice_transcription_failed`（`sessionId`、`agentId`、`category`、`at`）。`speech_to_text` 依赖删掉。

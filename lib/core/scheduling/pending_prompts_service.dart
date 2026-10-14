@@ -21,24 +21,33 @@
 ///     where [AdaGate.legacyAgentDiffVisible] allows (off in Phase B by
 ///     default); the Phase A ADA and day-7 open questions come from
 ///     `app_config/phaseA_schedule` ([PhaseAScheduleConfig]).
+///   • T24 — study-week schedule: when [WeeklyBundleGate.active] (switch
+///     `weeklyScheduleV2Enabled`, Phase B build, registered cohort) the
+///     Sunday Weekly PR / PGIC window, the T18 W2 card and the Phase A
+///     `djg_es` part are all replaced by one card for the bundle whose
+///     window ([WeeklySchedule.openBundleAt]) contains now
+///     ([PendingPrompts.weeklyBundle]).  Switch off: everything as before.
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../features/analytics/data/analytics_service.dart';
 import '../../features/auth/data/user_profile.dart';
+import '../feature_flags/feature_flags.dart';
 import '../../features/weekly_pr/data/weekly_pr_trigger.dart';
 import '../../features/weekly_pr/data/weekly_pr_window.dart';
 import '../../features/ada/data/ada_gate.dart';
 import '../../features/ada/data/ada_items.dart'
     show kAdaCollection, kDay7OpenCollection, kDay7OpenDocId;
 import '../../features/assessment/data/djg_w2.dart';
+import '../../features/weekly_bundle/data/weekly_bundle.dart';
 import '../config/phase_a_config.dart';
 import '../config/phase_a_schedule_config.dart';
 import '../config/phase_b_config.dart';
 import '../time/app_clock.dart';
 import 'enrolment_day.dart';
 import 'w0_date.dart';
+import 'weekly_schedule.dart';
 
 class PendingPrompts {
   final bool pgic;
@@ -71,6 +80,9 @@ class PendingPrompts {
   /// Enrolment day used for the checks above (stored with the answers).
   final int? enrolmentDay;
 
+  /// T24 — the weekly bundle whose window is open and not yet finished.
+  final WeeklyBundleDue? weeklyBundle;
+
   const PendingPrompts({
     required this.pgic,
     required this.weeklyPr,
@@ -83,6 +95,7 @@ class PendingPrompts {
     this.ada,
     this.day7Flow = const [],
     this.enrolmentDay,
+    this.weeklyBundle,
   });
 
   bool get w2Any => djgEsW2 || agentDiffW2;
@@ -93,7 +106,8 @@ class PendingPrompts {
       agentDiffW4 ||
       djgW2 ||
       ada != null ||
-      day7Flow.isNotEmpty;
+      day7Flow.isNotEmpty ||
+      weeklyBundle != null;
 }
 
 class PendingPromptsService {
@@ -115,12 +129,24 @@ class PendingPromptsService {
     bool? phaseB,
     bool? legacyAgentDiffInPhaseB,
     PhaseAScheduleConfig? schedule,
+    PhaseBConfig? phaseBConfig,
+    WeeklyBundleStore? weeklyBundleStore,
   }) async {
     final t = now ?? AppClock.now();
     final cfg = PhaseAConfig.current;
     final sched = schedule ?? PhaseAScheduleConfig.current;
     final legacyDiff = AdaGate.legacyAgentDiffVisible(
         phaseB: phaseB, legacyInPhaseB: legacyAgentDiffInPhaseB, config: sched);
+
+    // T24 — study-week schedule replaces the calendar-week surfaces.
+    final pbCfg = phaseBConfig ?? PhaseBConfig.current;
+    final weeklyV2 = WeeklyBundleGate.activeFor(pbCfg, profile,
+        phaseB: phaseB ?? FeatureFlags.phaseB);
+    WeeklyBundleDue? weeklyBundle;
+    if (weeklyV2) {
+      weeklyBundle = await weeklyBundleDue(uid, profile, t,
+          config: pbCfg, store: weeklyBundleStore);
+    }
 
     bool pgic = false;
     bool weeklyPr = false;
@@ -129,7 +155,9 @@ class PendingPromptsService {
 
     final ratedMonday = WeeklyPrWindow.ratedWeekMonday(t, config: cfg);
     final ratedIso = WeeklyPrWindow.ratedWeekIso(ratedMonday);
-    if (WeeklyPrWindow.isOpen(t, config: cfg)) {
+    if (weeklyV2) {
+      // Sunday window, missed records and all: owned by the bundle now.
+    } else if (WeeklyPrWindow.isOpen(t, config: cfg)) {
       weekIso = ratedIso;
       final hasWeekly = await _weeklyTrigger.hasSubmittedThisWeek(uid, ratedIso);
       pgic = await _noPgicForWeek(uid, ratedMonday, ratedIso);
@@ -151,7 +179,9 @@ class PendingPromptsService {
     bool djgEsW2 = false;
     bool agentDiffW2 = false;
     bool agentDiffW4 = false;
-    final djgW2On = DjgW2Gate.active;
+    // T24: with the schedule on, the DJG belongs to the bundle (W1–W3); the
+    // Phase A djg_es part and T18's stand-alone W2 card both stand down.
+    final djgW2On = DjgW2Gate.active || weeklyV2;
     AdaTimepoint? ada;
     var day7Flow = const <Day7Part>[];
     int? enrolDay;
@@ -201,7 +231,8 @@ class PendingPromptsService {
       }
     }
 
-    final djgW2 = djgW2On && await djgW2Due(uid, w0DateFor(profile), t);
+    final djgW2 =
+        djgW2On && !weeklyV2 && await djgW2Due(uid, w0DateFor(profile), t);
 
     return PendingPrompts(
       pgic: pgic,
@@ -215,7 +246,36 @@ class PendingPromptsService {
       ada: ada,
       day7Flow: day7Flow,
       enrolmentDay: enrolDay,
+      weeklyBundle: weeklyBundle,
     );
+  }
+
+  /// T24 — the bundle whose window contains [now] with a part still open,
+  /// or null.  W0 from [w0DateFor]; mode by cohort.  A read error hides
+  /// the card (fail closed, as [_hasDoc]).
+  Future<WeeklyBundleDue?> weeklyBundleDue(
+    String uid,
+    UserProfile? profile,
+    DateTime now, {
+    PhaseBConfig? config,
+    WeeklyBundleStore? store,
+  }) async {
+    final cfg = config ?? PhaseBConfig.current;
+    final mode = WeeklySchedule.modeForCohort(profile?.cohort);
+    final w0 = w0DateFor(profile);
+    if (mode == null || w0 == null) return null;
+    // W4 visit date: T30 is not merged yet, so no extension today.
+    final open = WeeklySchedule.openBundleAt(cfg, mode, w0, now);
+    if (open == null) return null;
+    try {
+      final st = await (store ?? FirestoreWeeklyBundleStore(uid, db: _db))
+          .partStatus(open.bundle);
+      final due = WeeklyBundleDue(
+          bundle: open.bundle, window: open.window, status: st);
+      return due.allDone ? null : due;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// T18 — the W2 DJG card shows inside the window until the doc is

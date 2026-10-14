@@ -45,6 +45,7 @@
 "use strict";
 
 const studyPeriod = require("./study_period");
+const studyWeek = require("./study_week");
 
 const CONFIG_DOC = "meta/alert_config";
 const ALERTS = "pi_alerts";
@@ -269,12 +270,10 @@ function hkDateKey(d) {
  * @return {?number} whole days (may be negative), or null when unknown
  */
 function studyDay(user, at) {
-  const w0 = user && user.w0Date;
-  if (typeof w0 !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(w0)) return null;
-  const a = new Date(`${w0}T00:00:00Z`);
-  const b = new Date(`${hkDateKey(at)}T00:00:00Z`);
-  if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
-  return Math.round((b - a) / 86400000);
+  // T24: the shared study-week function (functions/study_week.js).  Only
+  // the registered W0 date counts here — no createdAt fallback, so an
+  // unregistered account still reads "unknown" in the e-mail.
+  return studyWeek.studyDayAt(user ? user.w0Date : null, at);
 }
 
 /**
