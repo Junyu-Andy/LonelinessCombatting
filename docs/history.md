@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-10-14 T30 角色、评估员视图、序列上传、过程/结局数据、锁库导出（PR 草稿，分支 `fix/roles-exports`）
+
+- 角色按 10/14 分工：`unblinded` = Junyu、`blinded` = W4 评估员（Keran、Mingyan Wang）、新 `sequence_uploader` = Calvin。`tool/provision_researcher.js` 加 `--list`。
+- 评估员视图（`lib/features/assessor/`，`functions/assessor.js`）：`blinded` 登录直接进 W4 到期名单和纸本 DJG-ES 录入；规则里 `blinded` 零读权限，全走函数；分数服务器算，存 `outcome_entries`，更正用 `tool/correct_outcome_entry.js`；PHQ-9 第 9 题走 T34 入口。规格文件 `docs/spec/instruments/djg_es.md`。
+- 序列上传改为 Calvin 自己的登录调 `uploadRandomizationSequence`（`functions/sequence_upload.js`），上传记日志；`tool/randomization_sequence.js` 不再用服务账号。
+- 过程数据导出 `functions/process_export.js`（含 T25 的 Brief PR v3、`validSessionCount`），`exports_v2` 可暂停；后台全体合并完成率（n<5 不显示）。
+- 删除可保留一行分配记录（`allocation_records`）；配对改动服务器日志 `pairing_change_log`；`tool/analysis_export.js` 锁库 + 导出 + 合成数据。
+- 七个开关全部默认关。报告：`docs/dev-reports/T30-roles-exports-20261014.md`（含三份决策草稿、架构观察）。
+
 ## 2026-10-14 T24 研究周和每周问卷（PR 草稿，分支 `feat/weekly-schedule`）
 
 - 做了什么：研究周换算函数（服务器 `functions/study_week.js`、App `lib/core/scheduling/study_week.dart`，同一张测试表 `test/fixtures/study_week_table.json`）；每周问卷按研究周排程（`functions/weekly_schedule.js`、`lib/core/scheduling/weekly_schedule.dart`，同一张表 `test/fixtures/weekly_schedule_table.json`）；一个流程四部分（`lib/features/weekly_bundle/`）；按人推送、提醒、记缺失的定时函数 `weeklyBundleDispatch`；记录的研究周字段只由服务器写（触发器 + 规则）；`brief_pr` 按会话结束时间补周次（`onBriefPrWritten`）；社会接触探针 S12（`social_contact_probes`）。T34 的 `pi_alert.js` 改用共享函数。

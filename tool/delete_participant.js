@@ -28,6 +28,17 @@
  *              rows in the weekly blinded exports exports/{date}/*.ndjson
  *              — see "Exports" below.
  *
+ *   T30: outcome_entries (uid field: the assessor's W4 paper entries),
+ *              pairing_change_log (uid), weekly_status (doc id = uid).
+ *
+ * T30 --allocation-record (dev-tasks-1010 §四 T30 §5.1; replaces T19's
+ * "keep the whole allocation-log row"): before deleting, write ONE row
+ * allocation_records/{researchId} holding only the research ID, the
+ * stratum, the arm, the allocation time and the withdrawal date — no uid,
+ * name or contact — and then delete this person's arm_assignment_log /
+ * pilot_assignment_log rows too (they carry the uid).  Without the flag
+ * the T19 behaviour is unchanged (log rows kept, listed as not covered).
+ *
  * Not reachable from here (listed in the receipt as "not covered"):
  * Cloud Logging lines, data DeepSeek / Brave keep on their side, local
  * copies made with tool/admin_dump.js, the phone's Firestore cache,
@@ -54,6 +65,7 @@
  *       --uid=abc123                       # dry run
  *   ... --uid=abc123 --confirm --production
  *   ... --email=x@hku.hk --confirm --production --rewrite-exports
+ *   ... --uid=abc123 --confirm --production --allocation-record   (T30)
  * Options: --bucket=<name> (default loneliness-pilot-dev.firebasestorage.app)
  *          --receipt=<path> (default ./deletion-receipt-<uid>-<time>.json)
  * Outside the emulator, --confirm also needs --production.
@@ -89,9 +101,20 @@ const TOP_LEVEL = [
   {collection: 'llm_denied_log', field: 'uid'},
   // T17b (decision 0030): Phase A day-7 status, push times, research ID.
   {collection: 'ada_status', field: 'uid', docIdIsUid: true},
+  // T30: the assessor's paper outcome entries (research ID + uid), the
+  // server-side pairing-change log and T24's per-person weekly status.
+  {collection: 'outcome_entries', field: 'uid'},
+  {collection: 'pairing_change_log', field: 'uid'},
   // T24: weekly bundle status, push / reminder / missed times, research ID.
   {collection: 'weekly_status', field: 'uid', docIdIsUid: true},
 ];
+
+/** T30 --allocation-record: deleted instead of kept. */
+const ALLOCATION_LOGS = [
+  {collection: 'arm_assignment_log', field: 'uid'},
+  {collection: 'pilot_assignment_log', field: 'uid'},
+];
+const ALLOCATION_RECORDS = 'allocation_records';
 
 const NOT_COVERED = [
   'Cloud Logging (function logs may name the uid; follow the project ' +
@@ -149,7 +172,7 @@ async function walk(ref, out) {
   return out;
 }
 
-async function firestorePlan(db, uid) {
+async function firestorePlan(db, uid, opts) {
   const userRef = db.collection('users').doc(uid);
   const refs = await walk(userRef, []);
   if ((await userRef.get()).exists) refs.push(userRef);
@@ -162,7 +185,9 @@ async function firestorePlan(db, uid) {
   for (const r of refs) {
     add(pattern(r.path, uid), 'path users/{uid}/…', r);
   }
-  for (const t of TOP_LEVEL) {
+  const top = (opts && opts.allocationRecord) ?
+    TOP_LEVEL.concat(ALLOCATION_LOGS) : TOP_LEVEL;
+  for (const t of top) {
     const key = t.collection;
     const how = t.docIdIsUid ? `doc id = uid, or ${t.field} = uid` :
       `${t.field} = uid`;
@@ -253,10 +278,32 @@ async function deleteRefs(db, refs) {
   }
 }
 
+/**
+ * T30: the one row kept after deletion.  Built from enrollments/{uid}
+ * (which is deleted).  Null when the person was never registered.
+ */
+async function allocationRecordFor(db, uid, now) {
+  const e = await db.collection('enrollments').doc(uid).get();
+  if (!e.exists) return null;
+  const d = e.data();
+  if (!d.researchId) return null;
+  return {
+    researchId: d.researchId,
+    studyPeriod: d.studyPeriod || 'B',
+    stratum: d.stratum || null,
+    arm: d.arm || null,
+    sequencePosition: d.sequencePosition == null ? null : d.sequencePosition,
+    allocatedAt: d.enrolledAt || null,
+    withdrawnAt: now,
+    writtenBy: 'tool/delete_participant.js',
+  };
+}
+
 async function scan(ctx) {
   const {db, auth, bucket, uid} = ctx;
   return {
-    firestore: await firestorePlan(db, uid),
+    firestore: await firestorePlan(db, uid,
+        {allocationRecord: ctx.allocationRecord === true}),
     auth: await authPlan(auth, uid),
     storage: await storagePlan(db, bucket, uid),
   };
@@ -289,20 +336,36 @@ function total(sum) {
  */
 async function run(ctx) {
   const {db, auth, bucket, uid, confirm, rewriteExports} = ctx;
+  const keepRecord = ctx.allocationRecord === true;
+  const now = ctx.now || new Date();
   const before = await scan(ctx);
   const found = summarise(before);
+  const record = keepRecord ? await allocationRecordFor(db, uid, now) : null;
+  const notCovered = keepRecord ?
+    NOT_COVERED.filter((l) => !l.startsWith('arm_assignment_log') &&
+      !l.startsWith('pilot_assignment_log')) : NOT_COVERED;
   const receipt = {
     tool: 'tool/delete_participant.js',
     mode: confirm ? 'confirm' : 'dry-run',
     uid,
-    at: (ctx.now || new Date()).toISOString(),
+    at: now.toISOString(),
     found,
     exportsPolicy: rewriteExports ? 'rewritten without this participant' :
       'counted only, files not modified',
-    notCovered: NOT_COVERED,
+    // T30: what stays behind — one row, no uid / name / contact.
+    allocationRecord: !keepRecord ? 'not requested (T19 behaviour: the ' +
+      'allocation log rows are kept as they are)' : record ?
+      {path: `${ALLOCATION_RECORDS}/${record.researchId}`,
+        fields: Object.keys(record)} :
+      'no registration record found; nothing to keep',
+    notCovered,
   };
   if (!confirm) return receipt;
 
+  if (record) {
+    await db.collection(ALLOCATION_RECORDS).doc(record.researchId)
+        .set(record, {merge: true});
+  }
   for (const g of before.firestore) await deleteRefs(db, g.refs);
   if (before.auth) await auth.deleteUser(uid);
   for (const f of before.storage.userFiles) await f.delete();
@@ -347,7 +410,8 @@ async function main() {
     process.exit(2);
   }
   const receipt = await run({db, auth, bucket: admin.storage().bucket(), uid,
-    confirm, rewriteExports: confirm && args['rewrite-exports'] === true});
+    confirm, rewriteExports: confirm && args['rewrite-exports'] === true,
+    allocationRecord: args['allocation-record'] === true});
   const path = typeof args.receipt === 'string' ? args.receipt :
     `deletion-receipt-${uid}-${receipt.at.replace(/[:.]/g, '-')}.json`;
   fs.writeFileSync(path, JSON.stringify(receipt, null, 2));
@@ -374,7 +438,7 @@ async function main() {
 }
 
 module.exports = {run, hashUid, rowMatches, pattern, TOP_LEVEL,
-  NOT_COVERED};
+  ALLOCATION_LOGS, ALLOCATION_RECORDS, allocationRecordFor, NOT_COVERED};
 
 if (require.main === module) {
   main().catch((err) => {

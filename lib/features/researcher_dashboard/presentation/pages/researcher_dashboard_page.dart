@@ -22,7 +22,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/feature_flags/feature_flags.dart';
 import '../../../ada/presentation/ada_staff_page.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../data/dashboard_access.dart';
+import '../widgets/outcome_completion_section.dart';
 import '../widgets/safety_alerts_section.dart';
 
 class ResearcherDashboardPage extends StatefulWidget {
@@ -47,7 +49,9 @@ class _ResearcherDashboardPageState extends State<ResearcherDashboardPage> {
     if (user == null) return DashboardAccess.denied;
     try {
       final token = await user.getIdTokenResult(true);
-      return DashboardAccess.fromClaims(token.claims);
+      // T30: assessors (`blinded`, switch on) have their own view instead.
+      return DashboardAccess.fromClaims(token.claims).withAssessorView(
+          assessorViewOn: RemoteFeatureFlags.current.assessorViewEnabled);
     } catch (_) {
       return DashboardAccess.denied;
     }
@@ -166,6 +170,17 @@ class _DashboardBody extends StatelessWidget {
           _SectionHeader(label: isEn ? 'Safety alerts' : '安全告警'),
           SafetyAlertsSection(
               key: const ValueKey('dashboard_safety_alerts'), isEn: isEn),
+          const SizedBox(height: 24),
+        ],
+        // T30: pooled completion of the outcome instruments (no arm, no
+        // values, n < 5 hidden) — unblinded only, remote switch on.
+        if (access.showsOutcomeCompletion(
+            switchOn:
+                RemoteFeatureFlags.current.outcomeCompletionSummaryEnabled)) ...[
+          _SectionHeader(
+              label: isEn ? 'Outcome completion (pooled)' : '結局問卷完成率（全體合併）'),
+          OutcomeCompletionSection(
+              key: const ValueKey('dashboard_outcome_completion'), isEn: isEn),
           const SizedBox(height: 24),
         ],
         // T12: sections whose data exists in one arm only are for the

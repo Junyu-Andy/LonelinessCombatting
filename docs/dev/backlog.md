@@ -99,7 +99,7 @@
 | 95 | 网页版构建里 `SafetyService.newTurnId` 用 `nextInt(1 << 32)`，JavaScript 里是 0，签到 B、回忆 B 提交会报错（Android 不受影响）。截图时本地临时改过，没提交 | T33 报告 | 开发（另开任务，改 `lib/core/safety/`，两组同时生效） |
 | 96 | **`isTester` 客户端可写，能绕过登记门**：`users/{uid}.isTester` 由测试员工具里的开关写（要先输入测试密码 `TESTER_PIN` 才看得到，`lib/core/testing/tester_gate.dart`、`lib/features/settings/presentation/pages/settings_page.dart`）；登记门（`enrollmentGateEnabled`）和服务器的 LLM 拒绝都把 `isTester: true` 当测试账号放行，所以拿到测试密码的人可以自己把账号设成测试账号绕过等待页。10/14 暂按 (a) 不改（决策 0037 第 4 项）。选项：(a) 维持，测试密码只给团队；(b) 把 `isTester` 加进 `firestore.rules` 只有服务器能写的字段，测试员工具里的开关改成只显示，由脚本或控制台设 | T21 报告第 4.4 节；决策 0037 | 负责人 |
 | 97 | **T37 开关 `onboardingAfterEnrollmentFix` 的上线默认**：W0 装机脚本是“先登记后引导”，关着时伙伴介绍、兴趣、S5 整段跳过。建议在第一位参与者登记前打开（`app_config/feature_flags`），打开那天在 STUDY_CHANGELOG 补一行 | T37 报告第 3 节；现在默认关 | 负责人 |
-| 98 | **改配对的日志搬到服务器**：现在老人改选阿珍/阿伯（引导里或陪伴者页）由 App 写 `events` `ah_jan_ah_bak_changed`（只在开关开时），T30 §5.2 要服务器记；搬过去时保留事件名和 from/to/at/where | T37 报告第 2.4 节 | 开发（T30） |
+| 98 | **改配对的日志搬到服务器**：T30 已做（`onUserPairingChanged` → `pairing_change_log`，开关 `pairingChangeServerLogEnabled` 默认关）；App 的 `events` 行保留 | T37 报告第 2.4 节；T30 报告 5.2 | 已做（T30 PR 草稿） |
 | 76 | 求助电话号码写进 `app_config/phaseA_schedule.adaHelpPhone`（没写时按钮不拨号，只说研究员会打来）；打开 ADA 前要配好 | T17b 报告第 2 节第 5 条 | 研究侧 |
 | 78 | **Phase B 已有的旧 `agent_diff` 数据**：T17 之前的 Phase B 包会在第 14、28 天弹旧问卷。如果有 Phase B 参与者或试用者做过，算偏离还是忽略；T22 后这些数据不进盲法导出，揭盲后怎么用 | T22 报告第 4 节；T17 报告第 10 节第 1 条 | 研究侧 |
 | 79 | 旧版导出（`meta/blinding_config.enabled` 关着时的 `exports/`）仍导出 `agent_diff`（uid 换成哈希，`freeResponse` 原文也在）；`tool/admin_dump.js`（单人原始数据，带 uid）也会读出。T22 没改，因为它们也是 Phase A 的导出；要不要在 T21 按研究期分开时一起拿掉 | T22 报告第 2 节 | 研究侧；开发（T21） |
@@ -111,6 +111,12 @@
 | 98 | **T30 接入**：评估员录入 W4 纸本 PHQ-9 时，在提交处调用 `functions/questionnaire_safety.js` `recordQuestionnaireSafetyEvent(db, {uid, source: 'assessor_entry', instrument: 'PHQ-9', item: 9, rawValue, enteredBy, researchId})`（第 9 题为 0 自动不写）。默认级别 acute 待 Junyu 定（T34 报告「要 Junyu 定的事」第 1 条） | T34 报告第 6 节 | T30 |
 | 99 | `PI_EMAIL` 密钥何时停用：`meta/alert_config` 打开并填了 `primaryEmail` 后，密钥只做兜底；研究侧确认后可以从 `onSafetyEventCreated` / `escalateAlerts` 的 `secrets` 列表里去掉 | T34 报告第 4 节；上线清单 B1 | 开关打开后 |
 | 100 | 告警邮件的「研究第几天」对试跑账号：现在也从 `users/{uid}.w0Date` 算（T21 登记时写）；任务原文说试跑「从登记日算」，T24 的共享函数定下来后对齐 | dev-tasks-1010b T34 §1.3；T34 报告第 5 节 | T24 |
+| 101 | **T30 决策草稿三份待编号**（角色；删除保留一行分配记录；锁库和分析导出），Junyu 定后由开发窗口分配号码，`--allocation-record` 届时改成默认 | T30 报告第 9 节 | 负责人；开发窗口 |
+| 102 | **Storage 读权限不在仓库里**：`exports/`、`exports_v2/`、`exports_process/` 只有服务账号能读；要给 `unblinded` 直接下载过程数据，要加 `storage.rules`（按前缀给角色）并进 `firebase.json` 和 CI | T30 报告 4.1、架构观察 5 | 负责人定要不要；开发 |
+| 103 | **序列上传端到端**：`uploadRandomizationSequence` 和工具两步各有测试，但没在 Functions 模拟器整条跑过；Calvin 上线前先对模拟器试一次（`--only auth,functions,firestore`） | T30 报告第 13 节 | Calvin；开发 |
+| 104 | **PHQ-9 规格文件到了接题目**：改 `functions/outcome_instruments.js` 的文字和 App 常量、加录入页入口和逐字测试，不改结构 | T30 报告 3.4 | 研究侧给文件；开发 |
+| 105 | **T24 合并后**：`functions/assessor.js` `w4Window` 改用 T24 的研究周函数；T24 读 `weekly_status/{uid}.w4VisitDate` 关第 4 周。**T35 合并后**：`completionSummary` 加 W8 一行 | T30 报告第 10 节 | T24、T35 |
+| 106 | **评估员账号不收推送**没有自动测试（`FcmService.suppressForStaff`）；真机核对 `users/{uid}/fcm_tokens` 为空 | T30 报告第 7 节 | 上线前真机 |
 | 101 | **T27 语音开关打开前**：① Junyu 在 Google Cloud 控制台再核对一次 Speech-to-Text 的 data logging 是关的，截图归档（步骤见 T27 报告第 6 节）；② HREC 对 STT 修订的批准文件到了再开；③ 打开当天在 `docs/STUDY_CHANGELOG.md` 补一行 | dev-tasks-1010 §三 T27 第 4 条；T27 报告 | Junyu；研究侧 |
 | 102 | `stt_usage` 集合（每次转写一行：uid、字节数、耗时、次数、成功与否、失败类别）要不要保留；保留的话删除脚本 `tool/delete_participant.js` 要一起删这个人的行（现在没有） | T27 报告第 5 节 | Junyu |
 | 103 | 英文界面的 S6 没有定稿，现在是【占位】（只有测试员和研究员会看到英文界面）；要不要补一句英文定稿 | T27 报告第 2 节 | 研究侧（低优先） |

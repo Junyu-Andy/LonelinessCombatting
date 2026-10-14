@@ -25,11 +25,17 @@ class AuthGate extends StatefulWidget {
   /// rotation). Used by [MyApp] to wire FCM token registration.
   final Future<void> Function(String? uid)? onAuthUidChanged;
 
+  /// T30: called when the signed-in account is research staff (the
+  /// registering researcher or a W4 assessor) and is routed to a staff
+  /// page.  [MyApp] uses it to keep participant pushes off that device.
+  final Future<void> Function(String uid)? onStaffRoute;
+
   const AuthGate({
     super.key,
     required this.authService,
     required this.analytics,
     this.onAuthUidChanged,
+    this.onStaffRoute,
   });
 
   @override
@@ -83,9 +89,12 @@ class _AuthGateState extends State<AuthGate> {
         // page; everyone else gets the participant App.  T21: with the
         // enrolment gate on, an unregistered participant (not a tester)
         // sees only the waiting page S8 — before consent and intake.
+        // T30: a `blinded` assessor account opens the assessor view here,
+        // before the enrolment gate, so it is never held on S8.
         return StaffGate(
           uid: profile.uid,
           onSignOut: widget.authService.signOut,
+          onStaffRoute: widget.onStaffRoute,
           child: EnrollmentWaitGate(
             profile: profile,
             child: const ConsentGate(child: MainShell()),
