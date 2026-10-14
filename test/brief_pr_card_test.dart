@@ -11,8 +11,10 @@ import 'package:app_demo/features/brief_pr/presentation/pages/brief_pr_flow_page
 import 'package:app_demo/features/brief_pr/presentation/widgets/brief_pr_card_host.dart';
 import 'package:app_demo/features/brief_pr/presentation/widgets/brief_pr_invite_card.dart';
 import 'package:app_demo/features/brief_pr/presentation/widgets/session_close_button.dart';
+import 'package:app_demo/features/brief_pr/presentation/widgets/session_close_hint.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const rules = SessionRules(v2: true, idleTimeoutMin: 30);
 final t0 = DateTime(2026, 10, 14, 15, 20); // Wednesday afternoon
@@ -287,7 +289,10 @@ void main() {
   group('S9 close button', () {
     testWidgets('label verbatim, ≥ 48 px tall, first-use note shown once',
         (tester) async {
-      SessionCloseButton.resetForTest();
+      // T46: the note's marker lives in shared_preferences; start empty.
+      SharedPreferences.setMockInitialValues({});
+      SessionCloseHint.resetForTest();
+      await SessionCloseHint.restore();
       var taps = 0;
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
