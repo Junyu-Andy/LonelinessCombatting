@@ -368,7 +368,8 @@ async function main() {
   if (!confirm) console.log('Re-run with --confirm to delete.');
 }
 
-module.exports = {run, hashUid, rowMatches, pattern, TOP_LEVEL};
+module.exports = {run, hashUid, rowMatches, pattern, TOP_LEVEL,
+  NOT_COVERED};
 
 if (require.main === module) {
   main().catch((err) => {

@@ -3,6 +3,7 @@
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T25 会话定义和 Brief PR 第二版（第 6 节，开关默认关）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 补 T34 安全告警邮件（开关 `meta/alert_config.enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T27 语音改走服务器 STT v2（`transcribeAudio`，只用 asia-southeast1 / chirp_2，重试 1 次，失败显示 S6 并记 `voice_transcription_failed`；开关 `voiceInputEnabled` 仍默认关；PR 草稿）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）；2026-10-14 T32 第 6 条：旧测试员数据批量清理脚本 `tool/purge_tester_data.js` 和服务器专用的运行记录 `admin_runs`（第 8 节“删除”；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
 ## 1. 一句话
@@ -240,7 +241,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | 位置 | 内容 |
 |---|---|
 | `app_config/arm_assignment` | 已停用（T19）。以前是 `{randomise: bool}` 最小化分配开关 |
-| `app_config/reminders` | `{m7FollowupPushEnabled: bool}`：行动计划提醒发不发，默认关（决策 0022） |
+| `app_config/reminders` | `{m7FollowupPushEnabled: bool}`：行动计划提醒发不发，默认关（决策 0022）。10/14 加 `quietHoursStart`、`quietHoursEnd`（香港时间 `HH:mm`，默认 `22:00`、`08:00`）：老人的「安靜時段」窗口（`functions/quiet_hours.js`） |
 | `app_config/feature_flags` | 搜一搜、语音、通通固定回应、记忆分层说明（T31）四个开关（第 12 节）。没有这份文档 = 全关 |
 | `app_config/usage_copy` | 提到使用频率的 7 处文字（决策 0028，键名见 `lib/core/config/usage_copy.dart`）。没有文档、字段为空或带【占位】= 显示原文；两组相同；客户端只读 |
 | `app_config/phase_b` | **只属于 Phase B** 的参数（`PhaseBConfig`，服务器 `functions/djg_w2.js` 也读）：`djgW2InAppEnabled`（默认关）、`djgW2DayOffset`（14）、`djgW2WindowDays`（7）、`djgW2PushHour`（10）、`djgW2ReminderHours`（24）；T25：`sessionBriefPrV2Enabled`（默认关）、`sessionIdleTimeoutMinV2`（30）、`briefPrDailyCapPerAgent`（1）、`briefPrCatchUpExpiryHours`（2）、`freeChatValidMinUserMessages`（3）、`hybridCheckInValidRequiresMood`（true）、`hybridCheckInValidMinUserMessages`（1）、`hybridReminiscenceValidRequiresSave`（true）。不建 = 关 |
@@ -262,8 +263,11 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `export_blind_keys` | 盲法导出时组别 → Group_X / Group_Y 的对照。新版用固定的 `stable_v2`，不再每周换 |
 | `research_id_map/{uid}`、`research_ids/{researchId}` | 研究编号对照表（决策 0021）。T19 起 Phase B 的编号是登记时研究员输入的（`via: "enrollment"`）。只有服务器写，只有非盲角色（`role: unblinded`）能读 |
 | `meta/blinding_config` | 盲法开关：`enabled`、`includeBriefPr`、`includeUsageSummary`，都默认 false。客户端不能读写 |
+| `admin_runs` | 管理脚本的运行记录（T32）：`tool/purge_tester_data.js` 带 `--confirm` 跑完写一条——模式、时间、操作者、每个账号的 uid / 类别 / 删除是否复查通过、保留了谁和原因。只有数量，不存字段值、不存原话、不存电邮。`firestore.rules` 没有这个集合的规则 = 客户端不能读写，只有服务器（Admin SDK）能写 |
 
 **删除**：`tool/delete_memory.js` 只删记忆（保留研究数据）；`tool/delete_participant.js` 删整个参与者（Auth 账号、`users/{uid}` 整棵树（含 `djg_es`、`djg_responses`）、顶层集合里按 `uid` 找到的记录、Storage `users/{uid}/`），默认试运行，`--confirm` 才删，删完复查并写存证（只有数量）。周度导出 `exports/` 默认只数不改，`--rewrite-exports` 才重写。详见 T11 报告。
+
+**批量清理旧测试员（T32 第 6 条）**：`tool/purge_tester_data.js` 把 Auth 账号和 `users/*` 文档合在一起看，列出两类人——`isTester: true` 的测试账号，和没有研究期的账号（`cohort` 不是 `phase_b` / `pilot`，判断用 `functions/study_period.js` 的 `isEnrolled`，包括没有 `users/{uid}` 文档的 Auth 账号和旧的 `phase_a`）——并用 `delete_participant.js` 的试运行算出每人的数据量（每个子集合的文档数、顶层集合里的行数、Auth 账号、Storage 文件、导出行数）。**永远不碰**：已登记的 `phase_b` / `pilot` 账号（即使也标了 `isTester`）、有 `enrollments/{uid}` 记录的账号、Auth 自定义声明 `role` 是 `unblinded` / `blinded`（和旧名 `pi` / `researcher`）的研究员和评估员账号、`--keep` 列出的 uid；它们在输出里单列“保留”和原因。默认只列不删；`--confirm` 才逐人调用 `delete_participant.js`（每人一份存证），删完写 `admin_runs` 一条运行记录和本地 JSON。模拟器外，`--confirm` 要同时给 `--production --project=<id> --production-confirm=<id>`（`tool/firestore_target.js` 的确认方式）。`delete_participant.js` 不删的东西（`arm_assignment_log`、`pilot_assignment_log`、已用的序列位置、Cloud Logging、周度导出的行）这里同样不删。测试：`test/delete_participant/purge_tester_data_test.js`。
 
 ## 9. Cloud Functions
 
@@ -291,7 +295,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `week2Push` | 每天 10:00 | 第二周推送（Phase A 的 DJG + 陪伴者比较）。`djgW2InAppEnabled` 开时跳过 Phase B 参与者，由 `djgW2Dispatch` 推 |
 | `djgW2Dispatch` | 每天 08:00–21:00，每小时 | Phase B 第 2 周 DJG（决策 0027）：W0 起第 14 天 10:00 推送一次、24 小时未交提醒一次、窗口（第 14–20 天）过后记缺失。只处理 Phase B 参与者，两组相同。开关 `app_config/phase_b.djgW2InAppEnabled` 默认关；推送文字带【占位】时不发 |
 | `onDjgResponseWritten` | `djg_responses` 文档写入 | 提交后由服务器算分（情感 0–3、社交 0–3、总分；跳题记缺失）并标 `outsideWindow` |
-| `dispatchReminders` | 每天 08:00–21:45，每 15 分钟 | 发送到时间的行动计划提醒（两组相同，开关 `app_config/reminders.m7FollowupPushEnabled` 默认关；超时 12 小时不补发；失败最多重试 3 次；见 `functions/reminders.js`、决策 0022） |
+| `dispatchReminders` | 每天 08:00–21:45，每 15 分钟 | 发送到时间的行动计划提醒（两组相同，开关 `app_config/reminders.m7FollowupPushEnabled` 默认关；超时 12 小时不补发；失败最多重试 3 次；老人「安靜時段」内先不发、下个 15 分钟再看（`functions/quiet_hours.js`）；见 `functions/reminders.js`、决策 0022） |
 | `sendTestPush` | App 调用 | 测试推送（测试人员） |
 
 **部署顺序**（新版本上线时）：
@@ -361,12 +365,12 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 
 ```bash
 tool/ci_flutter_tests.sh     # Flutter：默认、Phase B 分组（含 ADA 入口检查）、B 组页面、记忆 v1、规则组模板回应（占位保护 / 开）六套
-tool/ci_backend_tests.sh     # Cloud Functions + Firestore 规则（需要 Firebase 模拟器）
+tool/ci_backend_tests.sh     # Cloud Functions + Firestore 规则 + 删除 / 共享同意 / 测试员清理脚本（需要 Firebase 模拟器）
 ```
 
 注意：Flutter 工具会改 `analysis_options.yaml` 和 `pubspec.lock`，提交前 `git checkout` 这两个文件。
 
-**本机保存的设定（T37）**：字体、高对比、「安靜時段」「語音讀出內容」存在手机本机（`shared_preferences`，键 `display.fontScale`、`display.highContrast`、`notifications.quietHours`、`notifications.voiceReadback`），`main()` 在第一帧前读回（`lib/app/app_settings.dart` 的 `AppSettings.restore`）。只在这台手机上，不上传；读不到就用默认值。
+**本机保存的设定（T37）**：字体、高对比、「安靜時段」「語音讀出內容」存在手机本机（10/14：「語音讀出內容」那一行已隐藏，没有功能读它；「安靜時段」另写到 `users/{uid}.quietHoursEnabled`，服务器按人发推送前用 `functions/quiet_hours.js` 的 `inQuietHours` 检查，缺字段 = 开）（`shared_preferences`，键 `display.fontScale`、`display.highContrast`、`notifications.quietHours`、`notifications.voiceReadback`），`main()` 在第一帧前读回（`lib/app/app_settings.dart` 的 `AppSettings.restore`）。只在这台手机上，不上传；读不到就用默认值。
 
 ## 13. 其他文档
 

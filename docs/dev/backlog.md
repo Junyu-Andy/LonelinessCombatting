@@ -32,6 +32,7 @@
 | 24 | 部署决策 0017 的改动 | 现在线上的 Functions 还在请求旧名 `deepseek-chat`，DeepSeek 停用旧名当天 Hybrid 组会全部报错。合并后尽快部署 Functions |
 | 25 | PI 核对危机页热线号码 | `functions/prompts/crisis_resources.json` 的 `verifiedDate` 还是空的。见 T6 报告 |
 | 26 | 手动建两份配置并上传序列 | `meta/memory_config`、`meta/randomization_config`（T19）；非盲研究员上传分配序列。可用 `tool/prelaunch_config.js`（它也检查序列）；逐项核对见 `docs/release/prelaunch-checklist.md`。`app_config/arm_assignment` 已停用，可删 |
+| 101 | **10/19 登记前清掉试用期的测试员数据**（T32 第 6 条） | 先列不删、再 `--confirm --production`，步骤见 `docs/release/prelaunch-checklist.md` I 节。脚本 `tool/purge_tester_data.js`；报告 `docs/dev-reports/T32-phase-a-final-20261014.md` |
 
 ## 3. 待决定
 
@@ -104,7 +105,7 @@
 | 79 | 旧版导出（`meta/blinding_config.enabled` 关着时的 `exports/`）仍导出 `agent_diff`（uid 换成哈希，`freeResponse` 原文也在）；`tool/admin_dump.js`（单人原始数据，带 uid）也会读出。T22 没改，因为它们也是 Phase A 的导出；要不要在 T21 按研究期分开时一起拿掉 | T22 报告第 2 节 | 研究侧；开发（T21） |
 | 91 | App 里没有 PHQ-9（C15 写的是纸本）。“App 内 PHQ-9 第 9 题”的告警来源现在不会触发：以后哪份 App 内问卷、哪一题要触发告警 | T34 先只做入口（`docs/dev-reports/product-reply-20261010.md` 第三节第 1 条） | 产品窗口 |
 | 92 | 告警邮件的来源“AI 回复扫描”只有 Hybrid 组有，会露出组别。后备收件人 Calvin 要不要保持盲：后备邮件不写来源，或把它并入“老人输入” | 没定之前 T34 按原文写四种来源（同上第 2 条） | 产品窗口 |
-| 97 | **「安靜時段」「語音讀出內容」没有接任何功能**（10/14 负责人核对 W0 流程发现）：`settings_page.dart` 两个开关只有页面状态（T37 起会保存），全仓库没有功能读它们，FAQ 还写着可以打开安静时段。定下来之前 W0 不介绍这两项。做法待定：接上功能（安静时段交 T24 推送重做）还是先隐藏（要 T 号） | 10/14 核对 | 负责人 / 产品窗口 |
+| 97 | **「安靜時段」「語音讀出內容」没有接任何功能**（10/14 负责人核对 W0 流程发现）：`settings_page.dart` 两个开关只有页面状态（T37 起会保存），全仓库没有功能读它们，FAQ 还写着可以打开安静时段。定下来之前 W0 不介绍这两项。**10/14 已定并做了**（分支 `fix/quiet-hours-hide-readback`）：语音读出隐藏；安静时段写到 `users/{uid}.quietHoursEnabled`，服务器按人发推送前检查（`functions/quiet_hours.js`），T24 的推送器要接；语音读出以后要接 TTS 另开任务 | 10/14 核对、10/14 做 | 开发窗口分配编号 |
 | 98 | **点赞点踩两组不对等、第一周提示没按 Phase B 关闭**：10/14 已在 Phase B 包里两组都隐藏（分支 `fix/phase-b-hide-feedback-nudge`，开关 `replyFeedbackEnabled`、`week1NudgeEnabled` 可恢复）。登记表要补写：Phase B 不收单条回复反馈；第一周提示属 Phase A。这两项要不要在 Phase B 以别的形式恢复，研究侧定 | 10/14 核对 | 研究侧；开发窗口分配编号 |
 | 97 | **T34 之后**：`functions/pi_alert.js` 里的研究日 `studyDay`（W0 = 第 0 天，香港日历日）在 T24 合并后改用 T24 的共享函数；研究期已用 T21 的 `study_period.js` | T34 报告第 5 节；dev-tasks-1010b T34 §1.3 | T24 合并后 |
 | 98 | **T30 接入**：评估员录入 W4 纸本 PHQ-9 时，在提交处调用 `functions/questionnaire_safety.js` `recordQuestionnaireSafetyEvent(db, {uid, source: 'assessor_entry', instrument: 'PHQ-9', item: 9, rawValue, enteredBy, researchId})`（第 9 题为 0 自动不写）。默认级别 acute 待 Junyu 定（T34 报告「要 Junyu 定的事」第 1 条） | T34 报告第 6 节 | T30 |
@@ -113,6 +114,7 @@
 | 101 | **T27 语音开关打开前**：① Junyu 在 Google Cloud 控制台再核对一次 Speech-to-Text 的 data logging 是关的，截图归档（步骤见 T27 报告第 6 节）；② HREC 对 STT 修订的批准文件到了再开；③ 打开当天在 `docs/STUDY_CHANGELOG.md` 补一行 | dev-tasks-1010 §三 T27 第 4 条；T27 报告 | Junyu；研究侧 |
 | 102 | `stt_usage` 集合（每次转写一行：uid、字节数、耗时、次数、成功与否、失败类别）要不要保留；保留的话删除脚本 `tool/delete_participant.js` 要一起删这个人的行（现在没有） | T27 报告第 5 节 | Junyu |
 | 103 | 英文界面的 S6 没有定稿，现在是【占位】（只有测试员和研究员会看到英文界面）；要不要补一句英文定稿 | T27 报告第 2 节 | 研究侧（低优先） |
+| 102 | **没登记的账号算不算“测试员”**：`tool/purge_tester_data.js` 把没有 `cohort` 的账号（`unenrolled`）和 `isTester` 一起列为可删。10/19 前如果有真实老人已装 App 注册、还没由 Junyu 登记，会出现在这个名单里。选项：(a) 删除前逐个核对名单（现做法，I1）；(b) 只删 `--only=testers`，没登记的账号留到登记门打开后再处理；(c) 用 `--created-before=<日期>` 只删某天之前建的账号 | T32 报告「要 Junyu 定的事」 | Junyu，10/19 前 |
 
 ## 4. 暂缓或以后再做
 
