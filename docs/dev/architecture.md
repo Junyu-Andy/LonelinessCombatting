@@ -1,6 +1,6 @@
 # 陪住 App 技术文档
 
-> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
 ## 1. 一句话
@@ -108,9 +108,9 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 **给 PI 的告警**（T19）：`pi_alerts` 和发给 `PI_EMAIL` 的邮件不再带 `source`、`inputPoint`、`agentId`（这些值有的只有一组才有），只带研究编号、级别、时间、告警编号；两组完全相同，每条 acute 事件照旧告警（`functions/pi_alert.js`）。
 
-**编译开关**：现在 Phase B 界面靠 `--dart-define=PHASE_B=true` 打开，不加就是「所有人显示 A 组」的 Phase A 包。决策 0011 定了要改成 `cohort` 字段并删掉这个开关，**还没做**：Phase A 暂停后，参与者包固定用 `PHASE_B=true`，删不删、改不改成按研究期判断，见 T21 报告第 5 节，待负责人定。
+**编译开关**：现在 Phase B 界面靠 `--dart-define=PHASE_B=true` 打开，不加就是「所有人显示 A 组」的 Phase A 包。决策 0011 原定改成 `cohort` 字段并删掉这个开关；**10/14 决策 0037 第 1 项暂定保留**（待负责人确认）：Phase A 暂停后，参与者包固定用 `PHASE_B=true`（Build APK 的 `phase_b` / `phase_b_templates` 选项），Phase A 专用行为在这个包里由 `AdaGate` 等关住。以后要删或改成按研究期在运行时判断，另开任务（T21 报告第 5 节列了 8 个文件）。
 
-**cohort（决策 0011，T21 起由登记写入）**：`users/{uid}.cohort` = `phase_b`（`PB-`）/ `pilot`（`PILOT-` 试跑）；`phase_a` 暂不会出现（Phase A 暂停）。决策 0011 里“现有全部账号标 `pilot`”没有做：旧账号是测试员的，按 T32 的清理脚本删除，不标记。
+**cohort（决策 0011，T21 起由登记写入；`pilot` 的含义见决策 0037）**：`users/{uid}.cohort` = `phase_b`（`PB-`）/ `pilot`（`PILOT-` 试跑）；`phase_a` 暂不会出现（Phase A 暂停）。决策 0011 里“现有全部账号标 `pilot`”没有做、也不再做（0037 第 2 项）：旧账号是测试员的，按 T32 的清理脚本删除，不标记。
 
 **W0 日期**：App 的 `w0DateFor`（`lib/core/scheduling/w0_date.dart`）和服务器的 `w0DateKey`（`functions/djg_w2.js`）先用登记时写的 `w0Date`，没有再用账号的 `createdAt`。
 
@@ -308,7 +308,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 
 | 开关 | 作用 |
 |---|---|
-| `--dart-define=PHASE_B=true` | 按分组显示界面（不加 = 全员显示 A 组）。计划删除（决策 0011）。也是 App 内 W2 DJG 的前提之一（另需 `app_config/phase_b.djgW2InAppEnabled`；T21 改为按参与者研究期） |
+| `--dart-define=PHASE_B=true` | 按分组显示界面（不加 = 全员显示 A 组）。决策 0011 原定删除，**10/14 决策 0037 暂定保留**：参与者包固定带它。也是 App 内 W2 DJG 的前提之一（另需 `app_config/phase_b.djgW2InAppEnabled`；服务器按参与者 `cohort` 判断） |
 | `--dart-define=FORCE_ARM=A` / `B` | 本地调试强制组别，**不能用于发布** |
 | `--dart-define=MEMORY_V1=true` | 测试人员可在设置里自愿开启记忆 v1 |
 | `--dart-define=TESTER_PIN=…` | 解锁测试工具（日程模拟器、测试推送） |

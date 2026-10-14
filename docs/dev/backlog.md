@@ -1,18 +1,18 @@
 # 待办与待决定
 
 > 随时更新。做完的移到 `docs/history.md`，划掉或删掉这里的条目。
-> 最后更新：2026-10-10（产品窗口 10/10 第二次交接：T34、Phase A 暂停；T26 补 Phase A 和试跑；T33 定稿文字接入；T31 记忆分层）
+> 最后更新：2026-10-14（T21 第二次更新：决策 0037 六项过渡默认，第 1 项 `PHASE_B` 改为保留，加第 96 项 `isTester` 客户端可写）
 
 ## 1. 已决定、待开发
 
 | # | 事项 | 依据 | 备注 |
 |---|---|---|---|
-| 1 | **cohort 标记**：现有账号标 `pilot`；`assignArm` 写 `phase_a` / `phase_b`；规则禁止客户端写；计数器清零；删 `PHASE_B` 开关 | 决策 0011 | 研究期字段和配置拆分并入 T21（第 71 项）；T19 起 Phase B 分组在登记时做（`enrollments/{uid}.studyPeriod` 已留位置），`assignArm` 不写 cohort |
+| 1 | **cohort 标记**：现有账号标 `pilot`；`assignArm` 写 `phase_a` / `phase_b`；规则禁止客户端写；计数器清零；删 `PHASE_B` 开关 | 决策 0011；0037 | 研究期字段和配置拆分并入 T21（第 71 项）；T19 起 Phase B 分组在登记时做（`enrollments/{uid}.studyPeriod` 已留位置），`assignArm` 不写 cohort。**10/14（决策 0037）**：`PHASE_B` 编译开关**保留**，参与者包固定 `PHASE_B=true`，不删；`pilot` 现指 `PILOT-` 试跑账号，旧账号按 T32 删除不标记；`cohort` 由 T21 的登记写入、规则禁止客户端写（已做） |
 | 2 | 记忆和入口的 P0 | `docs/dev/memory-and-entry-spec.md` 第 3 节 | 等负责人调研完记忆架构 |
 | 21 | `llm_calls` 数据删除时一起删 | 决策 0016 | 盲法导出部分按决策 0021：揭盲前不导出 |
 | 70 | **T19 App 内分组重做**（研究员登记、置换区组序列、事务分配和日志、客户端不能读写分组/计数器/序列，原第 3、4、51 项一并做了） | 决策 0029；`docs/dev-reports/T19-randomization-20261007.md` | PR 草稿（分支 `fix/randomization`）。合并后删这一行 |
 | 89 | **T31 记忆分层**（共享层 / 私有层、按陪伴者过滤、删除覆盖两层、剂量分层计、抽取 prompt v3 未切换、S7） | 决策 0035；`docs/dev-reports/T31-memory-layers-20261010.md` | PR 草稿（分支 `feat/memory-layers`）。合并后删这一行。上线：PI 审 v3 → 研究侧定日期切 `extractionPrompt`；`layersEnabled` 和 `memoryLayersNoticeEnabled` 一起开 |
-| 71 | **T21 研究期和登记**（`dev-tasks-1010.md` 第三节、`1010b.md` 更正）：第一部分已做（PR 草稿，分支 `fix/phase-config-split`）：编号前缀定研究期（只认 `PB-`、`PILOT-`）、试跑由研究员指定版本、登记门（等待页 S8、未登记不给 LLM、不收研究数据，开关默认关）。**还没做**：编译开关 `PHASE_B` 改按研究期判断（待负责人定，T21 报告第 5 节）；定时推送对未登记账号的筛选（广播推送按主题发，交 T24）；盲法人员账号在登记门打开后的去向（交 T30） | `docs/dev-reports/T21-phase-config-20261014.md` | 第一部分合并后删“已做”的部分 |
+| 71 | **T21 研究期和登记**（`dev-tasks-1010.md` 第三节、`1010b.md` 更正）：第一部分已做（PR 草稿，分支 `fix/phase-config-split`）：编号前缀定研究期（只认 `PB-`、`PILOT-`）、试跑由研究员指定版本、登记门（等待页 S8、未登记不给 LLM、不收研究数据，开关默认关）。**还没做**：定时推送对未登记账号的筛选（广播推送按主题发，交 T24）；评估员账号在登记门打开后的去向（交 T30，`dev-tasks-1014.md` T30 第 3 条）。编译开关 `PHASE_B` 10/14 定为保留（决策 0037 第 1 项），不再列为待做 | `docs/dev-reports/T21-phase-config-20261014.md`；决策 0037 | PR #59。合并后删“已做”的部分；0037 的六项待负责人确认 |
 | 84 | **T26 LoRA 两组、两期和试跑共用**（决策 0033；`turns.safetyTurnId`；上线清单 H 节；10/10 补 Phase A 和试跑） | `docs/dev-reports/T26-lora-both-arms-20261009.md` | PR 草稿（分支 `feat/lora-both-arms-v2`）。合并后删这一行 |
 | 90 | **T34 安全告警邮件**：字段（研究编号、研究期、陪伴者、来源、级别和类别、词库版本、LoRA、研究日、危机页、事件编号）；收件人配置（Junyu、后备 Calvin Or，评估员不在名单、测试账号不发）；后台“确认处理”；12 小时没确认转后备；PHQ-9 第 9 题的问卷和评估员录入来源；导出带来源 | 产品窗口 10/10 第 6–8 条；`docs/dev-tasks/dev-tasks-1010b.md` | 现在可以开；评估员录入那一头等 T30 和 PHQ-9 规格文件 |
 
@@ -92,6 +92,7 @@
 | 93 | **T33 S5 入组引导那一屏**：放在通通之后、「完成」之前（截图见 T33 报告）；开关 `app_config/usage_copy.onboardingUsageAdviceEnabled` 何时打开。T20 的 7 处原文不动，等产品窗口写短版 | T33 报告第 3 节 | 负责人 / 产品窗口 |
 | 94 | **T33 其余发现**：回忆 B 心情提示「你而家心情點？」还是【占位】，模板开关打开前要定稿；心情脸文字（好差 / 差 / 麻麻地 / 幾好 / 好好）和定稿心情名（好唔開心 … 好開心）不同；签到命中 `moderate_review` 仍不给模板；模板和 S1a 没有英文定稿，英文界面也显示粤语 | T33 报告「要带回研究侧的发现」 | 研究侧 |
 | 95 | 网页版构建里 `SafetyService.newTurnId` 用 `nextInt(1 << 32)`，JavaScript 里是 0，签到 B、回忆 B 提交会报错（Android 不受影响）。截图时本地临时改过，没提交 | T33 报告 | 开发（另开任务，改 `lib/core/safety/`，两组同时生效） |
+| 96 | **`isTester` 客户端可写，能绕过登记门**：`users/{uid}.isTester` 由测试员工具里的开关写（要先输入测试密码 `TESTER_PIN` 才看得到，`lib/core/testing/tester_gate.dart`、`lib/features/settings/presentation/pages/settings_page.dart`）；登记门（`enrollmentGateEnabled`）和服务器的 LLM 拒绝都把 `isTester: true` 当测试账号放行，所以拿到测试密码的人可以自己把账号设成测试账号绕过等待页。10/14 暂按 (a) 不改（决策 0037 第 4 项）。选项：(a) 维持，测试密码只给团队；(b) 把 `isTester` 加进 `firestore.rules` 只有服务器能写的字段，测试员工具里的开关改成只显示，由脚本或控制台设 | T21 报告第 4.4 节；决策 0037 | 负责人 |
 | 76 | 求助电话号码写进 `app_config/phaseA_schedule.adaHelpPhone`（没写时按钮不拨号，只说研究员会打来）；打开 ADA 前要配好 | T17b 报告第 2 节第 5 条 | 研究侧 |
 | 78 | **Phase B 已有的旧 `agent_diff` 数据**：T17 之前的 Phase B 包会在第 14、28 天弹旧问卷。如果有 Phase B 参与者或试用者做过，算偏离还是忽略；T22 后这些数据不进盲法导出，揭盲后怎么用 | T22 报告第 4 节；T17 报告第 10 节第 1 条 | 研究侧 |
 | 79 | 旧版导出（`meta/blinding_config.enabled` 关着时的 `exports/`）仍导出 `agent_diff`（uid 换成哈希，`freeResponse` 原文也在）；`tool/admin_dump.js`（单人原始数据，带 uid）也会读出。T22 没改，因为它们也是 Phase A 的导出；要不要在 T21 按研究期分开时一起拿掉 | T22 报告第 2 节 | 研究侧；开发（T21） |
