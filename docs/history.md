@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-14 Phase B 包隐藏点赞点踩和第一周提示（PR 草稿，分支 `fix/phase-b-hide-feedback-nudge`）
+
+- 负责人核对 W0 流程时发现：点赞点踩只有 Hybrid 组的签到、回忆、反思对话有（通通、文章两组都有），登记表没写这项差异；第一周提示读 Phase A 配置，Phase B 老人也会看到。负责人定：先关掉，保主干。
+- 做法：`PHASE_B=true` 的包里两处都不渲染，两组相同；两个远程开关 `replyFeedbackEnabled`、`week1NudgeEnabled`（`app_config/feature_flags`）设为 `true` 可恢复。Phase A 包不变。编号待开发窗口分配。报告：`docs/dev-reports/phase-b-hide-feedback-nudge-20261014.md`。
 ## 2026-10-14 T34 安全告警邮件（PR 草稿，分支 `feat/safety-alert-email`）
 
 - **做了**：告警邮件改版放在总开关 `meta/alert_config.enabled` 后面（默认关 = 现状）。开着时：中英双语、12 个固定字段（不含组别、原话、命中词）；收件人从 `meta/alert_config` 读，`blinded` 账号去掉并记 `alert_audit_log`；测试账号只记不发；研究员后台 `unblinded` 多「安全告警」一节和「確認處理」（Cloud Function `acknowledgeAlert` 查角色）；定时函数 `escalateAlerts` 每 15 分钟把超过 `escalateAfterHours`（默认 12）没确认的告警转发后备一次。新模块 `functions/questionnaire_safety.js`：问卷 / 评估员录入来源（PHQ-9 第 9 题 ≠ 0）写安全事件、不论级别都告警，只有服务器能写；没有接任何调用方（App 没有 PHQ-9，W8 不推；评估员录入页是 T30 的）。`safety_events` 新字段 `crisisPageShown`（两组同样写）。盲法导出 v2 多 `sourceGroup`，v1 导出也补这个字段。`functions/study_period.js` 和 T21 的逐字节相同。
