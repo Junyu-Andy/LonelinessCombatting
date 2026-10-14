@@ -29,7 +29,8 @@
  * Cloud Logging lines, data DeepSeek / Brave keep on their side, local
  * copies made with tool/admin_dump.js, the phone's Firestore cache,
  * arm_assignment_log and the used sequence position (T19 allocation
- * record, kept for trial integrity).
+ * record, kept for trial integrity), and pilot_assignment_log (T21: the
+ * version the researcher chose for a pilot-run account, kept the same way).
  * There is no vector index in this codebase, so nothing to delete there.
  *
  * Exports: each weekly export is one file per collection holding every
@@ -96,6 +97,8 @@ const NOT_COVERED = [
   'arm_assignment_log and the used sequence position (T19 allocation ' +
       'record: research ID, stratum, position, arm; kept for trial ' +
       'integrity)',
+  'pilot_assignment_log (T21 pilot-run version choice: research ID, ' +
+      'arm, time, operator; kept like the allocation log)',
   'vector index: none exists in this codebase',
 ];
 

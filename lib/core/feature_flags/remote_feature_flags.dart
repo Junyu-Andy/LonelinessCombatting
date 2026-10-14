@@ -18,6 +18,10 @@
 ///                               line ([TungTungSearchIntent]).  The line
 ///                               is a placeholder until the research team
 ///                               signs it off.
+///   - [enrollmentGateEnabled] — T21: an account that is not registered
+///                               (no cohort) and is not a tester sees only
+///                               the waiting page S8; the server refuses
+///                               its LLM calls and research-data writes.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -30,11 +34,13 @@ class RemoteFeatureFlags {
     this.webSearchEnabled = false,
     this.voiceInputEnabled = false,
     this.searchOffReplyEnabled = false,
+    this.enrollmentGateEnabled = false,
   });
 
   final bool webSearchEnabled;
   final bool voiceInputEnabled;
   final bool searchOffReplyEnabled;
+  final bool enrollmentGateEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -70,5 +76,6 @@ class RemoteFeatureFlags {
         webSearchEnabled: map['webSearchEnabled'] == true,
         voiceInputEnabled: map['voiceInputEnabled'] == true,
         searchOffReplyEnabled: map['searchOffReplyEnabled'] == true,
+        enrollmentGateEnabled: map['enrollmentGateEnabled'] == true,
       );
 }

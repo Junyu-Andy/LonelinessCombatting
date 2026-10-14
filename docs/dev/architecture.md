@@ -1,6 +1,6 @@
 # 陪住 App 技术文档
 
-> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
 ## 1. 一句话
@@ -80,6 +80,17 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 3. Cloud Function `enrollParticipant`（`functions/randomization.js`）在一个事务里：按情感分分层（0–1 低层、2–3 高层），取该层分配序列的下一个未用位置，写入 `users/{uid}`：`arm`、`strataCell`（0 低 / 1 高）、`armAssignmentMode: "randomise"`、`armAssignmentMethod: "permuted_block_v1"`、`armAssignedBy: "server"`、`armAssignedAt`、`w0Date`、`ahJanAhBakVariant`；同时写登记记录 `enrollments/{uid}`、研究编号对照表、分配日志 `arm_assignment_log`（研究编号、层、序列位置、时间、操作的研究员）。
 4. 组别只在研究员的登记页显示，用于按组引导。老人完全关闭 App 再打开后，新组别生效。
 
+**研究期按研究编号前缀，T21 起**（登记表 v8 C01；Phase A 暂停，决策 0034）：登记页按编号开头决定填什么，服务器再查一次（`functions/study_period.js`）。
+
+| 编号 | 研究期 | 登记时填 | 组别怎样来 | 研究日从哪天算 | 日志 |
+|---|---|---|---|---|---|
+| `PB-…` | Phase B：`users.cohort = "phase_b"`，`enrollments.studyPeriod = "B"` | W0 情感分、阿珍/阿伯、W0 日期 | 分配序列（上面第 3 步） | W0 日期 | `arm_assignment_log` |
+| `PILOT-…` | 试跑：`users.cohort = "pilot"`，`enrollments.studyPeriod = "PILOT"` | 阿珍/阿伯、版本（Hybrid 或规则组，确认框里再选一次） | 研究员指定，不占序列；`armAssignmentMode: "pilot_designated"` | 登记日（写进 `w0Date`） | `pilot_assignment_log`（编号、版本、时间、操作人） |
+| `PA-…`、没有前缀 | 登记时拒绝（`research_id_prefix`） | — | — | — | — |
+
+- `cohort` 用决策 0011 的字段，只有服务器能写。试跑的 Hybrid 账号和 Phase B 的 Hybrid 一样有服务器记忆（`memory.js` `inScope`、App `MemoryModes`）；试跑不进盲法导出，也不收旧的 Phase A 第 2 周推送（`week2Push`）。
+- **登记门**（开关 `app_config/feature_flags.enrollmentGateEnabled`，默认关）：开时，没有 `cohort`、也不是测试账号（`isTester: true`）的账号，App 只显示等待页 S8（`lib/features/enrollment/presentation/enrollment_wait_gate.dart`，放在同意页之前）；服务器拒绝它的 LLM 调用，`llm_denied_log` 记 `reason: "not_enrolled"`；Firestore 规则不让它写 `users/{uid}/` 下的研究数据（推送令牌 `fcm_tokens` 除外，用户文档本身照常）。关时和以前一样。
+
 **分配序列**：每层一条，1:1 置换区组，区组大小 2 和 4 随机混用，每层至少 60 个位置。由非盲研究员用自己选的种子运行 `tool/randomization_sequence.js` 生成，上传到 `randomization_sequences/{low,high}`；种子和序列文件只存在本地 `randomization-private/`（不进仓库），交导师离线保存。上传不带种子。
 
 **重复提交**：同一个账号再提交，返回原来的组别，不再随机，记一条 `resubmit` 日志。**更正**：只能用 `tool/correct_arm_assignment.js`，必须写理由，记 `correction` 日志。
@@ -88,18 +99,18 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 **防护**：
 
-- 分组字段（`arm`、`strataCell`、`armAssignmentMode`、`armAssignedBy`、`armAssignedAt`，T19 加 `w0Date`、`armAssignmentMethod`、`armCorrectedAt`）只有服务器能写：客户端建档时不能带，之后不能改、不能删；客户端也不能删自己的用户文档，免得删档重建换组（Firestore 规则，决策 0022）。
+- 分组字段（`arm`、`strataCell`、`armAssignmentMode`、`armAssignedBy`、`armAssignedAt`，T19 加 `w0Date`、`armAssignmentMethod`、`armCorrectedAt`，T21 加 `cohort`）只有服务器能写：客户端建档时不能带，之后不能改、不能删；客户端也不能删自己的用户文档，免得删档重建换组（Firestore 规则，决策 0022）。
 - `proxyDeepSeek`、`referralJudgement`、`webSearch` 每次先查分组，B 组直接拒绝，并在 `llm_denied_log` 记一条（uid、哪个接口、时间；不存文字）。即使 App 哪里判断错了，B 组也拿不到 LLM。服务器的分组缓存 10 分钟过期，更正后最迟 10 分钟生效。
-- 分组还没拿到（`arm` 为空）时 App 显示 B 组界面（决策 0004），下次登录自动重试。登记前的这段时间服务器不拒绝 LLM（App 不会调用），见决策 0029。
-- 序列、指针、登记记录、分配日志、`meta/randomization_config`、`meta/arm_counter`：客户端（老人、盲法、非盲人员）一律不能读写。
+- 分组还没拿到（`arm` 为空）时 App 显示 B 组界面（决策 0004），下次登录自动重试。登记前的这段时间服务器不拒绝 LLM（App 不会调用），见决策 0029。T21 的登记门打开后，这段时间改为只显示等待页，服务器也拒绝（见上）。
+- 序列、指针、登记记录、分配日志、试跑日志 `pilot_assignment_log`、`meta/randomization_config`、`meta/arm_counter`：客户端（老人、盲法、非盲人员）一律不能读写。
 
 **角色**（Auth custom claims，`tool/provision_researcher.js`，T19 改名）：`unblinded` = 非盲研究员（Keran）：登记、看组别、读研究编号对照表、后台看两组人数、生成和上传序列。`blinded` = 盲法人员，包括 PI（Junyu，盲法评估者）：后台不显示两组人数和只有一组才有的板块，只用盲法导出。旧名字 `pi`、`researcher` 不再有任何权限。
 
 **给 PI 的告警**（T19）：`pi_alerts` 和发给 `PI_EMAIL` 的邮件不再带 `source`、`inputPoint`、`agentId`（这些值有的只有一组才有），只带研究编号、级别、时间、告警编号；两组完全相同，每条 acute 事件照旧告警（`functions/pi_alert.js`）。
 
-**编译开关**：现在 Phase B 界面靠 `--dart-define=PHASE_B=true` 打开，不加就是「所有人显示 A 组」的 Phase A 包。决策 0011 定了要改成 `cohort` 字段并删掉这个开关，**还没做**。
+**编译开关**：现在 Phase B 界面靠 `--dart-define=PHASE_B=true` 打开，不加就是「所有人显示 A 组」的 Phase A 包。决策 0011 定了要改成 `cohort` 字段并删掉这个开关，**还没做**：Phase A 暂停后，参与者包固定用 `PHASE_B=true`，删不删、改不改成按研究期判断，见 T21 报告第 5 节，待负责人定。
 
-**cohort（已决定，未实现，决策 0011）**：`users/{uid}.cohort` = `pilot`（现有全部账号）/ `phase_a` / `phase_b`。T21 会在登记时写研究期字段；登记记录里已留 `studyPeriod`（现在固定 `B`）。
+**cohort（决策 0011，T21 起由登记写入）**：`users/{uid}.cohort` = `phase_b`（`PB-`）/ `pilot`（`PILOT-` 试跑）；`phase_a` 暂不会出现（Phase A 暂停）。决策 0011 里“现有全部账号标 `pilot`”没有做：旧账号是测试员的，按 T32 的清理脚本删除，不标记。
 
 **W0 日期**：App 的 `w0DateFor`（`lib/core/scheduling/w0_date.dart`）和服务器的 `w0DateKey`（`functions/djg_w2.js`）先用登记时写的 `w0Date`，没有再用账号的 `createdAt`。
 
@@ -310,6 +321,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `webSearchEnabled` | 关 | 通通"幫我查"按钮（只 Hybrid 组）；服务器 `webSearch` |
 | `voiceInputEnabled` | 关 | 所有页面的麦克风按钮（两组）；服务器 `transcribeAudio` |
 | `searchOffReplyEnabled` | 关 | 搜一搜关闭时，通通对"要上网查"的问题回固定一句（文字未定稿） |
+| `enrollmentGateEnabled` | 关 | T21 登记门：没登记、不是测试账号的人只看到等待页 S8；服务器拒绝它的 LLM 调用和研究数据写入（第 4 节）。服务器最多 1 分钟后生效；Firestore 规则立即生效 |
 
 > ⚠️ **重要功能：HREC 批准 STT 后开启 `voiceInputEnabled`。** 开之前先定是否允许系统云端识别（`voice_input_button.dart` 的 `_onDeviceOnly`）。打开属于行为改动，要在 `docs/STUDY_CHANGELOG.md` 写明生效日期和组别。
 

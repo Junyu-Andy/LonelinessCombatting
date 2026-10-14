@@ -43,6 +43,7 @@ const fs = require("fs");
 const path = require("path");
 const safetyLexicon = require("./safety_lexicon");
 const forget = require("./memory_forget");
+const studyPeriod = require("./study_period");
 
 const AGENTS = ["siu_yan", "ah_jan_ah_bak", "tung_tung"];
 
@@ -687,8 +688,9 @@ function effectivePolicy(cfg, user) {
  * Who memory v1 applies to, given the config and a profile doc's data:
  *   - never Arm B;
  *   - Phase B Arm A (assigned while randomising) when cfg.phaseBArmA —
- *     mandatory, no opt-out; Phase A pilot users (assigned in force_a
- *     mode) keep memory v0;
+ *     mandatory, no opt-out; T21: so is a pilot-run account the
+ *     researcher set to Arm A (mode pilot_designated); accounts assigned
+ *     in force_a mode keep memory v0;
  *   - anyone else who opted in (testers on a MEMORY_V1 build).
  * The kill switch (cfg.enabled) overrides everything. With
  * cfg.honourMemoryWithdrawal (T10, default on), a user whose memory was
@@ -706,7 +708,7 @@ function inScope(cfg, user) {
     return false;
   }
   if (cfg.phaseBArmA && user.arm === "A" &&
-      user.armAssignmentMode === "randomise") {
+      studyPeriod.PHASE_B_MODES.indexOf(user.armAssignmentMode) >= 0) {
     return true;
   }
   return user.memory_enabled === true;

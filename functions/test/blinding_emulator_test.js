@@ -204,17 +204,17 @@ async () => {
   assert.strictEqual((await db.doc("research_id_map/u2").get()).exists,
       false, "assignArm no longer generates research IDs");
   await randomization.enrol(db, {uid: "k1", email: null, role: "unblinded"},
-      {uid: "u1", researchId: "B001", w0DjgEmotional: 1,
+      {uid: "u1", researchId: "PB-001", w0DjgEmotional: 1,
         companionVariant: "feminine", confirmed: true});
   const map = (await db.doc("research_id_map/u1").get()).data();
-  assert.strictEqual(map.researchId, "B001");
+  assert.strictEqual(map.researchId, "PB-001");
   assert.strictEqual(map.via, "enrollment");
-  const back = (await db.doc("research_ids/B001").get()).data();
+  const back = (await db.doc("research_ids/PB-001").get()).data();
   assert.strictEqual(back.uid, "u1");
   const profile = (await db.doc("users/u1").get()).data();
-  assert.strictEqual(JSON.stringify(profile).indexOf("B001"), -1);
+  assert.strictEqual(JSON.stringify(profile).indexOf("PB-001"), -1);
   // The export backfill keeps the registered ID.
-  assert.strictEqual(await blinding.ensureResearchId(db, "u1"), "B001");
+  assert.strictEqual(await blinding.ensureResearchId(db, "u1"), "PB-001");
   assert.strictEqual((await db.collection("research_ids").get()).size, 1);
 });
 

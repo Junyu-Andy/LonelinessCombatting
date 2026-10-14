@@ -8,6 +8,12 @@
 /// briefing.  Only accounts with the `unblinded` claim reach this page
 /// (StaffGate); the server checks the claim again.
 ///
+/// T21 (registry v8 C01, dev-tasks-1010b): the research-ID prefix picks
+/// the fields.  `PB-…` → the T19 flow above.  `PILOT-…` (pilot run) → no
+/// score and no W0 date; the researcher picks the version (Hybrid or
+/// rule-based) and picks it again in the confirmation dialog.  `PA-…`
+/// (Phase A paused) and IDs without a prefix cannot be checked.
+///
 /// Staff-facing text, not participant-facing.
 library;
 
@@ -49,12 +55,22 @@ String stratumLabel(String stratum) =>
 
 String variantLabel(String? v) => v == 'masculine' ? '阿伯' : '阿珍';
 
+/// T21: the study period shown to the researcher.
+String periodLabel(String? p) => switch (p) {
+      'B' => 'Phase B',
+      'PILOT' => '試跑',
+      _ => '—',
+    };
+
 /// Server error code → what the researcher should do.
 String enrollmentErrorText(String code) => switch (code) {
       'disabled' => '登記功能未開（meta/randomization_config）。請聯絡負責人。',
       'not_unblinded_researcher' => '呢個帳號冇非盲研究員權限。',
       'account_not_found' => '搵唔到呢個電郵嘅老人家帳號。請檢查電郵，或者先幫老人家註冊。',
       'invalid_research_id' => '研究編號格式唔啱（2–12 個英文字母、數字或 -）。',
+      'research_id_prefix' =>
+        '研究編號要以 PB-（Phase B）或者 PILOT-（試跑）開頭。Phase A 暫停，PA- 唔收。',
+      'invalid_pilot_arm' => '試跑要揀版本（Hybrid 或者規則組）。',
       'invalid_score' => '情感分要係 0、1、2 或 3。',
       'invalid_variant' => '請揀阿珍或者阿伯。',
       'invalid_w0_date' => 'W0 日期唔啱（唔可以係將來）。',
@@ -72,6 +88,7 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
   final _email = TextEditingController();
   final _researchId = TextEditingController();
   int? _score;
+  String? _pilotArm;
   String? _variant;
   late DateTime _w0;
   bool _busy = false;
@@ -91,19 +108,29 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
     super.dispose();
   }
 
+  /// T21: `'B'` | `'PILOT'` | null, from the research-ID prefix.
+  String? get _period => enrollmentPeriodOf(_researchId.text);
+
   bool get _complete =>
       _email.text.trim().isNotEmpty &&
-      _researchId.text.trim().isNotEmpty &&
-      _score != null &&
+      _period != null &&
+      (_period == 'PILOT' ? _pilotArm != null : _score != null) &&
       _variant != null;
 
-  EnrollmentInput _input() => EnrollmentInput(
-        email: _email.text,
-        researchId: _researchId.text,
-        w0DjgEmotional: _score!,
-        companionVariant: _variant!,
-        w0Date: _dateKey(_w0),
-      );
+  EnrollmentInput _input() => _period == 'PILOT'
+      ? EnrollmentInput(
+          email: _email.text,
+          researchId: _researchId.text,
+          companionVariant: _variant!,
+          pilotArm: _pilotArm,
+        )
+      : EnrollmentInput(
+          email: _email.text,
+          researchId: _researchId.text,
+          w0DjgEmotional: _score!,
+          companionVariant: _variant!,
+          w0Date: _dateKey(_w0),
+        );
 
   Future<void> _check() async {
     final input = _input();
@@ -145,6 +172,7 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
       _email.clear();
       _researchId.clear();
       _score = null;
+      _pilotArm = null;
       _variant = null;
       _w0 = widget.today();
       _result = null;
@@ -197,18 +225,43 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
               controller: _researchId,
               textCapitalization: TextCapitalization.characters,
               decoration: const InputDecoration(
-                  labelText: '研究編號', border: OutlineInputBorder()),
+                  labelText: '研究編號（PB-… 或 PILOT-…）',
+                  border: OutlineInputBorder()),
               onChanged: (_) => setState(() {}),
             ),
+            if (_researchId.text.trim().isNotEmpty && _period == null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(enrollmentErrorText('research_id_prefix'),
+                    key: const Key('enroll_prefix_hint'),
+                    style: TextStyle(color: theme.colorScheme.error)),
+              ),
+            if (_period != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text('研究期：${periodLabel(_period)}',
+                    key: const Key('enroll_period')),
+              ),
             const SizedBox(height: 16),
-            Text('W0 紙本 DJG 情感分量表分（第 1–3 題）',
-                style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            _ScoreChips(
-              keyPrefix: 'enroll_score',
-              selected: _score,
-              onSelected: (v) => setState(() => _score = v),
-            ),
+            if (_period == 'PILOT') ...[
+              Text('試跑版本（由你指定，唔用分配序列）',
+                  style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
+              _PilotArmChips(
+                keyPrefix: 'enroll_pilot_arm',
+                selected: _pilotArm,
+                onSelected: (v) => setState(() => _pilotArm = v),
+              ),
+            ] else ...[
+              Text('W0 紙本 DJG 情感分量表分（第 1–3 題）',
+                  style: theme.textTheme.titleSmall),
+              const SizedBox(height: 8),
+              _ScoreChips(
+                keyPrefix: 'enroll_score',
+                selected: _score,
+                onSelected: (v) => setState(() => _score = v),
+              ),
+            ],
             const SizedBox(height: 16),
             Text('配對', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
@@ -222,13 +275,20 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
                 ),
             ]),
             const SizedBox(height: 16),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('W0 入組日期'),
-              subtitle: Text(_dateKey(_w0)),
-              trailing: const Icon(Icons.edit_calendar_outlined),
-              onTap: _busy ? null : _pickDate,
-            ),
+            if (_period == 'PILOT')
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('研究日起點'),
+                subtitle: Text('登記當日（試跑由登記日計起）'),
+              )
+            else
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('W0 入組日期'),
+                subtitle: Text(_dateKey(_w0)),
+                trailing: const Icon(Icons.edit_calendar_outlined),
+                onTap: _busy ? null : _pickDate,
+              ),
             if (_error != null) ...[
               const SizedBox(height: 8),
               Text(_error!,
@@ -276,8 +336,33 @@ class _ScoreChips extends StatelessWidget {
   }
 }
 
+/// T21: the pilot run's version, picked by the researcher.
+class _PilotArmChips extends StatelessWidget {
+  final String keyPrefix;
+  final String? selected;
+  final ValueChanged<String> onSelected;
+  const _PilotArmChips(
+      {required this.keyPrefix,
+      required this.selected,
+      required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(spacing: 8, children: [
+      for (final a in const ['A', 'B'])
+        ChoiceChip(
+          key: Key('${keyPrefix}_$a'),
+          label: Text(armLabel(a)),
+          selected: selected == a,
+          onSelected: (_) => onSelected(a),
+        ),
+    ]);
+  }
+}
+
 /// Shows everything once more and asks for the score a second time; the
-/// button stays off until the two scores match.
+/// button stays off until the two scores match.  T21: for a pilot account
+/// it asks for the version a second time instead.
 class _ConfirmDialog extends StatefulWidget {
   final EnrollmentInput input;
   final EnrollmentResult preview;
@@ -289,6 +374,7 @@ class _ConfirmDialog extends StatefulWidget {
 
 class _ConfirmDialogState extends State<_ConfirmDialog> {
   int? _again;
+  String? _armAgain;
 
   @override
   Widget build(BuildContext context) {
@@ -297,7 +383,10 @@ class _ConfirmDialogState extends State<_ConfirmDialog> {
     final created = p.accountCreatedAt == null
         ? '—'
         : p.accountCreatedAt!.substring(0, 10);
-    final matches = _again == i.w0DjgEmotional;
+    final pilot = i.isPilot;
+    final matches =
+        pilot ? _armAgain == i.pilotArm : _again == i.w0DjgEmotional;
+    final picked = pilot ? _armAgain != null : _again != null;
     return AlertDialog(
       title: const Text('確認登記'),
       content: SingleChildScrollView(
@@ -307,21 +396,37 @@ class _ConfirmDialogState extends State<_ConfirmDialog> {
           children: [
             Text('帳號：${p.displayName ?? '—'}（${i.email.trim()}，$created 註冊）'),
             Text('研究編號：${p.researchId}'),
-            Text('情感分：${i.w0DjgEmotional} 分 → ${stratumLabel(i.stratum)}'),
-            Text('配對：${variantLabel(i.companionVariant)}'),
-            Text('W0 日期：${i.w0Date}'),
-            const SizedBox(height: 12),
-            const Text('請再揀一次情感分：'),
-            const SizedBox(height: 8),
-            _ScoreChips(
-              keyPrefix: 'enroll_score_again',
-              selected: _again,
-              onSelected: (v) => setState(() => _again = v),
-            ),
-            if (_again != null && !matches)
+            Text('研究期：${periodLabel(i.studyPeriod)}'),
+            if (pilot) ...[
+              Text('版本：${armLabel(i.pilotArm)}（由你指定）'),
+              Text('配對：${variantLabel(i.companionVariant)}'),
+              const Text('研究日起點：登記當日'),
+              const SizedBox(height: 12),
+              const Text('請再揀一次版本：'),
+              const SizedBox(height: 8),
+              _PilotArmChips(
+                keyPrefix: 'enroll_pilot_arm_again',
+                selected: _armAgain,
+                onSelected: (v) => setState(() => _armAgain = v),
+              ),
+            ] else ...[
+              Text('情感分：${i.w0DjgEmotional} 分 → ${stratumLabel(i.stratum)}'),
+              Text('配對：${variantLabel(i.companionVariant)}'),
+              Text('W0 日期：${i.w0Date}'),
+              const SizedBox(height: 12),
+              const Text('請再揀一次情感分：'),
+              const SizedBox(height: 8),
+              _ScoreChips(
+                keyPrefix: 'enroll_score_again',
+                selected: _again,
+                onSelected: (v) => setState(() => _again = v),
+              ),
+            ],
+            if (picked && !matches)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text('兩次情感分唔一樣，請核對紙本。',
+                child: Text(
+                    pilot ? '兩次揀嘅版本唔一樣，請再核對。' : '兩次情感分唔一樣，請核對紙本。',
                     style:
                         TextStyle(color: Theme.of(context).colorScheme.error)),
               ),
@@ -363,7 +468,11 @@ class _ResultCard extends StatelessWidget {
                 style: theme.textTheme.titleLarge),
             const SizedBox(height: 12),
             Text('研究編號：${result.researchId}'),
-            Text('分層：${stratumLabel(result.stratum)}'),
+            Text('研究期：${periodLabel(result.studyPeriod ?? 'B')}'),
+            if (result.studyPeriod == 'PILOT')
+              const Text('版本由研究員指定，冇用分配序列。')
+            else
+              Text('分層：${stratumLabel(result.stratum)}'),
             Text('組別：${armLabel(result.arm)}',
                 key: const Key('enroll_arm'),
                 style: theme.textTheme.titleMedium),
