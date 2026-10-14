@@ -33,8 +33,7 @@ const path = require("path");
 
 const ALLOWED_FILES = [
   "participants", "brief_pr", "weekly_pr", "pgic", "djg_es", "djg_responses",
-  "agent_diff", "daily_mood", "loneliness_probes", "safety_events",
-  "usage_weekly",
+  "daily_mood", "loneliness_probes", "safety_events", "usage_weekly",
 ];
 
 // Collections that reveal the arm by existing at all, or carry
@@ -46,6 +45,8 @@ const HELD_BACK_FILES = [
   "agent_contexts", "agent_greetings", "shared_context", "memory",
   "cross_module_callbacks", "onboarding", "pi_alerts", "te_audit_queue",
   "safety_event_dedup", "stt_usage", "users",
+  // T22: old companion assessment, not a Phase B measure (registry C15).
+  "agent_diff",
 ];
 
 // Field names (at any depth) that must not appear.
