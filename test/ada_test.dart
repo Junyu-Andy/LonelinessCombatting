@@ -314,6 +314,9 @@ void main() {
         expect(AdaGate.adaVisible(config: on), isTrue);
         expect(AdaGate.adaVisible(config: off), isFalse);
         expect(AdaGate.day7Parts(config: on), isNotEmpty);
+        // T22: the old agent_diff follows adaEnabled in a Phase A build.
+        expect(AdaGate.legacyAgentDiffVisible(config: on), isFalse);
+        expect(AdaGate.legacyAgentDiffVisible(config: off), isTrue);
       }
     });
   });
