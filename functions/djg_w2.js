@@ -24,13 +24,18 @@
 
 "use strict";
 
+const studyWeek = require("./study_week");
+
 const CONFIG_DOC = "app_config/phase_b";
 const COLLECTION = "djg_responses";
 const TIMEPOINT = "W2";
+// T24: the weekly bundle's DJG weeks (app_config/phase_b.djgWeeks default).
+const WEEKLY_TIMEPOINTS = ["W1", "W2", "W3"];
 const SCORING_VERSION = "djg6_pkg3_v1";
 
 const DEFAULTS = {
   enabled: false,
+  weeklyScheduleV2Enabled: false,
   dayOffset: 14,
   windowDays: 7,
   pushHour: 10,
@@ -92,8 +97,9 @@ function scoreAnswers(answers) {
 
 /**
  * @param {object} db admin.firestore()
- * @return {Promise<{enabled: boolean, dayOffset: number,
- *     windowDays: number, pushHour: number, reminderHours: number}>}
+ * @return {Promise<{enabled: boolean, weeklyScheduleV2Enabled: boolean,
+ *     dayOffset: number, windowDays: number, pushHour: number,
+ *     reminderHours: number}>}
  */
 async function readConfig(db) {
   try {
@@ -116,6 +122,9 @@ function configFromData(data) {
     (typeof v === "number" && isFinite(v) && v >= min ? Math.floor(v) : def);
   return {
     enabled: d.djgW2InAppEnabled === true,
+    // T24: with the study-week schedule on, the weekly bundle owns the DJG
+    // (W1–W3) and this module's dispatcher stands down (see dispatchDjgW2).
+    weeklyScheduleV2Enabled: d.weeklyScheduleV2Enabled === true,
     dayOffset: num(d.djgW2DayOffset, DEFAULTS.dayOffset, 1),
     windowDays: num(d.djgW2WindowDays, DEFAULTS.windowDays, 1),
     pushHour: num(d.djgW2PushHour, DEFAULTS.pushHour, 0),
@@ -165,28 +174,13 @@ function addDays(key, n) {
 }
 
 /**
- * The W0 (enrolment) date, Hong Kong calendar day.  THE single place the
- * server decides W0: the date the researcher entered at registration
- * (users/{uid}.w0Date, T19), else the account's createdAt.
+ * The W0 (enrolment) date, Hong Kong calendar day.  T24 moved the single
+ * server-side decision to functions/study_week.js; kept here for callers.
  * @param {object} user users/{uid} data
  * @return {?string} YYYY-MM-DD, or null when unknown
  */
 function w0DateKey(user) {
-  // T19 (decision 0029): the W0 date entered at registration wins; the
-  // account's createdAt is the fallback (lib/core/scheduling/w0_date.dart).
-  const registered = user && user.w0Date;
-  if (typeof registered === "string" &&
-      /^\d{4}-\d{2}-\d{2}$/.test(registered)) {
-    return registered;
-  }
-  const raw = user && user.createdAt;
-  if (!raw) return null;
-  if (typeof raw === "string") {
-    return /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0, 10) : null;
-  }
-  if (typeof raw.toDate === "function") return hkDateKey(raw.toDate());
-  if (raw instanceof Date) return hkDateKey(raw);
-  return null;
+  return studyWeek.w0DateKey(user);
 }
 
 /**
@@ -295,6 +289,14 @@ async function dispatchDjgW2(db, messaging, opts = {}) {
     counts[k] = (counts[k] || 0) + 1;
   };
   if (!cfg.enabled) return counts;
+  // T24: both switches on → the study-week schedule wins.  The W2 DJG is
+  // part of the week-2 bundle (functions/weekly_schedule.js), so the
+  // single day-14 push must not go out as well.
+  if (cfg.weeklyScheduleV2Enabled) {
+    counts.supersededByWeeklyScheduleV2 = true;
+    log(`dispatchDjgW2: ${JSON.stringify(counts)}`);
+    return counts;
+  }
 
   const todayKey = hkDateKey(now);
   const hour = hkHour(now);
@@ -398,15 +400,24 @@ async function dispatchDjgW2(db, messaging, opts = {}) {
  */
 async function scoreSubmission(db, uid, timepoint, after, opts = {}) {
   if (!after || after.status !== "submitted" || after.scoredAt) return null;
-  if (timepoint !== TIMEPOINT) return null;
+  const cfg = await readConfig(db);
+  // T24: the weekly bundle stores W1, W2 and W3 here (same items, same
+  // scoring); its window / missed fields come from weekly_schedule.js.
+  const allowed = cfg.weeklyScheduleV2Enabled ?
+    WEEKLY_TIMEPOINTS : [TIMEPOINT];
+  if (allowed.indexOf(timepoint) < 0) return null;
   const now = opts.now || new Date();
   const scores = scoreAnswers(after.answers);
-  const cfg = await readConfig(db);
+  const out = {scores, scoringVersion: SCORING_VERSION, scoredAt: now};
+  if (cfg.weeklyScheduleV2Enabled) {
+    await db.collection("users").doc(uid).collection(COLLECTION)
+        .doc(timepoint).set(out, {merge: true});
+    return out;
+  }
   const userSnap = await db.collection("users").doc(uid).get();
   const w0 = userSnap.exists ? w0DateKey(userSnap.data()) : null;
   const submitted = after.submittedAt && typeof after.submittedAt.toDate ===
     "function" ? after.submittedAt.toDate() : now;
-  const out = {scores, scoringVersion: SCORING_VERSION, scoredAt: now};
   if (w0) {
     const win = windowState(w0, hkDateKey(submitted), cfg);
     out.outsideWindow = win.state !== "open";
@@ -422,7 +433,8 @@ async function scoreSubmission(db, uid, timepoint, after, opts = {}) {
 }
 
 module.exports = {
-  CONFIG_DOC, COLLECTION, TIMEPOINT, SCORING_VERSION, DEFAULTS, ITEMS,
+  CONFIG_DOC, COLLECTION, TIMEPOINT, WEEKLY_TIMEPOINTS, SCORING_VERSION,
+  DEFAULTS, ITEMS,
   ANSWERS, MISSED_LOOKBACK_DAYS, PLACEHOLDER_MARK, PUSH_TITLE, PUSH_BODY,
   REMINDER_BODY,
   scoreAnswers, readConfig, configFromData, hkDateKey, hkHour, daysBetween,

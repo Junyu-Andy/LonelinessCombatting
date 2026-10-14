@@ -1,0 +1,33 @@
+{
+  "_comment": "T24 — shared cases for functions/test/weekly_schedule_test.js and test/weekly_schedule_test.dart. Default config (weeklyPushHour 20). Windows are [open, close); instants in Hong Kong time.",
+  "config": {"weeklyBundleDays": [7, 14, 21, 26], "weeklyWindowDays": 3, "week4CloseDay": 29, "djgWeeks": [1, 2, 3], "pgicOnlyDays": [35, 42, 49], "weeklyPushHour": 20, "pilotBundleDays": [1, 3, 5, 7], "pilotWindowDays": 1},
+  "standard": {
+    "w0": "2026-10-19",
+    "bundles": [
+      {"id": "W1", "studyWeek": 1, "pushDay": 7,  "parts": ["djg", "weekly_pr", "pgic"], "open": "2026-10-26T20:00:00+08:00", "close": "2026-10-29T20:00:00+08:00"},
+      {"id": "W2", "studyWeek": 2, "pushDay": 14, "parts": ["djg", "weekly_pr", "pgic"], "open": "2026-11-02T20:00:00+08:00", "close": "2026-11-05T20:00:00+08:00"},
+      {"id": "W3", "studyWeek": 3, "pushDay": 21, "parts": ["djg", "weekly_pr", "pgic"], "open": "2026-11-09T20:00:00+08:00", "close": "2026-11-12T20:00:00+08:00"},
+      {"id": "W4", "studyWeek": 4, "pushDay": 26, "parts": ["weekly_pr", "pgic"],        "open": "2026-11-14T20:00:00+08:00", "close": "2026-11-18T00:00:00+08:00"},
+      {"id": "W5", "studyWeek": 5, "pushDay": 35, "parts": ["pgic"],                     "open": "2026-11-23T20:00:00+08:00", "close": "2026-11-26T20:00:00+08:00"},
+      {"id": "W6", "studyWeek": 6, "pushDay": 42, "parts": ["pgic"],                     "open": "2026-11-30T20:00:00+08:00", "close": "2026-12-03T20:00:00+08:00"},
+      {"id": "W7", "studyWeek": 7, "pushDay": 49, "parts": ["pgic"],                     "open": "2026-12-07T20:00:00+08:00", "close": "2026-12-10T20:00:00+08:00"}
+    ],
+    "socialPartsW1": ["djg", "weekly_pr", "pgic", "social_contact"],
+    "week4Close": [
+      {"case": "visit on day 27 (earlier than day 29) → day 29 rule", "w4VisitDate": "2026-11-15", "close": "2026-11-18T00:00:00+08:00"},
+      {"case": "visit on day 31 → extended to the end of day 31",      "w4VisitDate": "2026-11-19", "close": "2026-11-20T00:00:00+08:00"},
+      {"case": "no visit date → day 29 rule",                          "w4VisitDate": null,         "close": "2026-11-18T00:00:00+08:00"}
+    ],
+    "referentRangeW2": {"start": "2026-10-27T00:00:00+08:00", "end": "2026-11-02T20:00:00+08:00"}
+  },
+  "pilot": {
+    "w0": "2026-10-19",
+    "bundles": [
+      {"id": "W1", "studyWeek": 1, "pushDay": 1, "parts": ["djg", "weekly_pr", "pgic"], "open": "2026-10-20T20:00:00+08:00", "close": "2026-10-21T20:00:00+08:00"},
+      {"id": "W2", "studyWeek": 1, "pushDay": 3, "parts": ["djg", "weekly_pr", "pgic"], "open": "2026-10-22T20:00:00+08:00", "close": "2026-10-23T20:00:00+08:00"},
+      {"id": "W3", "studyWeek": 1, "pushDay": 5, "parts": ["djg", "weekly_pr", "pgic"], "open": "2026-10-24T20:00:00+08:00", "close": "2026-10-25T20:00:00+08:00"},
+      {"id": "W4", "studyWeek": 1, "pushDay": 7, "parts": ["weekly_pr", "pgic"],        "open": "2026-10-26T20:00:00+08:00", "close": "2026-10-27T20:00:00+08:00"}
+    ]
+  },
+  "w0Weekdays": ["2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25"]
+}

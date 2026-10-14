@@ -20,7 +20,10 @@
  *              uid field), hotline_filter_log (T7), research_id_map
  *              (doc id) and research_ids (T12), enrollments (doc id) and
  *              llm_denied_log (T19), ada_status (doc id, T17b: day-7
- *              status and research ID).
+ *              status and research ID), weekly_status (doc id, T24:
+ *              weekly bundle push / missed times and research ID; the
+ *              T24 part records weekly_pr, pgic, djg_responses and
+ *              social_contact_probes are subcollections, walked above).
  *   Storage    any file under users/{uid}/ (the App writes none today);
  *              rows in the weekly blinded exports exports/{date}/*.ndjson
  *              — see "Exports" below.
@@ -86,6 +89,8 @@ const TOP_LEVEL = [
   {collection: 'llm_denied_log', field: 'uid'},
   // T17b (decision 0030): Phase A day-7 status, push times, research ID.
   {collection: 'ada_status', field: 'uid', docIdIsUid: true},
+  // T24: weekly bundle status, push / reminder / missed times, research ID.
+  {collection: 'weekly_status', field: 'uid', docIdIsUid: true},
 ];
 
 const NOT_COVERED = [

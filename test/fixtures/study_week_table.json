@@ -1,0 +1,19 @@
+{
+  "_comment": "T24 — shared cases for functions/test/study_week_test.js and test/study_week_test.dart. W0 = study day 0; week = ceil(day/7) for day >= 1. `at` is an instant; both sides convert it to the Hong Kong calendar day.",
+  "cases": [
+    {"name": "W0 morning",                 "w0": "2026-10-19", "at": "2026-10-19T10:30:00+08:00", "day": 0,  "week": 0},
+    {"name": "W0 late evening",            "w0": "2026-10-19", "at": "2026-10-19T23:59:00+08:00", "day": 0,  "week": 0},
+    {"name": "day 1 just after midnight",  "w0": "2026-10-19", "at": "2026-10-20T00:01:00+08:00", "day": 1,  "week": 1},
+    {"name": "day 1 as UTC instant (17:00Z = 01:00 HKT next day)", "w0": "2026-10-19", "at": "2026-10-19T17:00:00Z", "day": 1, "week": 1},
+    {"name": "day 7 (last of week 1)",     "w0": "2026-10-19", "at": "2026-10-26T20:00:00+08:00", "day": 7,  "week": 1},
+    {"name": "day 8 (first of week 2)",    "w0": "2026-10-19", "at": "2026-10-27T00:30:00+08:00", "day": 8,  "week": 2},
+    {"name": "day 14",                     "w0": "2026-10-19", "at": "2026-11-02T12:00:00+08:00", "day": 14, "week": 2},
+    {"name": "day 26 (W4 opens)",          "w0": "2026-10-19", "at": "2026-11-14T20:00:00+08:00", "day": 26, "week": 4},
+    {"name": "day 28 (last of week 4)",    "w0": "2026-10-19", "at": "2026-11-16T09:00:00+08:00", "day": 28, "week": 4},
+    {"name": "day 29 (first of week 5)",   "w0": "2026-10-19", "at": "2026-11-17T09:00:00+08:00", "day": 29, "week": 5},
+    {"name": "day 56 (W8)",                "w0": "2026-10-19", "at": "2026-12-14T09:00:00+08:00", "day": 56, "week": 8},
+    {"name": "day before W0",              "w0": "2026-10-19", "at": "2026-10-18T09:00:00+08:00", "day": -1, "week": 0},
+    {"name": "Sunday W0, day 7",           "w0": "2026-10-25", "at": "2026-11-01T20:00:00+08:00", "day": 7,  "week": 1},
+    {"name": "across New Year",            "w0": "2026-12-28", "at": "2027-01-04T08:00:00+08:00", "day": 7,  "week": 1}
+  ]
+}

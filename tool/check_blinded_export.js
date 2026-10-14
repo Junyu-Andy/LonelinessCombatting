@@ -34,6 +34,8 @@ const path = require("path");
 const ALLOWED_FILES = [
   "participants", "brief_pr", "weekly_pr", "pgic", "djg_es", "djg_responses",
   "daily_mood", "loneliness_probes", "safety_events", "usage_weekly",
+  // T24: weekly social-contact probe (S12), both arms.
+  "social_contact_probes",
 ];
 
 // Collections that reveal the arm by existing at all, or carry
