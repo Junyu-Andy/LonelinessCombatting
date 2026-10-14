@@ -53,3 +53,7 @@ randomization-private/
 randomization_sequence_*.json
 *.seed
 *seed*.txt
+
+# npm (functions/, test/rules/, tool/): never commit installed packages or a symlink to them
+node_modules
+node_modules/

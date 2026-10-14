@@ -255,7 +255,20 @@ test("a blinded address in the list is dropped and logged", async () => {
   assert.strictEqual((await audit("no_recipients")).length, 1);
   const row = (await alerts())[0].data();
   assert.strictEqual(row.emailSentAt, null);
-  assert.strictEqual(row.escalationPending, false);
+  // 10/14 fix: nobody could be mailed, so the row is queued for the backup
+  // at once instead of sitting in Firestore only.
+  assert.strictEqual(row.escalationPending, true);
+  assert.strictEqual(row.primaryFailedReason, "no_recipients");
+  assert.ok(row.primaryFailedAt);
+  // The next sweep sends it to the backup without waiting 12 h.
+  const out = await piAlert.escalateDue(db, {
+    now: new Date(), smtp: smtp(),
+    serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+  });
+  assert.strictEqual(out.due, 1);
+  assert.strictEqual(out.escalated, 1);
+  assert.strictEqual(sent.length, 1);
+  assert.deepStrictEqual([].concat(sent[0].to), [ON.backupEmail]);
 });
 
 test("no primary in the config: the PI_EMAIL secret is used and logged",
