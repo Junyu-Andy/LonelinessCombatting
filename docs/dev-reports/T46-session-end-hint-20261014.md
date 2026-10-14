@@ -29,7 +29,7 @@ Firestore 规则、Functions、prompt、安全检测、`docs/spec/`：没改。
 |---|---|
 | `flutter test test/session_close_hint_test.dart` | 8/8 通过（本机，Flutter 3.35.3） |
 | `flutter test test/brief_pr_card_test.dart` | 11/11 通过 |
-| `flutter analyze --no-fatal-infos --no-fatal-warnings` | 0 error、0 warning（91 条旧 info） |
+| `flutter analyze --no-fatal-infos --no-fatal-warnings` | 0 error；91 条 info / warning 都是改动前已有的，本改动没有新增 |
 | `tool/ci_flutter_tests.sh`（六套） | 六套全过（本机）；GitHub CI 见 PR |
 | 后端 | 没改，不用跑 |
 
