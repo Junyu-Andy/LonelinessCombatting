@@ -269,6 +269,9 @@ const HELD_BACK = [
   "pi_alerts", "te_audit_queue", "safety_event_dedup", "stt_usage",
   // T22: old W2/W4 companion assessment, not a Phase B measure (C15).
   "agent_diff",
+  // T40: foreground / background usage events (process data for the T39
+  // dashboard; the research ID is stamped on each row, so never here).
+  "usage_events",
 ];
 
 /**

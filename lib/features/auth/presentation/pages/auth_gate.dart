@@ -39,12 +39,18 @@ class AuthGate extends StatefulWidget {
   /// page.  [MyApp] uses it to keep participant pushes off that device.
   final Future<void> Function(String uid)? onStaffRoute;
 
+  /// T40: called with every profile the auth stream emits (after the
+  /// remote config was re-read on sign-in), so the usage-event recorder
+  /// knows the current account and whether it is enrolled.
+  final void Function(UserProfile? profile)? onProfileSeen;
+
   const AuthGate({
     super.key,
     required this.authService,
     required this.analytics,
     this.onAuthUidChanged,
     this.onStaffRoute,
+    this.onProfileSeen,
   });
 
   @override
@@ -101,6 +107,7 @@ class _AuthGateState extends State<AuthGate> {
               if (mounted) setState(() {});
             }
           }
+          widget.onProfileSeen?.call(profile);
         });
         if (profile == null) {
           return LoginPage(authService: widget.authService);
