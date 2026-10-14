@@ -470,6 +470,6 @@ module.exports = {
   SAFETY_SOURCE_GROUP, SAFETY_FIELDS, HELD_BACK,
   readBlindingConfig, configFromSnap, newResearchId, planResearchIdTx,
   writeResearchIdTx, ensureResearchId, stableArmMapping,
-  isBlindedParticipant, isoWeekHk, plain, buildBlindedExport,
+  isBlindedParticipant, isoWeekHk, plain, pick, buildBlindedExport,
   writeBlindedExport,
 };

@@ -41,6 +41,14 @@ rules_version = '2';
 //   users/{uid}/day7_open_responses/{timepoint}  -> T17 Phase A day-7 open questions (same rule)
 //   ada_status/{uid}                             -> T17b day-7 status, research ID, push times (server only)
 //   pilot_assignment_log/{id}                    -> T21 pilot-run version choices (server only)
+//   outcome_entries/{id}, outcome_entry_corrections/{id},
+//   weekly_status/{uid}                          -> T30 W4 paper outcome entries by the assessor
+//                                                   (server only; the assessor reads via callables)
+//   sequence_upload_log/{id}                     -> T30 Calvin's sequence uploads (server only)
+//   pairing_change_log/{id}                      -> T30 Ah Jan / Ah Bak changes (server only)
+//   allocation_records/{researchId}              -> T30 the one row kept after whole-person deletion (server only)
+//   meta/data_lock, analysis_export_log/{id},
+//   process_export_log/{id}                      -> T30 data lock + export run logs (server only)
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -54,10 +62,21 @@ service cloud.firestore {
     }
 
     // Roles are Auth custom claims set by tool/provision_researcher.js
-    // (T12 decision 0021; renamed in T19 decision 0029):
-    //   role == 'unblinded' — the unblinded researcher (Keran): registers,
-    //                         allocates, sees arms, uploads the sequence;
-    //   role == 'blinded'   — blinded staff incl. the PI / assessor.
+    // (T12 decision 0021; renamed in T19 decision 0029; T30 meanings):
+    //   role == 'unblinded'         — Junyu: registers and allocates, sees
+    //                                 arms, reads the research-ID lookup,
+    //                                 pi_alerts and the process export;
+    //   role == 'blinded'           — the independent W4 outcome assessors
+    //                                 (Keran, Mingyan Wang).  They read
+    //                                 NOTHING through these rules: the due
+    //                                 list and the paper entry go through
+    //                                 role-checked callables (functions/
+    //                                 assessor.js), so no arm, group code,
+    //                                 Brief PR, Weekly PR, usage, chat,
+    //                                 safety event or sequence reaches them;
+    //   role == 'sequence_uploader' — Calvin: uploads the allocation
+    //                                 sequence through a callable; reads
+    //                                 nothing here either.
     // The old names 'pi' and 'researcher' grant nothing any more.
     // Participants have no role.
     function isUnblinded() {
@@ -437,6 +456,43 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /meta/arm_counter {
+      allow read, write: if false;
+    }
+
+    // ============================================================
+    // T30 — outcome entries, the data lock, Calvin's sequence uploads,
+    // the pairing-change log and the allocation record kept after a
+    // deletion.  All server-only: no client role — participant, blinded
+    // assessor, unblinded researcher or sequence uploader — reads or
+    // writes any of them.  Outcome values reach a client only as pooled
+    // completion rates (outcomeCompletionSummary callable, n >= 5), and a
+    // participant's own in-App records stay owner-only above.
+    // ============================================================
+    match /outcome_entries/{id} {
+      allow read, write: if false;
+    }
+    match /outcome_entry_corrections/{id} {
+      allow read, write: if false;
+    }
+    match /weekly_status/{uid} {
+      allow read, write: if false;
+    }
+    match /sequence_upload_log/{id} {
+      allow read, write: if false;
+    }
+    match /pairing_change_log/{id} {
+      allow read, write: if false;
+    }
+    match /allocation_records/{researchId} {
+      allow read, write: if false;
+    }
+    match /meta/data_lock {
+      allow read, write: if false;
+    }
+    match /analysis_export_log/{id} {
+      allow read, write: if false;
+    }
+    match /process_export_log/{id} {
       allow read, write: if false;
     }
 

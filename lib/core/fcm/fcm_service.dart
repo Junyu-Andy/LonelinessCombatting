@@ -43,10 +43,22 @@ class FcmService {
   String? _installationId;
   StreamSubscription<String>? _tokenRefreshSub;
 
+  /// T30: staff accounts (the W4 assessors, the registering researcher)
+  /// get no participant pushes.  Marked by [StaffGate] once the role is
+  /// known; [initialize] then stores no token and joins no topic, and an
+  /// initialisation that already happened is undone.
+  final Set<String> _staffUids = <String>{};
+
+  Future<void> suppressForStaff(String uid) async {
+    _staffUids.add(uid);
+    if (_currentUid == uid && _installationId != null) await deregister();
+  }
+
   /// Initialize FCM for [uid].  Safe to call repeatedly — re-calling with the
   /// same uid is a no-op; calling with a different uid re-registers.
   Future<void> initialize(String uid) async {
     if (!available) return;
+    if (_staffUids.contains(uid)) return;
     _currentUid = uid;
 
     final messaging = FirebaseMessaging.instance;
@@ -76,6 +88,10 @@ class FcmService {
       token = await messaging.getToken();
     } catch (e) {
       if (kDebugMode) debugPrint('[fcm] getToken failed: $e');
+    }
+    if (_staffUids.contains(uid)) {
+      _currentUid = null;
+      return;
     }
     if (token != null) {
       _installationId = _shortId(token);

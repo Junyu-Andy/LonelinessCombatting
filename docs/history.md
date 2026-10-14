@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-10-14 T30 角色、评估员视图、序列上传、过程/结局数据、锁库导出（PR 草稿，分支 `fix/roles-exports`）
+
+- 角色按 10/14 分工：`unblinded` = Junyu、`blinded` = W4 评估员（Keran、Mingyan Wang）、新 `sequence_uploader` = Calvin。`tool/provision_researcher.js` 加 `--list`。
+- 评估员视图（`lib/features/assessor/`，`functions/assessor.js`）：`blinded` 登录直接进 W4 到期名单和纸本 DJG-ES 录入；规则里 `blinded` 零读权限，全走函数；分数服务器算，存 `outcome_entries`，更正用 `tool/correct_outcome_entry.js`；PHQ-9 第 9 题走 T34 入口。规格文件 `docs/spec/instruments/djg_es.md`。
+- 序列上传改为 Calvin 自己的登录调 `uploadRandomizationSequence`（`functions/sequence_upload.js`），上传记日志；`tool/randomization_sequence.js` 不再用服务账号。
+- 过程数据导出 `functions/process_export.js`（含 T25 的 Brief PR v3、`validSessionCount`），`exports_v2` 可暂停；后台全体合并完成率（n<5 不显示）。
+- 删除可保留一行分配记录（`allocation_records`）；配对改动服务器日志 `pairing_change_log`；`tool/analysis_export.js` 锁库 + 导出 + 合成数据。
+- 七个开关全部默认关。报告：`docs/dev-reports/T30-roles-exports-20261014.md`（含三份决策草稿、架构观察）。
+
 ## 2026-10-14 T25 会话定义与 Brief PR 第二版（SPEC:C16、C14，PR 草稿，分支 `feat/session-briefpr`）
 
 - **做了**：会话规则（`lib/core/session/session_rules.dart`）：结束方式 `close_button` / `back` / `switch_agent` / `timeout`（30 分钟）/ `recovered` / `crisis`，有效会话按“完成一个互动单元”（自由聊天 ≥3 条有回复；Hybrid 签到 = 心情 + ≥1 条有回复；Hybrid 回忆 = 按儲存；规则组 = 一次完整提交）。Brief PR 第二版：只在有效会话后、每位陪伴者每天 1 次、危机不邀请、列表页评价卡（S10a / S10b）、2 小时过期、一题一屏问卷、记录按会话编号去重、五种最终状态 + `everShown`。两组同一套。`llm_calls` 加 `session_id`，`usage_weekly` 加 `validSessionCount`。**开关 `app_config/phase_b.sessionBriefPrV2Enabled` 默认关**，关着时一切照旧。

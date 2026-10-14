@@ -47,6 +47,17 @@
 ///                               pairing too, so register-first skipped the
 ///                               slides.  Also logs a pairing change
 ///                               (`events` row `ah_jan_ah_bak_changed`).
+///   - [assessorViewEnabled]   — T30: a `blinded` account (the W4 outcome
+///                               assessors) opens the assessor view only —
+///                               W4 due list and paper DJG-ES entry — before
+///                               the enrolment gate and consent; off, the
+///                               account sees the participant App as before.
+///                               The server's callables check the same
+///                               flag (functions/assessor.js).
+///   - [outcomeCompletionSummaryEnabled] — T30: the dashboard shows the
+///                               `unblinded` role pooled completion rates
+///                               per outcome instrument per timepoint (all
+///                               participants together, hidden under n < 5).
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -66,6 +77,8 @@ class RemoteFeatureFlags {
     this.replyFeedbackEnabled = false,
     this.week1NudgeEnabled = false,
     this.onboardingAfterEnrollmentFix = false,
+    this.assessorViewEnabled = false,
+    this.outcomeCompletionSummaryEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -76,6 +89,8 @@ class RemoteFeatureFlags {
   final bool replyFeedbackEnabled;
   final bool week1NudgeEnabled;
   final bool onboardingAfterEnrollmentFix;
+  final bool assessorViewEnabled;
+  final bool outcomeCompletionSummaryEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -117,6 +132,9 @@ class RemoteFeatureFlags {
         week1NudgeEnabled: map['week1NudgeEnabled'] == true,
         onboardingAfterEnrollmentFix:
             map['onboardingAfterEnrollmentFix'] == true,
+        assessorViewEnabled: map['assessorViewEnabled'] == true,
+        outcomeCompletionSummaryEnabled:
+            map['outcomeCompletionSummaryEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply
