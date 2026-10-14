@@ -190,15 +190,28 @@ const OPTIONAL_COLLECTIONS = ["brief_pr"];
 // agent_diff is not a Phase B measure either (registry C15, T22): held
 // back below.
 const OUTCOME_COLLECTIONS = {
+  // T24: studyWeek / studyDay (and on the weekly parts the bundle id, the
+  // window and the missed mark) are server-written study-week fields,
+  // identical for both arms.
   brief_pr: [
     "schemaVersion", "agentId", "understanding", "validation", "caring",
     "insensitivity", "isAnchorPrompt", "status", "promptedAt",
-    "respondedAt",
+    "respondedAt", "studyWeek", "studyDay",
   ],
   weekly_pr: [
     "weekIso", "agentId", "items", "status", "promptedAt", "respondedAt",
+    "bundle", "studyWeek", "studyDay", "submittedStudyDay", "windowStart",
+    "windowEnd", "missed", "scheduleMode",
   ],
-  pgic: ["value", "isoWeek", "weekIso", "answeredAt"],
+  pgic: ["value", "isoWeek", "weekIso", "answeredAt",
+    "bundle", "studyWeek", "studyDay", "submittedStudyDay", "windowStart",
+    "windowEnd", "missed", "scheduleMode"],
+  // T24: weekly social-contact probe (S12), raw 0–3 answers.
+  social_contact_probes: [
+    "bundle", "itemsVersion", "answers", "status", "startedAt",
+    "submittedAt", "studyWeek", "studyDay", "submittedStudyDay",
+    "windowStart", "windowEnd", "missed", "scheduleMode",
+  ],
   djg_es: [
     "timepoint", "itemsVersion", "answers", "score", "status", "answeredAt",
   ],
@@ -209,6 +222,8 @@ const OUTCOME_COLLECTIONS = {
     "scoringVersion", "outsideWindow", "w0Date", "windowStartDate",
     "windowEndDate", "pushSentAt", "reminderSentAt", "startedAt",
     "submittedAt", "missedAt",
+    "bundle", "studyWeek", "studyDay", "submittedStudyDay", "windowStart",
+    "windowEnd", "missed", "scheduleMode",
   ],
   daily_mood: [
     "mood", "date_iso", "is_primary", "entry_seq_today", "prompted_at",

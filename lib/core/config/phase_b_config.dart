@@ -47,6 +47,29 @@
 ///                                           weekly summary must be saved
 ///                                           via 儲存.  true.
 ///
+/// T24 (registry C15 / C17) — study weeks and the weekly questionnaire
+/// bundle.  All behind [weeklyScheduleV2Enabled]; with it OFF the Sunday
+/// calendar-week window and T18's day-14 DJG stay exactly as before.  The
+/// server reads the same keys (functions/weekly_schedule.js).
+///
+///   - [weeklyScheduleV2Enabled]     — master switch.  Default OFF.
+///   - [weeklyBundleDays]            — study days of the W1–W4 pushes
+///                                     (W0 = day 0).  [7, 14, 21, 26].
+///   - [weeklyWindowDays]            — days to answer after the push
+///                                     (W1–W3, W5–W7).  3.
+///   - [week4CloseDay]               — W4 closes at the end of this study
+///                                     day (or the W4 visit day, later).  29.
+///   - [djgWeeks]                    — bundles that start with DJG-ES.
+///                                     [1, 2, 3].
+///   - [pgicOnlyDays]                — PGIC-only pushes (W5–W7).
+///                                     [35, 42, 49].
+///   - [weeklyPushHour]              — HK hour of the push.  20 (today's
+///                                     Sunday weekly reminder hour).
+///   - [socialContactProbeEnabled]   — 4th part, S12.  Default OFF.
+///   - [pilotBundleDays]             — pilot (cohort `pilot`) pushes, W1–W4.
+///                                     [1, 3, 5, 7].
+///   - [pilotWindowDays]             — pilot answer window.  1.
+///
 /// Call [PhaseBConfig.load] once at startup; read via [current].
 library;
 
@@ -68,6 +91,16 @@ class PhaseBConfig {
     this.hybridCheckInValidRequiresMood = true,
     this.hybridCheckInValidMinUserMessages = 1,
     this.hybridReminiscenceValidRequiresSave = true,
+    this.weeklyScheduleV2Enabled = false,
+    this.weeklyBundleDays = const [7, 14, 21, 26],
+    this.weeklyWindowDays = 3,
+    this.week4CloseDay = 29,
+    this.djgWeeks = const [1, 2, 3],
+    this.pgicOnlyDays = const [35, 42, 49],
+    this.weeklyPushHour = 20,
+    this.socialContactProbeEnabled = false,
+    this.pilotBundleDays = const [1, 3, 5, 7],
+    this.pilotWindowDays = 1,
   });
 
   final bool djgW2InAppEnabled;
@@ -85,6 +118,18 @@ class PhaseBConfig {
   final bool hybridCheckInValidRequiresMood;
   final int hybridCheckInValidMinUserMessages;
   final bool hybridReminiscenceValidRequiresSave;
+
+  // T24 — study weeks and the weekly bundle (see the library comment).
+  final bool weeklyScheduleV2Enabled;
+  final List<int> weeklyBundleDays;
+  final int weeklyWindowDays;
+  final int week4CloseDay;
+  final List<int> djgWeeks;
+  final List<int> pgicOnlyDays;
+  final int weeklyPushHour;
+  final bool socialContactProbeEnabled;
+  final List<int> pilotBundleDays;
+  final int pilotWindowDays;
 
   static PhaseBConfig _current = const PhaseBConfig();
 
@@ -125,6 +170,21 @@ class PhaseBConfig {
 
     bool b(String k, bool def) => map[k] is bool ? map[k] as bool : def;
 
+    // T24: a strictly increasing list of whole numbers >= min, else def
+    // (same rule as functions/weekly_schedule.js dayList).
+    List<int> days(String k, List<int> def, int min) {
+      final v = map[k];
+      if (v is! List || v.isEmpty) return def;
+      final out = <int>[];
+      for (final x in v) {
+        if (x is! num || !x.isFinite || x < min) return def;
+        final n = x.floor();
+        if (out.isNotEmpty && n <= out.last) return def;
+        out.add(n);
+      }
+      return out;
+    }
+
     return PhaseBConfig(
       djgW2InAppEnabled: map['djgW2InAppEnabled'] == true,
       djgW2DayOffset: n('djgW2DayOffset', d.djgW2DayOffset, 1),
@@ -148,6 +208,17 @@ class PhaseBConfig {
       hybridReminiscenceValidRequiresSave: b(
           'hybridReminiscenceValidRequiresSave',
           d.hybridReminiscenceValidRequiresSave),
+      // T24 — switches on only when literally `true`.
+      weeklyScheduleV2Enabled: map['weeklyScheduleV2Enabled'] == true,
+      weeklyBundleDays: days('weeklyBundleDays', d.weeklyBundleDays, 1),
+      weeklyWindowDays: n('weeklyWindowDays', d.weeklyWindowDays, 1),
+      week4CloseDay: n('week4CloseDay', d.week4CloseDay, 1),
+      djgWeeks: days('djgWeeks', d.djgWeeks, 1),
+      pgicOnlyDays: days('pgicOnlyDays', d.pgicOnlyDays, 1),
+      weeklyPushHour: n('weeklyPushHour', d.weeklyPushHour, 0) % 24,
+      socialContactProbeEnabled: map['socialContactProbeEnabled'] == true,
+      pilotBundleDays: days('pilotBundleDays', d.pilotBundleDays, 0),
+      pilotWindowDays: n('pilotWindowDays', d.pilotWindowDays, 1),
     );
   }
 }
