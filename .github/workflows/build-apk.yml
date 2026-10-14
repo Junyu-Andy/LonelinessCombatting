@@ -60,6 +60,9 @@ jobs:
           else
             echo "::notice::TESTER_PIN secret not set — tester tools stay locked in this build."
           fi
+          # Printed so the run log shows which --dart-define flags went in
+          # (secrets such as TESTER_PIN are masked by GitHub).
+          echo "dart-defines: $DEFINES"
           flutter build apk --release $DEFINES
       # Branch names like claude/x contain "/", which artifact names forbid.
       - name: Artifact name
