@@ -11,7 +11,7 @@
 3. **合并顺序**：#51 → #55 → #52 → #57 → #56。代码文件全部能自动合并；每一步只在 `STUDY_CHANGELOG`、`history`、`backlog` 上有文档冲突，两边都留就行。每一步的冲突和解决方法见第二节。
 4. **任务二（#51 的冲突）**：已经不存在了。10/10 14:01 分支上的合并提交 `89290a7` 已经解决。交接文档的提交时间是 14:03，只晚两分钟，写的时候应该还没看到这次合并。我本地复核过：对现在的 `main` 没有冲突，相对 `main` 只多出 T22 的一行和一节。两套测试都在这个提交上跑过，全过。所以没有往 #51 推新的提交。见第三节。
 5. **任务三**：内部测试指引写成 `docs/release/internal-test-1013.md`，分“这一轮能测”和“要等 T21、T24、T25、T27、T30、T34”两部分。**现在的 Build APK 工作流打不开 `RULE_TEMPLATE_REPLIES`**，测试包要么在本机打，要么先给工作流加一个选项，要 Junyu 定。没有打包、没有发给任何人。
-6. **任务四（T21）**：正在做，分支 `fix/phase-config-split`。做完另开 PR 草稿，再回来更新本报告第五节。
+6. **任务四（T21）**：第一部分做完，PR 草稿[Junyu-Andy/LonelinessCombatting#59](https://github.com/Junyu-Andy/LonelinessCombatting/pull/59)。研究编号只认 `PB-`、`PILOT-`，`PA-` 和没有前缀的登记时拒绝；试跑由 Junyu 在登记页选版本；等待页和“没登记不收数据”放在新开关后面，默认关。两套测试全过。见第五节。
 7. 最后一节“要 Junyu 定的事”有 11 项，每项给了可选做法。
 
 ## 一、逐个 PR 核对
@@ -179,7 +179,15 @@
 
 ## 五、任务四：T21
 
-正在做（分支 `fix/phase-config-split`）。做完后在这里写结果和 PR 链接。
+PR 草稿[Junyu-Andy/LonelinessCombatting#59](https://github.com/Junyu-Andy/LonelinessCombatting/pull/59)，分支 `fix/phase-config-split`，报告 `docs/dev-reports/T21-phase-config-20261014.md`。按 `dev-tasks-1010.md` 第三节和 1010b 的更正做。
+
+1. **研究编号前缀**：只认 `PB-`（Phase B）和 `PILOT-`（试跑）。`PA-`（Phase A 暂停）和没有前缀的编号登记时拒绝，什么都不写。服务器写 `users/{uid}.cohort`（`phase_b` / `pilot`，用决策 0011 的字段）和 `enrollments.studyPeriod`，客户端不能写。
+2. **试跑登记**：同一个登记页，输入 `PILOT-…` 后情感分换成“版本”两个按钮，确认框里再选一次；不占分配序列；研究日从登记日算；记 `pilot_assignment_log`（编号、版本、时间、操作人）。试跑的 Hybrid 账号有服务器记忆；试跑不进盲法导出，也不收旧的 Phase A 第 2 周推送。
+3. **登记门**（新开关 `app_config/feature_flags.enrollmentGateEnabled`，默认关）：开时，没登记、不是测试账号的人只看到等待页 S8（定稿文字逐字照抄，有比对测试）；服务器拒绝它的 LLM 调用并记日志；Firestore 规则不让它写研究数据。关时和现在一样。
+4. **没做**：编译开关 `PHASE_B` 改成按研究期判断（建议先保留，要定）；广播推送（每日心情、每周问卷）是发给所有装了 App 的手机的，没登记的人也会收到，交 T24；盲法人员账号在登记门打开后会停在等待页，交 T30。
+5. **测试**：Flutter 六套全过（默认 402、Phase B 61 等）；后端全过（新的 `study_period_test.js` 8 项、`enrollment_gate_emulator_test.js` 7 项，`randomization_emulator_test.js` 20 项，Firestore 规则 95 项）；`flutter analyze` 0 error。新增测试覆盖任务单第 8 条（1010b 改后）的每一项。和 #51 合并没有冲突；和 #52、#55、#57 只有文档冲突；和 #56 另有一处代码冲突（两边各加一个开关，两个都留）。
+6. 要定的事 6 项，写在 T21 报告最后一节，这里第 11 项列了。
+7. 这一轮内部测试**不包括** T21：它还没合并，内部测试照 `internal-test-1013.md` 用控制台改组别。
 
 ## 六、其他发现（不影响这一轮测试）
 
@@ -227,7 +235,7 @@
 10. **测试账号要不要 `isTester: true`**
     - (a) 全部加（不推定时推送，告警只记录不发信；指引现在的写法）；
     - (b) 另开一个不加的账号，专测推送和告警邮件，测完整个删除。
-11. **T21**：T21 做完后在这里补要定的事。
+11. **T21 的 6 件事**（详见 T21 报告最后一节，各有可选做法）：`PHASE_B` 编译开关保留、删除还是改成按研究期判断；`cohort` 里 `pilot` 用来指试跑还是另起一个值；要不要补决策记录（编号由你分配）；`isTester` 要不要改成只有服务器能写；试跑研究日从登记日算还是另填日期；登记门在 T24、T30 之前还是之后打开。
 
 ## 附录 A：Build APK 加一个模板选项（方案，未改）
 
