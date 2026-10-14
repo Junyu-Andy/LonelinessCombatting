@@ -1192,9 +1192,14 @@ exports.onSafetyEventCreated = onDocumentCreated(
         email: x.email, note: x.note, stage: "primary"}, stamp);
     }
     if (!rcpt.to.length) {
+      // 10/14 fix: nobody left (primary missing or dropped as blinded) —
+      // hand the alert to the backup at the next escalation sweep instead
+      // of leaving it in Firestore only.
       console.error("alert e-mail: no recipient left after role check");
-      await piAlert.audit(db, {type: "no_recipients", alertId: alertRef.id},
-          stamp);
+      await alertRef.update(piAlert.primaryFailedPatch(stamp,
+          "no_recipients"));
+      await piAlert.audit(db, {type: "no_recipients", alertId: alertRef.id,
+        escalateNow: true}, stamp);
       return;
     }
     const mail = piAlert.buildAlertEmail(row, {
@@ -1206,10 +1211,15 @@ exports.onSafetyEventCreated = onDocumentCreated(
         to: rcpt.to, subject: mail.subject, text: mail.text,
       });
     } catch (err) {
+      // 10/14 fix: a failed primary send (SMTP error) is escalated to the
+      // backup at the next sweep instead of waiting escalateAfterHours.
       console.error("alert e-mail failed:", err && err.message);
-      await alertRef.update({emailError: String(err && err.message)});
+      await alertRef.update(Object.assign(
+          {emailError: String(err && err.message)},
+          piAlert.primaryFailedPatch(stamp, "email_failed")));
       await piAlert.audit(db, {type: "email_failed", alertId: alertRef.id,
-        reason: String(err && err.message), to: rcpt.to}, stamp);
+        reason: String(err && err.message), to: rcpt.to, escalateNow: true},
+      stamp);
       return;
     }
     await alertRef.update({

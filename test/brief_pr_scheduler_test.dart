@@ -260,6 +260,22 @@ void main() {
       });
     }
 
+    test('10/14 fix: a catch-up card whose time phrase is not finalised is '
+        'not shown; the record says copy_pending', () async {
+      // Ended 20:30, reopened 22:00 the same day: no approved phrase.
+      final evening = DateTime(t0.year, t0.month, t0.day, 20, 30);
+      clock.now = evening;
+      await s.onSessionEnded(ended(at: evening, endReason: SessionEndReason.timeout),
+          agentDisplayName: '通通');
+      clock.now = DateTime(t0.year, t0.month, t0.day, 22, 0);
+      expect(BriefPrScheduler.timePhrase(evening, clock.now),
+          BriefPrScheduler.timePhrasePlaceholder);
+      expect(await s.nextCard('u1'), isNull);
+      final rec = store.records.values.single;
+      expect(rec.finalStatus, BriefPrStatus.dueNotInvited);
+      expect(rec.dueNotInvitedReason, BriefPrDueNotInvitedReason.copyPending);
+    });
+
     test('a list-page invitation not seen before the App was killed is shown '
         'as catch-up on the next open', () async {
       await s.onSessionEnded(ended(at: t0), agentDisplayName: '通通');

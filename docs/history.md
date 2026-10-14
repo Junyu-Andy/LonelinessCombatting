@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-10-14 负责人核对后的四个修复（PR 草稿，分支 `fix/flags-after-login-and-guards`）
+
+- 负责人核实：新装 App 第一次注册/登录后控制台开关不生效（启动时读开关、那时没登录、规则拒绝、之后不再读）。登记门开着时后果是老人直接进同意页、问卷答案被悄悄拒绝。修法：登录后再读一次开关并重建门（`auth_gate.dart`）。
+- 顺带修：T34 第一封告警发不出去时下一次巡检直接转后备（`primaryFailedAt`）；T25 补问卡没有定稿时间说法时不显示【占位】、记 `due_not_invited: copy_pending`；「安靜時段」登录后和服务器对齐。`isTester` 客户端可写维持待办 96。编号待开发窗口分配。报告：`docs/dev-reports/fixes-after-review-20261014.md`。
+
 ## 2026-10-14 T27 语音改走服务器 STT v2（SPEC:C18，PR 草稿，分支 `feat/stt-server`）
 
 - **做了**：App 的麦克风按钮不再用手机系统识别，改为用 `record` 包把 16 kHz 单声道 PCM 录进内存（不写文件），包成 WAV 上传 `transcribeAudio`，文字填进输入框。服务器新模块 `functions/stt.js`：Google STT v2 `chirp_2`，**只用 `asia-southeast1`**（原来 `functions/index.js` 第 848–855 行的两档 `STT_TIERS` 删掉，不做配置项），每次调用最多两次尝试（瞬时失败重试 1 次），再失败返回类别 `timeout` / `server_error` / `no_speech` / `too_long` / `unavailable`；请求只有 6 个字段，没有任何数据记录参数，`functions/test/stt_test.js` 逐字段检查并扫描日志语句。App 失败时在麦克风上方贴一张 S6 小卡（不是聊天气泡、不写 turns 和记忆），`events` 记 `voice_transcription_failed`（`sessionId`、`agentId`、`category`、`at`）。`speech_to_text` 依赖删掉。

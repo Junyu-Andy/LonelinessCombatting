@@ -347,7 +347,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `--dart-define=LEGACY_AGENT_DIFF_PHASE_B=true` | Phase B 包里恢复旧的“陪伴者区分评估”（第 6.1 节）。默认关（登记表 v2 C15） |
 
 运行时开关（不用重新编译）：`app_config/phase_a` 的 `safetyScanAllInputs`（新增输入点的安全检测）、`hotlineFilterClient`（App 端号码过滤），默认都开；服务器的 `meta/safety_config` 见第 8 节。
-**运行时开关**（不用重新打包）：Firestore `app_config/feature_flags`，研究侧在控制台改。字段必须是布尔值 `true` 才算开；没有文档、读不到都算关。App 启动时读一次（老人重开 App 才生效），服务器每次调用都读（决策 0019）。
+**运行时开关**（不用重新打包）：Firestore `app_config/feature_flags`，研究侧在控制台改。字段必须是布尔值 `true` 才算开；没有文档、读不到都算关。App 启动时读一次，**登录成功后再读一次**（10/14 修复：启动时还没登录，规则不让读 `app_config`，以前新注册的账号要完全关掉 App 再开才生效），之后老人重开 App 才生效；服务器每次调用都读（决策 0019）。
 
 | 字段 | 默认 | 作用 |
 |---|---|---|
