@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/config/phase_a_config.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/scheduling/enrolment_day.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/time/app_clock.dart';
@@ -64,6 +65,10 @@ class _Week1NudgeBannerState extends State<Week1NudgeBanner> {
   }
 
   Future<void> _resolve() async {
+    // 10/14: a Phase A surface; Phase B builds hide it (no query, no
+    // week1_nudge_shown event) unless app_config/feature_flags
+    // .week1NudgeEnabled is true.
+    if (RemoteFeatureFlags.hideWeek1Nudge) return;
     final profile = AppSettingsScope.read(context).profile;
     final available = AuthServiceScope.of(context).available;
     final createdAt = profile?.createdAt;
@@ -112,6 +117,7 @@ class _Week1NudgeBannerState extends State<Week1NudgeBanner> {
 
   @override
   Widget build(BuildContext context) {
+    if (RemoteFeatureFlags.hideWeek1Nudge) return const SizedBox.shrink();
     final agentId = _unusedAgentId;
     if (agentId == null) return const SizedBox.shrink();
     final isEn = Localizations.localeOf(context).languageCode == 'en';
