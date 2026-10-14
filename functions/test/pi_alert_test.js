@@ -314,6 +314,32 @@ test("questionnaire entry refuses bad input before the db", async () => {
   assert.strictEqual(r, null);
 });
 
+test("10/14 fix: a failed primary e-mail is due for the backup at once", () => {
+  const now = Date.now();
+  const cutoff = now - 12 * 3600 * 1000;
+  const sentLongAgo = {escalationPending: true,
+    emailSentAt: new Date(now - 13 * 3600 * 1000)};
+  const sentRecently = {escalationPending: true,
+    emailSentAt: new Date(now - 60 * 1000)};
+  const failed = Object.assign({emailError: "smtp down"},
+      piAlert.primaryFailedPatch(new Date(now), "email_failed"));
+  const noRcpt = piAlert.primaryFailedPatch(new Date(now), "no_recipients");
+  assert.strictEqual(piAlert.escalationDue(sentLongAgo, cutoff), true);
+  assert.strictEqual(piAlert.escalationDue(sentRecently, cutoff), false);
+  assert.strictEqual(piAlert.escalationDue(failed, cutoff), true);
+  assert.strictEqual(piAlert.escalationDue(noRcpt, cutoff), true);
+  assert.strictEqual(piAlert.escalationDue(
+      Object.assign({}, failed, {acknowledgedAt: new Date()}), cutoff), false);
+  assert.strictEqual(piAlert.escalationDue(
+      Object.assign({}, failed, {escalatedAt: new Date()}), cutoff), false);
+  assert.strictEqual(piAlert.escalationDue(
+      Object.assign({}, failed, {isTester: true}), cutoff), false);
+  assert.strictEqual(piAlert.escalationDue({escalationPending: false,
+    primaryFailedAt: new Date()}, cutoff), false);
+  assert.strictEqual(noRcpt.escalationPending, true);
+  assert.strictEqual(noRcpt.primaryFailedReason, "no_recipients");
+});
+
 (async () => {
   let failed = 0;
   for (const t of tests) {

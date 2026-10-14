@@ -148,6 +148,16 @@ class BriefPrScheduler {
         await store.put(r.copyWith(finalStatus: BriefPrStatus.expired));
         continue;
       }
+      // 10/14 fix: a catch-up card whose time phrase is not finalised must
+      // not reach the elder with a 【占位】 draft; record why instead.
+      if (channelFor(r) == BriefPrInviteChannel.catchUp &&
+          timePhrase(r.sessionEndedAt, t) == timePhrasePlaceholder) {
+        await store.put(r.copyWith(
+          finalStatus: BriefPrStatus.dueNotInvited,
+          dueNotInvitedReason: BriefPrDueNotInvitedReason.copyPending,
+        ));
+        continue;
+      }
       if (best == null || r.sessionEndedAt.isAfter(best.sessionEndedAt)) {
         best = r;
       }
