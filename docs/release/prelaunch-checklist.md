@@ -3,7 +3,7 @@
 > 2026-10-07 建立（T13）。来源：T1–T6 报告和 `docs/dev/ci-cd.md`、`docs/dev/architecture.md`。
 > 每一项都要有人核对、写上日期。任何一项没过，不让第一位 phase_b 参与者入组。
 
-**结论先说**：上线前必须手动做的有五类——GitHub 设置、Firebase 密钥和部署、分组准备（非盲研究员上传序列、种子离线保存、HTML 工具停用、审计日志、角色）、Firestore 配置文档、研究侧核对（热线、文案、ICF）。Firestore 配置可以用 `tool/prelaunch_config.js` 写，但这个脚本默认只对模拟器执行，对正式项目要另加确认参数。
+**结论先说**：上线前必须手动做的有五类——GitHub 设置、Firebase 密钥和部署、分组准备（非盲研究员上传序列、种子离线保存、HTML 工具停用、审计日志、角色）、Firestore 配置文档、研究侧核对（热线、文案、ICF）；另有 I 节：10/19 登记前用 `tool/purge_tester_data.js` 清掉试用期的测试员数据。Firestore 配置可以用 `tool/prelaunch_config.js` 写，但这个脚本默认只对模拟器执行，对正式项目要另加确认参数。
 
 ## A. GitHub 仓库设置
 
@@ -100,6 +100,17 @@ NODE_PATH=functions/node_modules node tool/prelaunch_config.js --phase=b \
 | H4 | 延迟、输入长度、评估结果 | 实测延迟后定 `meta/safety_config.classifierTimeoutMs`（默认 1200）和 `app_config/phase_a.safetyClassifierTimeoutMs`（默认 1500）、`classifierMaxChars`（默认 1000）；用 T6 句子和词库性能语料测召回、误报 | T8 报告第 5 节；backlog 60 | |
 | H5 | DMP、ICF 写明规则组的原话（去掉电话等）也发给分类器；HREC 是否修订已定 | 对照决策 0033 | 决策 0033；backlog 58 | |
 | H6 | 打开开关：`meta/safety_config.classifierEnabled` 和 `app_config/phase_a.safetyClassifierEnabled` 都设为 true | **先确认 backlog 85（通通 Hybrid 组搜索类问题也走同一个检测）已改好，否则不能打开。** 两个都开才生效。打开当天在 `STUDY_CHANGELOG` 补一行。各组各发一句合成句子，`safety_classifier_calls` 和 `safety_events` 的 `turn_id` / `turnId` 与 `turns.safetyTurnId` 对得上 | 决策 0033 | |
+
+## I. 旧测试员数据清理（T32 第 6 条；10/19 第一位参与者登记**之前**做）
+
+10/9 第 18 条 (7)：试用期的数据都是测试员的，不保留。脚本 `tool/purge_tester_data.js` 由负责人自己跑，开发只在模拟器上测过（`test/delete_participant/purge_tester_data_test.js`）。
+
+| # | 项目 | 怎么做 / 怎么核对 | 来源 | 核对人 / 日期 |
+|---|---|---|---|---|
+| I1 | **先列不删**：看清要删谁、保留谁 | 仓库根目录，带服务账号凭据：`NODE_PATH=functions/node_modules node tool/purge_tester_data.js --project=loneliness-pilot-dev --production-confirm=loneliness-pilot-dev`。输出每行一个账号：`tester`（`isTester`）或 `unenrolled`（没有 `cohort` 为 `phase_b` / `pilot`），后面是数据量；“Kept”一段是不碰的人：`enrolled`（已登记）、`staff`（`unblinded` / `blinded` 角色）。**核对**：Keran、Junyu 和两位评估员都在 Kept 里；已登记的 `PB-` / `PILOT-`（如果有）都在 Kept 里；要删的名单里没有真实老人 | `tool/purge_tester_data.js` 顶部注释；T32 报告第 2 节 | |
+| I2 | 名单里有不该删的人 | 用 `--keep=<uid>,<uid>` 把它们排除，再跑一次 I1 看 Kept 里出现 `keep`；或先给账号设角色 / 完成登记 | 同上 | |
+| I3 | **删除** | 在 I1 的命令后面加 `--confirm --production --operator=<自己的电邮>`。脚本逐人调用 `tool/delete_participant.js`，每人一份存证；屏幕每行开头 `OK` = 删完复查通过；最后一行给出本地 JSON 和 `admin_runs/<id>`。任何一行 `FAIL` 脚本以非零退出，看 JSON 里该人的 `remaining` | 同上 | |
+| I4 | 删完核对 | 再跑一次 I1：`Would delete 0 account(s)`；Firestore 控制台 `admin_runs` 多一条 `mode: "confirm"`、`allVerified: true`。保留的东西（不删、属正常）：`arm_assignment_log`、`pilot_assignment_log`、已用的序列位置、Cloud Logging、`exports/` 里的旧导出行（`delete_participant.js` 的“不覆盖”清单） | `tool/delete_participant.js` `NOT_COVERED` | |
 
 ## F. 上线后第一天
 

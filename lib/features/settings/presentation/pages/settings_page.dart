@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../../app/app_settings.dart';
@@ -260,18 +261,15 @@ class _SettingsPageState extends State<SettingsPage> {
                 ? 'No reminders between 10 pm and 8 am.'
                 : '晚上 10 點到早上 8 點唔會出聲提醒。',
             value: settings.quietHours,
-            onChanged: (value) => settings.quietHours = value,
+            onChanged: (value) {
+              settings.quietHours = value;
+              // 10/14: the server reads users/{uid}.quietHoursEnabled before
+              // sending a push (functions/quiet_hours.js); missing = on.
+              _syncQuietHoursToProfile(context, value);
+            },
           ),
-          const SizedBox(height: 14),
-          _SwitchTileCard(
-            icon: Icons.record_voice_over_outlined,
-            title: isEn ? 'Voice Read-back' : '語音讀出內容',
-            subtitle: isEn
-                ? 'Main text will be read aloud when enabled.'
-                : '打開後，主要文字會有語音朗讀。',
-            value: settings.voiceReadback,
-            onChanged: (value) => settings.voiceReadback = value,
-          ),
+          // 10/14 (lead): 「語音讀出內容」 is hidden — nothing reads it yet
+          // (backlog 97). The stored preference is kept so it can come back.
           const SizedBox(height: 14),
           // B.10 — 今日休息 dignified pause.  Defaults off; the flag also
           // clears automatically at midnight local time (see
@@ -1182,4 +1180,21 @@ class _SurveyPreviewButtons extends StatelessWidget {
       ],
     );
   }
+}
+
+/// 10/14 — mirror the 「安靜時段」 toggle onto the user document so the
+/// Cloud Functions that send pushes can honour it (`quietHoursEnabled`,
+/// missing = on). Fire-and-forget; the local preference is the source of
+/// truth for the page, the server only needs the latest value.
+void _syncQuietHoursToProfile(BuildContext context, bool enabled) {
+  final auth = AuthServiceScope.of(context);
+  final uid = AppSettingsScope.read(context).profile?.uid;
+  if (!auth.available || uid == null || uid.isEmpty) return;
+  FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .set({'quietHoursEnabled': enabled}, SetOptions(merge: true))
+      .catchError((Object e) {
+    if (kDebugMode) debugPrint('[settings] quietHoursEnabled write failed: $e');
+  });
 }
