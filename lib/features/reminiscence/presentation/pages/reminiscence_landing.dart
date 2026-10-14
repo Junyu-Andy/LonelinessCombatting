@@ -19,6 +19,14 @@ class ReminiscenceLandingPage extends StatelessWidget {
 
   static const _weeks = ReminiscenceTheme.totalWeeks;
 
+  /// T33 — S3 (`docs/spec/copy/short-texts.md`): only the count sentence
+  /// changes; the rest of the line is the T13 text.
+  static String s3(int weeks) => '一共 $weeks 個主題，每個禮拜一個。';
+
+  /// The Chinese intro shown when `app_config/usage_copy` has no override.
+  static String introZh(int weeks) =>
+      '每星期一節，15-25 分鐘。${s3(weeks)}冇標準答案，記得幾多都得。';
+
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
@@ -35,7 +43,7 @@ class ReminiscenceLandingPage extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           children: [
             // SPEC:C06 — the count follows the real theme list (4), not a
-            // hard-coded 6.  Wording pending research-side sign-off (T13).
+            // hard-coded 6.  T33: the count sentence is S3 (final copy).
             // T20: `app_config/usage_copy` may replace this line; `{weeks}`
             // in the configured text becomes the theme count.
             Text(
@@ -47,7 +55,7 @@ class ReminiscenceLandingPage extends StatelessWidget {
                         ? 'A weekly 15–25 minute session. $_weeks themes across '
                             '$_weeks weeks. There\'s no right answer — just what '
                             'you remember.'
-                        : '每星期一節，15-25 分鐘。$_weeks 個主題、$_weeks 個禮拜。冇標準答案，記得幾多都得。',
+                        : introZh(_weeks),
                   )
                   .replaceAll('{weeks}', '$_weeks'),
               style: theme.textTheme.bodyLarge,
