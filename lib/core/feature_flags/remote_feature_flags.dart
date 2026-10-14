@@ -26,6 +26,14 @@
 ///                               about shared / private memory at the top
 ///                               of 「我記得嘅嘢」.  Switch on together with
 ///                               `meta/memory_config.layersEnabled`.
+///   - [onboardingAfterEnrollmentFix] — T37: 「介紹三個夥伴」 runs until the
+///                               onboarding-completed marker
+///                               (`users/{uid}.onboardingCompletedAt`) is
+///                               set, instead of "until a pairing exists" —
+///                               the researcher's registration writes the
+///                               pairing too, so register-first skipped the
+///                               slides.  Also logs a pairing change
+///                               (`events` row `ah_jan_ah_bak_changed`).
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -40,6 +48,7 @@ class RemoteFeatureFlags {
     this.searchOffReplyEnabled = false,
     this.enrollmentGateEnabled = false,
     this.memoryLayersNoticeEnabled = false,
+    this.onboardingAfterEnrollmentFix = false,
   });
 
   final bool webSearchEnabled;
@@ -47,6 +56,7 @@ class RemoteFeatureFlags {
   final bool searchOffReplyEnabled;
   final bool enrollmentGateEnabled;
   final bool memoryLayersNoticeEnabled;
+  final bool onboardingAfterEnrollmentFix;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -84,5 +94,7 @@ class RemoteFeatureFlags {
         searchOffReplyEnabled: map['searchOffReplyEnabled'] == true,
         enrollmentGateEnabled: map['enrollmentGateEnabled'] == true,
         memoryLayersNoticeEnabled: map['memoryLayersNoticeEnabled'] == true,
+        onboardingAfterEnrollmentFix:
+            map['onboardingAfterEnrollmentFix'] == true,
       );
 }
