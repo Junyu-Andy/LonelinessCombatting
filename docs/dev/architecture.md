@@ -1,6 +1,6 @@
 # 陪住 App 技术文档
 
-> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T25 会话定义和 Brief PR 第二版（第 6 节，开关默认关）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
 ## 1. 一句话
@@ -154,6 +154,24 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 签到 B 和回忆 B 也写 `sessions` 和 `turns`（`llmStatus: rule_based`），`moduleId` 和 A 组相同，所以两组的使用量可以直接比较。
 
+### 6.0 第二版（T25，登记表 C14、C16；开关 `app_config/phase_b.sessionBriefPrV2Enabled`，默认关）
+
+上表是开关**关着**时的行为（现状）。开关打开后（Phase B 和试跑，两组相同），改成下面这样；规则在 `lib/core/session/session_rules.dart`，报告 `docs/dev-reports/T25-session-briefpr-20261014.md` 有字段表。
+
+| 项目 | 开关打开后 | 位置 |
+|---|---|---|
+| 会话结束 | 收尾按钮 S9「今日傾到呢度」（`close_button`）；返回键 / 手势（`back`）；另一位陪伴者开始会话（`switch_agent`）；**30 分钟**没有新消息（`timeout`，`sessionIdleTimeoutMinV2`）；acute（`crisis`）；App 被杀掉的下次启动按已存消息补判（`recovered`，不再是 `app_killed`）。切 App、锁屏只暂停计时 | `chat_session_recorder.dart`、`idle_session_timer.dart`、`session_close_button.dart` |
+| 有效会话 `isValid` | 自由聊天（通通、反思对话）≥3 条**有回复**的消息（`freeChatValidMinUserMessages`）；Hybrid 签到 = 记录了心情 + ≥1 条有回复（`hybridCheckInValidRequiresMood`、`hybridCheckInValidMinUserMessages`）；Hybrid 回忆 = 按「儲存」存了小结（`hybridReminiscenceValidRequiresSave`）；签到 B、回忆 B = 一次完整提交（`submitted`，决策 0015）。fallback 和危机短路的回合不算回复 | `SessionRules.isValid` |
+| 会话日志新字段 | `sessionType`、`userMessageCount`、`replyCount`、`lastReplyAt`、`isValid`、`moodRecorded`、`summarySaved`、`isRuleSubmission`、`ruleSubmissionCompleted`、`briefPrInvitedTodayAlready`、`briefPrSkippedByCap`、`scheduleVersion`（1 旧 / 2 新） | `users/{uid}/sessions/{id}` |
+| Brief PR 邀请 | 只在有效会话结束后，由 `BriefPrScheduler` 决定：每位陪伴者每天最多 1 次（`briefPrDailyCapPerAgent`，超过的不建记录、会话行标 `briefPrSkippedByCap`）；危机结束或处置中不邀请（记录 `due_not_invited` + 原因）；不再在聊天页弹窗，也没有主动评价入口 | `lib/features/brief_pr/data/brief_pr_scheduler.dart` |
+| 评价卡 | 「搵人傾」列表页顶部一张卡：收尾 / 返回 / 切换结束的用 S10a，超时 / 被杀掉的下次打开用 S10b（时间只用 今朝 / 尋晚 / 星期X 下晝，其余【占位】）；按钮「好呀」「今次唔評」≥48×48；不遮挡陪伴者卡片和返回。距最后一条完整回复 >2 小时过期（`briefPrCatchUpExpiryHours`） | `brief_pr_invite_card.dart`、`brief_pr_card_host.dart`（放在 `talk_page.dart`） |
+| 问卷 | 「好呀」才打开：一题一屏、显示 1/4、七个选项整行可按、「下一題」「完成」分开、返回、放弃。题目和 1–7 分不变 | `brief_pr_flow_page.dart` |
+| Brief PR 记录 | `users/{uid}/brief_pr/{sessionId}`（文档编号 = 会话编号，重复提交不可能），`schemaVersion: 3`；`finalStatus` = `completed` / `partially_completed` / `skipped` / `expired` / `due_not_invited`，`everShown`，`inviteChannel` = `list_page` / `catch_up`，四题原始分不反转。旧的弹窗记录（`schemaVersion: 2`）照旧可读 | `brief_pr_record.dart`、`brief_pr_store.dart` |
+| anchor 规则 | 取消：每张卡都有「今次唔評」 | — |
+| 记忆 | 不变：会话结束时交给记忆（Hybrid 组），不等评分；评分永远不进记忆 | 各页面的 `RollingSummaryCompiler` 调用 |
+| `llm_calls` | 每条带 `session_id`（App 传的会话编号；服务器自发的调用为空） | `functions/llm_log.js` |
+| 每人每周有效会话数 | 导出 `usage_weekly` 多一列 `validSessionCount`（`sessions.isValid == true`）；没有单独的汇总表，查询见 T25 报告 | `functions/blinding.js` |
+
 ### 6.1 Phase A 的 ADA 和第 7 日问卷（决策 0026、0030，默认关）
 
 - **只在 Phase A 构建**：`PHASE_B=true` 的包里永远不出现（`lib/features/ada/data/ada_gate.dart`）。Phase A 包里也要研究侧在 `app_config/phaseA_schedule` 打开（`adaEnabled`、`day7OpenEndedEnabled`）才出现。
@@ -200,7 +218,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | 用户文档本身 | 资料、年龄段、UCLA 基线、`arm`、`strataCell`、分组时间和方式、同意设定、`memory_enabled` | App；分组字段由服务器写 |
 | `sessions` / `turns` | 每次会话、每一轮对话（含模型、`promptVersion`、延迟、安全等级；`safetyTurnId` = 这一轮安全记录的编号，两组都写，T26） | App |
 | `events` | 行为事件（打开页面、推送、按钮等） | App |
-| `brief_pr`、`weekly_pr`、`daily_mood`、`djg_es`、`pgic`、`ppr_responses`、`loneliness_probes`、`check_in_responses` | 问卷和量表 | App |
+| `brief_pr`、`weekly_pr`、`daily_mood`、`djg_es`、`pgic`、`ppr_responses`、`loneliness_probes`、`check_in_responses` | 问卷和量表。`brief_pr` 第二版（T25）文档编号 = 会话编号，`schemaVersion: 3`，字段见第 6.0 节 | App |
 | `djg_responses/W2` | Phase B 第 2 周 DJG（6 题，决策 0027）：原始答案（q1–q6 → yes / mostly / no / skipped）、状态、开始和提交时间；服务器补 `scores`（情感、社交、总分，跳题的分量表为空）、`outsideWindow`、窗口日期、`pushSentAt`、`reminderSentAt`、缺失标记。开关打开后取代 Phase B 的 `djg_es`（旧集合保留） | App 写答案；分数等由服务器写，App 不能改；提交或缺失后 App 不能再改 |
 | `ada_responses/{时间点}`、`day7_open_responses/day7` | Phase A 的 ADA 和第 7 日开放题（第 6.1 节）。只有本人能读写；App 写的 `channel` 只能是 `app`；`status` 变成 `submitted` 后不能再改；客户端不能删；不进盲法导出。研究员电话代填由 `adaStaffSave` 写（`channel: phone_by_staff`、`staffUid`），之后老人不能改 | App；电话代填由服务器 |
 | `agent_contexts/{agentId}` | v0 记忆：对话缓冲区 + 滚动摘要 | App |
@@ -221,7 +239,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `app_config/reminders` | `{m7FollowupPushEnabled: bool}`：行动计划提醒发不发，默认关（决策 0022） |
 | `app_config/feature_flags` | 搜一搜、语音、通通固定回应、记忆分层说明（T31）四个开关（第 12 节）。没有这份文档 = 全关 |
 | `app_config/usage_copy` | 提到使用频率的 7 处文字（决策 0028，键名见 `lib/core/config/usage_copy.dart`）。没有文档、字段为空或带【占位】= 显示原文；两组相同；客户端只读 |
-| `app_config/phase_b` | **只属于 Phase B** 的参数（`PhaseBConfig`，服务器 `functions/djg_w2.js` 也读）：`djgW2InAppEnabled`（默认关）、`djgW2DayOffset`（14）、`djgW2WindowDays`（7）、`djgW2PushHour`（10）、`djgW2ReminderHours`（24）。不建 = 关 |
+| `app_config/phase_b` | **只属于 Phase B** 的参数（`PhaseBConfig`，服务器 `functions/djg_w2.js` 也读）：`djgW2InAppEnabled`（默认关）、`djgW2DayOffset`（14）、`djgW2WindowDays`（7）、`djgW2PushHour`（10）、`djgW2ReminderHours`（24）；T25：`sessionBriefPrV2Enabled`（默认关）、`sessionIdleTimeoutMinV2`（30）、`briefPrDailyCapPerAgent`（1）、`briefPrCatchUpExpiryHours`（2）、`freeChatValidMinUserMessages`（3）、`hybridCheckInValidRequiresMood`（true）、`hybridCheckInValidMinUserMessages`（1）、`hybridReminiscenceValidRequiresSave`（true）。不建 = 关 |
 | `app_config/phaseA_schedule` | **只属于 Phase A**：`adaEnabled`、`adaAllowSkip`、`adaTimepoints`、`day7OpenEndedEnabled`、`day7OpenEndedDayFrom`、`day7OpenEndedDayTo`、`day7OpenEndedAllowSkip`（第 6.1 节）。没有这份文档 = 都关。Phase B 包不读 |
 | `app_config/phase_a` | App 运行参数（`PhaseAConfig`）的远端覆盖；含同意相关的 `transcriptRetentionDefault`（默认 true）、`sharedContextUseDefault`（默认 true）、`enforceSharedContextConsent`（默认 true，服务器也读）。不建就用默认值 |
 | `meta/arm_counter` | 已停用（T19）：旧最小化分配的计数器。客户端一律不能读写 |
