@@ -1,7 +1,7 @@
 # 待办与待决定
 
 > 随时更新。做完的移到 `docs/history.md`，划掉或删掉这里的条目。
-> 最后更新：2026-10-10（产品窗口 10/10 第二次交接：T34、Phase A 暂停；T26 补 Phase A 和试跑；T33 定稿文字接入）
+> 最后更新：2026-10-10（产品窗口 10/10 第二次交接：T34、Phase A 暂停；T26 补 Phase A 和试跑；T33 定稿文字接入；T31 记忆分层）
 
 ## 1. 已决定、待开发
 
@@ -11,6 +11,7 @@
 | 2 | 记忆和入口的 P0 | `docs/dev/memory-and-entry-spec.md` 第 3 节 | 等负责人调研完记忆架构 |
 | 21 | `llm_calls` 数据删除时一起删 | 决策 0016 | 盲法导出部分按决策 0021：揭盲前不导出 |
 | 70 | **T19 App 内分组重做**（研究员登记、置换区组序列、事务分配和日志、客户端不能读写分组/计数器/序列，原第 3、4、51 项一并做了） | 决策 0029；`docs/dev-reports/T19-randomization-20261007.md` | PR 草稿（分支 `fix/randomization`）。合并后删这一行 |
+| 89 | **T31 记忆分层**（共享层 / 私有层、按陪伴者过滤、删除覆盖两层、剂量分层计、抽取 prompt v3 未切换、S7） | 决策 0035；`docs/dev-reports/T31-memory-layers-20261010.md` | PR 草稿（分支 `feat/memory-layers`）。合并后删这一行。上线：PI 审 v3 → 研究侧定日期切 `extractionPrompt`；`layersEnabled` 和 `memoryLayersNoticeEnabled` 一起开 |
 | 71 | **T21 Phase A 与 Phase B 的配置分开**：参与者带研究期字段（登记时由研究员写），按研究期读配置和筛数据，盲法导出只含 Phase B，名单互斥 | `docs/dev-tasks/dev-tasks-1007b.md` T21 | 用 T19 的研究员登记入口，排在 T19 之后 |
 | 84 | **T26 LoRA 两组、两期和试跑共用**（决策 0033；`turns.safetyTurnId`；上线清单 H 节；10/10 补 Phase A 和试跑） | `docs/dev-reports/T26-lora-both-arms-20261009.md` | PR 草稿（分支 `feat/lora-both-arms-v2`）。合并后删这一行 |
 | 90 | **T34 安全告警邮件**：字段（研究编号、研究期、陪伴者、来源、级别和类别、词库版本、LoRA、研究日、危机页、事件编号）；收件人配置（Junyu、后备 Calvin Or，评估员不在名单、测试账号不发）；后台“确认处理”；12 小时没确认转后备；PHQ-9 第 9 题的问卷和评估员录入来源；导出带来源 | 产品窗口 10/10 第 6–8 条；`docs/dev-tasks/dev-tasks-1010b.md` | 现在可以开；评估员录入那一头等 T30 和 PHQ-9 规格文件 |

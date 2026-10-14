@@ -46,6 +46,7 @@ NODE_PATH=functions/node_modules node tool/prelaunch_config.js --phase=b \
 | # | 项目 | 正确的值 | 怎么核对 | 来源 | 核对人 / 日期 |
 |---|---|---|---|---|---|
 | C1 | `meta/memory_config` | `enabled: true`、`policy: "C"`、`phaseBArmA: true` | 控制台打开这个文档看三个字段；或不带 `--apply` 跑脚本，三行都显示 `=`。没有这个文档时 Hybrid 组**没有任何记忆** | T1 C05；T4；`functions/memory.js` `loadConfig` | |
+| C1a | 记忆分层（T31） | 研究侧决定上线分层时：`meta/memory_config.layersEnabled: true` 和 `app_config/feature_flags.memoryLayersNoticeEnabled: true` **同一天一起开**；抽取 prompt 要切 v3 时另写 `extractionPrompt: "memory_extraction.v3"`（PI 审过后） | 控制台看这三个字段；只开一个时，页面说明和实际共享范围对不上 | 决策 0035；T31 报告 | |
 | C2 | `meta/randomization_config` | `enabled: true`（其余字段 `stratifyBy`、`strata`、`method`、`blockSizes` 只做记录） | 同上。不是 `true` 时研究员**不能登记**，老人一直没有组别（看到规则组界面）；**必须在第一位 phase_b 老人注册前打开**，否则这位老人会被当作 Phase A 分进 A 组 | 决策 0029；`functions/arm.js` | |
 | C3 | 两条分配序列已上传（`randomization_sequences/low`、`high`），都还没人用 | 每条至少 60 个位置，`0 used` | 不带 `--apply` 跑 `tool/prelaunch_config.js`，两行都显示 `= … positions, 0 used`。上传由 Keran 执行，见下面 G 节 | 决策 0029 | |
 | C3b | `app_config/arm_assignment` 已删除（T19 停用） | 文档不存在 | 控制台看；脚本会提示 `randomise is still true` | 决策 0029 | |
