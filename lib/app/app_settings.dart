@@ -1,13 +1,22 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../features/auth/data/user_profile.dart';
 
 /// Single source of truth for user-facing preferences that need to apply
-/// app-wide (locale, high-contrast, current signed-in profile).
+/// app-wide (locale, high-contrast, font scale, the two notification
+/// switches, current signed-in profile).
 ///
 /// Lives above [MaterialApp] via [ChangeNotifierProvider]-style inheritance
 /// (see [AppSettingsScope]) so any widget can listen without pulling in
 /// `provider` / `riverpod`.
+///
+/// T37: the display settings (font scale, high contrast) and the two
+/// notification switches (安靜時段, 語音讀出內容) are kept on the device with
+/// `shared_preferences`.  [restore] reads them in `main()` before the first
+/// frame; every setter writes its value back.  Before T37 they lived only
+/// in memory and reset to the defaults each time the App was closed.
 /// P4.1 — supported MediaQuery text scale multipliers for the
 /// elderly-friendly font sizing toggle in Settings. Stays inside a
 /// safe layout range (1.0–1.30) so existing pages don't reflow into
@@ -27,16 +36,82 @@ class AppSettings extends ChangeNotifier {
     Locale locale = const Locale('zh'),
     bool highContrast = false,
     AppFontScale fontScale = AppFontScale.standard,
+    bool quietHours = true,
+    bool voiceReadback = false,
     UserProfile? profile,
+    SharedPreferences? store,
   })  : _locale = locale,
         _highContrast = highContrast,
         _fontScale = fontScale,
-        _profile = profile;
+        _quietHours = quietHours,
+        _voiceReadback = voiceReadback,
+        _profile = profile,
+        _store = store;
+
+  /// T37 — keys in the device store.  Font scale is stored by enum name
+  /// (`standard` / `large` / `xLarge`), the rest as booleans.
+  static const String keyFontScale = 'display.fontScale';
+  static const String keyHighContrast = 'display.highContrast';
+  static const String keyQuietHours = 'notifications.quietHours';
+  static const String keyVoiceReadback = 'notifications.voiceReadback';
+
+  /// T37 — build the settings from what the device stored.  Never throws:
+  /// a missing or unreadable store, or an unknown value, gives that
+  /// setting's default.  Called once in `main()` before the first frame.
+  static Future<AppSettings> restore({
+    Locale locale = const Locale('zh'),
+  }) async {
+    SharedPreferences? prefs;
+    try {
+      prefs = await SharedPreferences.getInstance();
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AppSettings] restore failed: $e');
+    }
+    return AppSettings.fromStore(prefs, locale: locale);
+  }
+
+  /// The pure part of [restore]: read every persisted setting from
+  /// [prefs] (null = nothing stored, use the defaults) and keep [prefs]
+  /// so later changes are written back.
+  factory AppSettings.fromStore(
+    SharedPreferences? prefs, {
+    Locale locale = const Locale('zh'),
+  }) {
+    bool readBool(String key, bool fallback) {
+      try {
+        return prefs?.getBool(key) ?? fallback;
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    AppFontScale readFontScale() {
+      try {
+        final name = prefs?.getString(keyFontScale);
+        for (final scale in AppFontScale.values) {
+          if (scale.name == name) return scale;
+        }
+      } catch (_) {}
+      return AppFontScale.standard;
+    }
+
+    return AppSettings(
+      locale: locale,
+      highContrast: readBool(keyHighContrast, false),
+      fontScale: readFontScale(),
+      quietHours: readBool(keyQuietHours, true),
+      voiceReadback: readBool(keyVoiceReadback, false),
+      store: prefs,
+    );
+  }
 
   Locale _locale;
   bool _highContrast;
   AppFontScale _fontScale;
+  bool _quietHours;
+  bool _voiceReadback;
   UserProfile? _profile;
+  final SharedPreferences? _store;
 
   /// Pilot decision: the English UI doesn't lay out well (long strings
   /// overflow the elderly-friendly large-type cards), so the app is
@@ -50,6 +125,13 @@ class AppSettings extends ChangeNotifier {
   Locale get locale => englishEnabled ? _locale : const Locale('zh');
   bool get highContrast => _highContrast;
   AppFontScale get fontScale => _fontScale;
+
+  /// 「通知 → 安靜時段」 (default on).  T37: persisted; not yet read by the
+  /// reminder code — the switch is the same as before, only remembered.
+  bool get quietHours => _quietHours;
+
+  /// 「通知 → 語音讀出內容」 (default off).  T37: persisted, same as above.
+  bool get voiceReadback => _voiceReadback;
   UserProfile? get profile => _profile;
   bool get isSignedIn => _profile != null;
 
@@ -62,12 +144,28 @@ class AppSettings extends ChangeNotifier {
   set highContrast(bool value) {
     if (_highContrast == value) return;
     _highContrast = value;
+    _persist((p) => p.setBool(keyHighContrast, value));
     notifyListeners();
   }
 
   set fontScale(AppFontScale value) {
     if (_fontScale == value) return;
     _fontScale = value;
+    _persist((p) => p.setString(keyFontScale, value.name));
+    notifyListeners();
+  }
+
+  set quietHours(bool value) {
+    if (_quietHours == value) return;
+    _quietHours = value;
+    _persist((p) => p.setBool(keyQuietHours, value));
+    notifyListeners();
+  }
+
+  set voiceReadback(bool value) {
+    if (_voiceReadback == value) return;
+    _voiceReadback = value;
+    _persist((p) => p.setBool(keyVoiceReadback, value));
     notifyListeners();
   }
 
@@ -76,9 +174,28 @@ class AppSettings extends ChangeNotifier {
     if (value?.preferredLanguage != null) {
       _locale = Locale(value!.preferredLanguage!);
     }
+    // T37: nothing in the App writes `users.highContrast` today, so this
+    // never overrides the value saved on the phone; if it ever does, the
+    // profile value wins at sign-in and is then saved locally too.
     if (value?.highContrast != null) {
       _highContrast = value!.highContrast!;
+      _persist((p) => p.setBool(keyHighContrast, _highContrast));
     }
     notifyListeners();
+  }
+
+  /// Write one setting to the device store.  Fire-and-forget: a store
+  /// failure must never block the UI or surface to the participant.
+  void _persist(Future<bool> Function(SharedPreferences store) write) {
+    final store = _store;
+    if (store == null) return;
+    try {
+      write(store).catchError((Object e) {
+        if (kDebugMode) debugPrint('[AppSettings] persist failed: $e');
+        return false;
+      });
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AppSettings] persist failed: $e');
+    }
   }
 }

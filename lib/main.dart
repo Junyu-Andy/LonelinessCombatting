@@ -140,11 +140,13 @@ Future<void> main() async {
     agentContext: agentContext,
   );
 
+  // T37 — font size, high contrast and the two notification switches come
+  // back from the device (shared_preferences) before the first frame.
+  final settings = await AppSettings.restore(locale: const Locale('zh'));
+
   runApp(
     MyApp(
-      settings: AppSettings(
-        locale: const Locale('zh'),
-      ),
+      settings: settings,
       authService: AuthService(available: firebaseReady),
       analytics: analytics,
       llm: llmGateway,

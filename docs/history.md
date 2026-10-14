@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-14 T37 登记后的引导顺序和显示设定保存（SPEC:C01、C19，PR 草稿，分支 `fix/onboarding-settings`）
+
+- **做了**：① 开关 `app_config/feature_flags.onboardingAfterEnrollmentFix`（默认关）：开时「介紹三個夥伴」要不要做改为看“引导已完成”标记 `users/{uid}.onboardingCompletedAt`，先登记后引导不再跳过伙伴介绍、兴趣和 S5；配对一屏预选登记值，改选记 `events` `ah_jan_ah_bak_changed`，登记记录不动。② 字体、高对比、安静时段、语音读出改为保存在手机本机（`shared_preferences`，新依赖），无开关。
+- 两种顺序、门开关、修复开关的组合各有测试；规则测试证明老人账号能写标记、不能顺带改组别、不能碰 `enrollments`。截图在 `docs/dev-reports/T37-onboarding-settings-20261014-screenshots/`。
+- 待定：开关上线时默认开还是关（建议开）；改配对的日志何时搬到服务器（T30）。报告 `docs/dev-reports/T37-onboarding-settings-20261014.md`。
+
+---
+
 ## 2026-10-14 T36 Build APK 加 `phase_b_templates` 选项（PR 草稿，分支 `chore/apk-phase-b-templates`）
 
 - 手动打包工作流多一个选项：`PHASE_B=true` 加 `RULE_TEMPLATE_REPLIES=true`，给参与者和内部测试用；不带 `FORCE_ARM`。只改手动打包，不改 CI 和部署。

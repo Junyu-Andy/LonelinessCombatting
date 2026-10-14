@@ -1,6 +1,6 @@
 # 陪住 App 技术文档
 
-> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
 ## 1. 一句话
@@ -90,6 +90,8 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 - `cohort` 用决策 0011 的字段，只有服务器能写。试跑的 Hybrid 账号和 Phase B 的 Hybrid 一样有服务器记忆（`memory.js` `inScope`、App `MemoryModes`）；试跑不进盲法导出，也不收旧的 Phase A 第 2 周推送（`week2Push`）。
 - **登记门**（开关 `app_config/feature_flags.enrollmentGateEnabled`，默认关）：开时，没有 `cohort`、也不是测试账号（`isTester: true`）的账号，App 只显示等待页 S8（`lib/features/enrollment/presentation/enrollment_wait_gate.dart`，放在同意页之前）；服务器拒绝它的 LLM 调用，`llm_denied_log` 记 `reason: "not_enrolled"`；Firestore 规则不让它写 `users/{uid}/` 下的研究数据（推送令牌 `fcm_tokens` 除外，用户文档本身照常）。关时和以前一样。
+
+**登记后的入组引导顺序（T37，开关 `app_config/feature_flags.onboardingAfterEnrollmentFix`，默认关）**：登录后 App 的门按顺序是 `StaffGate`（研究员去登记页）→ `EnrollmentWaitGate`（登记门，上面）→ `ConsentGate`（同意页 → 入组问卷 → 「介紹三個夥伴」引导）→ 主页（`lib/features/auth/presentation/pages/auth_gate.dart`、`lib/features/consent/presentation/consent_gate.dart`）。引导要不要做，以前只看“有没有阿珍/阿伯配对”；登记也写配对，所以“先登记后引导”会整段跳过。开关开时改为看标记 `users/{uid}.onboardingCompletedAt`（老人按「完成」时 App 写，开关关着也照写）：有标记就不做；没标记、没配对就做；没标记、有配对：没登记过的算做过（配对只能是 App 写的），登记过的只有当 App 留有自己的痕迹（`consent.transcriptRetentionByAgent` 三个键，只有 App 的「完成」会写）才算做过，否则做。引导里的配对一屏预选登记值；老人改选时 App 记一条 `events`（`ah_jan_ah_bak_changed`：from、to、at、where），`enrollments/{uid}` 里的登记值不动，分析以它为准（T30 以后把这条日志搬到服务器）。开关关时和以前完全一样。
 
 **分配序列**：每层一条，1:1 置换区组，区组大小 2 和 4 随机混用，每层至少 60 个位置。由非盲研究员用自己选的种子运行 `tool/randomization_sequence.js` 生成，上传到 `randomization_sequences/{low,high}`；种子和序列文件只存在本地 `randomization-private/`（不进仓库），交导师离线保存。上传不带种子。
 
@@ -326,6 +328,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `voiceInputEnabled` | 关 | 所有页面的麦克风按钮（两组）；服务器 `transcribeAudio` |
 | `searchOffReplyEnabled` | 关 | 搜一搜关闭时，通通对"要上网查"的问题回固定一句（文字未定稿） |
 | `enrollmentGateEnabled` | 关 | T21 登记门：没登记、不是测试账号的人只看到等待页 S8；服务器拒绝它的 LLM 调用和研究数据写入（第 4 节）。服务器最多 1 分钟后生效；Firestore 规则立即生效 |
+| `onboardingAfterEnrollmentFix` | 关 | T37：「介紹三個夥伴」要不要做改为看标记 `users/{uid}.onboardingCompletedAt`（第 4 节末）；先登记后引导时不再跳过；改配对记 `events`。建议第一位参与者登记前打开 |
 
 > ⚠️ **重要功能：HREC 批准 STT 后开启 `voiceInputEnabled`。** 开之前先定是否允许系统云端识别（`voice_input_button.dart` 的 `_onDeviceOnly`）。打开属于行为改动，要在 `docs/STUDY_CHANGELOG.md` 写明生效日期和组别。
 
@@ -337,6 +340,8 @@ tool/ci_backend_tests.sh     # Cloud Functions + Firestore 规则（需要 Fireb
 ```
 
 注意：Flutter 工具会改 `analysis_options.yaml` 和 `pubspec.lock`，提交前 `git checkout` 这两个文件。
+
+**本机保存的设定（T37）**：字体、高对比、「安靜時段」「語音讀出內容」存在手机本机（`shared_preferences`，键 `display.fontScale`、`display.highContrast`、`notifications.quietHours`、`notifications.voiceReadback`），`main()` 在第一帧前读回（`lib/app/app_settings.dart` 的 `AppSettings.restore`）。只在这台手机上，不上传；读不到就用默认值。
 
 ## 13. 其他文档
 

@@ -274,6 +274,16 @@ class UserProfile {
   /// baseline value. Null when not measured (Phase A tolerated).
   final int? baselineUclaScore;
 
+  /// T37 — when the participant tapped 「完成」 at the end of 「介紹三個夥伴」
+  /// (agent onboarding).  Client-written like the other profile fields;
+  /// omitted from [toMap] while null so a stale merge-write never erases
+  /// it.  With `app_config/feature_flags.onboardingAfterEnrollmentFix` on,
+  /// ConsentGate reads it instead of "a pairing exists" to decide whether
+  /// the slides still have to run (the researcher's registration writes
+  /// the pairing too).  Null for accounts that finished onboarding before
+  /// T37 — see `ConsentGate.needsAgentOnboarding`.
+  final DateTime? onboardingCompletedAt;
+
   const UserProfile({
     required this.uid,
     required this.email,
@@ -305,6 +315,7 @@ class UserProfile {
     this.preferredTimes,
     this.isTester = false,
     this.baselineUclaScore,
+    this.onboardingCompletedAt,
   });
 
   /// B.10 — true when the activation timestamp is for the current local day.
@@ -344,6 +355,7 @@ class UserProfile {
     List<String>? preferredTimes,
     bool? isTester,
     int? baselineUclaScore,
+    DateTime? onboardingCompletedAt,
   }) {
     return UserProfile(
       uid: uid,
@@ -379,6 +391,8 @@ class UserProfile {
       preferredTimes: preferredTimes ?? this.preferredTimes,
       isTester: isTester ?? this.isTester,
       baselineUclaScore: baselineUclaScore ?? this.baselineUclaScore,
+      onboardingCompletedAt:
+          onboardingCompletedAt ?? this.onboardingCompletedAt,
     );
   }
 
@@ -423,6 +437,9 @@ class UserProfile {
         'preferredTimes': preferredTimes,
         'isTester': isTester,
         'baselineUclaScore': baselineUclaScore,
+        // T37: omitted while null so a stale profile write can't erase it.
+        if (onboardingCompletedAt != null)
+          'onboardingCompletedAt': onboardingCompletedAt!.toIso8601String(),
       };
 
   factory UserProfile.fromMap(String uid, Map<String, dynamic> map) {
@@ -507,6 +524,7 @@ class UserProfile {
       preferredTimes: (map['preferredTimes'] as List?)?.whereType<String>().toList(),
       isTester: (map['isTester'] as bool?) ?? false,
       baselineUclaScore: (map['baselineUclaScore'] as num?)?.toInt(),
+      onboardingCompletedAt: parseDate(map['onboardingCompletedAt']),
     );
   }
 }

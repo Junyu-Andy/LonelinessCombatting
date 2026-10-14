@@ -60,8 +60,8 @@ class _SettingsPageState extends State<SettingsPage> {
     if (mounted) setState(() {});
   }
 
-  bool _quietHours = true;
-  bool _voiceReadback = false;
+  // T37: 安靜時段 / 語音讀出內容 moved from widget state to AppSettings so
+  // they survive closing the App (persisted with the display settings).
 
   @override
   Widget build(BuildContext context) {
@@ -259,8 +259,8 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: isEn
                 ? 'No reminders between 10 pm and 8 am.'
                 : '晚上 10 點到早上 8 點唔會出聲提醒。',
-            value: _quietHours,
-            onChanged: (value) => setState(() => _quietHours = value),
+            value: settings.quietHours,
+            onChanged: (value) => settings.quietHours = value,
           ),
           const SizedBox(height: 14),
           _SwitchTileCard(
@@ -269,8 +269,8 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: isEn
                 ? 'Main text will be read aloud when enabled.'
                 : '打開後，主要文字會有語音朗讀。',
-            value: _voiceReadback,
-            onChanged: (value) => setState(() => _voiceReadback = value),
+            value: settings.voiceReadback,
+            onChanged: (value) => settings.voiceReadback = value,
           ),
           const SizedBox(height: 14),
           // B.10 — 今日休息 dignified pause.  Defaults off; the flag also
