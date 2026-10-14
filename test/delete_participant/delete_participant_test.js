@@ -180,7 +180,9 @@ test('dry run lists everything and deletes nothing', async () => {
   assert.strictEqual(r.found.storageUserFiles, 1);
   assert.deepStrictEqual(r.found.exports.map((e) => e.rows), [2]);
   assert.deepStrictEqual(await residue(UID).then((l) => l.length > 0), true);
-  assert.strictEqual((await residue(UID)).length, 13, 'all still there');
+  // 14 places: the user tree (2) + the top-level collections incl. T24's
+  // weekly_status.
+  assert.strictEqual((await residue(UID)).length, 14, 'all still there');
 });
 
 test('--confirm deletes everything of that person, nothing else', async () => {

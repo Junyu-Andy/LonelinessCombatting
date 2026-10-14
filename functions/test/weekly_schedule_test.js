@@ -171,7 +171,8 @@ test("date table: W0 on every weekday, 8 weeks — same study days, " +
       assert.strictEqual(sw.studyDayAt(w0, w.open), b.pushDay);
       assert.strictEqual(sw.hkDateKey(w.open), sw.addDays(w0, b.pushDay));
       if (b.closeRule === "week4") {
-        assert.strictEqual(iso(w.close), iso(sw.hkEndOfDay(sw.addDays(w0, 29))));
+        assert.strictEqual(iso(w.close),
+            iso(sw.hkEndOfDay(sw.addDays(w0, 29))));
       } else {
         assert.strictEqual(w.close - w.open, 3 * 86400000);
       }

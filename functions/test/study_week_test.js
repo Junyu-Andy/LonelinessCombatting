@@ -52,7 +52,8 @@ test("w0DateKey: registered date wins, createdAt is the fallback", () => {
     createdAt: "2026-09-01T10:00:00"}), "2026-10-19");
   assert.strictEqual(sw.w0DateKey({createdAt: "2026-09-01T10:00:00"}),
       "2026-09-01");
-  assert.strictEqual(sw.w0DateKey({createdAt: new Date("2026-09-01T17:00:00Z")}),
+  assert.strictEqual(
+      sw.w0DateKey({createdAt: new Date("2026-09-01T17:00:00Z")}),
       "2026-09-02"); // 01:00 HKT next day
   assert.strictEqual(sw.w0DateKey({}), null);
   assert.strictEqual(sw.w0DateKey(null), null);
