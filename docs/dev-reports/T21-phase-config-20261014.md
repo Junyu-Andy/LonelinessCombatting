@@ -129,7 +129,7 @@
 | 试跑选版本后组别正确、没占序列、有日志 | `randomization_emulator_test.js`「T21: PILOT-…」三项 | 通过 |
 | 开关关时和现在一样 | 上面三个文件里“gate off”各项；原有 T19 测试全部保留（`randomization_emulator_test.js`、`blinding_emulator_test.js` 里的编号从 `B001` 这类改成 `PB-001`，因为没有前缀的编号现在会被拒） | 通过 |
 
-全量（Flutter 3.35.3、Node 24、Firestore 模拟器）：`tool/ci_flutter_tests.sh` 六套全过（默认构建 402 个，跳过 21；Phase B 61；规则组页面 5；记忆 v1 17；模板两套 12 和 16）；`tool/ci_backend_tests.sh` 全过（其中 `study_period_test.js` 8 项、`enrollment_gate_emulator_test.js` 7 项、`randomization_emulator_test.js` 20 项、`blinding_emulator_test.js` 7 项、Firestore 规则 95 项）；`flutter analyze` 0 error（88 条旧提示，和 main 一样）。
+全量（Flutter 3.35.3、Node 24、Firestore 模拟器）：最早在 main `b2cd4d3` 上跑过一遍；10/14 #58 合并后把新的 main 合进本分支，又跑了一遍，结果如下。`tool/ci_flutter_tests.sh` 六套全过（默认构建 421 个，跳过 35；Phase B 105；规则组页面 5；记忆 v1 18；模板两套各 31）；`tool/ci_backend_tests.sh` 全过（其中 `study_period_test.js` 8 项、`enrollment_gate_emulator_test.js` 7 项、`randomization_emulator_test.js` 20 项、`blinding_emulator_test.js` 7 项、`memory_layers_emulator_test.js` 11 项、Firestore 规则 96 项）；`flutter analyze` 0 error（88 条旧提示，和 main 一样）。
 
 ## 8. 改了哪些文件
 
@@ -142,7 +142,7 @@
 
 ## 9. 和其他 PR 的交叉
 
-- 用 `git merge-tree` 模拟过：和 #51 没有冲突；和 #52、#55、#57 只在文档上冲突；和 #56 另有 `lib/core/feature_flags/remote_feature_flags.dart` 一处代码冲突（它加 `memoryLayersNoticeEnabled`，这里加 `enrollmentGateEnabled`，两个都留就行），`functions/memory.js` 能自动合并。
+- 10/14：#51 和 #58（含 #52、#55、#56、#57）已合并。本分支已经把新的 main 合进来：文档 4 处冲突两边都留；`lib/core/feature_flags/remote_feature_flags.dart` 两边各加一个开关（`enrollmentGateEnabled`、`memoryLayersNoticeEnabled`），两个都留。现在对 main 没有冲突。
 - 和 PR #52、#57、#56、#55、#51 都改 `docs/STUDY_CHANGELOG.md`、`docs/history.md`、`docs/dev/backlog.md`、`docs/dev/architecture.md`，后合并的两边都留。
 - T24、T27、T30、T34 要用这里的 `cohort` 和 `study_period.js`：研究期判断请直接用 `isEnrolled`、`periodForResearchId`，不要另写一套。
 
