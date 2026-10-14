@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-14 设置页「語音讀出內容」隐藏、「安靜時段」接成真功能（PR 草稿，分支 `fix/quiet-hours-hide-readback`）
+
+- 负责人定：语音读出先隐藏（没有功能读它）；安静时段接上：开关写到 `users/{uid}.quietHoursEnabled`，服务器按人发推送前查 `functions/quiet_hours.js`，窗口在 `app_config/reminders` 配置（默认 22:00–08:00）。行动计划提醒已接；T24 的每周推送器要接。编号待开发窗口分配。报告：`docs/dev-reports/quiet-hours-hide-readback-20261014.md`。
+
 ## 2026-10-14 Phase B 包隐藏点赞点踩和第一周提示（PR 草稿，分支 `fix/phase-b-hide-feedback-nudge`）
 
 - 负责人核对 W0 流程时发现：点赞点踩只有 Hybrid 组的签到、回忆、反思对话有（通通、文章两组都有），登记表没写这项差异；第一周提示读 Phase A 配置，Phase B 老人也会看到。负责人定：先关掉，保主干。
