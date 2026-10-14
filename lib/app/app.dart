@@ -21,6 +21,7 @@ import '../core/safety/distress_state.dart';
 import '../core/safety/safety_check.dart';
 import '../core/safety/safety_overlay.dart';
 import '../core/session/chat_session_recorder.dart';
+import '../features/brief_pr/data/brief_pr_v2.dart';
 import '../core/telemetry/screen_dwell_observer.dart';
 import '../core/version/build_info.dart';
 import '../core/telemetry/screen_dwell_tracker.dart';
@@ -124,8 +125,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (uid == _lastFcmUid) return;
     _lastFcmUid = uid;
     if (uid != null) {
-      // M-7 — close sessions left open by a process kill.
-      unawaited(ChatSessionRecorder.sweepUnclosed(uid));
+      // M-7 — close sessions left open by a process kill.  T25 v2: a
+      // valid recovered session becomes a catch-up Brief PR card (S10b).
+      BriefPrV2.ahJanAhBakVariant =
+          widget.settings.profile?.ahJanAhBakVariant;
+      unawaited(ChatSessionRecorder.sweepUnclosed(uid,
+          onRecovered: BriefPrV2.onRecovered));
       await widget.fcm.initialize(uid);
     } else {
       await widget.fcm.deregister();

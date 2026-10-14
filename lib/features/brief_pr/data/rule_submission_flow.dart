@@ -15,6 +15,7 @@ import '../../../core/session/chat_session_recorder.dart';
 import '../../analytics/data/analytics_service.dart';
 import '../presentation/pages/brief_pr_page.dart';
 import 'brief_pr_gate.dart';
+import 'brief_pr_v2.dart';
 
 class RuleSubmissionFlow {
   RuleSubmissionFlow._();
@@ -36,6 +37,7 @@ class RuleSubmissionFlow {
     InputModality modality = InputModality.text,
     int? voiceDurationMs,
     String? safetyTurnId,
+    SessionRules? rules,
   }) async {
     final rec = ChatSessionRecorder(
       uid: uid,
@@ -44,9 +46,14 @@ class RuleSubmissionFlow {
       theme: theme,
       analytics: analytics,
       available: available,
+      rules: rules,
     );
     await rec.ensureStarted();
     final acute = detector.level == DistressLevel.acute;
+    // T25 (C16, decision 0015) — one submission is one session; it is valid
+    // when the required fields were filled, submitted and the response
+    // shown, i.e. whenever the safety check did not short-circuit it.
+    rec.markRuleSubmission(completed: !acute);
     await rec.logTurn(TurnRecord(
       agentId: agentId,
       moduleId: moduleId,
@@ -69,8 +76,11 @@ class RuleSubmissionFlow {
         turnId: safetyTurnId,
       ),
     ));
-    await rec.end(
-        acute ? SessionEndReason.crisis : SessionEndReason.userLeft);
+    await rec.end(acute
+        ? SessionEndReason.crisis
+        : rec.rules.v2
+            ? SessionEndReason.submitted
+            : SessionEndReason.userLeft);
     return rec;
   }
 
@@ -85,6 +95,12 @@ class RuleSubmissionFlow {
   }) async {
     final sessionId = rec.sessionId;
     if (sessionId == null) return;
+    // T25 v2 — same scheduler and card as the chat pages (both arms
+    // identical); no popup.  Nothing here calls an LLM.
+    if (await BriefPrV2.endSession(rec,
+        endReason: rec.endReason ?? SessionEndReason.submitted, arm: 'B')) {
+      return;
+    }
     if (!BriefPrGate.shouldSurfaceAfterSubmission(endReason: rec.endReason)) {
       return;
     }

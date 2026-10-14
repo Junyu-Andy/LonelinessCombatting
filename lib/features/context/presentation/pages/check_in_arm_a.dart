@@ -36,6 +36,8 @@ import '../../../thought_exercise/presentation/thought_exercise_page.dart';
 import '../../../today/data/mood_recorder.dart';
 import 'check_in_shared.dart';
 import '../../../../core/memory/memory_mode.dart';
+import '../../../brief_pr/data/brief_pr_v2.dart';
+import '../../../brief_pr/presentation/widgets/session_close_button.dart';
 
 /// M2 — hybrid check-in (Arm A). Free-text or voice opener, LLM produces
 /// a brief empathetic reflection + at most one adaptive follow-up. The
@@ -151,6 +153,13 @@ class _CheckInArmAState extends State<CheckInArmA> {
   ChatSessionRecorder? _recorder;
   bool _briefPrSurfaced = false;
 
+  /// T25 — set by the S9 close button before popping; otherwise the pop
+  /// is a back key / gesture.  Pre-T25 behaviour keeps `user_left`.
+  String? _closeReason;
+  String get _exitReason => BriefPrV2.enabled
+      ? (_closeReason ?? SessionEndReason.back)
+      : SessionEndReason.userLeft;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -164,6 +173,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
         analytics: _analytics!,
         available: AuthServiceScope.of(context).available,
         onIdleTimeout: _onIdleTimeout,
+        onSwitchedAway: _onSwitchedAway,
       );
     }
     if (!_openerSeeded) {
@@ -399,6 +409,15 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// still open: run the end-of-session flow (Brief PR) in place.  Typing
   /// again starts a fresh session.
   void _onIdleTimeout() {
+    if (!mounted) return;
+    final uid = AppSettingsScope.read(context).profile?.uid;
+    if (uid == null) return;
+    _briefPrSurfaced = false;
+    unawaited(_surfaceBriefPr(Navigator.of(context), uid));
+  }
+
+  /// T25 v2 — another companion's session closed this one (`switch_agent`).
+  void _onSwitchedAway() {
     if (!mounted) return;
     final uid = AppSettingsScope.read(context).profile?.uid;
     if (uid == null) return;
@@ -856,7 +875,10 @@ class _CheckInArmAState extends State<CheckInArmA> {
   Future<void> _finalizeOnExit() async {
     final userTurnCount = _turns.where((t) => t.fromUser).length;
     if (_saved || userTurnCount < 1) {
-      unawaited(_recorder?.end(SessionEndReason.userLeft));
+      unawaited(_recorder?.end(_exitReason));
+      // T25 v2 — still hand the (invalid) session to the scheduler so the
+      // row is closed with the v2 reason; no card results.
+      unawaited(BriefPrV2.endSession(_recorder, endReason: _exitReason, arm: 'A'));
       return;
     }
     // Captured NOW (pop callback, element still live) — everything after
@@ -867,7 +889,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
     final nav = Navigator.of(context);
     final uid = AppSettingsScope.read(context).profile?.uid;
     await _saveSession();
-    if (uid == null) unawaited(_recorder?.end(SessionEndReason.userLeft));
+    if (uid == null) unawaited(_recorder?.end(_exitReason));
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
@@ -889,7 +911,16 @@ class _CheckInArmAState extends State<CheckInArmA> {
     _briefPrSurfaced = true;
     final rec = _recorder;
     if (rec == null || rec.sessionId == null) return;
-    if (rec.isOpen) await rec.end(SessionEndReason.userLeft);
+    // T25 (C16) — the chat is only reachable once today's mood is logged
+    // (gate / home pad), so the mood is recorded for every session here.
+    if (_facePicked) rec.markMoodRecorded();
+    if (rec.isOpen) await rec.end(_exitReason);
+    // T25 v2 — no popup: the scheduler decides, the card shows on the
+    // companion list page.  Memory was handed over in _saveSession.
+    if (BriefPrV2.enabled) {
+      await BriefPrV2.endSession(rec, endReason: _exitReason, arm: 'A');
+      return;
+    }
     final sessionId = rec.sessionId;
     final gate = BriefPrGate();
     final shouldShow = await gate.shouldSurfaceBriefPr(
@@ -986,6 +1017,15 @@ class _CheckInArmAState extends State<CheckInArmA> {
         },
         child: Scaffold(
         appBar: AppBar(
+          // T25 — S9 close button (v2 only); back key / gesture still work.
+          leading: BriefPrV2.enabled
+              ? SessionCloseButton(onPressed: () {
+                  _closeReason = SessionEndReason.closeButton;
+                  Navigator.of(context).maybePop();
+                })
+              : null,
+          leadingWidth:
+              BriefPrV2.enabled ? SessionCloseButton.leadingWidth : null,
           title: Text(isEn ? 'Siu Yan' : '小欣'),
         ),
         body: SafeArea(

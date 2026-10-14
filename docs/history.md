@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-14 T25 会话定义与 Brief PR 第二版（SPEC:C16、C14，PR 草稿，分支 `feat/session-briefpr`）
+
+- **做了**：会话规则（`lib/core/session/session_rules.dart`）：结束方式 `close_button` / `back` / `switch_agent` / `timeout`（30 分钟）/ `recovered` / `crisis`，有效会话按“完成一个互动单元”（自由聊天 ≥3 条有回复；Hybrid 签到 = 心情 + ≥1 条有回复；Hybrid 回忆 = 按儲存；规则组 = 一次完整提交）。Brief PR 第二版：只在有效会话后、每位陪伴者每天 1 次、危机不邀请、列表页评价卡（S10a / S10b）、2 小时过期、一题一屏问卷、记录按会话编号去重、五种最终状态 + `everShown`。两组同一套。`llm_calls` 加 `session_id`，`usage_weekly` 加 `validSessionCount`。**开关 `app_config/phase_b.sessionBriefPrV2Enabled` 默认关**，关着时一切照旧。
+- **没做**（见报告 `docs/dev-reports/T25-session-briefpr-20261014.md`）：截图；`brief_pr` 的 `studyWeek` / `studyDay`（T24）；收尾按钮首次说明的跨次启动记忆；决策记录编号待分配（旧弹窗和 anchor 的处理草稿在报告里）。
+- 合并了 T21 之后的 `main`（e851205），无冲突。
+
+---
+
 ## 2026-10-14 Phase B 包隐藏点赞点踩和第一周提示（PR 草稿，分支 `fix/phase-b-hide-feedback-nudge`）
 
 - 负责人核对 W0 流程时发现：点赞点踩只有 Hybrid 组的签到、回忆、反思对话有（通通、文章两组都有），登记表没写这项差异；第一周提示读 Phase A 配置，Phase B 老人也会看到。负责人定：先关掉，保主干。

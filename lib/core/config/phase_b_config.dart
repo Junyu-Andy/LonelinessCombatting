@@ -1,11 +1,13 @@
-/// Phase B-only runtime parameters (T18, decision 0027).
+/// Phase B-only runtime parameters (T18, decision 0027; T25 session /
+/// Brief PR v2).
 ///
-/// Every key here belongs to Phase B only.  Read from the Firestore
-/// document `app_config/phase_b` (clients read, nobody writes from the App;
-/// the research team edits it from the console).  The Cloud Functions read
-/// the same document (functions/djg_w2.js `readConfig`).  A missing
-/// document, a failed read or a bad value keeps the default below; the
-/// switch is ON only when its field is literally `true`.
+/// Every key here belongs to Phase B (and the pilot, which runs the same
+/// PHASE_B build).  Read from the Firestore document `app_config/phase_b`
+/// (clients read, nobody writes from the App; the research team edits it
+/// from the console).  The Cloud Functions read the same document
+/// (functions/djg_w2.js `readConfig`).  A missing document, a failed read
+/// or a bad value keeps the default below; a switch is ON only when its
+/// field is literally `true`.
 ///
 ///   - [djgW2InAppEnabled]   — W2 DJG in the App (6 items).  Default OFF.
 ///                             The App also requires a Phase B build
@@ -17,6 +19,33 @@
 ///   - [djgW2PushHour]       — HK hour of the day-14 push (server).  10.
 ///   - [djgW2ReminderHours]  — reminder this long after the push if not
 ///                             submitted (server).  24.
+///
+/// T25 (registry C14 / C16) — session definition and Brief PR v2.  All
+/// behind [sessionBriefPrV2Enabled]; with it OFF every chat page behaves
+/// exactly as before (10-minute idle, popup Brief PR on page exit, anchor
+/// rule).  The other keys only matter while the switch is ON:
+///
+///   - [sessionBriefPrV2Enabled]           — master switch.  Default OFF.
+///   - [sessionIdleTimeoutMinV2]           — a session ends after this many
+///                                           minutes without a new message
+///                                           (`endReason = timeout`).  30.
+///   - [briefPrDailyCapPerAgent]           — Brief PR invitations per
+///                                           companion per local day.  1.
+///   - [briefPrCatchUpExpiryHours]         — an invitation expires this
+///                                           long after the session's last
+///                                           complete reply.  2.
+///   - [freeChatValidMinUserMessages]      — free chat (Tung Tung, Hybrid
+///                                           reflective dialogue, Ah Jan /
+///                                           Ah Bak free chat) is a valid
+///                                           session once this many user
+///                                           messages each got a reply.  3.
+///   - [hybridCheckInValidRequiresMood]    — Hybrid check-in: the mood must
+///                                           be recorded.  true.
+///   - [hybridCheckInValidMinUserMessages] — Hybrid check-in: this many
+///                                           replied user messages.  1.
+///   - [hybridReminiscenceValidRequiresSave] — Hybrid reminiscence: the
+///                                           weekly summary must be saved
+///                                           via 儲存.  true.
 ///
 /// Call [PhaseBConfig.load] once at startup; read via [current].
 library;
@@ -31,6 +60,14 @@ class PhaseBConfig {
     this.djgW2WindowDays = 7,
     this.djgW2PushHour = 10,
     this.djgW2ReminderHours = 24,
+    this.sessionBriefPrV2Enabled = false,
+    this.sessionIdleTimeoutMinV2 = 30,
+    this.briefPrDailyCapPerAgent = 1,
+    this.briefPrCatchUpExpiryHours = 2,
+    this.freeChatValidMinUserMessages = 3,
+    this.hybridCheckInValidRequiresMood = true,
+    this.hybridCheckInValidMinUserMessages = 1,
+    this.hybridReminiscenceValidRequiresSave = true,
   });
 
   final bool djgW2InAppEnabled;
@@ -38,6 +75,16 @@ class PhaseBConfig {
   final int djgW2WindowDays;
   final int djgW2PushHour;
   final int djgW2ReminderHours;
+
+  // T25 — session definition and Brief PR v2 (see the library comment).
+  final bool sessionBriefPrV2Enabled;
+  final int sessionIdleTimeoutMinV2;
+  final int briefPrDailyCapPerAgent;
+  final int briefPrCatchUpExpiryHours;
+  final int freeChatValidMinUserMessages;
+  final bool hybridCheckInValidRequiresMood;
+  final int hybridCheckInValidMinUserMessages;
+  final bool hybridReminiscenceValidRequiresSave;
 
   static PhaseBConfig _current = const PhaseBConfig();
 
@@ -76,12 +123,31 @@ class PhaseBConfig {
       return v is num && v.isFinite && v >= min ? v.floor() : def;
     }
 
+    bool b(String k, bool def) => map[k] is bool ? map[k] as bool : def;
+
     return PhaseBConfig(
       djgW2InAppEnabled: map['djgW2InAppEnabled'] == true,
       djgW2DayOffset: n('djgW2DayOffset', d.djgW2DayOffset, 1),
       djgW2WindowDays: n('djgW2WindowDays', d.djgW2WindowDays, 1),
       djgW2PushHour: n('djgW2PushHour', d.djgW2PushHour, 0),
       djgW2ReminderHours: n('djgW2ReminderHours', d.djgW2ReminderHours, 1),
+      // T25 — the switch is on only when literally `true`.
+      sessionBriefPrV2Enabled: map['sessionBriefPrV2Enabled'] == true,
+      sessionIdleTimeoutMinV2:
+          n('sessionIdleTimeoutMinV2', d.sessionIdleTimeoutMinV2, 1),
+      briefPrDailyCapPerAgent:
+          n('briefPrDailyCapPerAgent', d.briefPrDailyCapPerAgent, 0),
+      briefPrCatchUpExpiryHours:
+          n('briefPrCatchUpExpiryHours', d.briefPrCatchUpExpiryHours, 1),
+      freeChatValidMinUserMessages:
+          n('freeChatValidMinUserMessages', d.freeChatValidMinUserMessages, 1),
+      hybridCheckInValidRequiresMood: b(
+          'hybridCheckInValidRequiresMood', d.hybridCheckInValidRequiresMood),
+      hybridCheckInValidMinUserMessages: n('hybridCheckInValidMinUserMessages',
+          d.hybridCheckInValidMinUserMessages, 0),
+      hybridReminiscenceValidRequiresSave: b(
+          'hybridReminiscenceValidRequiresSave',
+          d.hybridReminiscenceValidRequiresSave),
     );
   }
 }

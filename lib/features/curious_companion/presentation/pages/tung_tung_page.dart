@@ -53,6 +53,8 @@ import '../../data/tung_tung_search_intent.dart';
 import '../../data/tung_tung_rule_pool.dart';
 import '../../data/tung_tung_rule_responder.dart';
 import '../../../../core/memory/memory_mode.dart';
+import '../../../brief_pr/data/brief_pr_v2.dart';
+import '../../../brief_pr/presentation/widgets/session_close_button.dart';
 
 class TungTungPage extends StatefulWidget {
   /// Optional article body / title injected by M8's "問下呢篇" entry.
@@ -91,6 +93,10 @@ class _TungTungPageState extends State<TungTungPage> {
   StreamSubscription<bool>? _connSub;
 
   bool _briefPrSurfaced = false;
+
+  /// T25 — set by the S9 close button before popping; otherwise the pop
+  /// is a back key / gesture.
+  String? _closeReason;
   bool _busy = false;
   SearchRepository? _searchRepo;
 
@@ -170,6 +176,7 @@ class _TungTungPageState extends State<TungTungPage> {
         analytics: AnalyticsScope.of(context),
         available: auth.available,
         onIdleTimeout: _onIdleTimeout,
+        onSwitchedAway: _onSwitchedAway,
       );
     }
     // Seed an opening bubble so the page reads as a chat from the
@@ -256,6 +263,12 @@ class _TungTungPageState extends State<TungTungPage> {
   /// M-7 — idle clock closed the session in place; run the Brief PR flow.
   void _onIdleTimeout() {
     if (!mounted) return;
+    _briefPrSurfaced = false;
+    unawaited(_maybeSurfaceBriefPr(closeSession: false));
+  }
+
+  /// T25 v2 — another companion's session closed this one (`switch_agent`).
+  void _onSwitchedAway() {
     _briefPrSurfaced = false;
     unawaited(_maybeSurfaceBriefPr(closeSession: false));
   }
@@ -768,10 +781,22 @@ class _TungTungPageState extends State<TungTungPage> {
       child: PopScope(
         canPop: true,
         onPopInvokedWithResult: (didPop, _) async {
-          if (didPop) await _maybeSurfaceBriefPr();
+          if (didPop) {
+            await _maybeSurfaceBriefPr(
+                endReason: _closeReason ?? SessionEndReason.back);
+          }
         },
         child: Scaffold(
         appBar: AppBar(
+          // T25 — S9 close button (v2 only); back key / gesture still work.
+          leading: BriefPrV2.enabled
+              ? SessionCloseButton(onPressed: () {
+                  _closeReason = SessionEndReason.closeButton;
+                  Navigator.of(context).maybePop();
+                })
+              : null,
+          leadingWidth:
+              BriefPrV2.enabled ? SessionCloseButton.leadingWidth : null,
           title: Row(
             children: [
               AgentAvatar(
@@ -866,13 +891,17 @@ class _TungTungPageState extends State<TungTungPage> {
     );
   }
 
-  Future<void> _maybeSurfaceBriefPr({bool closeSession = true}) async {
+  Future<void> _maybeSurfaceBriefPr({
+    bool closeSession = true,
+    String endReason = SessionEndReason.back,
+  }) async {
     if (_briefPrSurfaced) return;
     _briefPrSurfaced = true;
     final profile = AppSettingsScope.read(context).profile;
     final rec = _recorder;
+    final v2 = BriefPrV2.enabled;
     if (closeSession && rec != null && rec.isOpen) {
-      await rec.end(SessionEndReason.userLeft);
+      await rec.end(v2 ? endReason : SessionEndReason.userLeft);
     }
     if (profile == null) return;
     // Capture the navigator NOW: this runs from PopScope after the route
@@ -897,6 +926,14 @@ class _TungTungPageState extends State<TungTungPage> {
             .transcriptRetentionFor(AgentRegistry.tungTungId),
         memoryV1: MemoryModes.of(profile).isV1,
       ));
+    }
+
+    // T25 v2 — no popup: the scheduler decides, the card shows on the
+    // companion list page.  Memory (above) was already handed over.
+    if (v2) {
+      await BriefPrV2.endSession(rec,
+          endReason: endReason, arm: _ruleBased ? 'B' : 'A');
+      return;
     }
 
     if (rec == null || rec.sessionId == null) return;
