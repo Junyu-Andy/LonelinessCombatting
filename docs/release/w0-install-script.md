@@ -8,7 +8,7 @@
 
 | # | 做什么 | 在哪里 | 不做的后果 |
 |---|---|---|---|
-| 1 | **Deploy Firebase（规则 + Functions）**，用现在的 `main` | GitHub Actions → Deploy Firebase | 登记 `PILOT-` 会被旧函数按正式分组处理（要情感分、占序列），告警、每周问卷都是旧版 |
+| 1 | **Deploy Firebase 已做**：第 7 次运行部署的就是 `main @ c1f88d6`（10/14 15:37 UTC，成功）。#77、#78 只有文档和测试，不用再部署 | GitHub Actions → Deploy Firebase | 以后合了改 `functions/` 或规则的 PR 才要再跑 |
 | 2 | `meta/randomization_config.enabled = true`（布尔） | Firebase 控制台 | 登记页提交失败 |
 | 3 | `meta/memory_config`：`enabled: true`、`policy: "C"`、`phaseBArmA: true` | 控制台 | Hybrid 组没有记忆 |
 | 4 | 团队账号、评估员账号 `users/{uid}.isTester = true`；3 位 PILOT 老人**不要**设 | 控制台 | 团队账号的测试聊天会发告警邮件；登记门开着时团队账号卡在等待页 |
