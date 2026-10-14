@@ -42,6 +42,8 @@
 const KIND = "m7_followup";
 const PUSH_TITLE = "陪住";
 const PUSH_BODY = "你今日有個小計劃，得閒打開睇下。"; // S4a
+const quietHours = require("./quiet_hours");
+
 const DEFAULTS = {staleHours: 12, maxAttempts: 3};
 const TERMINAL = new Set([
   "sending", "sent", "failed", "no_tokens", "skipped_stale",
@@ -119,6 +121,8 @@ async function readConfig(db) {
     enabled: data.m7FollowupPushEnabled === true,
     staleHours: num(data.staleHours, DEFAULTS.staleHours),
     maxAttempts: num(data.maxAttempts, DEFAULTS.maxAttempts),
+    // 10/14: the elder's 安靜時段 window (functions/quiet_hours.js).
+    quiet: quietHours.quietHoursConfigFrom(data),
   };
 }
 
@@ -177,6 +181,11 @@ async function dispatchOne(db, messaging, userDoc, user, rem, cfg, now) {
   const r = rem.data() || {};
   const state = classify(r, {now, staleHours: cfg.staleHours});
   if (state === "skip" || state === "wait") return null;
+  // 10/14: inside the elder's 安靜時段 the reminder waits for a later tick
+  // (classify() still turns it stale after staleHours).
+  if (state === "due" && quietHours.inQuietHours(user, now, cfg.quiet)) {
+    return null;
+  }
 
   let outcome = state === "skipped_stale" ? state : null;
   if (!outcome && isQuietToday(user.quietTodayActivatedAt, now)) {
