@@ -82,6 +82,26 @@ describe('memory v1 rules', () => {
     await assertSucceeds(updateDoc(doc(owner(), ...FACT), { status: 'active' }));
   });
 
+  it('owner cannot set or change layer / sourceAgent (T31)', async () => {
+    await seed(FACT, {
+      value: '膝頭痛', status: 'pending_confirmation',
+      layer: 'private', sourceAgent: 'siu_yan',
+    });
+    await assertFails(updateDoc(doc(owner(), ...FACT), { layer: 'shared' }));
+    await assertFails(updateDoc(doc(owner(), ...FACT), {
+      status: 'active', layer: 'shared',
+    }));
+    await assertFails(updateDoc(doc(owner(), ...FACT), {
+      sourceAgent: 'tung_tung',
+    }));
+    for (const col of ['mem_summaries', 'mem_followups']) {
+      await seed(['users', 'u1', col, 'y'], { layer: 'private' });
+      await assertFails(updateDoc(doc(owner(), 'users', 'u1', col, 'y'), {
+        layer: 'shared',
+      }));
+    }
+  });
+
   it('owner cannot re-activate a superseded fact', async () => {
     await seed(FACT, { value: '陳太', status: 'superseded' });
     await assertFails(updateDoc(doc(owner(), ...FACT), { status: 'active' }));

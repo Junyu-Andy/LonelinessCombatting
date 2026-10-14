@@ -86,6 +86,10 @@ class PhaseAConfig {
   /// The server has its own switch (`meta/safety_config.classifierEnabled`,
   /// also off); both must be on.  Not to be turned on before research
   /// and PI sign off decision 0025.
+  ///
+  /// Despite this document's name, the switch is global: Phase A, Phase B
+  /// and the pilot share one classifier and one switch (decision 0033).
+  /// Do not split it per study period.
   final bool safetyClassifierEnabled;
 
   /// T8 — how long a check waits for the classifier before falling back

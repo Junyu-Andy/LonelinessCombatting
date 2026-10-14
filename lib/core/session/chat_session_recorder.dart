@@ -189,6 +189,10 @@ class TurnRecord {
         'searchInvoked': tungTungSearchInvoked,
       },
       'feedback': {'thumb': null, 'reason': null},
+      // T26 (decision 0033) — the safety turn id: the same id as
+      // `safety_events.turnId` and `safety_classifier_calls.turn_id`, so a
+      // safety record can be traced to its message.  Both arms.
+      'safetyTurnId': response.turnId,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }

@@ -191,20 +191,24 @@ class _CheckInArmBState extends State<CheckInArmB> {
     // T8 — the classifier is asked only when its switch is on (same rule
     // as Arm A's gateway); off, this stays the synchronous check.
     const point = SafetyInputPoint.checkInNote;
+    // T26 — one id for the safety records and the logged turn.
+    final safetyTurnId = SafetyService.newTurnId();
     final DistressMatch distress;
     if (core.safety.classifierActiveFor(point)) {
       setState(() => _picking = true);
       distress = (await core.safety.checkUserTextClassified(note,
               point: point,
               uid: profile?.uid,
-              agentId: AgentRegistry.siuYanId))
+              agentId: AgentRegistry.siuYanId,
+              turnId: safetyTurnId))
           .match;
     } else {
       distress = core.safety
           .checkUserText(note,
               point: point,
               uid: profile?.uid,
-              agentId: AgentRegistry.siuYanId)
+              agentId: AgentRegistry.siuYanId,
+              turnId: safetyTurnId)
           .match;
     }
 
@@ -248,7 +252,8 @@ class _CheckInArmBState extends State<CheckInArmB> {
         mood: face.rank,
         analytics: analytics,
       );
-      ruleReply = entry == null ? null : (isEn ? entry.en : entry.zh);
+      // T33 — final copy is Cantonese only; English UI shows it too.
+      ruleReply = entry?.zh;
       if (!mounted) return;
     }
     if (!mounted) return;
@@ -270,6 +275,7 @@ class _CheckInArmBState extends State<CheckInArmB> {
       text: note,
       detector: distress,
       userSent: submittedAt,
+      safetyTurnId: safetyTurnId,
       replyText:
           ruleReply ?? (isEn ? 'Saved. See you tomorrow.' : '收到喇。聽日再見。'),
     );

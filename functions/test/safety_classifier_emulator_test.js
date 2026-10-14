@@ -10,6 +10,9 @@
  *   4. Failure (HTTP 500, malformed answer) → status "error"; one log row.
  *   5. Both arms get the same answer; Arm B is still refused by
  *      proxyDeepSeek (assertLlmAllowed is untouched).
+ *   6. T26 (dev-tasks-1010 §3): Phase A, Phase B and pilot participants
+ *      get the same answer and the same log row; the server never looks
+ *      at the study period.
  *
  * Run from the repo root:
  *   firebase emulators:exec --only firestore --project loneliness-pilot-dev \
@@ -223,6 +226,37 @@ test("both arms: same answer; Arm B still refused by proxyDeepSeek",
           messages: [{role: "user", content: "hi"}]},
       }), /not part of this study arm/);
       assert.strictEqual(deepseekCalls, 0);
+    });
+
+// T26 (dev-tasks-1010 §3) — Phase A, Phase B and the pilot use the same
+// classifier and the same flow.  The study-period field (T21, not merged
+// yet) is set both ways it may land: users/{uid}.cohort and
+// enrollments/{uid}.studyPeriod.
+test("Phase A, Phase B, pilot: same answer, same row, no period field",
+    async () => {
+      await reset(on());
+      const periods = ["phase_a", "phase_b", "pilot"];
+      for (const p of periods) {
+        await db.doc(`users/u_${p}`).set({arm: "A", cohort: p});
+        await db.doc(`enrollments/u_${p}`).set({studyPeriod: p});
+      }
+      await db.doc("users/u_rule_b").set({arm: "B", cohort: "phase_b"});
+      await db.doc("enrollments/u_rule_b").set({studyPeriod: "phase_b"});
+      const uids = periods.map((p) => `u_${p}`).concat(["u_rule_b"]);
+      const outs = [];
+      for (const u of uids) outs.push(await classify(u));
+      for (const o of outs) assert.deepStrictEqual(o, outs[0]);
+      assert.strictEqual(outs[0].status, "ok");
+      assert.strictEqual(hits.length, uids.length);
+      const r = await rows();
+      assert.strictEqual(r.length, uids.length);
+      const keys = Object.keys(r[0]).sort().join(",");
+      for (const row of r) {
+        assert.strictEqual(Object.keys(row).sort().join(","), keys);
+        for (const k of ["arm", "cohort", "studyPeriod", "study_period"]) {
+          assert.ok(!(k in row), `no ${k} in the log`);
+        }
+      }
     });
 
 test("signed-out callers are refused", async () => {

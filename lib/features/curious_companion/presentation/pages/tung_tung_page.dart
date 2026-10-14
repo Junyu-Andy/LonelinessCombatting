@@ -627,13 +627,16 @@ class _TungTungPageState extends State<TungTungPage> {
     // T8 — the classifier is asked only when its switch is on (same rule
     // as Arm A's gateway); off, this stays the synchronous check.
     const point = SafetyInputPoint.chatTungTung;
+    // T26 — one id for the safety records and the logged turn.
+    final safetyTurnId = SafetyService.newTurnId();
     final DistressMatch flag;
     if (core.safety.classifierActiveFor(point)) {
       flag = (await core.safety.checkUserTextClassified(text,
               point: point,
               uid: profile?.uid,
               agentId: AgentRegistry.tungTungId,
-              sessionId: _recorder?.sessionId))
+              sessionId: _recorder?.sessionId,
+              turnId: safetyTurnId))
           .match;
       if (!mounted) return;
     } else {
@@ -642,7 +645,8 @@ class _TungTungPageState extends State<TungTungPage> {
               point: point,
               uid: profile?.uid,
               agentId: AgentRegistry.tungTungId,
-              sessionId: _recorder?.sessionId)
+              sessionId: _recorder?.sessionId,
+              turnId: safetyTurnId)
           .match;
     }
 
@@ -668,6 +672,7 @@ class _TungTungPageState extends State<TungTungPage> {
               sessionId: _recorder?.sessionId,
             ),
             status: acute ? LlmStatus.shortCircuited : LlmStatus.ruleBased,
+            turnId: safetyTurnId,
           ),
           tungTungMode: 'B',
         );

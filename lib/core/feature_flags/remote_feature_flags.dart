@@ -22,6 +22,10 @@
 ///                               (no cohort) and is not a tester sees only
 ///                               the waiting page S8; the server refuses
 ///                               its LLM calls and research-data writes.
+///   - [memoryLayersNoticeEnabled] — T31 (decision 0035): the S7 notice
+///                               about shared / private memory at the top
+///                               of 「我記得嘅嘢」.  Switch on together with
+///                               `meta/memory_config.layersEnabled`.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -35,12 +39,14 @@ class RemoteFeatureFlags {
     this.voiceInputEnabled = false,
     this.searchOffReplyEnabled = false,
     this.enrollmentGateEnabled = false,
+    this.memoryLayersNoticeEnabled = false,
   });
 
   final bool webSearchEnabled;
   final bool voiceInputEnabled;
   final bool searchOffReplyEnabled;
   final bool enrollmentGateEnabled;
+  final bool memoryLayersNoticeEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -77,5 +83,6 @@ class RemoteFeatureFlags {
         voiceInputEnabled: map['voiceInputEnabled'] == true,
         searchOffReplyEnabled: map['searchOffReplyEnabled'] == true,
         enrollmentGateEnabled: map['enrollmentGateEnabled'] == true,
+        memoryLayersNoticeEnabled: map['memoryLayersNoticeEnabled'] == true,
       );
 }

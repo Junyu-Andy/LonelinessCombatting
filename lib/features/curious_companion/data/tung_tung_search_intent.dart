@@ -11,10 +11,10 @@
 ///   - Rule arm:   the line replaces the topic template.
 ///
 /// The keyword list is deliberately narrow (explicit look-up words,
-/// weather, news, opening hours, prices, addresses) and the reply text is
-/// a PLACEHOLDER — the research team writes the final wording (draft in
-/// docs/dev-reports/T9-flags-20261007.md).  Bump [version] whenever
-/// either changes.
+/// weather, news, opening hours, prices, addresses).  T33: [reply] is the
+/// final text S1a from `docs/spec/copy/short-texts.md`, verbatim
+/// (`test/final_copy_test.dart` compares it).  Bump [version] whenever
+/// the keywords or the wording change.
 library;
 
 class TungTungSearchIntent {
@@ -22,7 +22,7 @@ class TungTungSearchIntent {
 
   /// Logged with every fixed reply so analysts can join keyword set ×
   /// wording.
-  static const String version = '2026-10-placeholder';
+  static const String version = '2026-10-10-s1a';
 
   /// Stable template id for telemetry.
   static const String replyId = 'search_off_fixed';
@@ -48,9 +48,10 @@ class TungTungSearchIntent {
     return false;
   }
 
-  /// PLACEHOLDER — not approved wording.  Must not reach participants
-  /// before the research team replaces it (flag stays off until then).
-  static String reply({required bool isEn}) => isEn
-      ? '[PLACEHOLDER — fixed reply while search is off, pending research sign-off]'
-      : '【占位：搜一搜關閉時嘅固定回應，待研究團隊定稿】';
+  /// S1a (final, 10/10).  Cantonese only — there is no English final
+  /// copy, so the English UI shows the same line.
+  static const String replyS1a =
+      '呢樣嘢要上網查先知，我而家查唔到。你可以問下屋企人、社工，或者睇下電視新聞。';
+
+  static String reply({required bool isEn}) => replyS1a;
 }
