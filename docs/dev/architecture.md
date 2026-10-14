@@ -2,6 +2,7 @@
 
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T25 会话定义和 Brief PR 第二版（第 6 节，开关默认关）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 补 T34 安全告警邮件（开关 `meta/alert_config.enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T27 语音改走服务器 STT v2（`transcribeAudio`，只用 asia-southeast1 / chirp_2，重试 1 次，失败显示 S6 并记 `voice_transcription_failed`；开关 `voiceInputEnabled` 仍默认关；PR 草稿）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）；2026-10-14 T32 第 6 条：旧测试员数据批量清理脚本 `tool/purge_tester_data.js` 和服务器专用的运行记录 `admin_runs`（第 8 节“删除”；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
@@ -40,7 +41,7 @@ flowchart LR
 | 服务器 | Firebase Cloud Functions v2，Node 24，区域 `asia-east2` | `functions/` |
 | 数据库 | Firestore，项目 `loneliness-pilot-dev` | 规则 `firestore.rules` |
 | 大模型 | DeepSeek-V4.1-Flash（请求 `deepseek-flash`，`thinking` 关闭，决策 0017），经 `proxyDeepSeek` 调用，API key 只在服务器上 | `functions/index.js` 的 `DEEPSEEK_MODEL` |
-| 语音转文字 | App 用手机系统识别（`speech_to_text`）；服务器另有 Google Speech（chirp_2，失败退回 long），App 没有调用。**Phase B 默认关**（第 12 节） | `lib/core/voice/voice_input_button.dart`、`transcribeAudio` |
+| 语音转文字 | T27 起：App 录音（16 kHz 单声道，只在内存，不落盘），上传到服务器 `transcribeAudio`，由 Google Cloud Speech-to-Text v2（模型 `chirp_2`，区域 **只用 `asia-southeast1`**，不退 `global`）转写，文字填进输入框；不再用手机系统识别（`speech_to_text` 已删）。服务器失败自动重试 1 次，仍失败 App 在输入框旁显示 S6，不进聊天、不进记忆，记 `voice_transcription_failed`。**Phase B 默认关**（第 12 节） | `lib/core/voice/`（`voice_input_button.dart`、`voice_recorder.dart`、`wav_encoder.dart`、`transcription_repository.dart`、`voice_copy.dart`）、`functions/stt.js`、`functions/index.js` `transcribeAudio` |
 | iOS 发布 | Codemagic | `codemagic.yaml` |
 | 测试和部署 | GitHub Actions | `.github/workflows/` |
 
@@ -221,7 +222,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 |---|---|---|
 | 用户文档本身 | 资料、年龄段、UCLA 基线、`arm`、`strataCell`、分组时间和方式、同意设定、`memory_enabled` | App；分组字段由服务器写 |
 | `sessions` / `turns` | 每次会话、每一轮对话（含模型、`promptVersion`、延迟、安全等级；`safetyTurnId` = 这一轮安全记录的编号，两组都写，T26） | App |
-| `events` | 行为事件（打开页面、推送、按钮等） | App |
+| `events` | 行为事件（打开页面、推送、按钮等）。T27：`voice_transcription_failed`（语音转写失败：`sessionId`、`agentId`、`category`、`at`；不存录音、不存文字；两组相同） | App |
 | `brief_pr`、`weekly_pr`、`daily_mood`、`djg_es`、`pgic`、`ppr_responses`、`loneliness_probes`、`check_in_responses` | 问卷和量表。`brief_pr` 第二版（T25）文档编号 = 会话编号，`schemaVersion: 3`，字段见第 6.0 节 | App |
 | `djg_responses/W2` | Phase B 第 2 周 DJG（6 题，决策 0027）：原始答案（q1–q6 → yes / mostly / no / skipped）、状态、开始和提交时间；服务器补 `scores`（情感、社交、总分，跳题的分量表为空）、`outsideWindow`、窗口日期、`pushSentAt`、`reminderSentAt`、缺失标记。开关打开后取代 Phase B 的 `djg_es`（旧集合保留） | App 写答案；分数等由服务器写，App 不能改；提交或缺失后 App 不能再改 |
 | `ada_responses/{时间点}`、`day7_open_responses/day7` | Phase A 的 ADA 和第 7 日开放题（第 6.1 节）。只有本人能读写；App 写的 `channel` 只能是 `app`；`status` 变成 `submitted` 后不能再改；客户端不能删；不进盲法导出。研究员电话代填由 `adaStaffSave` 写（`channel: phone_by_staff`、`staffUid`），之后老人不能改 | App；电话代填由服务器 |
@@ -280,7 +281,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `memoryFactDeleted`、`memoryFollowupDeleted` | 删除一条记忆事实或跟进时 | v1：连带删除来源会话的摘要和同样措辞的条目（T10） |
 | `referralJudgement` | App 调用 | 跨陪伴者转介的第二层判断（只 A 组） |
 | `webSearch` | App 调用 | 通通的网络搜索（只 A 组）。`webSearchEnabled` 不是 `true` 时直接拒绝 |
-| `transcribeAudio` | App 调用（目前 App 没有调用） | 语音转文字（两组）。`voiceInputEnabled` 不是 `true` 时直接拒绝 |
+| `transcribeAudio` | App 调用（T27 起，开关开着时） | 语音转文字（两组），`functions/stt.js`：Google STT v2 `chirp_2`、只用 `asia-southeast1`，请求只带 `recognizer`、`config.autoDecodingConfig`、`config.languageCodes=[yue-Hant-HK]`、`config.model`、`config.features.enableAutomaticPunctuation`、`content`（没有任何数据记录参数，`functions/test/stt_test.js` 检查）；失败自动重试 1 次，再失败返回类别 `timeout` / `server_error` / `no_speech` / `too_long` / `unavailable`。录音不存、不进日志；转写文字只返回给 App。`voiceInputEnabled` 不是 `true` 时直接拒绝。使用统计写 `stt_usage`（只有字节数、耗时、次数、是否成功、失败类别，不进导出） |
 | `safetyAcknowledgement` | App 调用 | 按陪伴者返回安全回应模板 |
 | `classifySafety` | App 调用（两组） | T8：把一句话转给安全分类器，只返回级别和分数，记 `safety_classifier_calls`。`meta/safety_config.classifierEnabled` 关着时直接返回 disabled。不调用 DeepSeek，不经过 `assertLlmAllowed`（决策 0025） |
 | `onSafetyEventCreated` | 新安全事件 | 去重后通知研究团队（`functions/pi_alert.js`）。`meta/alert_config.enabled` 关（默认）：T19 的做法，只有 acute、短邮件发到密钥 `PI_EMAIL`、不带能看出组别的字段。开：中英双语 12 个字段（研究编号、研究期、陪伴者、来源、级别类别、词库版本、LoRA、研究日、危机页、事件编号、告警编号、时间；不带组别、原话、命中词），发到 `primaryEmail`；发信前查收件人账号角色，`blinded` 去掉。问卷 / 评估员录入来源不论级别都告警。测试账号只记不发 |
@@ -351,14 +352,14 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | 字段 | 默认 | 作用 |
 |---|---|---|
 | `webSearchEnabled` | 关 | 通通"幫我查"按钮（只 Hybrid 组）；服务器 `webSearch` |
-| `voiceInputEnabled` | 关 | 所有页面的麦克风按钮（两组）；服务器 `transcribeAudio` |
+| `voiceInputEnabled` | 关 | 所有页面的麦克风按钮（两组，关着时不显示、不申请麦克风权限）；服务器 `transcribeAudio`（T27：Google STT v2 经服务器转写） |
 | `searchOffReplyEnabled` | 关 | 搜一搜关闭时，通通对"要上网查"的问题回固定一句（文字未定稿） |
 | `replyFeedbackEnabled` | 关 | 10/14：`PHASE_B=true` 的包里，聊天回复旁的点赞点踩（`ThumbsFeedback`）两组都隐藏；设为 `true` 才显示。Phase A 包不受影响 |
 | `week1NudgeEnabled` | 关 | 10/14：`PHASE_B=true` 的包里，首页第一周提示「你仲未同 X 傾過」（Phase A 的第 3、6 天提示，`week1_nudge_banner.dart`）隐藏；设为 `true` 才显示 |
 | `enrollmentGateEnabled` | 关 | T21 登记门：没登记、不是测试账号的人只看到等待页 S8；服务器拒绝它的 LLM 调用和研究数据写入（第 4 节）。服务器最多 1 分钟后生效；Firestore 规则立即生效 |
 | `onboardingAfterEnrollmentFix` | 关 | T37：「介紹三個夥伴」要不要做改为看标记 `users/{uid}.onboardingCompletedAt`（第 4 节末）；先登记后引导时不再跳过；改配对记 `events`。建议第一位参与者登记前打开 |
 
-> ⚠️ **重要功能：HREC 批准 STT 后开启 `voiceInputEnabled`。** 开之前先定是否允许系统云端识别（`voice_input_button.dart` 的 `_onDeviceOnly`）。打开属于行为改动，要在 `docs/STUDY_CHANGELOG.md` 写明生效日期和组别。
+> ⚠️ **重要功能：HREC 批准 STT 后开启 `voiceInputEnabled`。** T27 起不再有系统云端识别的选项：录音一律经研究服务器送 Google STT v2（asia-southeast1）。开之前在 Google Cloud 控制台核对 Speech-to-Text 的 data logging 没开（步骤见 `docs/dev-reports/T27-stt-server-20261014.md` 第 6 节）。打开属于行为改动，要在 `docs/STUDY_CHANGELOG.md` 写明生效日期和组别。
 
 本地跑和 CI 一样的测试：
 

@@ -178,6 +178,10 @@ class _TungTungPageState extends State<TungTungPage> {
         onIdleTimeout: _onIdleTimeout,
         onSwitchedAway: _onSwitchedAway,
       );
+      // T27 — a failed server transcription goes into this session's
+      // log (voice_transcription_failed), both arms identical.
+      _voice.onTranscriptionFailed =
+          (c) => _recorder?.logVoiceTranscriptionFailed(c);
     }
     // Seed an opening bubble so the page reads as a chat from the
     // first frame. Tung Tung's tone is light + curious; the article
