@@ -1,7 +1,7 @@
 # 待办与待决定
 
 > 随时更新。做完的移到 `docs/history.md`，划掉或删掉这里的条目。
-> 最后更新：2026-10-14（T21 第二次更新：决策 0037 六项过渡默认，第 1 项 `PHASE_B` 改为保留，加第 96 项 `isTester` 客户端可写）
+> 最后更新：2026-10-14（T34 安全告警邮件 PR 草稿，第 97–100 项；T21 第二次更新：决策 0037 六项过渡默认，第 1 项 `PHASE_B` 改为保留，加第 96 项 `isTester` 客户端可写）
 
 ## 1. 已决定、待开发
 
@@ -18,6 +18,7 @@
 | 97 | **T25 会话定义与 Brief PR 第二版**：已做数据层、邀请规则、评价卡、问卷、收尾按钮、`llm_calls.session_id`（PR 草稿，分支 `feat/session-briefpr`，开关默认关）。待做：① 截图；② `brief_pr` 加 T24 的 `studyWeek` / `studyDay`；③ 收尾按钮首次说明跨次启动只显示一次（现在每次启动第一次进聊天页显示一次）；④ 决策记录（旧弹窗只在开关关时保留、anchor 取消）编号待分配后落盘；⑤ 开关打开前研究侧定稿 `【占位】` 文字（下一題 / 返回 / 放棄評價 / 首次说明 / S10b 其余时间说法） | `dev-tasks-1009b.md` T25、`1010.md` §三、`1010b.md` §二 | `docs/dev-reports/T25-session-briefpr-20261014.md` |
 | 98 | T25 后续：开关打开后把会话第 1 版的字段（`userTurnCount`、`briefPR`、`user_left` / `app_killed`）和弹窗 Brief PR 代码路径（`BriefPrGate`、`BriefPrPage`、`isAnchorPromptFor`）删掉；`sessions` 的 `scheduleVersion` 区分新旧行 | T25 报告 | 等开关打开并稳定一周 |
 | 99 | T29、T30 用 T25 的 `sessions.isValid` / `brief_pr.finalStatus`：每人每周有效会话数查询见 T25 报告第 5 节；`usage_weekly.validSessionCount` 已加 | `dev-tasks-1009b.md` T29、`1010.md` T30 | — |
+| 90 | **T34 安全告警邮件**：字段（研究编号、研究期、陪伴者、来源、级别和类别、词库版本、LoRA、研究日、危机页、事件编号）；收件人配置（Junyu、后备 Calvin Or，评估员不在名单、测试账号不发）；后台“确认处理”；12 小时没确认转后备；PHQ-9 第 9 题的问卷和评估员录入来源；导出带来源 | 产品窗口 10/10 第 6–8 条；`docs/dev-tasks/dev-tasks-1010b.md` | 现在可以开；评估员录入那一头等 T30 和 PHQ-9 规格文件 | PR 草稿已出（分支 `feat/safety-alert-email`，`docs/dev-reports/T34-safety-alert-email-20261014.md`）；评估员录入那一头等 T30 和 PHQ-9 规格文件；开关 `meta/alert_config.enabled` 默认关 |
 
 ## 2. 上线前必须做（负责人操作）
 
@@ -96,11 +97,17 @@
 | 94 | **T33 其余发现**：回忆 B 心情提示「你而家心情點？」还是【占位】，模板开关打开前要定稿；心情脸文字（好差 / 差 / 麻麻地 / 幾好 / 好好）和定稿心情名（好唔開心 … 好開心）不同；签到命中 `moderate_review` 仍不给模板；模板和 S1a 没有英文定稿，英文界面也显示粤语 | T33 报告「要带回研究侧的发现」 | 研究侧 |
 | 95 | 网页版构建里 `SafetyService.newTurnId` 用 `nextInt(1 << 32)`，JavaScript 里是 0，签到 B、回忆 B 提交会报错（Android 不受影响）。截图时本地临时改过，没提交 | T33 报告 | 开发（另开任务，改 `lib/core/safety/`，两组同时生效） |
 | 96 | **`isTester` 客户端可写，能绕过登记门**：`users/{uid}.isTester` 由测试员工具里的开关写（要先输入测试密码 `TESTER_PIN` 才看得到，`lib/core/testing/tester_gate.dart`、`lib/features/settings/presentation/pages/settings_page.dart`）；登记门（`enrollmentGateEnabled`）和服务器的 LLM 拒绝都把 `isTester: true` 当测试账号放行，所以拿到测试密码的人可以自己把账号设成测试账号绕过等待页。10/14 暂按 (a) 不改（决策 0037 第 4 项）。选项：(a) 维持，测试密码只给团队；(b) 把 `isTester` 加进 `firestore.rules` 只有服务器能写的字段，测试员工具里的开关改成只显示，由脚本或控制台设 | T21 报告第 4.4 节；决策 0037 | 负责人 |
+| 97 | **T37 开关 `onboardingAfterEnrollmentFix` 的上线默认**：W0 装机脚本是“先登记后引导”，关着时伙伴介绍、兴趣、S5 整段跳过。建议在第一位参与者登记前打开（`app_config/feature_flags`），打开那天在 STUDY_CHANGELOG 补一行 | T37 报告第 3 节；现在默认关 | 负责人 |
+| 98 | **改配对的日志搬到服务器**：现在老人改选阿珍/阿伯（引导里或陪伴者页）由 App 写 `events` `ah_jan_ah_bak_changed`（只在开关开时），T30 §5.2 要服务器记；搬过去时保留事件名和 from/to/at/where | T37 报告第 2.4 节 | 开发（T30） |
 | 76 | 求助电话号码写进 `app_config/phaseA_schedule.adaHelpPhone`（没写时按钮不拨号，只说研究员会打来）；打开 ADA 前要配好 | T17b 报告第 2 节第 5 条 | 研究侧 |
 | 78 | **Phase B 已有的旧 `agent_diff` 数据**：T17 之前的 Phase B 包会在第 14、28 天弹旧问卷。如果有 Phase B 参与者或试用者做过，算偏离还是忽略；T22 后这些数据不进盲法导出，揭盲后怎么用 | T22 报告第 4 节；T17 报告第 10 节第 1 条 | 研究侧 |
 | 79 | 旧版导出（`meta/blinding_config.enabled` 关着时的 `exports/`）仍导出 `agent_diff`（uid 换成哈希，`freeResponse` 原文也在）；`tool/admin_dump.js`（单人原始数据，带 uid）也会读出。T22 没改，因为它们也是 Phase A 的导出；要不要在 T21 按研究期分开时一起拿掉 | T22 报告第 2 节 | 研究侧；开发（T21） |
 | 91 | App 里没有 PHQ-9（C15 写的是纸本）。“App 内 PHQ-9 第 9 题”的告警来源现在不会触发：以后哪份 App 内问卷、哪一题要触发告警 | T34 先只做入口（`docs/dev-reports/product-reply-20261010.md` 第三节第 1 条） | 产品窗口 |
 | 92 | 告警邮件的来源“AI 回复扫描”只有 Hybrid 组有，会露出组别。后备收件人 Calvin 要不要保持盲：后备邮件不写来源，或把它并入“老人输入” | 没定之前 T34 按原文写四种来源（同上第 2 条） | 产品窗口 |
+| 97 | **T34 之后**：`functions/pi_alert.js` 里的研究日 `studyDay`（W0 = 第 0 天，香港日历日）在 T24 合并后改用 T24 的共享函数；研究期已用 T21 的 `study_period.js` | T34 报告第 5 节；dev-tasks-1010b T34 §1.3 | T24 合并后 |
+| 98 | **T30 接入**：评估员录入 W4 纸本 PHQ-9 时，在提交处调用 `functions/questionnaire_safety.js` `recordQuestionnaireSafetyEvent(db, {uid, source: 'assessor_entry', instrument: 'PHQ-9', item: 9, rawValue, enteredBy, researchId})`（第 9 题为 0 自动不写）。默认级别 acute 待 Junyu 定（T34 报告「要 Junyu 定的事」第 1 条） | T34 报告第 6 节 | T30 |
+| 99 | `PI_EMAIL` 密钥何时停用：`meta/alert_config` 打开并填了 `primaryEmail` 后，密钥只做兜底；研究侧确认后可以从 `onSafetyEventCreated` / `escalateAlerts` 的 `secrets` 列表里去掉 | T34 报告第 4 节；上线清单 B1 | 开关打开后 |
+| 100 | 告警邮件的「研究第几天」对试跑账号：现在也从 `users/{uid}.w0Date` 算（T21 登记时写）；任务原文说试跑「从登记日算」，T24 的共享函数定下来后对齐 | dev-tasks-1010b T34 §1.3；T34 报告第 5 节 | T24 |
 
 ## 4. 暂缓或以后再做
 
@@ -108,7 +115,7 @@
 - 单独的 staging Firebase 项目（不需要）。
 - 函数代码约 880 个 lint 格式错误一次性修复，之后 CI 检查格式。
 - Dependabot 自动更新依赖。
-- Android 正式签名（现在用调试密钥，只能内部测试）。
+- Android 正式签名（现在用调试密钥，只能内部测试；GitHub 每次打包的调试密钥都不同，装新包要先卸载）。换密钥的步骤和影响见 `docs/dev-reports/T36-apk-phase-b-templates-20261014.md` 第三节，建议 10/19 前定。
 - 记忆 P2：RAG、人生叙事摘要、遗忘、对话中确认、按内容共享、多条待跟进、删除 v0（见规格第 5 节）。
 - 回忆 A 组研究记录仍保存 acute 那一轮原文（研究数据的决定，未改）。
 - **Phase A 暂停**（决策 0034，产品窗口 10/10 第 10 条）：ADA、第 7 日问卷、Phase A 的 DJG、`PA-` 配置在构建里保持关闭，不再开发，代码暂不删；以后单独开仓库和 Firebase 项目，另行交接。第 61–63、75、76 项随之暂缓。

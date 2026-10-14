@@ -39,4 +39,12 @@ enum DashboardAccess {
   /// pendingReferrals) and the Thought-Exercise audit queue (AI
   /// invitation text from Siu Yan).
   bool get showsSingleArmSections => this == DashboardAccess.unblinded;
+
+  /// T34 — the safety-alert list (`pi_alerts`) and its 確認處理 button.
+  /// Only the unblinded researcher: the alert names the source
+  /// (AI reply scan exists in one arm only) and the companion, and the
+  /// blinded role (W4 assessors) must see nothing of it.  The rules
+  /// (`pi_alerts` read: `isUnblinded()`) and the `acknowledgeAlert`
+  /// callable enforce the same line server-side.
+  bool get showsSafetyAlerts => this == DashboardAccess.unblinded;
 }

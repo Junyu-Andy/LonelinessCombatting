@@ -217,14 +217,30 @@ const OUTCOME_COLLECTIONS = {
   loneliness_probes: ["score", "isoWeek", "answeredAt"],
 };
 
-// safety_events: only events raised by what the participant typed.  The
-// AI-output scan exists only in the Hybrid arm, so those rows (and the
-// `source` field, whose values differ by arm) never leave.
+// safety_events: only events raised by what the participant typed, and
+// (T34, registry C20) by a questionnaire answer — the in-App item or the
+// assessor's paper entry, which both arms can have.  The AI-output scan
+// exists only in the Hybrid arm, so those rows (and the raw `source`
+// field, whose codes differ by arm) never leave.  Each exported row
+// carries `sourceGroup` instead: participant_input / questionnaire /
+// assessor_entry (never ai_reply_scan here), so B12 can count per source.
 const SAFETY_USER_SOURCES = [
   "gateway_input", "m3_turn", "rule_turn", "user_input", "form",
 ];
+const SAFETY_QUESTIONNAIRE_SOURCES = ["questionnaire", "assessor_entry"];
+const SAFETY_EXPORT_SOURCES =
+  SAFETY_USER_SOURCES.concat(SAFETY_QUESTIONNAIRE_SOURCES);
+const SAFETY_SOURCE_GROUP = {
+  gateway_input: "participant_input", m3_turn: "participant_input",
+  rule_turn: "participant_input", user_input: "participant_input",
+  form: "participant_input", questionnaire: "questionnaire",
+  assessor_entry: "assessor_entry",
+};
 const SAFETY_FIELDS = [
   "level", "tier", "category", "lexiconVersion", "agentId", "createdAt",
+  // T34: questionnaire rows name the instrument and item (never the other
+  // answers); participant-input rows leave these empty.
+  "instrument", "item", "crisisPageShown",
 ];
 
 // Held back until unblinding.  Listed so the manifest says so explicitly.
@@ -386,17 +402,21 @@ async function buildBlindedExport(db, opts) {
   }
 
   let safetyDropped = 0;
+  const safetyBySource = {participant_input: 0, questionnaire: 0,
+    assessor_entry: 0};
   const safety = await db.collection("safety_events").get();
   for (const d of safety.docs) {
     const e = d.data();
     const researchId = ridByUid[e.uid];
     if (!researchId) continue; // not a blinded participant
-    if (SAFETY_USER_SOURCES.indexOf(e.source) < 0) {
+    if (SAFETY_EXPORT_SOURCES.indexOf(e.source) < 0) {
       safetyDropped++;
       continue;
     }
+    const sourceGroup = SAFETY_SOURCE_GROUP[e.source];
+    safetyBySource[sourceGroup]++;
     files.safety_events.push(Object.assign(
-        {researchId, groupCode: groupByUid[e.uid]},
+        {researchId, groupCode: groupByUid[e.uid], sourceGroup},
         pick(e, SAFETY_FIELDS)));
   }
 
@@ -408,6 +428,7 @@ async function buildBlindedExport(db, opts) {
     rowCounts,
     excludedParticipants: excluded,
     safetyEventsNotFromUserInput: safetyDropped,
+    safetyEventsBySource: safetyBySource,
     heldBackUntilUnblinding: opts.includeBriefPr ? HELD_BACK :
       HELD_BACK.concat(OPTIONAL_COLLECTIONS),
     note: "Group_X/Group_Y mapping is fixed for the trial; " +
@@ -445,7 +466,8 @@ module.exports = {
   CONFIG_DOC, STABLE_KEY_DOC, EXPORT_PREFIX, RID_PATTERN,
   ENROLLED_RID_PATTERN,
   OUTCOME_COLLECTIONS, OPTIONAL_COLLECTIONS, PARTICIPANT_FIELDS,
-  SAFETY_USER_SOURCES, HELD_BACK,
+  SAFETY_USER_SOURCES, SAFETY_QUESTIONNAIRE_SOURCES, SAFETY_EXPORT_SOURCES,
+  SAFETY_SOURCE_GROUP, SAFETY_FIELDS, HELD_BACK,
   readBlindingConfig, configFromSnap, newResearchId, planResearchIdTx,
   writeResearchIdTx, ensureResearchId, stableArmMapping,
   isBlindedParticipant, isoWeekHk, plain, buildBlindedExport,

@@ -8,6 +8,9 @@
 #   phase_b    — randomised build; your test account's arm decides A/B
 #   memory_v1  — Phase A + memory v1 opt-in (dev/testing only; the server
 #                kill switch meta/memory_config must also be on)
+#   phase_b_templates — the Phase B package for participants and internal
+#                testing (T36): PHASE_B plus the rule-arm template replies
+#                (RULE_TEMPLATE_REPLIES); no FORCE_ARM, no placeholder flag.
 #
 # Signed with the debug key: fine for testing, not for a store release.
 # Flutter is pinned to the team's version (.metadata: 3.35.3); newer
@@ -20,7 +23,7 @@ on:
       variant:
         description: Build variant
         type: choice
-        options: [phase_a, phase_b, memory_v1]
+        options: [phase_a, phase_b, memory_v1, phase_b_templates]
         default: phase_a
 
 jobs:
@@ -50,12 +53,16 @@ jobs:
             phase_a)   DEFINES="" ;;
             phase_b)   DEFINES="--dart-define=PHASE_B=true" ;;
             memory_v1) DEFINES="--dart-define=MEMORY_V1=true" ;;
+            phase_b_templates) DEFINES="--dart-define=PHASE_B=true --dart-define=RULE_TEMPLATE_REPLIES=true" ;;
           esac
           if [ -n "$TESTER_PIN" ]; then
             DEFINES="$DEFINES --dart-define=TESTER_PIN=$TESTER_PIN"
           else
             echo "::notice::TESTER_PIN secret not set — tester tools stay locked in this build."
           fi
+          # Printed so the run log shows which --dart-define flags went in
+          # (secrets such as TESTER_PIN are masked by GitHub).
+          echo "dart-defines: $DEFINES"
           flutter build apk --release $DEFINES
       # Branch names like claude/x contain "/", which artifact names forbid.
       - name: Artifact name
