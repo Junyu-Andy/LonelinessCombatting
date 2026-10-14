@@ -9,9 +9,9 @@
 ## 一、编号和顺序
 
 1. 登记表、T 编号、决策编号只由开发窗口改和分配（Junyu 10/11 定）。仓库会话不自行改登记表、不续编号；遇到要改的，写进报告的“要带回研究侧的发现”。
-2. 本批用掉：T35；决策 0036。下一个是 T36、决策 0037。
+2. 本批用掉：T35、T36；决策 0036。下一个是 T37、决策 0037。
 3. 数据收集 2026-10-19 开始（10/14 第 4 条）。按到期日排：
-   - 10/19 前：T21（PR #59）合并；T34；部署；打包。T25 是否赶 10/19 等 Junyu 定。
+   - 10/19 前：T21（PR #59）合并；T34；T36；部署；打包。T25 是否赶 10/19 等 Junyu 定。
    - 第一位参与者第 7 天前（最早 10/26）：T24。
    - 第一位参与者 W4 前（最早第 25 天，约 11/13）：T30。
    - 第一位参与者第 56 天前（约 12/14）：T35。T35 在 T24 合并后开。
@@ -137,6 +137,20 @@
 8. 开关关时一切和现在一样。
 
 输出：PR 草稿，加上 `docs/dev-reports/T35-w8-app-bundle-YYYYMMDD.md`，附流程每一屏的截图和第 6 节第 1 条的日期表。
+
+---
+
+## T36 Build APK 加“Phase B 正式包”选项（分支 `chore/apk-phase-b-templates`，SPEC:C01、C02；现在可以开）
+
+依据：数据收集 10/19 开始，要重新打包（10/14 第 4 条）；规则组模板要编进包里（登记表 C02，T33）。现在的 Build APK 工作流打不开编译开关 `RULE_TEMPLATE_REPLIES`（`docs/dev-reports/prep-internal-test-20261013.md` 第四节、附录 A）。
+
+1. `.github/workflows/build-apk.yml` 的选项加 `phase_b_templates`：`--dart-define=PHASE_B=true --dart-define=RULE_TEMPLATE_REPLIES=true`。不带 `FORCE_ARM`，不带 `RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER`。
+2. 文件开头的说明和 `docs/dev/ci-cd.md` 各加一句：这是给参与者和内部测试用的 Phase B 包。
+3. 只改手动打包，不改 CI、不改部署工作流。
+4. 签名：不在本任务里换正式密钥；报告写明现在用调试密钥、换正式密钥要做的步骤和对已装 App 的影响，交 Junyu 定。
+5. 测试：在分支上手动跑一次 Build APK（`phase_b_templates`），记下运行编号和产物名；核对运行日志里有这两个 `--dart-define`，没有 `FORCE_ARM`。
+
+输出：PR 草稿，加上 `docs/dev-reports/T36-apk-phase-b-templates-YYYYMMDD.md`。
 
 ---
 
