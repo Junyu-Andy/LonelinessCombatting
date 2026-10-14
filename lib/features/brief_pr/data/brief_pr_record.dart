@@ -34,6 +34,11 @@ class BriefPrDueNotInvitedReason {
   BriefPrDueNotInvitedReason._();
   static const crisis = 'crisis';
   static const systemError = 'system_error';
+
+  /// 10/14 fix: the catch-up card (S10b) would need a time phrase the copy
+  /// spec does not provide yet (only 今朝 / 尋晚 / 星期X 下晝 are final), so
+  /// the elder is not asked rather than shown a 【占位】 draft.
+  static const copyPending = 'copy_pending';
 }
 
 /// `inviteChannel` values: the card on the companion list page right after

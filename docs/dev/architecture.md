@@ -2,6 +2,7 @@
 
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T25 会话定义和 Brief PR 第二版（第 6 节，开关默认关）。2026-10-14 T24 研究周和每周问卷流程（第 6.2 节、第 8、9 节；开关 `app_config/phase_b.weeklyScheduleV2Enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 补 T34 安全告警邮件（开关 `meta/alert_config.enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）；2026-10-14 T30 角色含义、评估员视图、Calvin 上传序列、过程/结局数据分开、锁库导出（第 4 节「角色」、第 8、9、12 节；PR 草稿，七个开关默认关）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T27 语音改走服务器 STT v2（`transcribeAudio`，只用 asia-southeast1 / chirp_2，重试 1 次，失败显示 S6 并记 `voice_transcription_failed`；开关 `voiceInputEnabled` 仍默认关；PR 草稿）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）；2026-10-14 T32 第 6 条：旧测试员数据批量清理脚本 `tool/purge_tester_data.js` 和服务器专用的运行记录 `admin_runs`（第 8 节“删除”；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
@@ -109,7 +110,17 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 - 分组还没拿到（`arm` 为空）时 App 显示 B 组界面（决策 0004），下次登录自动重试。登记前的这段时间服务器不拒绝 LLM（App 不会调用），见决策 0029。T21 的登记门打开后，这段时间改为只显示等待页，服务器也拒绝（见上）。
 - 序列、指针、登记记录、分配日志、试跑日志 `pilot_assignment_log`、`meta/randomization_config`、`meta/arm_counter`：客户端（老人、盲法、非盲人员）一律不能读写。
 
-**角色**（Auth custom claims，`tool/provision_researcher.js`，T19 改名）：`unblinded` = 非盲研究员（Keran）：登记、看组别、读研究编号对照表、后台看两组人数、生成和上传序列。`blinded` = 盲法人员，包括 PI（Junyu，盲法评估者）：后台不显示两组人数和只有一组才有的板块，只用盲法导出。旧名字 `pi`、`researcher` 不再有任何权限。
+**角色**（Auth custom claims，`tool/provision_researcher.js`；T30 按 10/14 分工重定，决策草稿在 T30 报告第 9 节）：
+
+| 角色 | 给谁 | 能做什么 |
+|---|---|---|
+| `unblinded` | Junyu | 登记、看组别、读研究编号对照表、安全告警、后台两组人数和单组板块、过程数据导出、全体合并完成率。**不生成、不看序列**（规则不让任何客户端读序列；上传函数只认 `sequence_uploader`） |
+| `blinded` | W4 结局评估员 Keran、后备 Mingyan Wang | 只有评估员视图：登录直接进 W4 到期名单和纸本 DJG-ES 录入（`lib/features/assessor/`），在登记门和同意页之前，不收参与者推送（`FcmService.suppressForStaff`）。规则里**零读权限**，名单和录入都走函数 `assessorDueList` / `submitOutcomeEntry`（`functions/assessor.js`），只回研究编号、窗口、第几天、录没录、超没超窗；分数服务器算，存 `outcome_entries`，评估员看不到。开关 `app_config/feature_flags.assessorViewEnabled`（默认关，关时 `blinded` 进普通 App） |
+| `sequence_uploader` | Calvin | 在自己电脑生成序列（`tool/randomization_sequence.js`），用自己的登录调 `uploadRandomizationSequence`（`functions/sequence_upload.js`）上传；规则里零读权限。开关 `meta/randomization_config.sequenceUploadEnabled`（默认关）；两层任何一层已有人分配就拒绝；每次写 `sequence_upload_log`（长度、指纹、账号；没有组别、没有种子） |
+
+旧名字 `pi`、`researcher` 不再有任何权限。
+
+**结局数据和过程数据（T30）**：锁库前 `unblinded` 看不到任何结局数值：`outcome_entries`、`outcome_entry_corrections`、`weekly_status`（`w4VisitDate` 给 T24）、`allocation_records`、`pairing_change_log`、`meta/data_lock`、三个导出日志都只有服务器能读写；后台只给全体合并完成率（`outcomeCompletionSummary`，少于 5 人不显示，开关 `outcomeCompletionSummaryEnabled`）。过程数据（Brief PR、Weekly PR、使用量、会话层、安全事件带来源）按研究编号 + 真实组别导到 Storage `exports_process/{日期}/`（`functions/process_export.js`，开关 `meta/blinding_config.processExportEnabled`）；`outcomeExportPaused` 开后不再写 `exports_v2`。锁库和分析导出：`tool/analysis_export.js`（`--lock` 写 `meta/data_lock`，二次确认；没锁拒绝导出；`--synthetic` 生成同表同列的 72 人合成数据）。更正评估员录入：`tool/correct_outcome_entry.js`（理由 + `outcome_entry_corrections`）。整人删除加 `--allocation-record`：保留 `allocation_records/{研究编号}` 一行（无 uid、姓名、联系方式），删掉带 uid 的分配日志行。配对改动：`onUserPairingChanged` 在开关 `pairingChangeServerLogEnabled` 开时写 `pairing_change_log`（登记值 `enrollments.companionVariant` 不动）。
 
 **给 PI 的告警**（T19）：`pi_alerts` 和发给 `PI_EMAIL` 的邮件不再带 `source`、`inputPoint`、`agentId`（这些值有的只有一组才有），只带研究编号、级别、时间、告警编号；两组完全相同，每条 acute 事件照旧告警（`functions/pi_alert.js`）。
 
@@ -280,6 +291,10 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `llm_calls` | 每次调用 DeepSeek 一条：时间、调用类型、agent、uid、请求和返回的模型名、`system_fingerprint`、token 数（含思考 token）、HTTP 状态码、延迟、是否出错。不存原文。只有服务器写，App 不能读写（决策 0016） |
 | `export_blind_keys` | 盲法导出时组别 → Group_X / Group_Y 的对照。新版用固定的 `stable_v2`，不再每周换 |
 | `research_id_map/{uid}`、`research_ids/{researchId}` | 研究编号对照表（决策 0021）。T19 起 Phase B 的编号是登记时研究员输入的（`via: "enrollment"`）。只有服务器写，只有非盲角色（`role: unblinded`）能读 |
+| `meta/blinding_config` | 盲法开关：`enabled`、`includeBriefPr`、`includeUsageSummary`；T30 加 `processExportEnabled`（过程数据周导出）、`outcomeExportPaused`（锁库前停 `exports_v2`）。都默认 false。客户端不能读写 |
+| `outcome_entries`、`outcome_entry_corrections` | T30 评估员录入的 W4 纸本结局（研究编号、uid、问卷、时间点、施测日期、方式、评估员、原始答案、缺答、分数、超窗）和更正日志。只有服务器能读写；评估员经函数录入，看不到分数 |
+| `weekly_status/{uid}` | T30：`w4VisitDate`（W4 施测日期，给 T24 关第 4 周）、`w4EntryAt`、`w4EntryInstrument`。只有服务器 |
+| `sequence_upload_log`、`pairing_change_log`、`allocation_records/{研究编号}`、`meta/data_lock`、`analysis_export_log`、`process_export_log` | T30：Calvin 的序列上传日志（无种子、无组别）；阿珍/阿伯改动日志；整人删除后保留的一行分配记录；锁库记录；分析导出和过程导出的运行日志。都只有服务器 |
 | `meta/blinding_config` | 盲法开关：`enabled`、`includeBriefPr`、`includeUsageSummary`，都默认 false。客户端不能读写 |
 | `admin_runs` | 管理脚本的运行记录（T32）：`tool/purge_tester_data.js` 带 `--confirm` 跑完写一条——模式、时间、操作者、每个账号的 uid / 类别 / 删除是否复查通过、保留了谁和原因。只有数量，不存字段值、不存原话、不存电邮。`firestore.rules` 没有这个集合的规则 = 客户端不能读写，只有服务器（Admin SDK）能写 |
 
@@ -294,6 +309,10 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `proxyDeepSeek` | App 调用 | 所有 LLM 对话；拼 prompt 和记忆 |
 | `assignArm` | App 调用（注册、登录补分） | 返回已有组别；`meta/randomization_config.enabled` 关着时给 Phase A / pilot 分 A 组，开着时不分（T19） |
 | `enrollParticipant` | 研究员登记页调用 | T19：只有 `role: unblinded` 能用。登记并按置换区组序列分组（`functions/randomization.js`）；试运行只核对账号，不显示组别；重复提交返回原组别 |
+| `uploadRandomizationSequence` | Calvin 的脚本调用 | T30：只有 `role: sequence_uploader`，开关 `meta/randomization_config.sequenceUploadEnabled`；校验两层序列、没人分配才写；记 `sequence_upload_log` |
+| `assessorDueList`、`submitOutcomeEntry` | 评估员视图调用 | T30：只有 `role: blinded`，开关 `assessorViewEnabled`；W4 到期名单（第 25–31 天）和纸本录入；分数服务器算；PHQ-9 第 9 题 ≠ 0 调 `questionnaire_safety.js`；写 `weekly_status.w4VisitDate` |
+| `outcomeCompletionSummary` | 研究员后台调用 | T30：只有 `role: unblinded`，开关 `outcomeCompletionSummaryEnabled`；每份结局问卷按时间点全体合并完成率，少于 5 人不给数字 |
+| `onUserPairingChanged` | `users/{uid}` 写入 | T30：配对字段变了且 `pairingChangeServerLogEnabled` 开时写 `pairing_change_log` |
 | `memoryEndSession` | App 调用（离开聊天页） | v1：整理这次对话的记忆 |
 | `memorySweep` | 每 15 分钟 | v1：补整理 30 分钟没有新消息的对话 |
 | `memoryFactDeleted`、`memoryFollowupDeleted` | 删除一条记忆事实或跟进时 | v1：连带删除来源会话的摘要和同样措辞的条目（T10） |
@@ -307,7 +326,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `escalateAlerts` | 每 15 分钟（asia-east2） | T34：开关开时，把发信后超过 `escalateAfterHours`（默认 12）小时没人确认、还没转过的告警，用同一封邮件再发给 `backupEmail`，每条只转一次（事务认领），写 `escalatedAt`、`escalatedTo` 和日志。关时什么都不做 |
 | `onThoughtExerciseCreated` | 新思维练习 | 写入研究员审计队列 `te_audit_queue` |
 | `weeklyLonelinessProbe` | 每周日 9:00（香港时间，下同） | 生成周度孤独感问卷队列（App 端默认不显示） |
-| `blindedDataExport` | 每周日 2:00 | 盲法数据导出。`meta/blinding_config.enabled` 开：新版（`functions/blinding.js`，研究编号、结局量表白名单，含 W2 DJG `djg_responses`，不含旧 `agent_diff`），写到 `exports_v2/{日期}/`，可用 `tool/check_blinded_export.js` 检查；关：旧版 `exports/{日期}/` |
+| `blindedDataExport` | 每周日 2:00 | 盲法数据导出。`meta/blinding_config.enabled` 开：新版（`functions/blinding.js`，研究编号、结局量表白名单，含 W2 DJG `djg_responses`，不含旧 `agent_diff`），写到 `exports_v2/{日期}/`，可用 `tool/check_blinded_export.js` 检查；关：旧版 `exports/{日期}/`。T30：`processExportEnabled` 开时同一次运行先写过程数据导出 `exports_process/{日期}/`（`functions/process_export.js`）；`outcomeExportPaused` 开时不写 `exports_v2` / `exports` |
 | `dailyMoodReminder` | 周一至六 19:00 | 每日情绪提醒 |
 | `weeklySurveyReminder` | 周日 20:00 | 周问卷提醒。T24：`weeklyScheduleV2Enabled` 开时不再广播，按人发给不在研究周排程里的账号（第 6.2 节）；关时照旧广播 |
 | `week2Push` | 每天 10:00 | 第二周推送（Phase A 的 DJG + 陪伴者比较）。`djgW2InAppEnabled` 开时跳过 Phase B 参与者，由 `djgW2Dispatch` 推 |
@@ -368,7 +387,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `--dart-define=LEGACY_AGENT_DIFF_PHASE_B=true` | Phase B 包里恢复旧的“陪伴者区分评估”（第 6.1 节）。默认关（登记表 v2 C15） |
 
 运行时开关（不用重新编译）：`app_config/phase_a` 的 `safetyScanAllInputs`（新增输入点的安全检测）、`hotlineFilterClient`（App 端号码过滤），默认都开；服务器的 `meta/safety_config` 见第 8 节。
-**运行时开关**（不用重新打包）：Firestore `app_config/feature_flags`，研究侧在控制台改。字段必须是布尔值 `true` 才算开；没有文档、读不到都算关。App 启动时读一次（老人重开 App 才生效），服务器每次调用都读（决策 0019）。
+**运行时开关**（不用重新打包）：Firestore `app_config/feature_flags`，研究侧在控制台改。字段必须是布尔值 `true` 才算开；没有文档、读不到都算关。App 启动时读一次，**登录成功后再读一次**（10/14 修复：启动时还没登录，规则不让读 `app_config`，以前新注册的账号要完全关掉 App 再开才生效），之后老人重开 App 才生效；服务器每次调用都读（决策 0019）。
 
 | 字段 | 默认 | 作用 |
 |---|---|---|
@@ -378,6 +397,9 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `replyFeedbackEnabled` | 关 | 10/14：`PHASE_B=true` 的包里，聊天回复旁的点赞点踩（`ThumbsFeedback`）两组都隐藏；设为 `true` 才显示。Phase A 包不受影响 |
 | `week1NudgeEnabled` | 关 | 10/14：`PHASE_B=true` 的包里，首页第一周提示「你仲未同 X 傾過」（Phase A 的第 3、6 天提示，`week1_nudge_banner.dart`）隐藏；设为 `true` 才显示 |
 | `enrollmentGateEnabled` | 关 | T21 登记门：没登记、不是测试账号的人只看到等待页 S8；服务器拒绝它的 LLM 调用和研究数据写入（第 4 节）。服务器最多 1 分钟后生效；Firestore 规则立即生效 |
+| `assessorViewEnabled` | 关 | T30：`blinded` 账号登录直接进评估员视图（W4 名单和纸本录入）；服务器函数 `assessorDueList` / `submitOutcomeEntry` 才接受调用 |
+| `outcomeCompletionSummaryEnabled` | 关 | T30：研究员后台（`unblinded`）「結局問卷完成率（全體合併）」一节；少于 5 人不显示 |
+| `pairingChangeServerLogEnabled` | 关 | T30：阿珍/阿伯改动由服务器写 `pairing_change_log` |
 | `onboardingAfterEnrollmentFix` | 关 | T37：「介紹三個夥伴」要不要做改为看标记 `users/{uid}.onboardingCompletedAt`（第 4 节末）；先登记后引导时不再跳过；改配对记 `events`。建议第一位参与者登记前打开 |
 
 > ⚠️ **重要功能：HREC 批准 STT 后开启 `voiceInputEnabled`。** T27 起不再有系统云端识别的选项：录音一律经研究服务器送 Google STT v2（asia-southeast1）。开之前在 Google Cloud 控制台核对 Speech-to-Text 的 data logging 没开（步骤见 `docs/dev-reports/T27-stt-server-20261014.md` 第 6 节）。打开属于行为改动，要在 `docs/STUDY_CHANGELOG.md` 写明生效日期和组别。

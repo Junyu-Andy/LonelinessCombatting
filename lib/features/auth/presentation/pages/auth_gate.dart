@@ -1,5 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/config/phase_a_config.dart';
+import '../../../../core/config/phase_b_config.dart';
+import '../../../../core/config/usage_copy_loader.dart';
+import '../../../../core/feature_flags/feature_flags.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
+
+import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../app/main_shell.dart';
 import '../../../../shared/widgets/app_loading_indicator.dart';
@@ -25,11 +34,17 @@ class AuthGate extends StatefulWidget {
   /// rotation). Used by [MyApp] to wire FCM token registration.
   final Future<void> Function(String? uid)? onAuthUidChanged;
 
+  /// T30: called when the signed-in account is research staff (the
+  /// registering researcher or a W4 assessor) and is routed to a staff
+  /// page.  [MyApp] uses it to keep participant pushes off that device.
+  final Future<void> Function(String uid)? onStaffRoute;
+
   const AuthGate({
     super.key,
     required this.authService,
     required this.analytics,
     this.onAuthUidChanged,
+    this.onStaffRoute,
   });
 
   @override
@@ -74,6 +89,17 @@ class _AuthGateState extends State<AuthGate> {
             } else if (profile == null && previous != null) {
               await widget.analytics.logAuth('signed_out');
             }
+            // 10/14 fix: the startup reads of app_config/* run before anyone
+            // is signed in, and the rules allow them only when signed in, so
+            // on a fresh install every switch sat at its default until the
+            // App was killed and reopened. Re-read once the account is known
+            // and rebuild so the gates (enrolment gate, onboarding fix, …)
+            // see the real values.
+            if (profile != null) {
+              await _reloadRemoteConfig();
+              await _syncQuietHours(profile.uid, settings);
+              if (mounted) setState(() {});
+            }
           }
         });
         if (profile == null) {
@@ -83,9 +109,12 @@ class _AuthGateState extends State<AuthGate> {
         // page; everyone else gets the participant App.  T21: with the
         // enrolment gate on, an unregistered participant (not a tester)
         // sees only the waiting page S8 — before consent and intake.
+        // T30: a `blinded` assessor account opens the assessor view here,
+        // before the enrolment gate, so it is never held on S8.
         return StaffGate(
           uid: profile.uid,
           onSignOut: widget.authService.signOut,
+          onStaffRoute: widget.onStaffRoute,
           child: EnrollmentWaitGate(
             profile: profile,
             child: const ConsentGate(child: MainShell()),
@@ -93,6 +122,40 @@ class _AuthGateState extends State<AuthGate> {
         );
       },
     );
+  }
+}
+
+/// Re-read every remote config document the App loaded at startup.
+Future<void> _reloadRemoteConfig() async {
+  try {
+    await Future.wait<Object?>([
+      PhaseAConfig.load(),
+      RemoteFeatureFlags.load(),
+      UsageCopyLoader.load(),
+      PhaseBConfig.load(available: FeatureFlags.phaseB),
+    ]);
+  } catch (e) {
+    if (kDebugMode) debugPrint('[AuthGate] remote config reload failed: $e');
+  }
+}
+
+/// 10/14 fix: keep 「安靜時段」 on the phone and on the server in step.
+/// The server value wins when it exists (a reinstall or a second phone
+/// picks up the elder's earlier choice); when it is missing, the local
+/// value is written so the push senders see the same thing the page shows.
+Future<void> _syncQuietHours(String uid, AppSettings settings) async {
+  try {
+    final ref = FirebaseFirestore.instance.collection('users').doc(uid);
+    final snap = await ref.get();
+    final remote = snap.data()?['quietHoursEnabled'];
+    if (remote is bool) {
+      if (settings.quietHours != remote) settings.quietHours = remote;
+    } else {
+      await ref.set({'quietHoursEnabled': settings.quietHours},
+          SetOptions(merge: true));
+    }
+  } catch (e) {
+    if (kDebugMode) debugPrint('[AuthGate] quiet hours sync failed: $e');
   }
 }
 

@@ -11,6 +11,19 @@
 - **定了**：试跑一轮 3 人（PILOT-01、02 Hybrid，03 规则组）10/15 做 W0，按正式配置跑完整 8 周；W8 问卷 13 题加可跳过的 AIMHS，试跑也推；第 63 天后推 debrief，约第 70 天停服；记忆不能整个关闭；告警急性即时、中级每日汇总、低级只记录；运营看板和使用事件记录（回访用）。
 - 登记表 v10（C01、C05、C12、C15、C19、C20，新增 C23 使用事件记录）。任务单 `dev-tasks-1014c.md`（产品窗口原文，N1–N5 换成正式编号）和 `dev-tasks-1014d.md`。编号：T38 停服、T39 运营看板、T40 使用事件、T41 每日汇总告警、T42 debrief、T43 试跑核对、T44（#68 补号）、T45（#65 补号）、T46 收尾说明只显示一次。决策 0036 预留给 T35，下一个 0040。
 
+## 2026-10-14 负责人核对后的四个修复（PR 草稿，分支 `fix/flags-after-login-and-guards`）
+
+- 负责人核实：新装 App 第一次注册/登录后控制台开关不生效（启动时读开关、那时没登录、规则拒绝、之后不再读）。登记门开着时后果是老人直接进同意页、问卷答案被悄悄拒绝。修法：登录后再读一次开关并重建门（`auth_gate.dart`）。
+- 顺带修：T34 第一封告警发不出去时下一次巡检直接转后备（`primaryFailedAt`）；T25 补问卡没有定稿时间说法时不显示【占位】、记 `due_not_invited: copy_pending`；「安靜時段」登录后和服务器对齐。`isTester` 客户端可写维持待办 96。编号待开发窗口分配。报告：`docs/dev-reports/fixes-after-review-20261014.md`。
+## 2026-10-14 T30 角色、评估员视图、序列上传、过程/结局数据、锁库导出（PR 草稿，分支 `fix/roles-exports`）
+
+- 角色按 10/14 分工：`unblinded` = Junyu、`blinded` = W4 评估员（Keran、Mingyan Wang）、新 `sequence_uploader` = Calvin。`tool/provision_researcher.js` 加 `--list`。
+- 评估员视图（`lib/features/assessor/`，`functions/assessor.js`）：`blinded` 登录直接进 W4 到期名单和纸本 DJG-ES 录入；规则里 `blinded` 零读权限，全走函数；分数服务器算，存 `outcome_entries`，更正用 `tool/correct_outcome_entry.js`；PHQ-9 第 9 题走 T34 入口。规格文件 `docs/spec/instruments/djg_es.md`。
+- 序列上传改为 Calvin 自己的登录调 `uploadRandomizationSequence`（`functions/sequence_upload.js`），上传记日志；`tool/randomization_sequence.js` 不再用服务账号。
+- 过程数据导出 `functions/process_export.js`（含 T25 的 Brief PR v3、`validSessionCount`），`exports_v2` 可暂停；后台全体合并完成率（n<5 不显示）。
+- 删除可保留一行分配记录（`allocation_records`）；配对改动服务器日志 `pairing_change_log`；`tool/analysis_export.js` 锁库 + 导出 + 合成数据。
+- 七个开关全部默认关。报告：`docs/dev-reports/T30-roles-exports-20261014.md`（含三份决策草稿、架构观察）。
+
 ## 2026-10-14 T24 研究周和每周问卷（PR 草稿，分支 `feat/weekly-schedule`）
 
 - 做了什么：研究周换算函数（服务器 `functions/study_week.js`、App `lib/core/scheduling/study_week.dart`，同一张测试表 `test/fixtures/study_week_table.json`）；每周问卷按研究周排程（`functions/weekly_schedule.js`、`lib/core/scheduling/weekly_schedule.dart`，同一张表 `test/fixtures/weekly_schedule_table.json`）；一个流程四部分（`lib/features/weekly_bundle/`）；按人推送、提醒、记缺失的定时函数 `weeklyBundleDispatch`；记录的研究周字段只由服务器写（触发器 + 规则）；`brief_pr` 按会话结束时间补周次（`onBriefPrWritten`）；社会接触探针 S12（`social_contact_probes`）。T34 的 `pi_alert.js` 改用共享函数。

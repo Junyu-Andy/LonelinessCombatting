@@ -1,0 +1,229 @@
+/**
+ * T30 (registry C19 / C20; dev-tasks-1010 §四 T30 §4) — process data vs
+ * outcome data before the data lock.
+ *
+ * Process-data export, for the unblinded researcher (Junyu): Brief PR,
+ * Weekly PR, usage, session-level data and safety events with their
+ * source, every row with the research ID and the REAL arm.  Written to
+ * Cloud Storage under exports_process/{dateKey}/ — a prefix only the
+ * server and the `unblinded` role read (storage rules are not in this
+ * repo; the T30 report lists the console steps).  Never here: an outcome
+ * value — the assessor's W4 entries (`outcome_entries`), the in-App DJG
+ * (`djg_responses`, `djg_es`), PGIC, the loneliness / social-contact
+ * probes, daily mood — and never conversation text.
+ *
+ * Switches (meta/blinding_config, server only):
+ *   processExportEnabled   default false — write the process export in
+ *                          the weekly blindedDataExport run.
+ *   outcomeExportPaused    default false — stop writing exports_v2 (the
+ *                          outcome-value export) until the data lock; the
+ *                          code stays for tool/analysis_export.js.
+ *
+ * Fields follow the allowlists below; a field not listed is not exported
+ * (same principle as functions/blinding.js).  T25 (PR #67) Brief PR v3
+ * fields and sessions.isValid / usage_weekly.validSessionCount are in.
+ */
+
+"use strict";
+
+const blinding = require("./blinding");
+
+const EXPORT_PREFIX = "exports_process";
+const EXPORT_VERSION = 1;
+const LOG_COLLECTION = "process_export_log";
+
+// users/{uid}/<collection> → exported fields.  No text, no refs.
+const PROCESS_COLLECTIONS = {
+  brief_pr: [
+    // T25 (schemaVersion 3) and the older popup rows (2) share these.
+    "schemaVersion", "scheduleVersion", "sessionId", "agentId",
+    "sessionType", "endReason", "sessionEndedAt", "lastReplyAt",
+    "invitedAt", "invitedDayKey", "inviteChannel", "everShown", "shownAt",
+    "ratedAt", "finalStatus", "dueNotInvitedReason",
+    "understanding", "validation", "caring", "insensitivity",
+    "isAnchorPrompt", "status", "promptedAt", "respondedAt",
+    "studyWeek", "studyDay",
+  ],
+  weekly_pr: [
+    "weekIso", "agentId", "items", "status", "promptedAt", "respondedAt",
+    "sessionCountThisWeek", "referentRule", "studyWeek", "studyDay",
+  ],
+  sessions: [
+    "sessionId", "agentId", "moduleId", "theme", "startedAt", "endedAt",
+    "endReason", "userTurnCount", "fallbackCount", "lastActivityAt",
+    "scheduleVersion", "sessionType", "userMessageCount", "replyCount",
+    "lastReplyAt", "isValid", "moodRecorded", "summarySaved",
+    "isRuleSubmission", "ruleSubmissionCompleted",
+    "briefPrInvitedTodayAlready", "briefPrSkippedByCap", "briefPrInvited",
+    "briefPrStatus",
+  ],
+};
+
+// safety_events: every source (the unblinded researcher may see the AI
+// reply scan), plus the T34 analysis bucket; never the text hash's
+// origin, the matched term or the wording.
+const SAFETY_FIELDS = [
+  "source", "level", "tier", "category", "lexiconVersion", "agentId",
+  "inputPoint", "createdAt", "instrument", "item", "crisisPageShown",
+  "isDuplicate", "escalatedBy",
+];
+
+const SOURCE_GROUP = {
+  user_input: "participant_input", form: "participant_input",
+  gateway_input: "participant_input", rule_turn: "participant_input",
+  m3_turn: "participant_input", ai_output_scan: "ai_reply_scan",
+  gateway_output: "ai_reply_scan", questionnaire: "questionnaire",
+  assessor_entry: "assessor_entry",
+};
+
+/** Outcome collections that must never appear in this export. */
+const OUTCOME_COLLECTIONS = [
+  "outcome_entries", "djg_responses", "djg_es", "pgic", "loneliness_probes",
+  "daily_mood", "ucla3_responses",
+];
+
+/**
+ * @param {?object} snap meta/blinding_config
+ * @return {{processExportEnabled: boolean, outcomeExportPaused: boolean}}
+ */
+function switchesFromSnap(snap) {
+  const d = (snap && snap.exists && snap.data()) || {};
+  return {
+    processExportEnabled: d.processExportEnabled === true,
+    outcomeExportPaused: d.outcomeExportPaused === true,
+  };
+}
+
+/**
+ * Build the process export in memory.  Phase B participants only (cohort
+ * phase_b, not testers), research ID instead of uid, real arm.
+ * @param {object} db admin.firestore()
+ * @param {{dateKey: string}} opts
+ * @return {Promise<{files: Object<string, Array<object>>, manifest: object}>}
+ */
+async function buildProcessExport(db, opts) {
+  const files = {participants: [], usage_weekly: [], safety_events: []};
+  for (const name of Object.keys(PROCESS_COLLECTIONS)) files[name] = [];
+  const ridByUid = {};
+  const armByUid = {};
+  const excluded = {notPhaseB: 0, tester: 0};
+
+  const users = await db.collection("users").get();
+  for (const userDoc of users.docs) {
+    const u = userDoc.data();
+    if (!blinding.isBlindedParticipant(u)) {
+      if (u.isTester === true) excluded.tester++;
+      else excluded.notPhaseB++;
+      continue;
+    }
+    const map = await db.collection("research_id_map").doc(userDoc.id).get();
+    const researchId = map.exists ? map.get("researchId") : null;
+    if (!researchId) continue; // not registered through enrollParticipant
+    ridByUid[userDoc.id] = researchId;
+    armByUid[userDoc.id] = u.arm;
+    files.participants.push({researchId, arm: u.arm,
+      strataCell: u.strataCell == null ? null : u.strataCell,
+      w0Date: u.w0Date || null,
+      cohort: u.cohort || null});
+
+    for (const name of Object.keys(PROCESS_COLLECTIONS)) {
+      const sub = await userDoc.ref.collection(name).get();
+      for (const d of sub.docs) {
+        files[name].push(Object.assign({researchId, arm: u.arm},
+            blinding.pick(d.data(), PROCESS_COLLECTIONS[name])));
+      }
+    }
+    // Usage per ISO week: sessions, valid sessions (T25), active days.
+    const byWeek = {};
+    for (const s of files.sessions.filter((r) => r.researchId === researchId)) {
+      if (typeof s.startedAt !== "string") continue;
+      const at = new Date(s.startedAt);
+      const week = blinding.isoWeekHk(at);
+      const day = new Date(at.getTime() + 8 * 3600 * 1000).toISOString()
+          .slice(0, 10);
+      if (!byWeek[week]) byWeek[week] = {sessions: 0, valid: 0, days: {}};
+      byWeek[week].sessions++;
+      if (s.isValid === true) byWeek[week].valid++;
+      byWeek[week].days[day] = true;
+    }
+    for (const week of Object.keys(byWeek).sort()) {
+      files.usage_weekly.push({researchId, arm: u.arm, isoWeek: week,
+        sessionCount: byWeek[week].sessions,
+        validSessionCount: byWeek[week].valid,
+        activeDays: Object.keys(byWeek[week].days).length});
+    }
+  }
+
+  const safety = await db.collection("safety_events").get();
+  for (const d of safety.docs) {
+    const e = d.data();
+    const researchId = ridByUid[e.uid];
+    if (!researchId) continue;
+    files.safety_events.push(Object.assign(
+        {researchId, arm: armByUid[e.uid],
+          sourceGroup: SOURCE_GROUP[e.source] || "other"},
+        blinding.pick(e, SAFETY_FIELDS)));
+  }
+
+  const rowCounts = {};
+  for (const name of Object.keys(files)) rowCounts[name] = files[name].length;
+  return {files, manifest: {
+    exportVersion: EXPORT_VERSION, kind: "process", dateKey: opts.dateKey,
+    rowCounts, excludedParticipants: excluded,
+    neverHere: OUTCOME_COLLECTIONS.concat(["turns", "conversation text"]),
+    note: "Process data for the unblinded researcher: research ID and " +
+      "real arm; no outcome values before the data lock.",
+  }};
+}
+
+/**
+ * Write to Cloud Storage under exports_process/{dateKey}/.
+ * @param {object} bucket
+ * @param {{files: object, manifest: object}} built
+ * @param {string} dateKey
+ * @return {Promise<number>} files written
+ */
+async function writeProcessExport(bucket, built, dateKey) {
+  const writes = [];
+  for (const name of Object.keys(built.files)) {
+    const rows = built.files[name];
+    if (rows.length === 0) continue;
+    writes.push(bucket.file(`${EXPORT_PREFIX}/${dateKey}/${name}.ndjson`)
+        .save(rows.map((r) => JSON.stringify(r)).join("\n"), {
+          resumable: false, contentType: "application/x-ndjson",
+        }));
+  }
+  writes.push(bucket.file(`${EXPORT_PREFIX}/${dateKey}/manifest.json`)
+      .save(JSON.stringify(built.manifest, null, 2), {
+        resumable: false, contentType: "application/json",
+      }));
+  await Promise.all(writes);
+  return writes.length;
+}
+
+/**
+ * Does any row carry an outcome value or text?  Used by the tests and by
+ * the export itself as a last check (throws).
+ * @param {{files: object}} built
+ * @return {Array<string>} offending "file.field" names
+ */
+function leakCheck(built) {
+  const bad = [];
+  const forbidden = new RegExp("^(text|message|content|reply|prompt|quote|" +
+    "summary|value|score|scores|answers|mood|matchedTerm|snippet)$", "i");
+  for (const name of Object.keys(built.files)) {
+    if (OUTCOME_COLLECTIONS.indexOf(name) >= 0) bad.push(name);
+    for (const row of built.files[name]) {
+      for (const k of Object.keys(row)) {
+        if (forbidden.test(k)) bad.push(`${name}.${k}`);
+      }
+    }
+  }
+  return Array.from(new Set(bad));
+}
+
+module.exports = {
+  EXPORT_PREFIX, EXPORT_VERSION, LOG_COLLECTION, PROCESS_COLLECTIONS,
+  SAFETY_FIELDS, SOURCE_GROUP, OUTCOME_COLLECTIONS, switchesFromSnap,
+  buildProcessExport, writeProcessExport, leakCheck,
+};

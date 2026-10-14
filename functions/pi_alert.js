@@ -672,6 +672,39 @@ function toDate(v) {
  * @return {Promise<{skipped: ?string, due: number, escalated: number,
  *     noBackup: number, failed: number}>}
  */
+/**
+ * 10/14 fix — the patch written on a pi_alerts row when the primary e-mail
+ * could not go out (no recipient after the role check, or an SMTP error):
+ * the row is queued for the backup at once, so escalateDue() sends it at
+ * the next sweep instead of after escalateAfterHours.
+ * @param {*} stamp server timestamp sentinel
+ * @param {string} reason "no_recipients" | "email_failed"
+ * @return {object}
+ */
+function primaryFailedPatch(stamp, reason) {
+  return {
+    primaryFailedAt: stamp,
+    primaryFailedReason: reason,
+    escalationPending: true,
+  };
+}
+
+/**
+ * Is this pending row due for the backup?  Normally: the primary e-mail
+ * went out before `cutoff`.  When the primary never went out
+ * (`primaryFailedAt` set), it is due immediately.
+ * @param {object} d alert row data
+ * @param {number} cutoff ms since epoch
+ * @return {boolean}
+ */
+function escalationDue(d, cutoff) {
+  if (d.acknowledgedAt || d.escalatedAt || d.isTester === true) return false;
+  if (d.escalationPending !== true) return false;
+  if (d.primaryFailedAt) return true;
+  const sentAt = toDate(d.emailSentAt);
+  return !!sentAt && sentAt.getTime() <= cutoff;
+}
+
 async function escalateDue(db, deps) {
   const out = {skipped: null, due: 0, escalated: 0, noBackup: 0, failed: 0};
   const cfg = deps.config || await readAlertConfig(db);
@@ -685,9 +718,7 @@ async function escalateDue(db, deps) {
       .where("escalationPending", "==", true).get();
   for (const doc of pending.docs) {
     const d = doc.data() || {};
-    const sentAt = toDate(d.emailSentAt);
-    if (!sentAt || sentAt.getTime() > cutoff) continue;
-    if (d.acknowledgedAt || d.escalatedAt || d.isTester === true) continue;
+    if (!escalationDue(d, cutoff)) continue;
     out.due++;
     const stamp = deps.serverTimestamp();
 
@@ -756,6 +787,7 @@ async function escalateDue(db, deps) {
 }
 
 module.exports = {
+  primaryFailedPatch, escalationDue,
   CONFIG_DOC, ALERTS, AUDIT_LOG, DEFAULT_ESCALATE_HOURS, BLINDED_ROLE,
   UNBLINDED_ROLE, SOURCE_GROUPS, SERVER_ONLY_SOURCES, SOURCE_DISPLAY,
   // T19 (switch off)
