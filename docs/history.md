@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-14 T39 运营看板「每人」页（PR 草稿，分支 `feat/ops-dashboard`）
+
+- 按 1014c 边界 + 1014d 收窄只做第 2 页（每人一行 → 每日网格、最近会话、CSV）和第 1 页第 7 项（今日回访到期名单）。聚合在 Cloud Function：`opsDashboardPeople` / `Person` / `Csv`（`functions/ops_dashboard.js`），每日 `opsDailyRollup` 把过去的研究日存成 `ops_daily`，今天按需算。开关 `opsDashboardEnabled` 默认关，只给 `unblinded`。
+- 入口放在研究员登记页右上角：核对时发现原来的「研究員儀錶板」（`researcher_dashboard_page.dart`，T34 告警、T30 完成率都在那里）在 App 里**没有任何入口**（T19 起 `unblinded` 登录直接进登记页），要带回研究侧。
+- 回访阶段、旧构建后备口径、单段 60 分钟封顶都按 1014d；结局集合一个都不读（测试扫源码）。报告 `docs/dev-reports/T39-ops-dashboard-20261014.md`。
+
 ## 2026-10-14 晚 产品窗口 10/14 第 5–10 条：登记表 v10，任务单 1014c、1014d（T38–T46）
 
 - **定了**：试跑一轮 3 人（PILOT-01、02 Hybrid，03 规则组）10/15 做 W0，按正式配置跑完整 8 周；W8 问卷 13 题加可跳过的 AIMHS，试跑也推；第 63 天后推 debrief，约第 70 天停服；记忆不能整个关闭；告警急性即时、中级每日汇总、低级只记录；运营看板和使用事件记录（回访用）。

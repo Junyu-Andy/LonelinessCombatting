@@ -1,7 +1,7 @@
 # 待办与待决定
 
 > 随时更新。做完的移到 `docs/history.md`，划掉或删掉这里的条目。
-> 最后更新：2026-10-14（瘦身批次定号 SL1–SL8，决策 0040 提议中，见末尾；T27 语音改走服务器 PR 草稿，第 101–103 项；T34 安全告警邮件 PR 草稿，第 97–100 项；T21 第二次更新：决策 0037 六项过渡默认，第 1 项 `PHASE_B` 改为保留，加第 96 项 `isTester` 客户端可写）
+> 最后更新：2026-10-14（T39 运营看板 PR 草稿，第 111 项；瘦身批次定号 SL1–SL8，决策 0040 提议中，见末尾；T27 语音改走服务器 PR 草稿，第 101–103 项；T34 安全告警邮件 PR 草稿，第 97–100 项；T21 第二次更新：决策 0037 六项过渡默认，第 1 项 `PHASE_B` 改为保留，加第 96 项 `isTester` 客户端可写）
 
 ## 1. 已决定、待开发
 
@@ -18,6 +18,7 @@
 | 97 | **T25 会话定义与 Brief PR 第二版**：已做数据层、邀请规则、评价卡、问卷、收尾按钮、`llm_calls.session_id`（PR 草稿，分支 `feat/session-briefpr`，开关默认关）。待做：① 截图；② `brief_pr` 加 T24 的 `studyWeek` / `studyDay`；③ 收尾按钮首次说明跨次启动只显示一次（现在每次启动第一次进聊天页显示一次）；④ 决策记录（旧弹窗只在开关关时保留、anchor 取消）编号待分配后落盘；⑤ 开关打开前研究侧定稿 `【占位】` 文字（下一題 / 返回 / 放棄評價 / 首次说明 / S10b 其余时间说法） | `dev-tasks-1009b.md` T25、`1010.md` §三、`1010b.md` §二 | `docs/dev-reports/T25-session-briefpr-20261014.md` |
 | 98 | T25 后续：开关打开后把会话第 1 版的字段（`userTurnCount`、`briefPR`、`user_left` / `app_killed`）和弹窗 Brief PR 代码路径（`BriefPrGate`、`BriefPrPage`、`isAnchorPromptFor`）删掉；`sessions` 的 `scheduleVersion` 区分新旧行 | T25 报告 | 等开关打开并稳定一周 |
 | 99 | T29、T30 用 T25 的 `sessions.isValid` / `brief_pr.finalStatus`：每人每周有效会话数查询见 T25 报告第 5 节；`usage_weekly.validSessionCount` 已加 | `dev-tasks-1009b.md` T29、`1010.md` T30 | — |
+| 111 | **T39 运营看板**（PR 草稿，分支 `feat/ops-dashboard`，开关 `opsDashboardEnabled` 默认关）：已做第 2 页每人 / 每日 / CSV 和第 1 页第 7 项。待做 ① 第 1 页其余项（已登记人数、今天有效会话人数、告警数、本周完成率、未来 7 天到期、14 天柱状图）；② 第 3 页按组汇总（Junyu 定）；③ 每人页「查看该人对话记录」链接（Junyu 定，要走现有路径并记审计）；④ W8 / debrief 两列等 T35、T42；⑤ 旧的「研究員儀錶板」没有入口（T34 告警确认、T30 完成率在那页），要定放哪里；⑥ 参与者多于几十人时 `opsDashboardPeople` 要改为分页或只读 `ops_daily` | `dev-tasks-1014c.md` T39、`1014d.md` | `docs/dev-reports/T39-ops-dashboard-20261014.md` |
 | 90 | **T34 安全告警邮件**：字段（研究编号、研究期、陪伴者、来源、级别和类别、词库版本、LoRA、研究日、危机页、事件编号）；收件人配置（Junyu、后备 Calvin Or，评估员不在名单、测试账号不发）；后台“确认处理”；12 小时没确认转后备；PHQ-9 第 9 题的问卷和评估员录入来源；导出带来源 | 产品窗口 10/10 第 6–8 条；`docs/dev-tasks/dev-tasks-1010b.md` | 现在可以开；评估员录入那一头等 T30 和 PHQ-9 规格文件 | PR 草稿已出（分支 `feat/safety-alert-email`，`docs/dev-reports/T34-safety-alert-email-20261014.md`）；评估员录入那一头等 T30 和 PHQ-9 规格文件；开关 `meta/alert_config.enabled` 默认关 |
 
 ## 2. 上线前必须做（负责人操作）

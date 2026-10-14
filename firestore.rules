@@ -52,6 +52,7 @@ rules_version = '2';
 //   users/{uid}/social_contact_probes/{Wn}       -> T24 weekly social-contact probe (client: answers 0–3; server: study-week stamps)
 //   users/{uid}/weekly_pr|pgic|brief_pr          -> T24: studyWeek/studyDay/window/missed fields are server-only
 //   weekly_status/{uid}                          -> T24 weekly bundle status, research ID, push times (server only)
+//   ops_daily/{uid}/days/{dayKey}, ops_audit_log/{id} -> T39 operations dashboard: stored day rows + open log (server only)
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -568,6 +569,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /pairing_change_log/{id} {
+      allow read, write: if false;
+    }
+    // T39 — operations dashboard: stored per-person-per-day rows and the
+    // open / export log.  Only the callables (admin SDK) touch them; the
+    // unblinded researcher reads through opsDashboardPeople / Person /
+    // Csv, the blinded assessors not at all.
+    match /ops_daily/{uid}/{document=**} {
+      allow read, write: if false;
+    }
+    match /ops_audit_log/{id} {
       allow read, write: if false;
     }
     match /allocation_records/{researchId} {

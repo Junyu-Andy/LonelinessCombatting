@@ -58,6 +58,10 @@
 ///                               `unblinded` role pooled completion rates
 ///                               per outcome instrument per timepoint (all
 ///                               participants together, hidden under n < 5).
+///   - [opsDashboardEnabled]   — T39 (registry C19): the operations
+///                               dashboard (per person per day, follow-up
+///                               stage, CSV) for the `unblinded` role; the
+///                               server callables check the same flag.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -79,6 +83,7 @@ class RemoteFeatureFlags {
     this.onboardingAfterEnrollmentFix = false,
     this.assessorViewEnabled = false,
     this.outcomeCompletionSummaryEnabled = false,
+    this.opsDashboardEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -91,6 +96,7 @@ class RemoteFeatureFlags {
   final bool onboardingAfterEnrollmentFix;
   final bool assessorViewEnabled;
   final bool outcomeCompletionSummaryEnabled;
+  final bool opsDashboardEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -135,6 +141,7 @@ class RemoteFeatureFlags {
         assessorViewEnabled: map['assessorViewEnabled'] == true,
         outcomeCompletionSummaryEnabled:
             map['outcomeCompletionSummaryEnabled'] == true,
+        opsDashboardEnabled: map['opsDashboardEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply
