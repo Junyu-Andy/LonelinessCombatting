@@ -108,21 +108,23 @@ async function seedBuffer(uid, agentId, idle) {
   });
 }
 
-const chat = (uid, moduleId, agentId) => fns.proxyDeepSeek.run({
+const chat = (uid, moduleId, agentId, sessionId) => fns.proxyDeepSeek.run({
   auth: {uid},
   data: {
     promptKey: `${agentId}_v1`,
     agentId,
     moduleId,
     messages: [{role: "user", content: USER_TEXT}],
+    // T25: the App's session id lands in llm_calls.session_id.
+    sessionId,
   },
 });
 
 const FIELDS = [
   "agent_id", "call_type", "completion_tokens", "error",
   "http_status", "latency_ms", "model_requested", "model_returned",
-  "prompt_tokens", "reasoning_tokens", "system_fingerprint", "ts",
-  "uid",
+  "prompt_tokens", "reasoning_tokens", "session_id", "system_fingerprint",
+  "ts", "uid",
 ];
 
 function assertRow(row, want) {
@@ -165,15 +167,23 @@ const GENERATION_CASES = [
 for (const [moduleId, agentId, callType] of GENERATION_CASES) {
   test(`proxyDeepSeek ${moduleId} → ${callType}`, async () => {
     await reset();
-    const out = await chat(UID_A, moduleId, agentId);
+    const out = await chat(UID_A, moduleId, agentId, "s_t25");
     assert.strictEqual(out.text, REPLY);
     assert.strictEqual(out.model, STUB_MODEL);
     const r = await rows();
     assert.strictEqual(r.length, 1);
     assertRow(r[0], Object.assign(
-        {call_type: callType, agent_id: agentId}, okRow));
+        {call_type: callType, agent_id: agentId, session_id: "s_t25"}, okRow));
   });
 }
+
+test("T25: a call without sessionId logs session_id null", async () => {
+  await reset();
+  await chat(UID_A, "m2_check_in", "siu_yan");
+  const r = await rows();
+  assert.strictEqual(r.length, 1);
+  assert.strictEqual(r[0].session_id, null);
+});
 
 test("referralJudgement → referral_judgement", async () => {
   await reset();
