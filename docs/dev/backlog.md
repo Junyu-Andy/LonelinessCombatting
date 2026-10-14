@@ -1,7 +1,7 @@
 # 待办与待决定
 
 > 随时更新。做完的移到 `docs/history.md`，划掉或删掉这里的条目。
-> 最后更新：2026-10-14（T34 安全告警邮件 PR 草稿，第 97–100 项；T21 第二次更新：决策 0037 六项过渡默认，第 1 项 `PHASE_B` 改为保留，加第 96 项 `isTester` 客户端可写）
+> 最后更新：2026-10-14（T27 语音改走服务器 PR 草稿，第 101–103 项；T34 安全告警邮件 PR 草稿，第 97–100 项；T21 第二次更新：决策 0037 六项过渡默认，第 1 项 `PHASE_B` 改为保留，加第 96 项 `isTester` 客户端可写）
 
 ## 1. 已决定、待开发
 
@@ -111,6 +111,9 @@
 | 98 | **T30 接入**：评估员录入 W4 纸本 PHQ-9 时，在提交处调用 `functions/questionnaire_safety.js` `recordQuestionnaireSafetyEvent(db, {uid, source: 'assessor_entry', instrument: 'PHQ-9', item: 9, rawValue, enteredBy, researchId})`（第 9 题为 0 自动不写）。默认级别 acute 待 Junyu 定（T34 报告「要 Junyu 定的事」第 1 条） | T34 报告第 6 节 | T30 |
 | 99 | `PI_EMAIL` 密钥何时停用：`meta/alert_config` 打开并填了 `primaryEmail` 后，密钥只做兜底；研究侧确认后可以从 `onSafetyEventCreated` / `escalateAlerts` 的 `secrets` 列表里去掉 | T34 报告第 4 节；上线清单 B1 | 开关打开后 |
 | 100 | 告警邮件的「研究第几天」对试跑账号：现在也从 `users/{uid}.w0Date` 算（T21 登记时写）；任务原文说试跑「从登记日算」，T24 的共享函数定下来后对齐 | dev-tasks-1010b T34 §1.3；T34 报告第 5 节 | T24 |
+| 101 | **T27 语音开关打开前**：① Junyu 在 Google Cloud 控制台再核对一次 Speech-to-Text 的 data logging 是关的，截图归档（步骤见 T27 报告第 6 节）；② HREC 对 STT 修订的批准文件到了再开；③ 打开当天在 `docs/STUDY_CHANGELOG.md` 补一行 | dev-tasks-1010 §三 T27 第 4 条；T27 报告 | Junyu；研究侧 |
+| 102 | `stt_usage` 集合（每次转写一行：uid、字节数、耗时、次数、成功与否、失败类别）要不要保留；保留的话删除脚本 `tool/delete_participant.js` 要一起删这个人的行（现在没有） | T27 报告第 5 节 | Junyu |
+| 103 | 英文界面的 S6 没有定稿，现在是【占位】（只有测试员和研究员会看到英文界面）；要不要补一句英文定稿 | T27 报告第 2 节 | 研究侧（低优先） |
 | 102 | **没登记的账号算不算“测试员”**：`tool/purge_tester_data.js` 把没有 `cohort` 的账号（`unenrolled`）和 `isTester` 一起列为可删。10/19 前如果有真实老人已装 App 注册、还没由 Junyu 登记，会出现在这个名单里。选项：(a) 删除前逐个核对名单（现做法，I1）；(b) 只删 `--only=testers`，没登记的账号留到登记门打开后再处理；(c) 用 `--created-before=<日期>` 只删某天之前建的账号 | T32 报告「要 Junyu 定的事」 | Junyu，10/19 前 |
 | 103 | **每周推送钟点**：`weeklyPushHour` 默认 20（沿用现在星期日 20:00 的每周推送）。T18 的 DJG 推送是 10:00。20:00 推送意味着窗口在第 10 天 20:00 关，老人晚上收推送。Junyu 定钟点后在控制台改一个数字即可 | T24 报告「要 Junyu 定的事」 | Junyu，开关打开前 |
 | 104 | **W4 问卷延到面访当天结束**：`week4CloseFor(w0Date, w4VisitDate)` 已留钩子，所有调用处现在传 null（只按第 29 天关）。T30 合并后把评估员录入的 W4 施测日期接进去（服务器 `functions/weekly_schedule.js` `windowFor` 的 `opts.w4VisitDate`、App `PendingPromptsService.weeklyBundleDue`） | T24 报告第 3 节 | T30 之后 |

@@ -20,6 +20,7 @@ const hotline = require("./hotline_filter");
 const {safetyConfig} = require("./safety_config");
 const safetyClassifier = require("./safety_classifier");
 const featureFlags = require("./feature_flags");
+const stt = require("./stt");
 const blinding = require("./blinding");
 const djgW2 = require("./djg_w2");
 const ada = require("./ada");
@@ -836,28 +837,18 @@ exports.webSearch = onCall(
 
 // ---------------------------------------------------------------------------
 // transcribeAudio — Cantonese voice-to-text via Google Cloud Speech-to-Text
-// v2 (NOT Whisper: OpenAI is unavailable in HK and rewrites Cantonese into
-// written Mandarin, losing 嘅/唔/咗/佢/冇). Auth is ADC (the Firebase project
-// IS the GCP project) — no API key / secret. Audio arrives base64-inline in
-// the callable; it is NOT stored.
+// v2 (T27, SPEC:C18).  Model, region, request fields, retry and failure
+// categories live in ./stt.js.  asia-southeast1 / chirp_2 only — the old
+// second tier (global / long) is gone and is not configurable (10/9 #13).
+// Auth is ADC (the Firebase project IS the GCP project).  Audio arrives
+// base64-inline, is passed to Google and dropped: not stored, not logged.
+// The transcript is returned to the caller only and never logged.
 //
-// Two-tier model with auto-fallback (see TASK_stt_vertical_slice):
-//   A: asia-southeast1 / chirp_2  (must set apiEndpoint or v2 hits global)
-//   B: global / long
-//
-// Request:  { audioBase64, mimeType, languageCode?, model? }
-// Response: { transcript, confidence, model, region, latencyMs }
-// Slice limit: 60s / 10MB sync recognize; larger → error (batch is later).
+// Request:  { audioBase64 }            (WAV, <= 60 s, built by the app)
+// Response: { transcript, confidence, model, region, latencyMs, attempts }
+// Failure:  HttpsError with details { category, attempts } where category
+//           is timeout | server_error | no_speech | too_long | unavailable.
 // ---------------------------------------------------------------------------
-const STT_TIERS = [
-  {
-    location: "asia-southeast1",
-    model: "chirp_2",
-    apiEndpoint: "asia-southeast1-speech.googleapis.com",
-  },
-  {location: "global", model: "long", apiEndpoint: undefined},
-];
-
 exports.transcribeAudio = onCall(
   {
     region: "asia-east2",
@@ -878,93 +869,60 @@ exports.transcribeAudio = onCall(
 
     const payload = request.data || {};
     const audioBase64 = payload.audioBase64;
-    const languageCode = payload.languageCode || "yue-Hant-HK";
-    const forcedModel = payload.model || null;
-
     if (typeof audioBase64 !== "string" || audioBase64.length === 0) {
       throw new HttpsError("invalid-argument", "audioBase64 required");
     }
-
     const content = Buffer.from(audioBase64, "base64");
-    if (content.length > 10 * 1024 * 1024) {
-      throw new HttpsError(
-        "invalid-argument",
-        "audio too large for sync recognize",
-      );
+    const size = stt.sizeProblem(content);
+    if (size) {
+      throw new HttpsError(stt.HTTPS_CODE[size], `stt ${size}`,
+          {category: size, attempts: 0});
     }
 
-    // Lazy require so cold starts of other functions aren't slowed by it.
-    const {SpeechClient} = require("@google-cloud/speech").v2;
     const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+    const recognize = request.sttRecognize || stt.googleRecognize();
+    const req = stt.buildRecognizeRequest({projectId, content});
 
-    let lastErr;
-    const tiers = forcedModel ?
-      STT_TIERS.filter((t) => t.model === forcedModel) :
-      STT_TIERS;
-
-    for (const tier of tiers) {
-      const t0 = Date.now();
+    // Best-effort usage row: counts and timings only — never audio, never
+    // text (collection is excluded from exports, functions/blinding.js).
+    const usage = async (row) => {
       try {
-        const client = new SpeechClient(
-          tier.apiEndpoint ? {apiEndpoint: tier.apiEndpoint} : {},
-        );
-        const [resp] = await client.recognize({
-          recognizer:
-            `projects/${projectId}/locations/${tier.location}/recognizers/_`,
-          config: {
-            autoDecodingConfig: {},
-            languageCodes: [languageCode],
-            model: tier.model,
-            features: {enableAutomaticPunctuation: true},
-          },
-          content,
-        });
-
-        const results = resp.results || [];
-        const transcript = results
-          .map((r) => (r.alternatives && r.alternatives[0] &&
-            r.alternatives[0].transcript) || "")
-          .join("")
-          .trim();
-        const confidence =
-          (results[0] && results[0].alternatives &&
-            results[0].alternatives[0] &&
-            results[0].alternatives[0].confidence) || null;
-        const latencyMs = Date.now() - t0;
-
-        // Best-effort cost/usage log (audio seconds ≈ latency is not the
-        // duration, so we log payload bytes as a proxy for now).
-        try {
-          await admin.firestore().collection("stt_usage").add({
-            uid: request.auth.uid,
-            model: tier.model,
-            region: tier.location,
-            bytes: content.length,
-            latencyMs,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-        } catch (logErr) {
-          // non-fatal
-        }
-
-        return {
-          transcript,
-          confidence,
-          model: tier.model,
-          region: tier.location,
-          latencyMs,
-        };
-      } catch (e) {
-        console.warn(
-          `stt tier ${tier.location}/${tier.model} failed: ${e.message}`,
-        );
-        lastErr = e;
+        await admin.firestore().collection("stt_usage").add(Object.assign({
+          uid: request.auth.uid,
+          model: stt.STT_MODEL,
+          region: stt.STT_LOCATION,
+          bytes: content.length,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, row));
+      } catch (logErr) {
+        // non-fatal
       }
+    };
+
+    try {
+      const out = await stt.transcribeWithRetry(recognize, req);
+      await usage({ok: true, attempts: out.attempts, latencyMs: out.latencyMs});
+      return {
+        transcript: out.transcript,
+        confidence: out.confidence,
+        model: stt.STT_MODEL,
+        region: stt.STT_LOCATION,
+        latencyMs: out.latencyMs,
+        attempts: out.attempts,
+      };
+    } catch (e) {
+      const category = e instanceof stt.SttError ?
+        e.category : stt.CATEGORIES.serverError;
+      const attempts = e instanceof stt.SttError ? e.attempts : 1;
+      // Ops log: category and gRPC code only.  No message text (it could
+      // echo request fields), no audio, no transcript.
+      console.warn("stt failed", {
+        category, attempts, grpcCode: e && e.grpcCode ? e.grpcCode : null,
+      });
+      await usage({ok: false, attempts, category});
+      throw new HttpsError(stt.HTTPS_CODE[category], `stt ${category}`,
+          {category, attempts});
     }
-    throw new HttpsError(
-      "internal",
-      `all stt tiers failed: ${lastErr && lastErr.message}`,
-    );
   },
 );
 

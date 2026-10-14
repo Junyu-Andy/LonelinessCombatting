@@ -45,6 +45,7 @@ import '../../features/auth/presentation/auth_service_scope.dart';
 import '../config/phase_a_config.dart';
 import '../llm/llm_gateway.dart';
 import '../safety/distress_detector.dart';
+import '../voice/voice_input_button.dart';
 import 'idle_session_timer.dart';
 import 'session_rules.dart';
 
@@ -931,4 +932,21 @@ class _ToolSessionScopeState extends State<ToolSessionScope> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+/// T27 (SPEC:C18) — `voice_transcription_failed` in the session log.  Kept
+/// as an extension at the end of the file so it merges cleanly with other
+/// session work.  Payload: session id, companion, failure category, time.
+/// No audio, no text.  Both arms identical.
+extension VoiceTranscriptionFailureLog on ChatSessionRecorder {
+  void logVoiceTranscriptionFailed(String category) {
+    logEvent(
+      VoiceTranscriptionFailedEvent.name,
+      VoiceTranscriptionFailedEvent.payload(
+        category: category,
+        sessionId: sessionId,
+        agentId: agentId,
+      ),
+    );
+  }
 }

@@ -1,16 +1,41 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:speech_to_text/speech_to_text.dart';
+
 import '../../features/analytics/presentation/analytics_scope.dart';
 import '../feature_flags/remote_feature_flags.dart';
+import 'transcription_repository.dart';
+import 'voice_copy.dart';
+import 'voice_recorder.dart';
+import 'wav_encoder.dart';
 
-/// Handle a host page holds so it can stop in-progress dictation at a
-/// precise moment — specifically right before it snapshots the input and
-/// sends a message (B03).  Without this, the recogniser keeps running
-/// after send: its session-cumulative results ("abc" → "abc de") get
-/// written back into the just-cleared field, polluting the next message.
+/// Session-log event written when the server could not transcribe a clip
+/// (T27, SPEC:C18, 10/9 item 13).  Payload: `sessionId`, `agentId`,
+/// `category` (timeout | server_error | no_speech | too_long | unavailable),
+/// `at` (ISO time).  Never the audio, never any text.  Both arms identical.
+class VoiceTranscriptionFailedEvent {
+  VoiceTranscriptionFailedEvent._();
+
+  static const name = 'voice_transcription_failed';
+
+  static Map<String, dynamic> payload({
+    required String category,
+    String? sessionId,
+    String? agentId,
+  }) =>
+      {
+        'sessionId': sessionId,
+        'agentId': agentId,
+        'category': category,
+        'at': DateTime.now().toIso8601String(),
+      };
+}
+
+/// Handle a host page holds so it can stop in-progress voice capture at a
+/// precise moment — right before it snapshots the input and sends (B03) —
+/// and, on chat pages, route the failure event into the session log.
 ///
 /// Bind one controller to one [VoiceInputButton]; calling [stopForSend]
 /// when idle is a safe no-op.
@@ -22,7 +47,12 @@ class VoiceInputController {
     if (identical(_state, state)) _state = null;
   }
 
-  // L-1 input.modality — accumulated by the button while dictating and
+  /// Set by chat pages that own a `ChatSessionRecorder` so the failure
+  /// event carries the session id and companion.  When null the button
+  /// logs the same event through [AnalyticsScope] without a session id.
+  void Function(String category)? onTranscriptionFailed;
+
+  // L-1 input.modality — accumulated by the button while recording and
   // drained by the host page at send time via [takeModality].
   bool _voiceUsed = false;
   int _voiceMs = 0;
@@ -49,61 +79,46 @@ class VoiceInputController {
     return r;
   }
 
-  /// Cancel any active dictation and discard pending recognition so no
-  /// late callback can repopulate the input after it's been cleared.
+  /// Cancel any active recording / pending transcription so no late result
+  /// can repopulate the input after it has been cleared.
   Future<void> stopForSend() async {
     await _state?._stopForSend();
   }
 }
 
-/// Thin wrapper around [SpeechToText] so any free-text input field can
-/// gain voice dictation without each page redoing the boilerplate.
+/// Microphone button for every free-text field (T27, SPEC:C18).
 ///
-/// Behaviour:
-///   - First tap: requests mic + speech-recognition permission, picks
-///     the closest locale to the app's current locale, starts listening.
-///   - During recognition: emits partial results via [onText] so the
-///     caller can update its TextField live.
-///   - Second tap (or 30s timeout): stops listening, emits a final
-///     result.
-///   - Permission denied / unavailable: stays disabled, shows a tooltip
-///     explaining why.
+/// Flow:
+///   - Tap: ask mic permission, start streaming 16 kHz PCM into memory.
+///   - Tap again (or the 60 s cap): stop, wrap as WAV, send to the
+///     `transcribeAudio` Cloud Function (Google STT v2 `chirp_2`,
+///     `asia-southeast1`), put the text into the input box via [onText].
+///     The elder can edit it or type instead; sending is the host page's
+///     ordinary send, so the text goes through the same safety flow as
+///     typed text.
+///   - Failure (server retried once): S6 appears in a small card anchored
+///     to the mic, next to the input box — not a chat bubble, not written
+///     to turns or memory — and a `voice_transcription_failed` event is
+///     logged with the failure category only.
 ///
-/// Spec §M3 engineering notes: "Voice input recommended given older-
-/// adult typing burden. STT must support Cantonese." We try `yue-Hant-HK`
-/// first; if the device doesn't have it, we fall back to `zh-HK`, then
-/// `zh-CN`, then system default.
-///
-/// **B.8 — protocol-level on-device lock (Sprint 3.2).**
-/// Every [SpeechToText.listen] call passes `onDevice: true` so the
-/// platform STT engine MUST stay on-device:
-///   - iOS:    `requiresOnDeviceRecognition = true` on SFSpeechRecognizer.
-///             Falls back to "unavailable" if no offline language pack.
-///   - Android: `EXTRA_PREFER_OFFLINE = true` on RecognizerIntent.
-///             Falls back to system-default behaviour if no offline pack.
-/// HREC requires audio NEVER leave the device.  Tests: airplane mode +
-/// dictate; transcription must still succeed.  If you ever hear the
-/// engine "phone home" on the network, treat it as a protocol violation
-/// and stop recording immediately.
+/// No file is written: the clip lives in a [BytesBuilder] until upload and
+/// is dropped right after.  No on-device / platform recogniser is used.
 ///
 /// **C18 — Phase B switch (decision 0019).** The button renders nothing
-/// and never touches the platform recogniser (no permission prompt, no
-/// audio) unless `app_config/feature_flags.voiceInputEnabled` is true
+/// and never touches the microphone (no permission prompt, no audio)
+/// unless `app_config/feature_flags.voiceInputEnabled` is true
 /// ([RemoteFeatureFlags.voiceInputEnabled], default off).  Every page's
 /// mic goes through this widget, so the one switch covers them all.
 /// Important feature: switch back on once HREC approves the STT amendment.
 class VoiceInputButton extends StatefulWidget {
-  /// Called as new text arrives. The button replaces the *last
-  /// recognised chunk* on each callback — the caller should treat this
-  /// as the current dictation buffer, not append-only.
+  /// Called with the new full text for the field (prefix + transcript).
   final ValueChanged<String> onText;
 
-  /// When non-null, prepended to whatever the user dictates. Lets the
-  /// caller keep typed-and-dictated content intact.
+  /// When non-null, prepended to the transcript so typed text is kept.
   final String Function()? prefix;
 
-  /// When non-null, lets the host page stop dictation right before it
-  /// sends (B03).
+  /// When non-null, lets the host page stop capture right before it
+  /// sends (B03) and route the failure event into its session log.
   final VoiceInputController? controller;
 
   const VoiceInputButton({
@@ -113,369 +128,327 @@ class VoiceInputButton extends StatefulWidget {
     this.controller,
   });
 
+  /// Test hooks: replace the microphone and the server call.
+  @visibleForTesting
+  static VoiceRecorder Function()? debugRecorderFactory;
+  @visibleForTesting
+  static TranscriptionClient? debugTranscriptionClient;
+
+  /// Longest clip the server accepts synchronously (Google: 60 s).
+  static const Duration maxClip = Duration(seconds: 60);
+
+  /// How long the S6 card stays if the elder does nothing.
+  static const Duration noticeDuration = Duration(seconds: 12);
+
   @override
   State<VoiceInputButton> createState() => _VoiceInputButtonState();
 }
 
+enum _Phase { idle, recording, transcribing }
+
 class _VoiceInputButtonState extends State<VoiceInputButton> {
   // Read once per mount: a flag change applies to newly opened pages.
   final bool _enabled = RemoteFeatureFlags.current.voiceInputEnabled;
-  final SpeechToText _stt = SpeechToText();
-  bool _available = false;
-  bool _initialising = true;
-  bool _listening = false;
+
+  VoiceRecorder? _recorder;
+  TranscriptionClient? _client;
+  _Phase _phase = _Phase.idle;
+  BytesBuilder? _pcm;
+  StreamSubscription<Uint8List>? _sub;
+  Completer<void>? _streamDone;
+  Timer? _capTimer;
+  Timer? _noticeTimer;
+  bool _suppressResult = false;
   String _bufferStart = '';
-  // Set true by [_stopForSend] so a recognition callback that lands after
-  // the user hit send can't write stale text back into the cleared field.
-  // Reset when a fresh dictation starts.
-  bool _suppressResults = false;
-
-  // false → allow the platform's (usually cloud) recogniser for much
-  // better Cantonese (HREC relaxed). true → strict on-device only.
-  static const bool _onDeviceOnly = false;
-
-  // Platform STT sessions can't run unbounded — cap at 60s, warn at 50s,
-  // and if the engine stops on its own tell the user their words were
-  // kept (so a long monologue doesn't silently vanish mid-sentence).
-  static const _listenCap = Duration(seconds: 60);
-  static const _pauseTolerance = Duration(seconds: 8);
-  bool _userStopped = false;
-  Timer? _warnTimer;
+  bool _showNotice = false;
+  final _noticeLink = LayerLink();
+  final _overlay = OverlayPortalController();
 
   @override
   void initState() {
     super.initState();
     if (!_enabled) return;
     widget.controller?._bind(this);
-    _init();
+    _recorder = (VoiceInputButton.debugRecorderFactory ?? RecordVoiceRecorder.new)();
+    _client = VoiceInputButton.debugTranscriptionClient ??
+        CloudTranscriptionClient();
   }
 
-  Future<void> _init() async {
-    // On some Android devices `initialize()` never completes (STT service
-    // slow to bind, or the permission dialog is still up) — without a
-    // timeout the button would spin forever. Cap it and fall back to the
-    // "unavailable, tap to learn why" state instead of an endless spinner.
-    bool ok = false;
-    try {
-      ok = await _stt
-          .initialize(
-            onError: (error) {
-              final wasListening = _listening;
-              _warnTimer?.cancel();
-              if (mounted) setState(() => _listening = false);
-              // A network error during (cloud) recognition is the one
-              // failure an elder can't see the cause of — the mic just
-              // stops. Surface it, and reassure that whatever was already
-              // transcribed stays in the field. Other error kinds
-              // (no-match, speech-timeout) are handled by the onStatus
-              // auto-stopped path, so we don't double-notify here.
-              if (wasListening &&
-                  !_userStopped &&
-                  !_suppressResults &&
-                  mounted &&
-                  error.errorMsg.contains('network')) {
-                _showNetworkLostNotice();
-              }
-            },
-            onStatus: (status) {
-              if (status == 'notListening' || status == 'done') {
-                final wasListening = _listening;
-                _warnTimer?.cancel();
-                if (mounted) setState(() => _listening = false);
-                // The engine stopped ON ITS OWN (time cap / long pause)
-                // while the user was still mid-flow — reassure them that
-                // what they said is already in the field.
-                if (wasListening &&
-                    !_userStopped &&
-                    !_suppressResults &&
-                    mounted) {
-                  _showAutoStoppedNotice();
-                }
-              }
-            },
-          )
-          .timeout(const Duration(seconds: 6), onTimeout: () => false);
-    } catch (e) {
-      if (kDebugMode) debugPrint('[voice] initialize failed/timed out: $e');
-      ok = false;
-    }
-    if (!mounted) return;
-    setState(() {
-      _available = ok;
-      _initialising = false;
-    });
-  }
-
-  Future<String?> _pickLocale() async {
-    final locales = await _stt.locales();
-    String? match(String prefix) {
-      for (final l in locales) {
-        if (l.localeId.toLowerCase().startsWith(prefix.toLowerCase())) {
-          return l.localeId;
-        }
-      }
-      return null;
-    }
-
-    final picked = match('yue') ?? match('zh-HK') ?? match('zh') ?? match('en');
-    final cantonese = picked != null &&
-        (picked.toLowerCase().startsWith('yue') ||
-            picked.toLowerCase().startsWith('zh-hk') ||
-            picked.toLowerCase().startsWith('zh_hk'));
-    if (!cantonese) {
-      // The recogniser works but has no Cantonese: speech would come back
-      // as Mandarin / English.  Tell the user once per process.
-      _logVoiceIssue('no_cantonese_locale', locale: picked);
-      if (!_warnedNoCantonese && mounted) {
-        _warnedNoCantonese = true;
-        final isEn = Localizations.localeOf(context).languageCode == 'en';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(isEn
-              ? 'This phone has no Cantonese speech recognition, so speech may '
-                  'come out as Mandarin. Add "Cantonese (Hong Kong)" under Voice '
-                  'input → Google → Languages.'
-              : '呢部機未有粵語語音識別，講嘢可能會變咗普通話字。可以喺 語音輸入 → Google → 語言 '
-                  '加「粵語（香港）」。'),
-          duration: const Duration(seconds: 7),
-        ));
-      }
-    }
-    return picked;
-  }
-
-  static bool _warnedNoCantonese = false;
-
-  /// Phase A — `voice_issue` event so the team can see how many
-  /// participants' phones can't dictate Cantonese (platform-specific).
-  void _logVoiceIssue(String reason, {String? locale}) {
-    if (!mounted) return;
-    final scope = context.getInheritedWidgetOfExactType<AnalyticsScope>();
-    scope?.analytics.logEvent('voice_issue', {
-      'reason': reason,
-      'platform': defaultTargetPlatform.name,
-      if (locale != null) 'locale': locale,
-    });
-  }
+  bool get _isEn => Localizations.localeOf(context).languageCode == 'en';
 
   Future<void> _toggle() async {
-    if (_initialising) return;
-    if (!_available) {
-      // Retry init once — permission may have just been granted after a
-      // slow/timed-out first attempt, so a tap should recover rather than
-      // dead-end on the hint.
-      setState(() => _initialising = true);
-      await _init();
-      if (!mounted) return;
-      if (!_available) {
-        _showUnavailableHint();
+    switch (_phase) {
+      case _Phase.transcribing:
         return;
-      }
+      case _Phase.recording:
+        await _stopAndTranscribe();
+        return;
+      case _Phase.idle:
+        await _startRecording();
+        return;
     }
-    if (_listening) {
-      _userStopped = true;
-      _warnTimer?.cancel();
-      await _stt.stop();
-      widget.controller?._onListenStop();
-      if (mounted) setState(() => _listening = false);
+  }
+
+  Future<void> _startRecording() async {
+    final recorder = _recorder;
+    if (recorder == null) return;
+    _hideNotice();
+    bool ok = false;
+    try {
+      ok = await recorder.hasPermission();
+    } catch (e) {
+      if (kDebugMode) debugPrint('[voice] permission check failed: $e');
+    }
+    if (!mounted) return;
+    if (!ok) {
+      _showPermissionHint();
       return;
     }
     _bufferStart = widget.prefix?.call() ?? '';
-    _suppressResults = false;
-    _userStopped = false;
-    widget.controller?._onListenStart();
-    setState(() => _listening = true);
-    final localeId = await _pickLocale();
-
-    // Recognition mode. HREC originally required on-device only (audio
-    // never leaves the device), but that made Cantonese unreliable —
-    // Android on-device 粤語 packs are missing on most phones. HREC has
-    // since relaxed, so we allow the platform's (usually cloud) recogniser,
-    // which has far better Cantonese. Flip [_onDeviceOnly] back to true to
-    // reinstate the strict on-device lock.
+    _suppressResult = false;
+    final pcm = BytesBuilder(copy: false);
+    final done = Completer<void>();
     try {
-      await _stt.listen(
-        localeId: localeId,
-        onResult: (result) {
-          // Dropped once the user has hit send (B03) — a trailing partial
-          // must not overwrite the freshly cleared field.
-          if (_suppressResults) return;
-          final spoken = result.recognizedWords;
-          final glue = _bufferStart.isEmpty ? '' : ' ';
-          widget.onText('$_bufferStart$glue$spoken');
+      final stream = await recorder.start();
+      _pcm = pcm;
+      _streamDone = done;
+      _sub = stream.listen(
+        pcm.add,
+        onDone: () {
+          if (!done.isCompleted) done.complete();
         },
-        // 60s cap (platform limit territory) + 8s pause tolerance —
-        // elders pause between clauses far longer than the default 4s,
-        // which cut them off mid-thought.
-        listenFor: _listenCap,
-        pauseFor: _pauseTolerance,
-        listenOptions: SpeechListenOptions(
-          onDevice: _onDeviceOnly,
-          listenMode: ListenMode.dictation,
-          cancelOnError: true,
-        ),
+        onError: (Object e) {
+          if (kDebugMode) debugPrint('[voice] stream error: ${e.runtimeType}');
+          if (!done.isCompleted) done.complete();
+        },
+        cancelOnError: true,
       );
-      // Heads-up 10s before the cap so the stop never feels like words
-      // were swallowed.
-      _warnTimer?.cancel();
-      _warnTimer = Timer(const Duration(seconds: 50), () {
-        if (mounted && _listening) _showNearLimitNotice();
-      });
     } catch (e) {
-      // Device doesn't have an offline language pack — fail closed.
-      // Do NOT silently fall back to cloud recognition: HREC says audio
-      // must never leave the device.  Tell the user how to fix it instead
-      // of leaving a dead button.
-      if (kDebugMode) {
-        debugPrint('[voice] on-device STT unavailable: $e');
-      }
-      if (mounted) setState(() => _listening = false);
-      _showUnavailableHint();
+      if (kDebugMode) debugPrint('[voice] start failed: ${e.runtimeType}');
+      if (mounted) _showPermissionHint();
+      return;
     }
+    if (!mounted) return;
+    widget.controller?._onListenStart();
+    setState(() => _phase = _Phase.recording);
+    _capTimer?.cancel();
+    _capTimer = Timer(VoiceInputButton.maxClip, () {
+      if (mounted && _phase == _Phase.recording) _stopAndTranscribe();
+    });
+  }
+
+  Future<void> _stopAndTranscribe() async {
+    final recorder = _recorder;
+    final client = _client;
+    final pcm = _pcm;
+    final done = _streamDone;
+    if (recorder == null || client == null || pcm == null) return;
+    _capTimer?.cancel();
+    widget.controller?._onListenStop();
+    if (mounted) setState(() => _phase = _Phase.transcribing);
+    try {
+      await recorder.stop();
+    } catch (e) {
+      if (kDebugMode) debugPrint('[voice] stop failed: ${e.runtimeType}');
+    }
+    // Wait (briefly) for the last chunks; the platform closes the stream.
+    if (done != null) {
+      await done.future.timeout(const Duration(seconds: 2), onTimeout: () {});
+    }
+    // Not awaited: on an already-closed stream cancel() hands back a
+    // root-zone completed future, which never resumes under fake async.
+    unawaited(_sub?.cancel());
+    _sub = null;
+    _pcm = null;
+    _streamDone = null;
+
+    final bytes = pcm.takeBytes();
+    if (_suppressResult) {
+      _finish();
+      return;
+    }
+    if (bytes.isEmpty) {
+      _fail(TranscriptionFailure.noSpeech);
+      return;
+    }
+    final wav = WavEncoder.fromPcm16(
+      bytes,
+      sampleRate: VoiceRecorder.sampleRate,
+      channels: VoiceRecorder.channels,
+    );
+    final result = await client.transcribe(wav);
+    if (!mounted || _suppressResult) {
+      _finish();
+      return;
+    }
+    if (result.ok) {
+      final glue = _bufferStart.isEmpty ? '' : ' ';
+      widget.onText('$_bufferStart$glue${result.text}');
+      _finish();
+    } else {
+      _fail(result.failure ?? TranscriptionFailure.serverError);
+    }
+  }
+
+  void _finish() {
+    _bufferStart = '';
+    if (mounted) setState(() => _phase = _Phase.idle);
+  }
+
+  void _fail(String category) {
+    _logFailure(category);
+    _finish();
+    _showS6Notice();
+  }
+
+  void _logFailure(String category) {
+    final via = widget.controller?.onTranscriptionFailed;
+    if (via != null) {
+      via(category);
+      return;
+    }
+    if (!mounted) return;
+    final scope = context.getInheritedWidgetOfExactType<AnalyticsScope>();
+    scope?.analytics.logEvent(
+      VoiceTranscriptionFailedEvent.name,
+      VoiceTranscriptionFailedEvent.payload(category: category),
+    );
   }
 
   /// B03 — called by [VoiceInputController.stopForSend] right before the
-  /// host page snapshots the input and sends.  Cancels (not just stops)
-  /// the recogniser so pending results are discarded, suppresses any
-  /// straggler callback, and resets the buffer so the next dictation
-  /// starts clean instead of appending to the sent text.
+  /// host page snapshots the input and sends.  Discards the clip and any
+  /// pending transcript so nothing lands in the freshly cleared field.
   Future<void> _stopForSend() async {
-    _suppressResults = true;
-    _userStopped = true;
-    _warnTimer?.cancel();
+    _suppressResult = true;
+    _capTimer?.cancel();
     widget.controller?._onListenStop();
-    if (_listening || _stt.isListening) {
+    if (_phase == _Phase.recording) {
       try {
-        await _stt.cancel();
+        await _recorder?.cancel();
       } catch (_) {
-        // Best-effort: even if cancel throws, _suppressResults already
-        // guards against late callbacks.
+        // Best effort; _suppressResult already guards the result path.
       }
+      unawaited(_sub?.cancel());
+      _sub = null;
+      _pcm = null;
+      _streamDone = null;
+      _finish();
     }
     _bufferStart = '';
-    if (mounted && _listening) setState(() => _listening = false);
   }
 
-  void _showNearLimitNotice() {
+  // ---------------------------------------------------------------------
+  // Notices
+  // ---------------------------------------------------------------------
+
+  void _showS6Notice() {
     if (!mounted) return;
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    _noticeTimer?.cancel();
+    setState(() => _showNotice = true);
+    _overlay.show();
+    _noticeTimer = Timer(VoiceInputButton.noticeDuration, _hideNotice);
+  }
+
+  void _hideNotice() {
+    _noticeTimer?.cancel();
+    _noticeTimer = null;
+    if (!mounted) return;
+    if (_overlay.isShowing) _overlay.hide();
+    if (_showNotice) setState(() => _showNotice = false);
+  }
+
+  /// Mic permission missing: tell the elder where to allow it.  Not S6 —
+  /// nothing was recorded, so no failure event either.
+  void _showPermissionHint() {
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
-        content: Text(isEn
-            ? 'Almost a minute — recording will pause soon.'
-            : '就快夠一分鐘喇，收音就嚟會停一停。'),
-        duration: const Duration(seconds: 4),
+        content: Text(_isEn
+            ? 'Please allow the microphone in Settings to use voice input.'
+            : '想用聲音輸入，請喺「設定」允許使用麥克風。'),
+        duration: const Duration(seconds: 6),
       ));
   }
 
-  void _showAutoStoppedNotice() {
-    if (!mounted) return;
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(isEn
-            ? 'Listening paused — what you said is already in the box. Tap '
-                'the mic to keep going.'
-            : '收音停咗，你講嘅嘢已經寫低咗喺框入面。想繼續講，再撳一下個咪。'),
-        duration: const Duration(seconds: 5),
-      ));
-  }
-
-  /// Shown when the recogniser stops because the network dropped mid-way
-  /// (cloud recognition needs a live connection). Reassures the user their
-  /// words so far are kept.
-  void _showNetworkLostNotice() {
-    if (!mounted) return;
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(isEn
-            ? 'The network dropped, so voice input stopped. What you already '
-                'said is kept in the box. Try again once you are back online.'
-            : '網絡斷咗，收音停咗。你頭先講嘅嘢已經寫低咗喺框入面。'
-                '等網絡返嚟，再撳個咪試多次。'),
-        duration: const Duration(seconds: 5),
-      ));
-  }
-
-  /// Shown when voice can't run — usually no offline language pack, or the
-  /// mic / speech permission was denied. Tells the user exactly where to go.
-  void _showUnavailableHint() {
-    if (!mounted) return;
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final isIos = defaultTargetPlatform == TargetPlatform.iOS;
-    // iOS uses Apple's built-in recogniser (needs Dictation on).  Android
-    // has no built-in one: speech_to_text hands the audio to whatever
-    // RecognitionService the phone has — normally Google's — so phones
-    // without it (many mainland-ROM brands) or with it disabled have no
-    // voice input at all.  Offline packs are NOT required any more
-    // (_onDeviceOnly = false).
-    _logVoiceIssue('unavailable');
-    final where = isIos
-        ? (isEn
-            ? 'Settings → General → Keyboard → turn on Dictation'
-            : '設定 → 一般 → 鍵盤 → 開啟「聽寫」')
-        : (isEn
-            ? 'install or update the "Google" app from the Play Store, then '
-                'Settings → System → Languages & input → Voice input → choose '
-                'Google and add "Cantonese (Hong Kong)"'
-            : '喺 Play 商店安裝或更新「Google」App，然後去 設定 → 系統 → 語言與輸入 → '
-                '語音輸入，揀「Google」，再加入「粵語（香港）」（唔同牌子菜單名稱會有少少唔同）');
-    final msg = isEn
-        ? "Voice input isn't ready on this phone (no speech-recognition "
-            'service, or mic permission is off). To use it: $where, and allow '
-            'the microphone.'
-        : '呢部機未準備好聲音輸入（冇語音識別服務，或者未開咪權限）。'
-            '想用就：$where，並允許使用麥克風。';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(seconds: 7)),
+  Widget _buildNotice(BuildContext context) {
+    final theme = Theme.of(context);
+    final width = MediaQuery.sizeOf(context).width;
+    return CompositedTransformFollower(
+      link: _noticeLink,
+      targetAnchor: Alignment.topLeft,
+      followerAnchor: Alignment.bottomLeft,
+      offset: const Offset(0, -6),
+      showWhenUnlinked: false,
+      child: Material(
+        key: const ValueKey('voice_s6_notice'),
+        color: theme.colorScheme.surfaceContainerHighest,
+        elevation: 3,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: _hideNotice,
+          borderRadius: BorderRadius.circular(12),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: (width - 32).clamp(200, 420)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              child: Text(
+                _isEn
+                    ? VoiceCopy.s6TranscriptionFailedEn
+                    : VoiceCopy.s6TranscriptionFailed,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontSize: 17,
+                  height: 1.4,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     if (!_enabled) return const SizedBox.shrink();
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
-    if (_initialising) {
-      return const SizedBox(
-        width: 48,
-        height: 48,
-        child: Padding(
-          padding: EdgeInsets.all(12),
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
+    final Widget icon;
+    final String tip;
+    switch (_phase) {
+      case _Phase.transcribing:
+        icon = const SizedBox(
+          width: 28,
+          height: 28,
+          child: Padding(
+            padding: EdgeInsets.all(4),
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        );
+        tip = _isEn ? 'Turning speech into text…' : '轉文字中…';
+        break;
+      case _Phase.recording:
+        icon = Icon(Icons.stop_circle_rounded,
+            color: theme.colorScheme.error, size: 28);
+        tip = _isEn ? 'Tap to stop' : '撳停';
+        break;
+      case _Phase.idle:
+        icon = Icon(Icons.mic_none_rounded,
+            color: theme.colorScheme.primary, size: 28);
+        tip = _isEn ? 'Tap to speak' : '撳住講';
+        break;
     }
-    // No OS speech recogniser on this device (common on Chinese-ROM
-    // Android): the mic stays visible but greyed out, and a tap retries
-    // init once then explains exactly why voice is unavailable and how to
-    // enable it (_showUnavailableHint) — never a dead button or spinner.
-    // The record/Whisper "hold to talk" fallback was moved to the
-    // phase-b/google-cloud-stt branch (record's Linux platform package is
-    // broken upstream and blocked every build — see Phase A freeze notes).
-    return Tooltip(
-      message: _available
-          ? (_listening
-              ? (isEn ? 'Tap to stop' : '撳停')
-              : (isEn ? 'Tap to speak' : '撳住講'))
-          : (isEn
-              ? 'Voice input unavailable on this device'
-              : '呢部機冇得用聲音輸入'),
-      child: IconButton(
-        // Stay tappable even when unavailable so a tap can explain WHY
-        // (missing language pack / permission) instead of being a dead icon.
-        onPressed: _initialising ? null : _toggle,
-        icon: Icon(
-          _listening ? Icons.stop_circle_rounded : Icons.mic_none_rounded,
-          color: _listening
-              ? theme.colorScheme.error
-              : _available
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant,
-          size: 28,
+    return OverlayPortal(
+      controller: _overlay,
+      overlayChildBuilder: _buildNotice,
+      child: CompositedTransformTarget(
+        link: _noticeLink,
+        child: Tooltip(
+          message: tip,
+          child: IconButton(
+            onPressed: _phase == _Phase.transcribing ? null : _toggle,
+            icon: icon,
+          ),
         ),
       ),
     );
@@ -484,8 +457,14 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   @override
   void dispose() {
     widget.controller?._unbind(this);
-    _warnTimer?.cancel();
-    if (_enabled) _stt.stop();
+    _capTimer?.cancel();
+    _noticeTimer?.cancel();
+    _sub?.cancel();
+    if (_phase == _Phase.recording) {
+      // ignore: discarded_futures
+      _recorder?.cancel().catchError((_) {});
+    }
+    _recorder?.dispose();
     super.dispose();
   }
 }

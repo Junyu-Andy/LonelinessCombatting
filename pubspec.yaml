@@ -23,12 +23,12 @@ dependencies:
   cloud_functions: ^5.6.2
   firebase_app_check: ^0.3.1
   firebase_messaging: ^15.1.0
-  speech_to_text: ^7.0.0
   # Offline detection for the chat resend queue.
   connectivity_plus: ^6.0.5
   crypto: ^3.0.6
   url_launcher: ^6.3.0
   shared_preferences: ^2.5.5
+  record: ^6.2.1
 
 dev_dependencies:
   flutter_test:
