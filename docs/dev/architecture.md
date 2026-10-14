@@ -1,6 +1,6 @@
 # 陪住 App 技术文档
 
-> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 补 T34 安全告警邮件（开关 `meta/alert_config.enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
 ## 1. 一句话
@@ -220,7 +220,8 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `arm_assignment_log` | T19 分配日志：`allocate` / `resubmit` / `correction`，研究编号、层、序列位置、组别、时间、操作人；更正带理由和原组别。客户端不能读写 |
 | `llm_denied_log` | T19：规则组调用 LLM 接口被拒的记录（uid、接口、时间）。客户端不能读写 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开、T10 修复开关、抽取 prompt 版本、记忆分层 `layersEnabled`（T31） |
-| `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列（T19 起 `pi_alerts` 只有 uid、研究编号、级别、`dedupKey`、`isTester`、`eventPath`、时间）。事件字段：`source`（user_input / ai_output_scan / form）、`inputPoint`、`turnId`、级别、命中词、文字的哈希；服务器补 `dedup_key`、`isDuplicate`、`duplicateOf`、`escalatedBy`。分析只数 `isDuplicate == false`（决策 0018） |
+| `safety_events`、`pi_alerts` | 安全事件、告警队列。事件字段：`source`（user_input / ai_output_scan / form；T34 加服务器专用的 questionnaire / assessor_entry）、`inputPoint`、`turnId`、级别、命中词、文字的哈希、**`crisisPageShown`（T34：这一轮有没有弹出全屏危机页，两组同样写，acute 即 true）**；问卷来源的事件带 `instrument`、`item`、`rawValue`、`alwaysAlert`（只有服务器能写）；服务器补 `dedup_key`、`isDuplicate`、`duplicateOf`、`escalatedBy`。分析只数 `isDuplicate == false`（决策 0018）。`pi_alerts`：开关关时是 T19 的记录（`alertVersion: 2`：uid、研究编号、级别、`dedupKey`、`isTester`、`eventPath`、时间）；开关开时是 T34 的记录（`alertVersion: 3`：加研究期、研究日、陪伴者、来源和 `sourceGroup`、级别类别、词库版本、`classifierInvolved`、`crisisPageShown`、`emailSentAt/To`、`acknowledgedAt/By`、`escalatedAt/To`），`unblinded` 可读、客户端不能写 |
+| `meta/alert_config`、`alert_audit_log` | T34：告警邮件的总开关和收件人（`enabled`、`primaryEmail`、`backupEmail`、`escalateAfterHours`，没有文档 = 关）；告警的日志（发信、去掉 blinded 地址、确认、转后备、失败）。都只有服务器能读写 |
 | `hotline_filter_log` | Hybrid 组 AI 回复里被替换的电话号码：时间、uid、模块、个数、种类、是否在批准清单里。不存原文和号码。只有服务器写 |
 | `meta/safety_config` | 热线规则和热线过滤的开关（`hotlinePromptRule`、`hotlineOutputFilter`），没有这个文档 = 都开。T8 分类器：`classifierEnabled`（默认关）、`classifierUrl`、`classifierTimeoutMs`、`classifierMaxChars` |
 | `safety_classifier_calls` | 安全分类器的调用记录（两组）：时间、uid、写入方（server / app）、结果状态、级别、分数、延迟、模型版本、输入点、`turn_id`、文字长度。不存原文，不存组别。服务器每次中转写一条；App 只补写请求没回来的（超时、离线）。客户端不能读 |
@@ -246,7 +247,9 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `transcribeAudio` | App 调用（目前 App 没有调用） | 语音转文字（两组）。`voiceInputEnabled` 不是 `true` 时直接拒绝 |
 | `safetyAcknowledgement` | App 调用 | 按陪伴者返回安全回应模板 |
 | `classifySafety` | App 调用（两组） | T8：把一句话转给安全分类器，只返回级别和分数，记 `safety_classifier_calls`。`meta/safety_config.classifierEnabled` 关着时直接返回 disabled。不调用 DeepSeek，不经过 `assertLlmAllowed`（决策 0025） |
-| `onSafetyEventCreated` | 新安全事件 | 通知 PI。告警和邮件内容两组相同，不带能看出组别的字段（T19，`functions/pi_alert.js`） |
+| `onSafetyEventCreated` | 新安全事件 | 去重后通知研究团队（`functions/pi_alert.js`）。`meta/alert_config.enabled` 关（默认）：T19 的做法，只有 acute、短邮件发到密钥 `PI_EMAIL`、不带能看出组别的字段。开：中英双语 12 个字段（研究编号、研究期、陪伴者、来源、级别类别、词库版本、LoRA、研究日、危机页、事件编号、告警编号、时间；不带组别、原话、命中词），发到 `primaryEmail`；发信前查收件人账号角色，`blinded` 去掉。问卷 / 评估员录入来源不论级别都告警。测试账号只记不发 |
+| `acknowledgeAlert` | 研究员后台「確認處理」 | T34：只有 `role: unblinded`；在 `pi_alerts/{id}` 写 `acknowledgedAt`、`acknowledgedBy`，并记 `alert_audit_log`。已确认的告警不再转后备 |
+| `escalateAlerts` | 每 15 分钟（asia-east2） | T34：开关开时，把发信后超过 `escalateAfterHours`（默认 12）小时没人确认、还没转过的告警，用同一封邮件再发给 `backupEmail`，每条只转一次（事务认领），写 `escalatedAt`、`escalatedTo` 和日志。关时什么都不做 |
 | `onThoughtExerciseCreated` | 新思维练习 | 写入研究员审计队列 `te_audit_queue` |
 | `weeklyLonelinessProbe` | 每周日 9:00（香港时间，下同） | 生成周度孤独感问卷队列（App 端默认不显示） |
 | `blindedDataExport` | 每周日 2:00 | 盲法数据导出。`meta/blinding_config.enabled` 开：新版（`functions/blinding.js`，研究编号、结局量表白名单，含 W2 DJG `djg_responses`，不含旧 `agent_diff`），写到 `exports_v2/{日期}/`，可用 `tool/check_blinded_export.js` 检查；关：旧版 `exports/{日期}/` |
@@ -272,7 +275,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 - **四级**：none / moderate_review / moderate_interrupt / acute。
 - **安全回应模板和热线**：`functions/prompts/safety_acknowledgements.json`、`crisis_resources.json`，App 和服务器读同一份。
 - **被安全标记的轮次不进入记忆**（决策 0013）。记忆 v1 在服务器上再查一次自杀、自残等词。
-- **两组都通知 PI**（决策 0014）。
+- **两组都通知 PI**（决策 0014）。T34 起叫「通知研究团队」：第一收件人 Junyu（`unblinded`），后备 Calvin Or；评估员（`blinded`）永远不在名单里。邮件字段两组相同；`safety_events.crisisPageShown` 由唯一的写入点 `SafetyEventWriter` 按级别决定（acute = 弹出危机页），两组一样。问卷 / 评估员录入来源的入口在 `functions/questionnaire_safety.js`（PHQ-9 第 9 题 ≠ 0），还没有调用方。见 `docs/dev-reports/T34-safety-alert-email-20261014.md`。
 - **统一入口**（决策 0018）：`SafetyService`。老人的每一处自由输入两组都经过它：聊天、签到和回忆留言、Thought Exercise、入组开放题、陪伴者比较页、「其他」反馈框、行动计划和跟进笔记、每周问卷自由题、回忆总结修改、搜一搜的搜索词、Phase A 的 ADA 自由作答和第 7 日开放题（`ada_free_text`、`day7_open_ended`）。表单页用 `checkAndRoute`：先保存，再弹危机页或支援面板。
 - **安全分类器槽位**（决策 0025；两组共用已由决策 0033 定下，开关默认关）：`SafetyService` 后面可以接一个分类器（LoRA），两组相同。开关开时，词库之后再经 Cloud Function `classifySafety` 问分类器，取较高级别（只升不降）；词库已是 acute 不问；超时 1.5 秒或失败只用词库。分类器只返回级别和分数。关着时一切照旧（同步检测）。代码：`lib/core/safety/safety_classifier.dart`、`functions/safety_classifier.js`。同一轮的分类器调用（`safety_classifier_calls.turn_id`）、安全事件（`safety_events.turnId`）和消息记录（`turns.safetyTurnId`）用同一个编号（决策 0033）。Phase A、Phase B 和试跑同一套：App 和服务器都不按构建或研究期决定问不问分类器；`app_config/phase_a` 里的开关名字带 phase_a，实际是全局的。例外：研究员电话代填的 Phase A 问卷文字只在服务器查词库。
 - **热线过滤**（只 Hybrid 组，决策 0018）：AI 不写号码；写了也在服务器和 App 各换一次成危机页链接。

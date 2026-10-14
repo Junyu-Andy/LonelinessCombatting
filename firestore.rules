@@ -31,7 +31,8 @@ rules_version = '2';
 //   meta/randomization_config                    -> T19 allocation (server only, no client access)
 //   safety_events/{eventId}                      -> *new* B.7 distress events (client-write, admin-read)
 //   safety_event_dedup/{dedupKey}                -> *new* B.7 dedup sentinel (admin-write only)
-//   pi_alerts/{alertId}                          -> *new* B.7 acute alert queue (admin-write only)
+//   pi_alerts/{alertId}                          -> B.7 alert queue (admin-write; T34: unblinded reads)
+//   alert_audit_log/{id}, meta/alert_config      -> T34 alert audit log + recipients (server only)
 //   llm_calls/{callId}                           -> C04 per-call model log (Cloud Functions only)
 //   research_id_map/{uid}, research_ids/{rid}    -> T12 research-ID lookup (server-write; unblinded role read)
 //   safety_classifier_calls/{id}                 -> T8 classifier call log (server; App adds own fallback rows only)
@@ -259,11 +260,18 @@ service cloud.firestore {
             'moderate_review', 'moderate_interrupt', 'acute']
         // T7: source is one of the three analysis buckets; the pre-T7
         // codes stay valid so an old build's events are not lost.
+        // T34: `questionnaire` and `assessor_entry` are server-only
+        // sources (functions/questionnaire_safety.js) — never from a client.
         && request.resource.data.source in ['user_input', 'ai_output_scan',
             'form', 'gateway_input', 'gateway_output', 'm3_turn', 'rule_turn']
-        // Dedup / escalation fields are the trigger's, never the client's.
+        // Dedup / escalation fields are the trigger's, never the client's;
+        // `alwaysAlert` (T34, alert whatever the level) is the server's.
         && !request.resource.data.keys().hasAny(['dedup_key', 'isDuplicate',
-            'duplicateOf', 'escalatedBy']);
+            'duplicateOf', 'escalatedBy', 'alwaysAlert'])
+        // T34: `crisisPageShown` (both arms, SafetyEventWriter) is a
+        // boolean when present.
+        && (!('crisisPageShown' in request.resource.data)
+            || request.resource.data.crisisPageShown is bool);
       // Reads + updates come only from service accounts.
       allow read, update, delete: if false;
     }
@@ -295,7 +303,19 @@ service cloud.firestore {
     match /safety_event_dedup/{dedupKey} {
       allow read, write: if false;
     }
+    // T34: the unblinded researcher reads the alert list in the dashboard
+    // (research ID, time, level, source, acknowledgement state) and
+    // acknowledges through the acknowledgeAlert callable; no client ever
+    // writes.  The blinded role (W4 assessors) reads nothing here.
     match /pi_alerts/{alertId} {
+      allow read: if isUnblinded();
+      allow write: if false;
+    }
+    // T34 alert audit log and recipient configuration — server only.
+    match /alert_audit_log/{id} {
+      allow read, write: if false;
+    }
+    match /meta/alert_config {
       allow read, write: if false;
     }
 

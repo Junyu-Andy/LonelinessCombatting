@@ -18,10 +18,11 @@
 
 | # | 项目 | 怎么核对 | 来源 | 核对人 / 日期 |
 |---|---|---|---|---|
-| B1 | Functions 密钥都已设置：`DEEPSEEK_API_KEY`、`SEARCH_API_KEY`、`SMTP_HOST`、`SMTP_USER`、`SMTP_PASS`、`PI_EMAIL` | Google Cloud 控制台 → Secret Manager，六个名字都在、都有版本。`PI_EMAIL` 的值要 PI 本人确认是对的邮箱 | `functions/index.js` 第 17–21、575 行；T2 第 2 节 | |
+| B1 | Functions 密钥都已设置：`DEEPSEEK_API_KEY`、`SEARCH_API_KEY`、`SMTP_HOST`、`SMTP_USER`、`SMTP_PASS`、`PI_EMAIL` | Google Cloud 控制台 → Secret Manager，六个名字都在、都有版本。**`PI_EMAIL` 的过渡（T34）**：值设成 Junyu 的地址。`meta/alert_config.enabled` 没打开时，只有 acute 级发邮件到这个地址、没有确认和后备（10/14 的过渡做法）；打开后，这个密钥只在 `meta/alert_config.primaryEmail` 空着时兜底（会写一条 `alert_audit_log`），以后可以停用 | `functions/index.js` 顶部 `defineSecret`、`readSmtpSecrets`；T2 第 2 节；T34 报告第 4 节 | |
 | B2 | 规则和 Functions 已按顺序部署 | Actions →「Deploy Firebase」最近一次成功运行的提交号 = 要上线的提交号。Firebase 控制台 → Functions 列表里有 `assignArm`、`proxyDeepSeek`、`dispatchReminders` 等；Firestore → 规则 页显示的内容和仓库 `firestore.rules` 一致 | `docs/dev/architecture.md` 第 9 节 | |
 | B3 | 决策 0017 的改动已部署（请求 `deepseek-flash`） | 部署后在 Firestore `llm_calls` 里看最新一条：`model_requested` = `deepseek-flash` | backlog 第 24 项；T5 | |
 | B4 | 研究人员角色已按 T19 发放：Keran = `unblinded`，PI（Junyu）和其他盲法人员 = `blinded`；没有账号还带旧名字 `pi` / `researcher` | `NODE_PATH=functions/node_modules node tool/provision_researcher.js --list-legacy` 显示 0 个；Keran 登录 App 后直接进「研究員登記」页；PI 登录后看到的是普通 App，没有登记页 | 决策 0029；T19 | |
+| B4a | **评估员账号永远不在告警名单里**（T34） | 两位 W4 评估员的账号都是 `blinded`（`tool/provision_researcher.js --email=… --role=blinded`）；`meta/alert_config.primaryEmail` / `backupEmail` 里**不要**填评估员的地址。即使填了，发信前服务器会查账号角色，把 `blinded` 的地址去掉并在 `alert_audit_log` 写一条 `recipient_dropped` | `functions/pi_alert.js` `resolveRecipients`；dev-tasks-1014 §三 T34 第 3 条 | |
 | B5 | iOS 推送（APNs）是否配置 | Firebase 控制台 → 项目设置 → Cloud Messaging → Apple 应用配置。没配置时 iOS 手机收不到任何推送（只用 Android 可跳过） | `functions/index.js` `sendTestPush` 注释 | |
 | B6 | Firestore、Storage 的地区；Storage 访问规则 | Firebase 控制台 → Firestore / Storage 设置页记下地区；Storage → 规则 页确认不是公开读写（仓库里没有 `storage.rules`） | T2 第 3.2 节、第 15 条 | |
 
@@ -52,6 +53,8 @@ NODE_PATH=functions/node_modules node tool/prelaunch_config.js --phase=b \
 | C3b | `app_config/arm_assignment` 已删除（T19 停用） | 文档不存在 | 控制台看；脚本会提示 `randomise is still true` | 决策 0029 | |
 | C4 | `app_config/reminders.m7FollowupPushEnabled` | 研究侧决定。默认不建 = 行动计划提醒不发 | 控制台看。打开后，在 `users/{uid}/events` 能看到 `m7_reminder_sent` | 决策 0022 | |
 | C5 | `app_config/phase_a`（只有 Phase A 用） | 研究侧决定 `w2DayOffset` 等参数；不建就用默认值 14 / 3 | 控制台看 | T2 | |
+| C6 | `meta/alert_config`（T34 安全告警邮件的总开关和收件人） | 研究侧决定打开那天，在控制台建这个文档：`enabled: true`、`primaryEmail: "<Junyu 的地址>"`、`backupEmail: "<Calvin Or 的地址>"`、`escalateAfterHours: 12`（数字）。**没有这个文档 = 关**：告警和邮件完全是现在的样子（只有 acute、发到 `PI_EMAIL`、没有确认和后备）。地址不写进代码和仓库 | 控制台打开文档看四个字段；`enabled` 必须是布尔 `true`（不是字串）。打开后故意用测试账号触发一次 acute：`pi_alerts` 多一条 `alertVersion: 3` 的记录、`isTester: true`、**没有**邮件（测试账号不发信）；再用研究员后台看到「安全告警」一节 | `functions/pi_alert.js` 顶部注释、`readAlertConfig`；T34 报告第 3 节 | |
+| C6a | 打开 C6 之前：Junyu 的账号是 `unblinded`、后备收件人不是 `blinded` | 第一收件人要能在后台点「確認處理」，账号必须是 `unblinded`（B4）。后备收件人 Calvin Or 可以没有 App 账号（服务器查不到账号照发，`alert_audit_log` 记 `no_app_account`）；有账号就不能是 `blinded`（会被去掉，见 B4a） | `functions/pi_alert.js` `acknowledge`、`resolveRecipients` | |
 
 ## G. 分组准备（T19，决策 0029）
 

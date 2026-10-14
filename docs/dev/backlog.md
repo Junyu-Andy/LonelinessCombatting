@@ -1,7 +1,7 @@
 # 待办与待决定
 
 > 随时更新。做完的移到 `docs/history.md`，划掉或删掉这里的条目。
-> 最后更新：2026-10-10（产品窗口 10/10 第二次交接：T34、Phase A 暂停；T26 补 Phase A 和试跑；T33 定稿文字接入；T31 记忆分层）
+> 最后更新：2026-10-14（T34 安全告警邮件 PR 草稿，第 96–99 项）；2026-10-10（产品窗口 10/10 第二次交接：T34、Phase A 暂停；T26 补 Phase A 和试跑；T33 定稿文字接入；T31 记忆分层）
 
 ## 1. 已决定、待开发
 
@@ -14,7 +14,7 @@
 | 89 | **T31 记忆分层**（共享层 / 私有层、按陪伴者过滤、删除覆盖两层、剂量分层计、抽取 prompt v3 未切换、S7） | 决策 0035；`docs/dev-reports/T31-memory-layers-20261010.md` | PR 草稿（分支 `feat/memory-layers`）。合并后删这一行。上线：PI 审 v3 → 研究侧定日期切 `extractionPrompt`；`layersEnabled` 和 `memoryLayersNoticeEnabled` 一起开 |
 | 71 | **T21 Phase A 与 Phase B 的配置分开**：参与者带研究期字段（登记时由研究员写），按研究期读配置和筛数据，盲法导出只含 Phase B，名单互斥 | `docs/dev-tasks/dev-tasks-1007b.md` T21 | 用 T19 的研究员登记入口，排在 T19 之后 |
 | 84 | **T26 LoRA 两组、两期和试跑共用**（决策 0033；`turns.safetyTurnId`；上线清单 H 节；10/10 补 Phase A 和试跑） | `docs/dev-reports/T26-lora-both-arms-20261009.md` | PR 草稿（分支 `feat/lora-both-arms-v2`）。合并后删这一行 |
-| 90 | **T34 安全告警邮件**：字段（研究编号、研究期、陪伴者、来源、级别和类别、词库版本、LoRA、研究日、危机页、事件编号）；收件人配置（Junyu、后备 Calvin Or，评估员不在名单、测试账号不发）；后台“确认处理”；12 小时没确认转后备；PHQ-9 第 9 题的问卷和评估员录入来源；导出带来源 | 产品窗口 10/10 第 6–8 条；`docs/dev-tasks/dev-tasks-1010b.md` | 现在可以开；评估员录入那一头等 T30 和 PHQ-9 规格文件 |
+| 90 | **T34 安全告警邮件**：字段（研究编号、研究期、陪伴者、来源、级别和类别、词库版本、LoRA、研究日、危机页、事件编号）；收件人配置（Junyu、后备 Calvin Or，评估员不在名单、测试账号不发）；后台“确认处理”；12 小时没确认转后备；PHQ-9 第 9 题的问卷和评估员录入来源；导出带来源 | 产品窗口 10/10 第 6–8 条；`docs/dev-tasks/dev-tasks-1010b.md` | 现在可以开；评估员录入那一头等 T30 和 PHQ-9 规格文件 | PR 草稿已出（分支 `feat/safety-alert-email`，`docs/dev-reports/T34-safety-alert-email-20261014.md`）；评估员录入那一头等 T30 和 PHQ-9 规格文件；开关 `meta/alert_config.enabled` 默认关 |
 
 ## 2. 上线前必须做（负责人操作）
 
@@ -97,6 +97,10 @@
 | 79 | 旧版导出（`meta/blinding_config.enabled` 关着时的 `exports/`）仍导出 `agent_diff`（uid 换成哈希，`freeResponse` 原文也在）；`tool/admin_dump.js`（单人原始数据，带 uid）也会读出。T22 没改，因为它们也是 Phase A 的导出；要不要在 T21 按研究期分开时一起拿掉 | T22 报告第 2 节 | 研究侧；开发（T21） |
 | 91 | App 里没有 PHQ-9（C15 写的是纸本）。“App 内 PHQ-9 第 9 题”的告警来源现在不会触发：以后哪份 App 内问卷、哪一题要触发告警 | T34 先只做入口（`docs/dev-reports/product-reply-20261010.md` 第三节第 1 条） | 产品窗口 |
 | 92 | 告警邮件的来源“AI 回复扫描”只有 Hybrid 组有，会露出组别。后备收件人 Calvin 要不要保持盲：后备邮件不写来源，或把它并入“老人输入” | 没定之前 T34 按原文写四种来源（同上第 2 条） | 产品窗口 |
+| 96 | **T34 之后**：`functions/pi_alert.js` 里的研究日 `studyDay`（W0 = 第 0 天，香港日历日）在 T24 合并后改用 T24 的共享函数；研究期已用 T21 的 `study_period.js` | T34 报告第 5 节；dev-tasks-1010b T34 §1.3 | T24 合并后 |
+| 97 | **T30 接入**：评估员录入 W4 纸本 PHQ-9 时，在提交处调用 `functions/questionnaire_safety.js` `recordQuestionnaireSafetyEvent(db, {uid, source: 'assessor_entry', instrument: 'PHQ-9', item: 9, rawValue, enteredBy, researchId})`（第 9 题为 0 自动不写）。默认级别 acute 待 Junyu 定（T34 报告「要 Junyu 定的事」第 1 条） | T34 报告第 6 节 | T30 |
+| 98 | `PI_EMAIL` 密钥何时停用：`meta/alert_config` 打开并填了 `primaryEmail` 后，密钥只做兜底；研究侧确认后可以从 `onSafetyEventCreated` / `escalateAlerts` 的 `secrets` 列表里去掉 | T34 报告第 4 节；上线清单 B1 | 开关打开后 |
+| 99 | 告警邮件的「研究第几天」对试跑账号：现在也从 `users/{uid}.w0Date` 算（T21 登记时写）；任务原文说试跑「从登记日算」，T24 的共享函数定下来后对齐 | dev-tasks-1010b T34 §1.3；T34 报告第 5 节 | T24 |
 
 ## 4. 暂缓或以后再做
 

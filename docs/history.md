@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-14 T34 安全告警邮件（PR 草稿，分支 `feat/safety-alert-email`）
+
+- **做了**：告警邮件改版放在总开关 `meta/alert_config.enabled` 后面（默认关 = 现状）。开着时：中英双语、12 个固定字段（不含组别、原话、命中词）；收件人从 `meta/alert_config` 读，`blinded` 账号去掉并记 `alert_audit_log`；测试账号只记不发；研究员后台 `unblinded` 多「安全告警」一节和「確認處理」（Cloud Function `acknowledgeAlert` 查角色）；定时函数 `escalateAlerts` 每 15 分钟把超过 `escalateAfterHours`（默认 12）没确认的告警转发后备一次。新模块 `functions/questionnaire_safety.js`：问卷 / 评估员录入来源（PHQ-9 第 9 题 ≠ 0）写安全事件、不论级别都告警，只有服务器能写；没有接任何调用方（App 没有 PHQ-9，W8 不推；评估员录入页是 T30 的）。`safety_events` 新字段 `crisisPageShown`（两组同样写）。盲法导出 v2 多 `sourceGroup`，v1 导出也补这个字段。`functions/study_period.js` 和 T21 的逐字节相同。
+- **讨论过**：新字段和决策 0029 第五节（告警不带组别线索、PI 盲法）冲突；现在 Junyu 是 `unblinded`、盲的是评估员，决策草稿写在报告里，编号等开发窗口分配。来源「AI 回复扫描」只有 Hybrid 组有，后备收件人 Calvin 看得到（backlog 92，未定）。
+- 报告：`docs/dev-reports/T34-safety-alert-email-20261014.md`。
+
+---
+
 ## 2026-10-14 产品窗口 10/14 第 1–4 条排进第九批（T35）；登记表 v9
 
 - **定了**：数据收集 10/19 开始；W4 结局评估员是 Keran，后备 Mingyan Wang，评估员视图只剩 W4；W8 不再有评估员，App 在第 56 天推送 DJG-ES、PGIC、UCLA-3，第 63 天关闭，超窗作答照记并标记；W8 不推 PHQ-9、GAD-7。
