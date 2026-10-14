@@ -21,6 +21,11 @@ class AnalyticsScope extends InheritedWidget {
     return scope!.analytics;
   }
 
+  /// Non-asserting lookup for code that may run without the scope (widget
+  /// tests, screenshot entry points).  Registers no dependency.
+  static AnalyticsService? maybeOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<AnalyticsScope>()?.analytics;
+
   @override
   bool updateShouldNotify(AnalyticsScope oldWidget) =>
       oldWidget.analytics != analytics;

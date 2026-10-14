@@ -223,9 +223,20 @@ class UserProfile {
   /// never offered in Phase A/B builds (FeatureFlags.memoryV1).
   final bool memoryEnabled;
 
-  /// Server-written with the arm: `randomise` (assigned in Phase B) or
-  /// `force_a` (Phase A pilot). Read-only on the client — never in toMap.
+  /// Server-written with the arm: `randomise` (assigned in Phase B),
+  /// `pilot_designated` (T21: a pilot-run account whose version the
+  /// researcher chose) or `force_a` (Phase A pilot). Read-only on the
+  /// client — never in toMap.
   final String? armAssignmentMode;
+
+  /// T21 (registry v8 C01): the study period, written by the server at
+  /// registration from the research-ID prefix — `phase_b` (PB-) or `pilot`
+  /// (PILOT-); decision 0011 labels.  Null until registered.  Read-only on
+  /// the client — never in toMap (firestore.rules refuses client writes).
+  final String? cohort;
+
+  /// T21: registered for Phase B or the pilot run.
+  bool get isEnrolled => cohort == 'phase_b' || cohort == 'pilot';
 
   /// T19 (decision 0029): the W0 date the unblinded researcher entered at
   /// registration, `YYYY-MM-DD` (Hong Kong).  Server-written with the arm;
@@ -263,6 +274,16 @@ class UserProfile {
   /// baseline value. Null when not measured (Phase A tolerated).
   final int? baselineUclaScore;
 
+  /// T37 — when the participant tapped 「完成」 at the end of 「介紹三個夥伴」
+  /// (agent onboarding).  Client-written like the other profile fields;
+  /// omitted from [toMap] while null so a stale merge-write never erases
+  /// it.  With `app_config/feature_flags.onboardingAfterEnrollmentFix` on,
+  /// ConsentGate reads it instead of "a pairing exists" to decide whether
+  /// the slides still have to run (the researcher's registration writes
+  /// the pairing too).  Null for accounts that finished onboarding before
+  /// T37 — see `ConsentGate.needsAgentOnboarding`.
+  final DateTime? onboardingCompletedAt;
+
   const UserProfile({
     required this.uid,
     required this.email,
@@ -285,6 +306,7 @@ class UserProfile {
     this.weeklyProbeEnabled = false,
     this.memoryEnabled = false,
     this.armAssignmentMode,
+    this.cohort,
     this.w0Date,
     this.firstIntroSeen = const {},
     this.avoidTopics,
@@ -293,6 +315,7 @@ class UserProfile {
     this.preferredTimes,
     this.isTester = false,
     this.baselineUclaScore,
+    this.onboardingCompletedAt,
   });
 
   /// B.10 — true when the activation timestamp is for the current local day.
@@ -323,6 +346,7 @@ class UserProfile {
     bool? weeklyProbeEnabled,
     bool? memoryEnabled,
     String? armAssignmentMode,
+    String? cohort,
     String? w0Date,
     Map<String, DateTime>? firstIntroSeen,
     String? avoidTopics,
@@ -331,6 +355,7 @@ class UserProfile {
     List<String>? preferredTimes,
     bool? isTester,
     int? baselineUclaScore,
+    DateTime? onboardingCompletedAt,
   }) {
     return UserProfile(
       uid: uid,
@@ -357,6 +382,7 @@ class UserProfile {
       weeklyProbeEnabled: weeklyProbeEnabled ?? this.weeklyProbeEnabled,
       memoryEnabled: memoryEnabled ?? this.memoryEnabled,
       armAssignmentMode: armAssignmentMode ?? this.armAssignmentMode,
+      cohort: cohort ?? this.cohort,
       w0Date: w0Date ?? this.w0Date,
       firstIntroSeen: firstIntroSeen ?? this.firstIntroSeen,
       avoidTopics: avoidTopics ?? this.avoidTopics,
@@ -365,6 +391,8 @@ class UserProfile {
       preferredTimes: preferredTimes ?? this.preferredTimes,
       isTester: isTester ?? this.isTester,
       baselineUclaScore: baselineUclaScore ?? this.baselineUclaScore,
+      onboardingCompletedAt:
+          onboardingCompletedAt ?? this.onboardingCompletedAt,
     );
   }
 
@@ -409,6 +437,9 @@ class UserProfile {
         'preferredTimes': preferredTimes,
         'isTester': isTester,
         'baselineUclaScore': baselineUclaScore,
+        // T37: omitted while null so a stale profile write can't erase it.
+        if (onboardingCompletedAt != null)
+          'onboardingCompletedAt': onboardingCompletedAt!.toIso8601String(),
       };
 
   factory UserProfile.fromMap(String uid, Map<String, dynamic> map) {
@@ -484,6 +515,7 @@ class UserProfile {
       weeklyProbeEnabled: (map['weeklyProbeEnabled'] as bool?) ?? false,
       memoryEnabled: (map['memory_enabled'] as bool?) ?? false,
       armAssignmentMode: map['armAssignmentMode'] as String?,
+      cohort: map['cohort'] as String?,
       w0Date: map['w0Date'] as String?,
       firstIntroSeen: intro,
       avoidTopics: map['avoidTopics'] as String?,
@@ -492,6 +524,7 @@ class UserProfile {
       preferredTimes: (map['preferredTimes'] as List?)?.whereType<String>().toList(),
       isTester: (map['isTester'] as bool?) ?? false,
       baselineUclaScore: (map['baselineUclaScore'] as num?)?.toInt(),
+      onboardingCompletedAt: parseDate(map['onboardingCompletedAt']),
     );
   }
 }

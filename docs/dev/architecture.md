@@ -1,6 +1,8 @@
 # 陪住 App 技术文档
 
-> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T25 会话定义和 Brief PR 第二版（第 6 节，开关默认关）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 补 T34 安全告警邮件（开关 `meta/alert_config.enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）。代码改了，这份跟着改（同一个 PR）。
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 
 ## 1. 一句话
@@ -80,6 +82,19 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 3. Cloud Function `enrollParticipant`（`functions/randomization.js`）在一个事务里：按情感分分层（0–1 低层、2–3 高层），取该层分配序列的下一个未用位置，写入 `users/{uid}`：`arm`、`strataCell`（0 低 / 1 高）、`armAssignmentMode: "randomise"`、`armAssignmentMethod: "permuted_block_v1"`、`armAssignedBy: "server"`、`armAssignedAt`、`w0Date`、`ahJanAhBakVariant`；同时写登记记录 `enrollments/{uid}`、研究编号对照表、分配日志 `arm_assignment_log`（研究编号、层、序列位置、时间、操作的研究员）。
 4. 组别只在研究员的登记页显示，用于按组引导。老人完全关闭 App 再打开后，新组别生效。
 
+**研究期按研究编号前缀，T21 起**（登记表 v8 C01；Phase A 暂停，决策 0034）：登记页按编号开头决定填什么，服务器再查一次（`functions/study_period.js`）。
+
+| 编号 | 研究期 | 登记时填 | 组别怎样来 | 研究日从哪天算 | 日志 |
+|---|---|---|---|---|---|
+| `PB-…` | Phase B：`users.cohort = "phase_b"`，`enrollments.studyPeriod = "B"` | W0 情感分、阿珍/阿伯、W0 日期 | 分配序列（上面第 3 步） | W0 日期 | `arm_assignment_log` |
+| `PILOT-…` | 试跑：`users.cohort = "pilot"`，`enrollments.studyPeriod = "PILOT"` | 阿珍/阿伯、版本（Hybrid 或规则组，确认框里再选一次） | 研究员指定，不占序列；`armAssignmentMode: "pilot_designated"` | 登记日（写进 `w0Date`） | `pilot_assignment_log`（编号、版本、时间、操作人） |
+| `PA-…`、没有前缀 | 登记时拒绝（`research_id_prefix`） | — | — | — | — |
+
+- `cohort` 用决策 0011 的字段，只有服务器能写。试跑的 Hybrid 账号和 Phase B 的 Hybrid 一样有服务器记忆（`memory.js` `inScope`、App `MemoryModes`）；试跑不进盲法导出，也不收旧的 Phase A 第 2 周推送（`week2Push`）。
+- **登记门**（开关 `app_config/feature_flags.enrollmentGateEnabled`，默认关）：开时，没有 `cohort`、也不是测试账号（`isTester: true`）的账号，App 只显示等待页 S8（`lib/features/enrollment/presentation/enrollment_wait_gate.dart`，放在同意页之前）；服务器拒绝它的 LLM 调用，`llm_denied_log` 记 `reason: "not_enrolled"`；Firestore 规则不让它写 `users/{uid}/` 下的研究数据（推送令牌 `fcm_tokens` 除外，用户文档本身照常）。关时和以前一样。
+
+**登记后的入组引导顺序（T37，开关 `app_config/feature_flags.onboardingAfterEnrollmentFix`，默认关）**：登录后 App 的门按顺序是 `StaffGate`（研究员去登记页）→ `EnrollmentWaitGate`（登记门，上面）→ `ConsentGate`（同意页 → 入组问卷 → 「介紹三個夥伴」引导）→ 主页（`lib/features/auth/presentation/pages/auth_gate.dart`、`lib/features/consent/presentation/consent_gate.dart`）。引导要不要做，以前只看“有没有阿珍/阿伯配对”；登记也写配对，所以“先登记后引导”会整段跳过。开关开时改为看标记 `users/{uid}.onboardingCompletedAt`（老人按「完成」时 App 写，开关关着也照写）：有标记就不做；没标记、没配对就做；没标记、有配对：没登记过的算做过（配对只能是 App 写的），登记过的只有当 App 留有自己的痕迹（`consent.transcriptRetentionByAgent` 三个键，只有 App 的「完成」会写）才算做过，否则做。引导里的配对一屏预选登记值；老人改选时 App 记一条 `events`（`ah_jan_ah_bak_changed`：from、to、at、where），`enrollments/{uid}` 里的登记值不动，分析以它为准（T30 以后把这条日志搬到服务器）。开关关时和以前完全一样。
+
 **分配序列**：每层一条，1:1 置换区组，区组大小 2 和 4 随机混用，每层至少 60 个位置。由非盲研究员用自己选的种子运行 `tool/randomization_sequence.js` 生成，上传到 `randomization_sequences/{low,high}`；种子和序列文件只存在本地 `randomization-private/`（不进仓库），交导师离线保存。上传不带种子。
 
 **重复提交**：同一个账号再提交，返回原来的组别，不再随机，记一条 `resubmit` 日志。**更正**：只能用 `tool/correct_arm_assignment.js`，必须写理由，记 `correction` 日志。
@@ -88,18 +103,18 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 **防护**：
 
-- 分组字段（`arm`、`strataCell`、`armAssignmentMode`、`armAssignedBy`、`armAssignedAt`，T19 加 `w0Date`、`armAssignmentMethod`、`armCorrectedAt`）只有服务器能写：客户端建档时不能带，之后不能改、不能删；客户端也不能删自己的用户文档，免得删档重建换组（Firestore 规则，决策 0022）。
+- 分组字段（`arm`、`strataCell`、`armAssignmentMode`、`armAssignedBy`、`armAssignedAt`，T19 加 `w0Date`、`armAssignmentMethod`、`armCorrectedAt`，T21 加 `cohort`）只有服务器能写：客户端建档时不能带，之后不能改、不能删；客户端也不能删自己的用户文档，免得删档重建换组（Firestore 规则，决策 0022）。
 - `proxyDeepSeek`、`referralJudgement`、`webSearch` 每次先查分组，B 组直接拒绝，并在 `llm_denied_log` 记一条（uid、哪个接口、时间；不存文字）。即使 App 哪里判断错了，B 组也拿不到 LLM。服务器的分组缓存 10 分钟过期，更正后最迟 10 分钟生效。
-- 分组还没拿到（`arm` 为空）时 App 显示 B 组界面（决策 0004），下次登录自动重试。登记前的这段时间服务器不拒绝 LLM（App 不会调用），见决策 0029。
-- 序列、指针、登记记录、分配日志、`meta/randomization_config`、`meta/arm_counter`：客户端（老人、盲法、非盲人员）一律不能读写。
+- 分组还没拿到（`arm` 为空）时 App 显示 B 组界面（决策 0004），下次登录自动重试。登记前的这段时间服务器不拒绝 LLM（App 不会调用），见决策 0029。T21 的登记门打开后，这段时间改为只显示等待页，服务器也拒绝（见上）。
+- 序列、指针、登记记录、分配日志、试跑日志 `pilot_assignment_log`、`meta/randomization_config`、`meta/arm_counter`：客户端（老人、盲法、非盲人员）一律不能读写。
 
 **角色**（Auth custom claims，`tool/provision_researcher.js`，T19 改名）：`unblinded` = 非盲研究员（Keran）：登记、看组别、读研究编号对照表、后台看两组人数、生成和上传序列。`blinded` = 盲法人员，包括 PI（Junyu，盲法评估者）：后台不显示两组人数和只有一组才有的板块，只用盲法导出。旧名字 `pi`、`researcher` 不再有任何权限。
 
 **给 PI 的告警**（T19）：`pi_alerts` 和发给 `PI_EMAIL` 的邮件不再带 `source`、`inputPoint`、`agentId`（这些值有的只有一组才有），只带研究编号、级别、时间、告警编号；两组完全相同，每条 acute 事件照旧告警（`functions/pi_alert.js`）。
 
-**编译开关**：现在 Phase B 界面靠 `--dart-define=PHASE_B=true` 打开，不加就是「所有人显示 A 组」的 Phase A 包。决策 0011 定了要改成 `cohort` 字段并删掉这个开关，**还没做**。
+**编译开关**：现在 Phase B 界面靠 `--dart-define=PHASE_B=true` 打开，不加就是「所有人显示 A 组」的 Phase A 包。决策 0011 原定改成 `cohort` 字段并删掉这个开关；**10/14 决策 0037 第 1 项暂定保留**（待负责人确认）：Phase A 暂停后，参与者包固定用 `PHASE_B=true`（Build APK 的 `phase_b` / `phase_b_templates` 选项），Phase A 专用行为在这个包里由 `AdaGate` 等关住。以后要删或改成按研究期在运行时判断，另开任务（T21 报告第 5 节列了 8 个文件）。
 
-**cohort（已决定，未实现，决策 0011）**：`users/{uid}.cohort` = `pilot`（现有全部账号）/ `phase_a` / `phase_b`。T21 会在登记时写研究期字段；登记记录里已留 `studyPeriod`（现在固定 `B`）。
+**cohort（决策 0011，T21 起由登记写入；`pilot` 的含义见决策 0037）**：`users/{uid}.cohort` = `phase_b`（`PB-`）/ `pilot`（`PILOT-` 试跑）；`phase_a` 暂不会出现（Phase A 暂停）。决策 0011 里“现有全部账号标 `pilot`”没有做、也不再做（0037 第 2 项）：旧账号是测试员的，按 T32 的清理脚本删除，不标记。
 
 **W0 日期**：App 的 `w0DateFor`（`lib/core/scheduling/w0_date.dart`）和服务器的 `w0DateKey`（`functions/djg_w2.js`）先用登记时写的 `w0Date`，没有再用账号的 `createdAt`。
 
@@ -142,6 +157,24 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | 首次 Brief PR | 每个陪伴者第一次弹出时没有「跳过」按钮（anchor） | `isAnchorPromptFor` |
 
 签到 B 和回忆 B 也写 `sessions` 和 `turns`（`llmStatus: rule_based`），`moduleId` 和 A 组相同，所以两组的使用量可以直接比较。
+
+### 6.0 第二版（T25，登记表 C14、C16；开关 `app_config/phase_b.sessionBriefPrV2Enabled`，默认关）
+
+上表是开关**关着**时的行为（现状）。开关打开后（Phase B 和试跑，两组相同），改成下面这样；规则在 `lib/core/session/session_rules.dart`，报告 `docs/dev-reports/T25-session-briefpr-20261014.md` 有字段表。
+
+| 项目 | 开关打开后 | 位置 |
+|---|---|---|
+| 会话结束 | 收尾按钮 S9「今日傾到呢度」（`close_button`）；返回键 / 手势（`back`）；另一位陪伴者开始会话（`switch_agent`）；**30 分钟**没有新消息（`timeout`，`sessionIdleTimeoutMinV2`）；acute（`crisis`）；App 被杀掉的下次启动按已存消息补判（`recovered`，不再是 `app_killed`）。切 App、锁屏只暂停计时 | `chat_session_recorder.dart`、`idle_session_timer.dart`、`session_close_button.dart` |
+| 有效会话 `isValid` | 自由聊天（通通、反思对话）≥3 条**有回复**的消息（`freeChatValidMinUserMessages`）；Hybrid 签到 = 记录了心情 + ≥1 条有回复（`hybridCheckInValidRequiresMood`、`hybridCheckInValidMinUserMessages`）；Hybrid 回忆 = 按「儲存」存了小结（`hybridReminiscenceValidRequiresSave`）；签到 B、回忆 B = 一次完整提交（`submitted`，决策 0015）。fallback 和危机短路的回合不算回复 | `SessionRules.isValid` |
+| 会话日志新字段 | `sessionType`、`userMessageCount`、`replyCount`、`lastReplyAt`、`isValid`、`moodRecorded`、`summarySaved`、`isRuleSubmission`、`ruleSubmissionCompleted`、`briefPrInvitedTodayAlready`、`briefPrSkippedByCap`、`scheduleVersion`（1 旧 / 2 新） | `users/{uid}/sessions/{id}` |
+| Brief PR 邀请 | 只在有效会话结束后，由 `BriefPrScheduler` 决定：每位陪伴者每天最多 1 次（`briefPrDailyCapPerAgent`，超过的不建记录、会话行标 `briefPrSkippedByCap`）；危机结束或处置中不邀请（记录 `due_not_invited` + 原因）；不再在聊天页弹窗，也没有主动评价入口 | `lib/features/brief_pr/data/brief_pr_scheduler.dart` |
+| 评价卡 | 「搵人傾」列表页顶部一张卡：收尾 / 返回 / 切换结束的用 S10a，超时 / 被杀掉的下次打开用 S10b（时间只用 今朝 / 尋晚 / 星期X 下晝，其余【占位】）；按钮「好呀」「今次唔評」≥48×48；不遮挡陪伴者卡片和返回。距最后一条完整回复 >2 小时过期（`briefPrCatchUpExpiryHours`） | `brief_pr_invite_card.dart`、`brief_pr_card_host.dart`（放在 `talk_page.dart`） |
+| 问卷 | 「好呀」才打开：一题一屏、显示 1/4、七个选项整行可按、「下一題」「完成」分开、返回、放弃。题目和 1–7 分不变 | `brief_pr_flow_page.dart` |
+| Brief PR 记录 | `users/{uid}/brief_pr/{sessionId}`（文档编号 = 会话编号，重复提交不可能），`schemaVersion: 3`；`finalStatus` = `completed` / `partially_completed` / `skipped` / `expired` / `due_not_invited`，`everShown`，`inviteChannel` = `list_page` / `catch_up`，四题原始分不反转。旧的弹窗记录（`schemaVersion: 2`）照旧可读 | `brief_pr_record.dart`、`brief_pr_store.dart` |
+| anchor 规则 | 取消：每张卡都有「今次唔評」 | — |
+| 记忆 | 不变：会话结束时交给记忆（Hybrid 组），不等评分；评分永远不进记忆 | 各页面的 `RollingSummaryCompiler` 调用 |
+| `llm_calls` | 每条带 `session_id`（App 传的会话编号；服务器自发的调用为空） | `functions/llm_log.js` |
+| 每人每周有效会话数 | 导出 `usage_weekly` 多一列 `validSessionCount`（`sessions.isValid == true`）；没有单独的汇总表，查询见 T25 报告 | `functions/blinding.js` |
 
 ### 6.1 Phase A 的 ADA 和第 7 日问卷（决策 0026、0030，默认关）
 
@@ -189,7 +222,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | 用户文档本身 | 资料、年龄段、UCLA 基线、`arm`、`strataCell`、分组时间和方式、同意设定、`memory_enabled` | App；分组字段由服务器写 |
 | `sessions` / `turns` | 每次会话、每一轮对话（含模型、`promptVersion`、延迟、安全等级；`safetyTurnId` = 这一轮安全记录的编号，两组都写，T26） | App |
 | `events` | 行为事件（打开页面、推送、按钮等） | App |
-| `brief_pr`、`weekly_pr`、`daily_mood`、`djg_es`、`pgic`、`ppr_responses`、`loneliness_probes`、`check_in_responses` | 问卷和量表 | App |
+| `brief_pr`、`weekly_pr`、`daily_mood`、`djg_es`、`pgic`、`ppr_responses`、`loneliness_probes`、`check_in_responses` | 问卷和量表。`brief_pr` 第二版（T25）文档编号 = 会话编号，`schemaVersion: 3`，字段见第 6.0 节 | App |
 | `djg_responses/W2` | Phase B 第 2 周 DJG（6 题，决策 0027）：原始答案（q1–q6 → yes / mostly / no / skipped）、状态、开始和提交时间；服务器补 `scores`（情感、社交、总分，跳题的分量表为空）、`outsideWindow`、窗口日期、`pushSentAt`、`reminderSentAt`、缺失标记。开关打开后取代 Phase B 的 `djg_es`（旧集合保留） | App 写答案；分数等由服务器写，App 不能改；提交或缺失后 App 不能再改 |
 | `ada_responses/{时间点}`、`day7_open_responses/day7` | Phase A 的 ADA 和第 7 日开放题（第 6.1 节）。只有本人能读写；App 写的 `channel` 只能是 `app`；`status` 变成 `submitted` 后不能再改；客户端不能删；不进盲法导出。研究员电话代填由 `adaStaffSave` 写（`channel: phone_by_staff`、`staffUid`），之后老人不能改 | App；电话代填由服务器 |
 | `agent_contexts/{agentId}` | v0 记忆：对话缓冲区 + 滚动摘要 | App |
@@ -210,7 +243,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `app_config/reminders` | `{m7FollowupPushEnabled: bool}`：行动计划提醒发不发，默认关（决策 0022） |
 | `app_config/feature_flags` | 搜一搜、语音、通通固定回应、记忆分层说明（T31）四个开关（第 12 节）。没有这份文档 = 全关 |
 | `app_config/usage_copy` | 提到使用频率的 7 处文字（决策 0028，键名见 `lib/core/config/usage_copy.dart`）。没有文档、字段为空或带【占位】= 显示原文；两组相同；客户端只读 |
-| `app_config/phase_b` | **只属于 Phase B** 的参数（`PhaseBConfig`，服务器 `functions/djg_w2.js` 也读）：`djgW2InAppEnabled`（默认关）、`djgW2DayOffset`（14）、`djgW2WindowDays`（7）、`djgW2PushHour`（10）、`djgW2ReminderHours`（24）。不建 = 关 |
+| `app_config/phase_b` | **只属于 Phase B** 的参数（`PhaseBConfig`，服务器 `functions/djg_w2.js` 也读）：`djgW2InAppEnabled`（默认关）、`djgW2DayOffset`（14）、`djgW2WindowDays`（7）、`djgW2PushHour`（10）、`djgW2ReminderHours`（24）；T25：`sessionBriefPrV2Enabled`（默认关）、`sessionIdleTimeoutMinV2`（30）、`briefPrDailyCapPerAgent`（1）、`briefPrCatchUpExpiryHours`（2）、`freeChatValidMinUserMessages`（3）、`hybridCheckInValidRequiresMood`（true）、`hybridCheckInValidMinUserMessages`（1）、`hybridReminiscenceValidRequiresSave`（true）。不建 = 关 |
 | `app_config/phaseA_schedule` | **只属于 Phase A**：`adaEnabled`、`adaAllowSkip`、`adaTimepoints`、`day7OpenEndedEnabled`、`day7OpenEndedDayFrom`、`day7OpenEndedDayTo`、`day7OpenEndedAllowSkip`（第 6.1 节）。没有这份文档 = 都关。Phase B 包不读 |
 | `app_config/phase_a` | App 运行参数（`PhaseAConfig`）的远端覆盖；含同意相关的 `transcriptRetentionDefault`（默认 true）、`sharedContextUseDefault`（默认 true）、`enforceSharedContextConsent`（默认 true，服务器也读）。不建就用默认值 |
 | `meta/arm_counter` | 已停用（T19）：旧最小化分配的计数器。客户端一律不能读写 |
@@ -220,7 +253,8 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `arm_assignment_log` | T19 分配日志：`allocate` / `resubmit` / `correction`，研究编号、层、序列位置、组别、时间、操作人；更正带理由和原组别。客户端不能读写 |
 | `llm_denied_log` | T19：规则组调用 LLM 接口被拒的记录（uid、接口、时间）。客户端不能读写 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开、T10 修复开关、抽取 prompt 版本、记忆分层 `layersEnabled`（T31） |
-| `safety_events`、`pi_alerts` | 安全事件、给 PI 的告警队列（T19 起 `pi_alerts` 只有 uid、研究编号、级别、`dedupKey`、`isTester`、`eventPath`、时间）。事件字段：`source`（user_input / ai_output_scan / form）、`inputPoint`、`turnId`、级别、命中词、文字的哈希；服务器补 `dedup_key`、`isDuplicate`、`duplicateOf`、`escalatedBy`。分析只数 `isDuplicate == false`（决策 0018） |
+| `safety_events`、`pi_alerts` | 安全事件、告警队列。事件字段：`source`（user_input / ai_output_scan / form；T34 加服务器专用的 questionnaire / assessor_entry）、`inputPoint`、`turnId`、级别、命中词、文字的哈希、**`crisisPageShown`（T34：这一轮有没有弹出全屏危机页，两组同样写，acute 即 true）**；问卷来源的事件带 `instrument`、`item`、`rawValue`、`alwaysAlert`（只有服务器能写）；服务器补 `dedup_key`、`isDuplicate`、`duplicateOf`、`escalatedBy`。分析只数 `isDuplicate == false`（决策 0018）。`pi_alerts`：开关关时是 T19 的记录（`alertVersion: 2`：uid、研究编号、级别、`dedupKey`、`isTester`、`eventPath`、时间）；开关开时是 T34 的记录（`alertVersion: 3`：加研究期、研究日、陪伴者、来源和 `sourceGroup`、级别类别、词库版本、`classifierInvolved`、`crisisPageShown`、`emailSentAt/To`、`acknowledgedAt/By`、`escalatedAt/To`），`unblinded` 可读、客户端不能写 |
+| `meta/alert_config`、`alert_audit_log` | T34：告警邮件的总开关和收件人（`enabled`、`primaryEmail`、`backupEmail`、`escalateAfterHours`，没有文档 = 关）；告警的日志（发信、去掉 blinded 地址、确认、转后备、失败）。都只有服务器能读写 |
 | `hotline_filter_log` | Hybrid 组 AI 回复里被替换的电话号码：时间、uid、模块、个数、种类、是否在批准清单里。不存原文和号码。只有服务器写 |
 | `meta/safety_config` | 热线规则和热线过滤的开关（`hotlinePromptRule`、`hotlineOutputFilter`），没有这个文档 = 都开。T8 分类器：`classifierEnabled`（默认关）、`classifierUrl`、`classifierTimeoutMs`、`classifierMaxChars` |
 | `safety_classifier_calls` | 安全分类器的调用记录（两组）：时间、uid、写入方（server / app）、结果状态、级别、分数、延迟、模型版本、输入点、`turn_id`、文字长度。不存原文，不存组别。服务器每次中转写一条；App 只补写请求没回来的（超时、离线）。客户端不能读 |
@@ -246,7 +280,9 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `transcribeAudio` | App 调用（目前 App 没有调用） | 语音转文字（两组）。`voiceInputEnabled` 不是 `true` 时直接拒绝 |
 | `safetyAcknowledgement` | App 调用 | 按陪伴者返回安全回应模板 |
 | `classifySafety` | App 调用（两组） | T8：把一句话转给安全分类器，只返回级别和分数，记 `safety_classifier_calls`。`meta/safety_config.classifierEnabled` 关着时直接返回 disabled。不调用 DeepSeek，不经过 `assertLlmAllowed`（决策 0025） |
-| `onSafetyEventCreated` | 新安全事件 | 通知 PI。告警和邮件内容两组相同，不带能看出组别的字段（T19，`functions/pi_alert.js`） |
+| `onSafetyEventCreated` | 新安全事件 | 去重后通知研究团队（`functions/pi_alert.js`）。`meta/alert_config.enabled` 关（默认）：T19 的做法，只有 acute、短邮件发到密钥 `PI_EMAIL`、不带能看出组别的字段。开：中英双语 12 个字段（研究编号、研究期、陪伴者、来源、级别类别、词库版本、LoRA、研究日、危机页、事件编号、告警编号、时间；不带组别、原话、命中词），发到 `primaryEmail`；发信前查收件人账号角色，`blinded` 去掉。问卷 / 评估员录入来源不论级别都告警。测试账号只记不发 |
+| `acknowledgeAlert` | 研究员后台「確認處理」 | T34：只有 `role: unblinded`；在 `pi_alerts/{id}` 写 `acknowledgedAt`、`acknowledgedBy`，并记 `alert_audit_log`。已确认的告警不再转后备 |
+| `escalateAlerts` | 每 15 分钟（asia-east2） | T34：开关开时，把发信后超过 `escalateAfterHours`（默认 12）小时没人确认、还没转过的告警，用同一封邮件再发给 `backupEmail`，每条只转一次（事务认领），写 `escalatedAt`、`escalatedTo` 和日志。关时什么都不做 |
 | `onThoughtExerciseCreated` | 新思维练习 | 写入研究员审计队列 `te_audit_queue` |
 | `weeklyLonelinessProbe` | 每周日 9:00（香港时间，下同） | 生成周度孤独感问卷队列（App 端默认不显示） |
 | `blindedDataExport` | 每周日 2:00 | 盲法数据导出。`meta/blinding_config.enabled` 开：新版（`functions/blinding.js`，研究编号、结局量表白名单，含 W2 DJG `djg_responses`，不含旧 `agent_diff`），写到 `exports_v2/{日期}/`，可用 `tool/check_blinded_export.js` 检查；关：旧版 `exports/{日期}/` |
@@ -272,7 +308,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 - **四级**：none / moderate_review / moderate_interrupt / acute。
 - **安全回应模板和热线**：`functions/prompts/safety_acknowledgements.json`、`crisis_resources.json`，App 和服务器读同一份。
 - **被安全标记的轮次不进入记忆**（决策 0013）。记忆 v1 在服务器上再查一次自杀、自残等词。
-- **两组都通知 PI**（决策 0014）。
+- **两组都通知 PI**（决策 0014）。T34 起叫「通知研究团队」：第一收件人 Junyu（`unblinded`），后备 Calvin Or；评估员（`blinded`）永远不在名单里。邮件字段两组相同；`safety_events.crisisPageShown` 由唯一的写入点 `SafetyEventWriter` 按级别决定（acute = 弹出危机页），两组一样。问卷 / 评估员录入来源的入口在 `functions/questionnaire_safety.js`（PHQ-9 第 9 题 ≠ 0），还没有调用方。见 `docs/dev-reports/T34-safety-alert-email-20261014.md`。
 - **统一入口**（决策 0018）：`SafetyService`。老人的每一处自由输入两组都经过它：聊天、签到和回忆留言、Thought Exercise、入组开放题、陪伴者比较页、「其他」反馈框、行动计划和跟进笔记、每周问卷自由题、回忆总结修改、搜一搜的搜索词、Phase A 的 ADA 自由作答和第 7 日开放题（`ada_free_text`、`day7_open_ended`）。表单页用 `checkAndRoute`：先保存，再弹危机页或支援面板。
 - **安全分类器槽位**（决策 0025；两组共用已由决策 0033 定下，开关默认关）：`SafetyService` 后面可以接一个分类器（LoRA），两组相同。开关开时，词库之后再经 Cloud Function `classifySafety` 问分类器，取较高级别（只升不降）；词库已是 acute 不问；超时 1.5 秒或失败只用词库。分类器只返回级别和分数。关着时一切照旧（同步检测）。代码：`lib/core/safety/safety_classifier.dart`、`functions/safety_classifier.js`。同一轮的分类器调用（`safety_classifier_calls.turn_id`）、安全事件（`safety_events.turnId`）和消息记录（`turns.safetyTurnId`）用同一个编号（决策 0033）。Phase A、Phase B 和试跑同一套：App 和服务器都不按构建或研究期决定问不问分类器；`app_config/phase_a` 里的开关名字带 phase_a，实际是全局的。例外：研究员电话代填的 Phase A 问卷文字只在服务器查词库。
 - **热线过滤**（只 Hybrid 组，决策 0018）：AI 不写号码；写了也在服务器和 App 各换一次成危机页链接。
@@ -297,7 +333,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 
 | 开关 | 作用 |
 |---|---|
-| `--dart-define=PHASE_B=true` | 按分组显示界面（不加 = 全员显示 A 组）。计划删除（决策 0011）。也是 App 内 W2 DJG 的前提之一（另需 `app_config/phase_b.djgW2InAppEnabled`；T21 改为按参与者研究期） |
+| `--dart-define=PHASE_B=true` | 按分组显示界面（不加 = 全员显示 A 组）。决策 0011 原定删除，**10/14 决策 0037 暂定保留**：参与者包固定带它。也是 App 内 W2 DJG 的前提之一（另需 `app_config/phase_b.djgW2InAppEnabled`；服务器按参与者 `cohort` 判断） |
 | `--dart-define=FORCE_ARM=A` / `B` | 本地调试强制组别，**不能用于发布** |
 | `--dart-define=MEMORY_V1=true` | 测试人员可在设置里自愿开启记忆 v1 |
 | `--dart-define=TESTER_PIN=…` | 解锁测试工具（日程模拟器、测试推送） |
@@ -314,6 +350,10 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `webSearchEnabled` | 关 | 通通"幫我查"按钮（只 Hybrid 组）；服务器 `webSearch` |
 | `voiceInputEnabled` | 关 | 所有页面的麦克风按钮（两组）；服务器 `transcribeAudio` |
 | `searchOffReplyEnabled` | 关 | 搜一搜关闭时，通通对"要上网查"的问题回固定一句（文字未定稿） |
+| `replyFeedbackEnabled` | 关 | 10/14：`PHASE_B=true` 的包里，聊天回复旁的点赞点踩（`ThumbsFeedback`）两组都隐藏；设为 `true` 才显示。Phase A 包不受影响 |
+| `week1NudgeEnabled` | 关 | 10/14：`PHASE_B=true` 的包里，首页第一周提示「你仲未同 X 傾過」（Phase A 的第 3、6 天提示，`week1_nudge_banner.dart`）隐藏；设为 `true` 才显示 |
+| `enrollmentGateEnabled` | 关 | T21 登记门：没登记、不是测试账号的人只看到等待页 S8；服务器拒绝它的 LLM 调用和研究数据写入（第 4 节）。服务器最多 1 分钟后生效；Firestore 规则立即生效 |
+| `onboardingAfterEnrollmentFix` | 关 | T37：「介紹三個夥伴」要不要做改为看标记 `users/{uid}.onboardingCompletedAt`（第 4 节末）；先登记后引导时不再跳过；改配对记 `events`。建议第一位参与者登记前打开 |
 
 > ⚠️ **重要功能：HREC 批准 STT 后开启 `voiceInputEnabled`。** 开之前先定是否允许系统云端识别（`voice_input_button.dart` 的 `_onDeviceOnly`）。打开属于行为改动，要在 `docs/STUDY_CHANGELOG.md` 写明生效日期和组别。
 
@@ -325,6 +365,8 @@ tool/ci_backend_tests.sh     # Cloud Functions + Firestore 规则（需要 Fireb
 ```
 
 注意：Flutter 工具会改 `analysis_options.yaml` 和 `pubspec.lock`，提交前 `git checkout` 这两个文件。
+
+**本机保存的设定（T37）**：字体、高对比、「安靜時段」「語音讀出內容」存在手机本机（`shared_preferences`，键 `display.fontScale`、`display.highContrast`、`notifications.quietHours`、`notifications.voiceReadback`），`main()` 在第一帧前读回（`lib/app/app_settings.dart` 的 `AppSettings.restore`）。只在这台手机上，不上传；读不到就用默认值。
 
 ## 13. 其他文档
 

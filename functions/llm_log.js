@@ -103,6 +103,11 @@ function buildLogRow(p) {
     http_status: typeof p.httpStatus === "number" ? p.httpStatus : null,
     latency_ms: p.latencyMs,
     error: p.error === true,
+    // T25 — the App's session id (users/{uid}/sessions/{id}), so every
+    // call can be tied to one session.  Null for server-initiated calls
+    // (memory extraction, referral judgement) and for old clients.
+    session_id: (typeof p.sessionId === "string" && p.sessionId) ?
+      p.sessionId.slice(0, 128) : null,
   };
 }
 
@@ -141,7 +146,8 @@ async function writeLog(db, row, timeoutMs) {
  * @param {string} opts.apiKey
  * @param {object} opts.body request body; body.model is the requested model
  * @param {object=} opts.headers extra request headers
- * @param {{callType: string, agentId: ?string, uid: ?string}} opts.log
+ * @param {{callType: string, agentId: ?string, uid: ?string,
+ *   sessionId: ?string}} opts.log
  * @param {number=} opts.timeoutMs abort the request after this long; set it
  *   below the calling function's own timeout
  * @param {number=} opts.logTimeoutMs defaults to LOG_WRITE_TIMEOUT_MS
@@ -188,6 +194,7 @@ async function deepSeekChat(db, opts) {
     callType: opts.log.callType,
     agentId: opts.log.agentId,
     uid: opts.log.uid,
+    sessionId: opts.log.sessionId,
     // Taken from the body actually sent, so a model-name change at the
     // call sites is logged without touching this module.
     modelRequested: opts.body && opts.body.model,

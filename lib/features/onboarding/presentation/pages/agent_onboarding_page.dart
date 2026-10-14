@@ -30,6 +30,7 @@ import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/config/phase_a_config.dart';
 import '../../../../core/config/usage_copy.dart';
 import '../../../../core/memory/memory_mode.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -115,6 +116,11 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
   @override
   void initState() {
     super.initState();
+    // T37: after the researcher's registration the pairing is already on
+    // the profile — pre-select it so the slide shows the registered
+    // choice.  Before T37 the page only opened with no pairing, so the
+    // onboarding-first order is unchanged (nothing pre-selected).
+    _ahJanVariant = AppSettingsScope.read(context).profile?.ahJanAhBakVariant;
     // Shuffle per session so each participant sees a different chip order.
     // Escape hatch always stays last.
     final rng = Random(DateTime.now().millisecondsSinceEpoch);
@@ -151,20 +157,26 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
   Future<void> _finish() async {
     final auth = AuthServiceScope.of(context);
     final settings = AppSettingsScope.read(context);
+    final analytics = AnalyticsScope.maybeOf(context);
     final profile = settings.profile;
     if (profile == null) return;
     setState(() {
       _busy = true;
       _error = null;
     });
+    final chosen = _ahJanVariant ?? AgentGenderVariant.feminine; // gated above
+    final previous = profile.ahJanAhBakVariant;
     final updated = profile.copyWith(
-      ahJanAhBakVariant:
-          _ahJanVariant ?? AgentGenderVariant.feminine, // gated above
+      ahJanAhBakVariant: chosen,
       // Filter escape hatch before saving — "__skip__" is UI-only.
       interests: _selectedInterests.where((id) => id != '__skip__').toList(),
       consent: profile.consent.copyWith(
         transcriptRetentionByAgent: _transcriptRetentionByAgent,
       ),
+      // T37 — the onboarding-completed marker.  ConsentGate reads it when
+      // onboardingAfterEnrollmentFix is on; it is written either way so
+      // the record is complete whenever the switch is turned on.
+      onboardingCompletedAt: DateTime.now(),
     );
     try {
       await auth.updateProfile(updated);
@@ -177,6 +189,18 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
         _error = e.toString();
       });
       return;
+    }
+    // T37 — the slide opened with the registered pairing and the
+    // participant changed it: log the change (registry C19).  The
+    // registration value in enrollments/{uid} is untouched; the analysis
+    // uses it.  Only reachable with the fix on (otherwise the page opens
+    // with no pairing).
+    if (previous != null && previous != chosen) {
+      await analytics?.logAhJanAhBakChanged(
+        from: previous.code,
+        to: chosen.code,
+        where: 'onboarding',
+      );
     }
     if (!mounted) return;
     settings.profile = updated;

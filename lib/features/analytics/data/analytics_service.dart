@@ -222,6 +222,28 @@ class AnalyticsService {
 
   Future<void> logAuth(String kind) => logEvent('auth_$kind');
 
+  /// T37 (registry C19: the participant may change Ah Jan / Ah Bak, the
+  /// analysis uses the registration value, changes are logged).  Called
+  /// from the onboarding pairing slide and the agent profile page when the
+  /// stored pairing differs from the new one; same in both arms.  T30 §5.2
+  /// moves this log server-side — until then it is an `events` row.
+  Future<void> logAhJanAhBakChanged({
+    required String from,
+    required String to,
+    required String where,
+  }) =>
+      logEvent('ah_jan_ah_bak_changed', {
+        'from': from,
+        'to': to,
+        'at': DateTime.now().toIso8601String(),
+        'where': where,
+      });
+
+  /// Events still queued (before sign-in, or for good when Firebase is
+  /// off).  Tests read it to check what was logged.
+  @visibleForTesting
+  List<Map<String, dynamic>> get bufferedEvents => List.unmodifiable(_buffer);
+
   // -------------------------------------------------------------------------
   // B.3 — module-level event helpers (Sprint 2.4).
   //

@@ -43,6 +43,18 @@ class SafetyEventWriter {
 
   final bool available;
 
+  /// T34 — `safety_events.crisisPageShown`: whether the acute full-screen
+  /// crisis page ([EmergencySupportPage]) is shown for this turn.
+  ///
+  /// Decided *before* the write (the rules allow no update afterwards)
+  /// from the level alone: every acute match is routed through
+  /// [DistressRouter.route], which pushes the crisis page on the root
+  /// navigator; nothing below acute ever opens it.  Both arms share this
+  /// writer and this router, so the field is set identically for both.
+  /// The field is written on every event (true / false), never omitted.
+  static bool crisisPageShownFor(DistressMatch match) =>
+      match.level == DistressLevel.acute;
+
   /// Write a safety event for [match] when its level is at least moderate.
   ///
   /// [uid] may be null or empty: the signed-in user is used instead (before
@@ -95,6 +107,8 @@ class SafetyEventWriter {
         'matchedTerm': match.matchedTerm,
         'agentId': agentId,
         'sessionId': sessionId,
+        // T34: both arms, from the level (see crisisPageShownFor).
+        'crisisPageShown': crisisPageShownFor(match),
         'createdAt': FieldValue.serverTimestamp(),
         if (detector != null) 'detector': detector,
         if (classifier != null) ...{

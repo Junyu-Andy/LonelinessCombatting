@@ -92,10 +92,11 @@ test("success: one row with the returned model and token counts", async () => {
   assert.deepStrictEqual(Object.keys(row).sort(), [
     "agent_id", "call_type", "completion_tokens", "error",
     "http_status", "latency_ms", "model_requested", "model_returned",
-    "prompt_tokens", "reasoning_tokens", "system_fingerprint", "ts",
-    "uid",
+    "prompt_tokens", "reasoning_tokens", "session_id", "system_fingerprint",
+    "ts", "uid",
   ]);
   assert.strictEqual(row.call_type, "chat");
+  assert.strictEqual(row.session_id, null); // LOG carries no session id
   assert.strictEqual(row.agent_id, "siu_yan");
   assert.strictEqual(row.uid, "u1");
   assert.strictEqual(row.model_requested, "deepseek-flash");
@@ -111,6 +112,23 @@ test("success: one row with the returned model and token counts", async () => {
   // No prompt or completion text anywhere in the row.
   const flat = JSON.stringify(row);
   assert.ok(!flat.includes("今日點呀"), "completion text leaked");
+});
+
+test("T25: the App's sessionId is stored as session_id", async () => {
+  const db = fakeDb();
+  await log.deepSeekChat(db, {
+    apiKey: "k", fetchImpl: fakeFetch(200, OK_BODY),
+    log: Object.assign({}, LOG, {sessionId: "s_abc123"}),
+    body: {model: "deepseek-flash", messages: [{role: "user", content: "x"}]},
+  });
+  assert.strictEqual(db.rows[0].row.session_id, "s_abc123");
+  // Non-string / empty ids are stored as null, never as a bogus value.
+  assert.strictEqual(log.buildLogRow({startedMs: Date.now(), latencyMs: 1,
+    callType: "chat", sessionId: 42}).session_id, null);
+  assert.strictEqual(log.buildLogRow({startedMs: Date.now(), latencyMs: 1,
+    callType: "chat", sessionId: ""}).session_id, null);
+  assert.strictEqual(log.buildLogRow({startedMs: Date.now(), latencyMs: 1,
+    callType: "chat", sessionId: "x".repeat(300)}).session_id.length, 128);
 });
 
 test("non-2xx: logged as error, returned to the caller", async () => {

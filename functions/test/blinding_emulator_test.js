@@ -119,7 +119,8 @@ async function seedUser(uid, arm, extra) {
     moduleId: arm === "A" ? "reflective_dialogue" : "m2_check_in",
     startedAt: ts("2026-10-05T02:00:00Z"), fallbackCount: 1});
   await u.collection("sessions").add({participantId: uid, kind: "agent",
-    moduleId: "m2_check_in", startedAt: ts("2026-10-06T02:00:00Z")});
+    moduleId: "m2_check_in", startedAt: ts("2026-10-06T02:00:00Z"),
+    isValid: true, scheduleVersion: 2}); // T25 valid session
   await u.collection("turns").add({participantId: uid,
     llm: arm === "A" ?
       {status: "ok", model: "deepseek-flash", promptVersion: "v3"} :
@@ -204,17 +205,17 @@ async () => {
   assert.strictEqual((await db.doc("research_id_map/u2").get()).exists,
       false, "assignArm no longer generates research IDs");
   await randomization.enrol(db, {uid: "k1", email: null, role: "unblinded"},
-      {uid: "u1", researchId: "B001", w0DjgEmotional: 1,
+      {uid: "u1", researchId: "PB-001", w0DjgEmotional: 1,
         companionVariant: "feminine", confirmed: true});
   const map = (await db.doc("research_id_map/u1").get()).data();
-  assert.strictEqual(map.researchId, "B001");
+  assert.strictEqual(map.researchId, "PB-001");
   assert.strictEqual(map.via, "enrollment");
-  const back = (await db.doc("research_ids/B001").get()).data();
+  const back = (await db.doc("research_ids/PB-001").get()).data();
   assert.strictEqual(back.uid, "u1");
   const profile = (await db.doc("users/u1").get()).data();
-  assert.strictEqual(JSON.stringify(profile).indexOf("B001"), -1);
+  assert.strictEqual(JSON.stringify(profile).indexOf("PB-001"), -1);
   // The export backfill keeps the registered ID.
-  assert.strictEqual(await blinding.ensureResearchId(db, "u1"), "B001");
+  assert.strictEqual(await blinding.ensureResearchId(db, "u1"), "PB-001");
   assert.strictEqual((await db.collection("research_ids").get()).size, 1);
 });
 
@@ -279,7 +280,8 @@ test("v2 export of a synthetic two-arm cohort passes the checker",
       const usage = readNdjson(dir, "usage_weekly");
       assert.strictEqual(usage.length, 2); // both sessions in 2026-W41
       assert.ok(usage.every((r) => r.isoWeek === "2026-W41" &&
-          r.sessionCount === 2 && r.activeDays === 2));
+          r.sessionCount === 2 && r.activeDays === 2 &&
+          r.validSessionCount === 1)); // T25: only the isValid row
       // T18: W2 DJG rows from both arms, scores kept, same field set.
       const djg = readNdjson(dir, "djg_responses");
       assert.strictEqual(djg.length, 2);

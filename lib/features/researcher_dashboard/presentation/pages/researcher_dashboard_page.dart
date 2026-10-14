@@ -23,6 +23,7 @@ import '../../../../core/feature_flags/feature_flags.dart';
 import '../../../ada/presentation/ada_staff_page.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/dashboard_access.dart';
+import '../widgets/safety_alerts_section.dart';
 
 class ResearcherDashboardPage extends StatefulWidget {
   const ResearcherDashboardPage({super.key});
@@ -159,6 +160,14 @@ class _DashboardBody extends StatelessWidget {
         _SectionHeader(label: isEn ? 'Engagement' : '參與度'),
         _EngagementSummary(showArmCounts: access.showsArmCounts),
         const SizedBox(height: 24),
+        // T34: safety alerts (pi_alerts) and 確認處理 — unblinded only;
+        // the rules let only that role read the collection.
+        if (access.showsSafetyAlerts) ...[
+          _SectionHeader(label: isEn ? 'Safety alerts' : '安全告警'),
+          SafetyAlertsSection(
+              key: const ValueKey('dashboard_safety_alerts'), isEn: isEn),
+          const SizedBox(height: 24),
+        ],
         // T12: sections whose data exists in one arm only are for the
         // unblinded role.
         if (access.showsSingleArmSections) ...[
