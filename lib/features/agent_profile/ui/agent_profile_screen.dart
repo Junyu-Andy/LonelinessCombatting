@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 
 import '../../../app/app_settings_scope.dart';
 import '../../../core/agents/agent_registry.dart';
+import '../../../core/feature_flags/remote_feature_flags.dart';
+import '../../analytics/presentation/analytics_scope.dart';
 import '../../auth/data/auth_service.dart';
 import '../../auth/data/user_profile.dart';
 import '../../auth/presentation/auth_service_scope.dart';
@@ -90,8 +92,22 @@ class _AgentProfileScreenState extends State<AgentProfileScreen> {
         : AgentGenderVariant.masculine;
     final settings = AppSettingsScope.read(context);
     final auth = AuthServiceScope.of(context);
+    final analytics = AnalyticsScope.maybeOf(context);
     final updated = profile.copyWith(ahJanAhBakVariant: next);
     settings.profile = updated;
+    // T37 (registry C19): log the change; the registration value in
+    // enrollments/{uid} is untouched and the analysis uses it.  Behind the
+    // same switch as the onboarding fix so the default build is unchanged.
+    final previous = profile.ahJanAhBakVariant;
+    if (RemoteFeatureFlags.current.onboardingAfterEnrollmentFix &&
+        previous != null &&
+        previous != next) {
+      await analytics?.logAhJanAhBakChanged(
+        from: previous.code,
+        to: next.code,
+        where: 'agent_profile',
+      );
+    }
     try {
       await auth.updateProfile(updated);
     } on AuthUnavailableException {

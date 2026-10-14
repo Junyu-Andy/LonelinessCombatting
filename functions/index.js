@@ -987,6 +987,14 @@ exports.transcribeAudio = onCall(
 //   3. Make sure `source` is present (rules already require it).
 //   4. For acute events (or a duplicate that escalated the turn to acute):
 //      write `pi_alerts` and email PI (if SMTP secrets are configured).
+//      T34: a questionnaire / assessor_entry event (server-only sources,
+//      `alwaysAlert: true`) alerts whatever its level.
+//   5. T34 (pi_alert.js): with `meta/alert_config.enabled` the alert row
+//      and e-mail carry the research fields (period, companion, source,
+//      level, lexicon, classifier, study day, crisis page, IDs) and go to
+//      the configured primary recipient, with acknowledgement and a
+//      12-hour escalation to the backup recipient (`escalateAlerts`).
+//      Off (default): the T19 row and e-mail to the PI_EMAIL secret.
 // ---------------------------------------------------------------------------
 
 const _LEVEL_RANK = {none: 0, low: 1, moderate: 2, acute: 3};
@@ -1099,7 +1107,7 @@ exports.onSafetyEventCreated = onDocumentCreated(
       // Same turn, higher level: raise the primary so the counted row
       // carries the turn's highest level.
       try {
-        await db.doc(primaryPath).update({
+        const raise = {
           level,
           tier,
           escalatedBy: {
@@ -1108,7 +1116,11 @@ exports.onSafetyEventCreated = onDocumentCreated(
             matchedTerm: data.matchedTerm || null,
             category: data.category || null,
           },
-        });
+        };
+        // T34: the reply scan that raised the turn to acute is the one
+        // that opened the crisis page; the counted row says so.
+        if (data.crisisPageShown === true) raise.crisisPageShown = true;
+        await db.doc(primaryPath).update(raise);
       } catch (err) {
         console.error("safety_event escalation update failed:", err.message);
       }
@@ -1118,8 +1130,10 @@ exports.onSafetyEventCreated = onDocumentCreated(
       level = "acute";
     }
 
-    // Only acute events page PI immediately.
-    if (level !== "acute") return;
+    // Only acute events page PI immediately — except a questionnaire /
+    // assessor-entry event, which alerts whatever its level (T34).
+    const forced = piAlert.alwaysAlerts(data);
+    if (level !== "acute" && !forced) return;
 
     // T4 — tester suppression. During Day-6 adversarial testing 4–5
     // colleagues deliberately type distress phrases; without this the PI
@@ -1127,16 +1141,17 @@ exports.onSafetyEventCreated = onDocumentCreated(
     // (safety_events + a tagged pi_alert for the audit trail) but never
     // trigger the PI email. The flag lives on the user doc.
     let isTester = false;
+    let user = null;
     try {
       const userSnap = await db.collection("users").doc(uid).get();
-      isTester = userSnap.exists && userSnap.data().isTester === true;
+      user = userSnap.exists ? userSnap.data() : null;
+      isTester = !!user && user.isTester === true;
     } catch (err) {
       console.error("isTester lookup failed:", err.message);
     }
 
-    // T19 (decision 0029): the PI is blinded, so the alert carries no
-    // field that differs by arm (pi_alert.js).  The research ID helps the
-    // PI follow up; it is not arm information.
+    // The research ID helps the recipient follow up; it is not arm
+    // information.
     let researchId = null;
     try {
       const m = await db.collection("research_id_map").doc(uid).get();
@@ -1144,55 +1159,187 @@ exports.onSafetyEventCreated = onDocumentCreated(
     } catch (err) {
       console.error("research ID lookup failed:", err.message);
     }
-    const alertPayload = piAlert.buildPiAlert({
-      uid, researchId, level, dedupKey, isTester, eventPath: snap.ref.path,
-    }, admin.firestore.FieldValue.serverTimestamp());
+    // A questionnaire event names its research ID itself (the assessor
+    // works from the paper form); the lookup wins when both exist.
+    if (!researchId && forced && data.researchId) researchId = data.researchId;
 
-    // Always write to pi_alerts.  Tester rows are tagged so they can be
-    // filtered out.
-    const alertRef = await db.collection("pi_alerts").add(alertPayload);
+    const stamp = admin.firestore.FieldValue.serverTimestamp();
+    const smtp = readSmtpSecrets();
+    const alertCfg = await piAlert.readAlertConfig(db);
 
+    // ---- Switch OFF: the T19 alert, unchanged (decision 0029 §五). ----
+    if (!alertCfg.enabled) {
+      const alertPayload = piAlert.buildPiAlert({
+        uid, researchId, level, dedupKey, isTester, eventPath: snap.ref.path,
+      }, stamp);
+      // Always write to pi_alerts.  Tester rows are tagged so they can be
+      // filtered out.
+      const alertRef = await db.collection("pi_alerts").add(alertPayload);
+      if (isTester) {
+        console.log(`tester acute event ${snap.ref.path}: PI email suppressed`);
+        return;
+      }
+      if (!smtp || !smtp.piEmail) {
+        console.log("SMTP not configured; pi_alert written to Firestore only");
+        return;
+      }
+      const mail = piAlert.buildPiEmail({
+        researchId, alertId: alertRef.id, at: new Date(),
+        forcedLevel: forced ? (tier || level) : null,
+      });
+      await piAlert.sendMail(smtp, {
+        to: smtp.piEmail, subject: mail.subject, text: mail.text,
+      });
+      console.log(`Acute alert email sent to PI for event ${snap.ref.path}`);
+      return;
+    }
+
+    // ---- Switch ON: the T34 alert (pi_alert.js). ----
+    const at = new Date();
+    const row = piAlert.buildAlertRow({
+      event: data, eventPath: snap.ref.path, uid, researchId, user, isTester,
+      dedupKey, level, at,
+    }, stamp);
+    const alertRef = await db.collection("pi_alerts").add(row);
     if (isTester) {
-      console.log(`tester acute event ${snap.ref.path}: PI email suppressed`);
+      console.log(`tester event ${snap.ref.path}: alert e-mail suppressed`);
+      await piAlert.audit(db, {type: "tester_no_email", alertId: alertRef.id,
+        eventPath: snap.ref.path}, stamp);
       return;
     }
-
-    // Email PI if SMTP secrets are configured.
-    let smtpHost = "";
-    let smtpUser = "";
-    let smtpPass = "";
-    let piEmail = "";
-    try {
-      smtpHost = SMTP_HOST.value();
-      smtpUser = SMTP_USER.value();
-      smtpPass = SMTP_PASS.value();
-      piEmail = PI_EMAIL.value();
-    } catch (_) { /* secrets not configured */ }
-
-    if (!smtpHost || !smtpUser || !smtpPass || !piEmail) {
+    if (!smtp) {
       console.log("SMTP not configured; pi_alert written to Firestore only");
+      await piAlert.audit(db, {type: "email_failed", alertId: alertRef.id,
+        reason: "smtp_not_configured"}, stamp);
       return;
     }
-
-    const nodemailer = require("nodemailer");
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: 587,
-      secure: false,
-      auth: {user: smtpUser, pass: smtpPass},
+    // Primary recipient from the config; the PI_EMAIL secret only when the
+    // config names nobody (logged), so an alert is never silently lost.
+    const candidates = [alertCfg.primaryEmail];
+    if (!alertCfg.primaryEmail) {
+      candidates.push(smtp.piEmail);
+      await piAlert.audit(db, {type: "primary_missing_fallback_secret",
+        alertId: alertRef.id}, stamp);
+    }
+    const rcpt = await piAlert.resolveRecipients(admin.auth(), candidates);
+    for (const x of rcpt.dropped) {
+      await piAlert.audit(db, {type: "recipient_dropped", alertId: alertRef.id,
+        email: x.email, reason: x.reason, stage: "primary"}, stamp);
+    }
+    for (const x of rcpt.notes) {
+      await piAlert.audit(db, {type: "recipient_note", alertId: alertRef.id,
+        email: x.email, note: x.note, stage: "primary"}, stamp);
+    }
+    if (!rcpt.to.length) {
+      console.error("alert e-mail: no recipient left after role check");
+      await piAlert.audit(db, {type: "no_recipients", alertId: alertRef.id},
+          stamp);
+      return;
+    }
+    const mail = piAlert.buildAlertEmail(row, {
+      alertId: alertRef.id, at, escalation: false,
+      escalateAfterHours: alertCfg.escalateAfterHours,
     });
-    const mail = piAlert.buildPiEmail({
-      researchId, alertId: alertRef.id, at: new Date(),
+    try {
+      await piAlert.sendMail(smtp, {
+        to: rcpt.to, subject: mail.subject, text: mail.text,
+      });
+    } catch (err) {
+      console.error("alert e-mail failed:", err && err.message);
+      await alertRef.update({emailError: String(err && err.message)});
+      await piAlert.audit(db, {type: "email_failed", alertId: alertRef.id,
+        reason: String(err && err.message), to: rcpt.to}, stamp);
+      return;
+    }
+    await alertRef.update({
+      emailSentAt: stamp,
+      emailSentTo: rcpt.to,
+      escalationPending: true,
     });
-    await transporter.sendMail({
-      from: smtpUser,
-      to: piEmail,
-      subject: mail.subject,
-      text: mail.text,
-    });
-    console.log(`Acute alert email sent to PI for event ${snap.ref.path}`);
+    await piAlert.audit(db, {type: "email_sent", alertId: alertRef.id,
+      to: rcpt.to}, stamp);
+    console.log(`Safety alert e-mail sent for event ${snap.ref.path}`);
   },
 );
+
+/**
+ * The SMTP secrets, or null when any of host / user / pass is missing.
+ * `piEmail` (the T19 recipient) may be empty.
+ * @return {?{host: string, user: string, pass: string, piEmail: string}}
+ */
+function readSmtpSecrets() {
+  let host = "";
+  let user = "";
+  let pass = "";
+  let piEmail = "";
+  try {
+    host = SMTP_HOST.value() || "";
+    user = SMTP_USER.value() || "";
+    pass = SMTP_PASS.value() || "";
+    piEmail = PI_EMAIL.value() || "";
+  } catch (_) { /* secrets not configured */ }
+  if (!host || !user || !pass) return null;
+  return {host, user, pass, piEmail};
+}
+
+const _ACK_ERRORS = {
+  "unauthenticated": "unauthenticated",
+  "permission-denied": "permission-denied",
+  "invalid-argument": "invalid-argument",
+  "not-found": "not-found",
+};
+
+// T34 — the dashboard's 確認處理 button.  Only `role: unblinded`; records
+// who and when on the alert and in alert_audit_log; an acknowledged alert
+// is never escalated.
+exports.acknowledgeAlert = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+  async (request) => {
+    try {
+      return await piAlert.acknowledge(admin.firestore(), request.data || {},
+          request.auth, {
+            now: new Date(),
+            serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+          });
+    } catch (err) {
+      const code = err && err.ackCode;
+      if (code) throw new HttpsError(_ACK_ERRORS[code] || "internal", err.message);
+      console.error("acknowledgeAlert failed", {err: String(err)});
+      throw new HttpsError("internal", "acknowledge_failed");
+    }
+  },
+);
+
+// T34 — every 15 minutes: alerts whose e-mail went out more than
+// `alert_config.escalateAfterHours` (default 12) ago with no
+// acknowledgement are sent once more, to `alert_config.backupEmail`.
+// Does nothing while the switch is off.
+exports.escalateAlerts = onSchedule(
+  {
+    schedule: "*/15 * * * *",
+    timeZone: "Asia/Hong_Kong",
+    region: "asia-east2",
+    secrets: [SMTP_HOST, SMTP_USER, SMTP_PASS, PI_EMAIL],
+  },
+  async (_event) => {
+    const out = await piAlert.escalateDue(admin.firestore(), {
+      now: new Date(),
+      smtp: readSmtpSecrets(),
+      auth: admin.auth(),
+      serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+    });
+    if (out.skipped) return;
+    console.log(`escalateAlerts: due=${out.due} escalated=${out.escalated} ` +
+      `noBackup=${out.noBackup} failed=${out.failed}`);
+  },
+);
+
+// T34 — the questionnaire / assessor-entry entry point lives in
+// functions/questionnaire_safety.js (recordQuestionnaireSafetyEvent); T30's
+// assessor page calls it from its own callable.  No caller is wired in this
+// repo yet: the App has no PHQ-9 and W8 pushes none (dev-tasks-1014 §三
+// T34).  Not re-exported here: every export of index.js is a deployable
+// function.
 
 // ---------------------------------------------------------------------------
 // B.5 — Thought Exercise audit queue trigger (Sprint 2.2).
@@ -1522,6 +1669,13 @@ exports.blindedDataExport = onSchedule(
       const snap = await db.collection(name).get();
       for (const d of snap.docs) {
         const row = d.data();
+        // T34 (registry C20): the four analysis buckets of `source`
+        // (participant_input / ai_reply_scan / questionnaire /
+        // assessor_entry) so B12 counts per source without decoding the
+        // raw codes.  The raw `source` stays as before.
+        if (name === "safety_events") {
+          row.sourceGroup = piAlert.sourceGroupFor(row.source);
+        }
         ndjsonByCollection[name].push(
           JSON.stringify(blindRow(row, {
             armMapping, salt, includeUid: true,

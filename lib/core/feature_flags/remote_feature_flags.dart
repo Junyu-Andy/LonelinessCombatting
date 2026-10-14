@@ -39,6 +39,14 @@
 ///                               ([Week1NudgeBanner], enrolment days 3 and
 ///                               6) is hidden in a `PHASE_B=true` build
 ///                               unless this is true.
+///   - [onboardingAfterEnrollmentFix] — T37: 「介紹三個夥伴」 runs until the
+///                               onboarding-completed marker
+///                               (`users/{uid}.onboardingCompletedAt`) is
+///                               set, instead of "until a pairing exists" —
+///                               the researcher's registration writes the
+///                               pairing too, so register-first skipped the
+///                               slides.  Also logs a pairing change
+///                               (`events` row `ah_jan_ah_bak_changed`).
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -57,6 +65,7 @@ class RemoteFeatureFlags {
     this.memoryLayersNoticeEnabled = false,
     this.replyFeedbackEnabled = false,
     this.week1NudgeEnabled = false,
+    this.onboardingAfterEnrollmentFix = false,
   });
 
   final bool webSearchEnabled;
@@ -66,6 +75,7 @@ class RemoteFeatureFlags {
   final bool memoryLayersNoticeEnabled;
   final bool replyFeedbackEnabled;
   final bool week1NudgeEnabled;
+  final bool onboardingAfterEnrollmentFix;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -105,6 +115,8 @@ class RemoteFeatureFlags {
         memoryLayersNoticeEnabled: map['memoryLayersNoticeEnabled'] == true,
         replyFeedbackEnabled: map['replyFeedbackEnabled'] == true,
         week1NudgeEnabled: map['week1NudgeEnabled'] == true,
+        onboardingAfterEnrollmentFix:
+            map['onboardingAfterEnrollmentFix'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

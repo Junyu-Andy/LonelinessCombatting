@@ -10,6 +10,25 @@
 
 - 负责人核对 W0 流程时发现：点赞点踩只有 Hybrid 组的签到、回忆、反思对话有（通通、文章两组都有），登记表没写这项差异；第一周提示读 Phase A 配置，Phase B 老人也会看到。负责人定：先关掉，保主干。
 - 做法：`PHASE_B=true` 的包里两处都不渲染，两组相同；两个远程开关 `replyFeedbackEnabled`、`week1NudgeEnabled`（`app_config/feature_flags`）设为 `true` 可恢复。Phase A 包不变。编号待开发窗口分配。报告：`docs/dev-reports/phase-b-hide-feedback-nudge-20261014.md`。
+## 2026-10-14 T34 安全告警邮件（PR 草稿，分支 `feat/safety-alert-email`）
+
+- **做了**：告警邮件改版放在总开关 `meta/alert_config.enabled` 后面（默认关 = 现状）。开着时：中英双语、12 个固定字段（不含组别、原话、命中词）；收件人从 `meta/alert_config` 读，`blinded` 账号去掉并记 `alert_audit_log`；测试账号只记不发；研究员后台 `unblinded` 多「安全告警」一节和「確認處理」（Cloud Function `acknowledgeAlert` 查角色）；定时函数 `escalateAlerts` 每 15 分钟把超过 `escalateAfterHours`（默认 12）没确认的告警转发后备一次。新模块 `functions/questionnaire_safety.js`：问卷 / 评估员录入来源（PHQ-9 第 9 题 ≠ 0）写安全事件、不论级别都告警，只有服务器能写；没有接任何调用方（App 没有 PHQ-9，W8 不推；评估员录入页是 T30 的）。`safety_events` 新字段 `crisisPageShown`（两组同样写）。盲法导出 v2 多 `sourceGroup`，v1 导出也补这个字段。`functions/study_period.js` 和 T21 的逐字节相同。
+- **讨论过**：新字段和决策 0029 第五节（告警不带组别线索、PI 盲法）冲突；现在 Junyu 是 `unblinded`、盲的是评估员，决策草稿写在报告里，编号等开发窗口分配。来源「AI 回复扫描」只有 Hybrid 组有，后备收件人 Calvin 看得到（backlog 92，未定）。
+- 报告：`docs/dev-reports/T34-safety-alert-email-20261014.md`。
+
+---
+## 2026-10-14 T37 登记后的引导顺序和显示设定保存（SPEC:C01、C19，PR 草稿，分支 `fix/onboarding-settings`）
+
+- **做了**：① 开关 `app_config/feature_flags.onboardingAfterEnrollmentFix`（默认关）：开时「介紹三個夥伴」要不要做改为看“引导已完成”标记 `users/{uid}.onboardingCompletedAt`，先登记后引导不再跳过伙伴介绍、兴趣和 S5；配对一屏预选登记值，改选记 `events` `ah_jan_ah_bak_changed`，登记记录不动。② 字体、高对比、安静时段、语音读出改为保存在手机本机（`shared_preferences`，新依赖），无开关。
+- 两种顺序、门开关、修复开关的组合各有测试；规则测试证明老人账号能写标记、不能顺带改组别、不能碰 `enrollments`。截图在 `docs/dev-reports/T37-onboarding-settings-20261014-screenshots/`。
+- 待定：开关上线时默认开还是关（建议开）；改配对的日志何时搬到服务器（T30）。报告 `docs/dev-reports/T37-onboarding-settings-20261014.md`。
+
+---
+
+## 2026-10-14 T36 Build APK 加 `phase_b_templates` 选项（PR 草稿，分支 `chore/apk-phase-b-templates`）
+
+- 手动打包工作流多一个选项：`PHASE_B=true` 加 `RULE_TEMPLATE_REPLIES=true`，给参与者和内部测试用；不带 `FORCE_ARM`。只改手动打包，不改 CI 和部署。
+- 签名仍是调试密钥；换正式密钥的步骤和影响写在报告第三节，要负责人定。报告：`docs/dev-reports/T36-apk-phase-b-templates-20261014.md`。
 
 ## 2026-10-14 T21 研究期和登记，第一部分（SPEC:C01，PR 草稿，未合并）
 

@@ -31,9 +31,12 @@ void main() {
     expect(b.allowed, isTrue);
     expect(b.showsArmCounts, isFalse);
     expect(b.showsSingleArmSections, isFalse);
+    // T34: the safety-alert list is unblinded only.
+    expect(b.showsSafetyAlerts, isFalse);
     const u = DashboardAccess.unblinded;
     expect(u.showsArmCounts, isTrue);
     expect(u.showsSingleArmSections, isTrue);
+    expect(u.showsSafetyAlerts, isTrue);
     expect(DashboardAccess.denied.allowed, isFalse);
   });
 }
