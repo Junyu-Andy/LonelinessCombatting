@@ -28,6 +28,8 @@ import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
 import '../../../../core/memory/memory_mode.dart';
+import '../../../brief_pr/data/brief_pr_v2.dart';
+import '../../../brief_pr/presentation/widgets/session_close_button.dart';
 
 /// M3 — Reminiscence, Arm A.
 ///
@@ -178,6 +180,10 @@ clay-pot rice stand..."
   ChatSessionRecorder? _recorder;
   bool _briefPrSurfaced = false;
 
+  /// T25 — `close_button` once the participant finished via S9 / 儲存;
+  /// otherwise the pop is a back key / gesture.
+  String? _closeReason;
+
   @override
   void initState() {
     super.initState();
@@ -210,6 +216,7 @@ clay-pot rice stand..."
         analytics: AnalyticsScope.of(context),
         available: AuthServiceScope.of(context).available,
         onIdleTimeout: _onIdleTimeout,
+        onSwitchedAway: _onSwitchedAway,
       );
     }
     if (!_priorLoaded) {
@@ -345,6 +352,13 @@ clay-pot rice stand..."
   /// M-7 — idle clock closed the session in place; run the Brief PR flow.
   void _onIdleTimeout() {
     if (!mounted || _showingSummary) return;
+    _briefPrSurfaced = false;
+    unawaited(_maybeSurfaceBriefPr(Navigator.of(context), closeSession: false));
+  }
+
+  /// T25 v2 — another companion's session closed this one (`switch_agent`).
+  void _onSwitchedAway() {
+    if (!mounted) return;
     _briefPrSurfaced = false;
     unawaited(_maybeSurfaceBriefPr(Navigator.of(context), closeSession: false));
   }
@@ -666,6 +680,11 @@ clay-pot rice stand..."
         endSummaryEdited: useOriginal ? original : edited,
         userEdited: userEdited,
       );
+      // T25 (C16) — Hybrid reminiscence is a valid session once the weekly
+      // summary is saved via 儲存; finishing this way is a `close_button`
+      // end, not a back key.
+      _recorder?.markSummarySaved();
+      _closeReason = SessionEndReason.closeButton;
 
       // §1C — fold this reminiscence session into Ah Jan / Ah Bak's rolling
       // summary and clear the verbatim buffer. Fire-and-forget.
@@ -715,8 +734,16 @@ clay-pot rice stand..."
     _briefPrSurfaced = true;
     final profile = AppSettingsScope.read(context).profile;
     final rec = _recorder;
+    final v2 = BriefPrV2.enabled;
+    final endReason = _closeReason ?? SessionEndReason.back;
     if (closeSession && rec != null && rec.isOpen) {
-      await rec.end(SessionEndReason.userLeft);
+      await rec.end(v2 ? endReason : SessionEndReason.userLeft);
+    }
+    // T25 v2 — no popup: the scheduler decides, the card shows on the
+    // companion list page.
+    if (v2) {
+      await BriefPrV2.endSession(rec, endReason: endReason, arm: 'A');
+      return;
     }
     if (profile == null || rec == null || rec.sessionId == null) return;
     final sessionId = rec.sessionId;
@@ -837,6 +864,15 @@ clay-pot rice stand..."
         },
         child: Scaffold(
       appBar: AppBar(
+        // T25 — S9 close button (v2 only): on this page finishing means
+        // the summary + 儲存 flow, so S9 starts it.  Back key / gesture
+        // still leave without a summary.
+        leading: BriefPrV2.enabled
+            ? SessionCloseButton(
+                onPressed: _busy ? () {} : () => _generateSummary())
+            : null,
+        leadingWidth:
+            BriefPrV2.enabled ? SessionCloseButton.leadingWidth : null,
         title: Text(title),
         actions: [
           TextButton(

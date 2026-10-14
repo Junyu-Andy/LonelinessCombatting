@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../brief_pr/presentation/widgets/brief_pr_card_host.dart';
 import '../../../today/presentation/widgets/agent_tile_row.dart';
 
 class TalkPage extends StatelessWidget {
@@ -38,6 +39,9 @@ class TalkPage extends StatelessWidget {
               ),
             ),
           ),
+          // T25 — Brief PR invitation card (S10a / S10b); empty unless the
+          // scheduler has one to show.  Never covers the tiles.
+          const BriefPrCardHost(),
           const AgentTileRow(),
         ],
       ),

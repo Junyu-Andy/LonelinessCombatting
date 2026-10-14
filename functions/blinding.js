@@ -383,13 +383,19 @@ async function buildBlindedExport(db, opts) {
         const week = isoWeekHk(at);
         const day = new Date(at.getTime() + 8 * 3600 * 1000)
             .toISOString().slice(0, 10);
-        if (!byWeek[week]) byWeek[week] = {sessions: 0, days: {}};
+        if (!byWeek[week]) {
+          byWeek[week] = {sessions: 0, valid: 0, days: {}};
+        }
         byWeek[week].sessions++;
+        // T25 (C16) — valid sessions ("完成一个互动单元"); rows written
+        // before T25 have no isValid and count as not valid.
+        if (s.get("isValid") === true) byWeek[week].valid++;
         byWeek[week].days[day] = true;
       }
       for (const week of Object.keys(byWeek).sort()) {
         files.usage_weekly.push({researchId, groupCode, isoWeek: week,
           sessionCount: byWeek[week].sessions,
+          validSessionCount: byWeek[week].valid,
           activeDays: Object.keys(byWeek[week].days).length});
       }
     }

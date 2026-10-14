@@ -119,7 +119,8 @@ async function seedUser(uid, arm, extra) {
     moduleId: arm === "A" ? "reflective_dialogue" : "m2_check_in",
     startedAt: ts("2026-10-05T02:00:00Z"), fallbackCount: 1});
   await u.collection("sessions").add({participantId: uid, kind: "agent",
-    moduleId: "m2_check_in", startedAt: ts("2026-10-06T02:00:00Z")});
+    moduleId: "m2_check_in", startedAt: ts("2026-10-06T02:00:00Z"),
+    isValid: true, scheduleVersion: 2}); // T25 valid session
   await u.collection("turns").add({participantId: uid,
     llm: arm === "A" ?
       {status: "ok", model: "deepseek-flash", promptVersion: "v3"} :
@@ -279,7 +280,8 @@ test("v2 export of a synthetic two-arm cohort passes the checker",
       const usage = readNdjson(dir, "usage_weekly");
       assert.strictEqual(usage.length, 2); // both sessions in 2026-W41
       assert.ok(usage.every((r) => r.isoWeek === "2026-W41" &&
-          r.sessionCount === 2 && r.activeDays === 2));
+          r.sessionCount === 2 && r.activeDays === 2 &&
+          r.validSessionCount === 1)); // T25: only the isValid row
       // T18: W2 DJG rows from both arms, scores kept, same field set.
       const djg = readNdjson(dir, "djg_responses");
       assert.strictEqual(djg.length, 2);
