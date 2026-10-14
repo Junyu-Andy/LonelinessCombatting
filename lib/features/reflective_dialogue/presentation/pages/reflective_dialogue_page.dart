@@ -43,6 +43,8 @@ import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
 import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/negative_cognition_detector.dart';
 import '../../../../core/memory/memory_mode.dart';
+import '../../../brief_pr/data/brief_pr_v2.dart';
+import '../../../brief_pr/presentation/widgets/session_close_button.dart';
 
 class ReflectiveDialoguePage extends StatefulWidget {
   const ReflectiveDialoguePage({super.key});
@@ -71,6 +73,10 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
 
   bool _busy = false;
   bool _briefPrSurfaced = false;
+
+  /// T25 — set by the S9 close button before popping; otherwise the pop
+  /// is a back key / gesture.
+  String? _closeReason;
   static const _detector = NegativeCognitionDetector();
 
   /// B.9 — repair controller.  Persists across rebuilds so debounce + click
@@ -126,6 +132,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
         analytics: AnalyticsScope.of(context),
         available: AuthServiceScope.of(context).available,
         onIdleTimeout: _onIdleTimeout,
+        onSwitchedAway: _onSwitchedAway,
       );
     }
     if (!_openerLoaded) {
@@ -175,6 +182,12 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
   /// M-7 — idle clock closed the session in place; run the Brief PR flow.
   void _onIdleTimeout() {
     if (!mounted) return;
+    _briefPrSurfaced = false;
+    unawaited(_maybeSurfaceBriefPr(closeSession: false));
+  }
+
+  /// T25 v2 — another companion's session closed this one (`switch_agent`).
+  void _onSwitchedAway() {
     _briefPrSurfaced = false;
     unawaited(_maybeSurfaceBriefPr(closeSession: false));
   }
@@ -530,10 +543,22 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       child: PopScope(
         canPop: true,
         onPopInvokedWithResult: (didPop, _) async {
-          if (didPop) await _maybeSurfaceBriefPr();
+          if (didPop) {
+            await _maybeSurfaceBriefPr(
+                endReason: _closeReason ?? SessionEndReason.back);
+          }
         },
         child: Scaffold(
         appBar: AppBar(
+          // T25 — S9 close button (v2 only); back key / gesture still work.
+          leading: BriefPrV2.enabled
+              ? SessionCloseButton(onPressed: () {
+                  _closeReason = SessionEndReason.closeButton;
+                  Navigator.of(context).maybePop();
+                })
+              : null,
+          leadingWidth:
+              BriefPrV2.enabled ? SessionCloseButton.leadingWidth : null,
           title: Text(isEn ? 'Reflective chat' : '反思傾偈'),
         ),
         body: SafeArea(
@@ -612,13 +637,17 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     );
   }
 
-  Future<void> _maybeSurfaceBriefPr({bool closeSession = true}) async {
+  Future<void> _maybeSurfaceBriefPr({
+    bool closeSession = true,
+    String endReason = SessionEndReason.back,
+  }) async {
     if (_briefPrSurfaced) return;
     _briefPrSurfaced = true;
     final profile = AppSettingsScope.read(context).profile;
     final rec = _recorder;
+    final v2 = BriefPrV2.enabled;
     if (closeSession && rec != null && rec.isOpen) {
-      await rec.end(SessionEndReason.userLeft);
+      await rec.end(v2 ? endReason : SessionEndReason.userLeft);
     }
     if (profile == null) return;
     // Capture the navigator NOW: this runs from PopScope after the route
@@ -643,6 +672,13 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
           profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
       memoryV1: MemoryModes.of(profile).isV1,
     ));
+
+    // T25 v2 — no popup: the scheduler decides, the card shows on the
+    // companion list page.  Memory (above) was already handed over.
+    if (v2) {
+      await BriefPrV2.endSession(rec, endReason: endReason, arm: 'A');
+      return;
+    }
 
     if (rec == null || rec.sessionId == null) return;
     final sessionId = rec.sessionId;
