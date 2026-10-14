@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-10-14 晚 产品窗口 10/14 第 5–10 条：登记表 v10，任务单 1014c、1014d（T38–T46）
+
+- **定了**：试跑一轮 3 人（PILOT-01、02 Hybrid，03 规则组）10/15 做 W0，按正式配置跑完整 8 周；W8 问卷 13 题加可跳过的 AIMHS，试跑也推；第 63 天后推 debrief，约第 70 天停服；记忆不能整个关闭；告警急性即时、中级每日汇总、低级只记录；运营看板和使用事件记录（回访用）。
+- 登记表 v10（C01、C05、C12、C15、C19、C20，新增 C23 使用事件记录）。任务单 `dev-tasks-1014c.md`（产品窗口原文，N1–N5 换成正式编号）和 `dev-tasks-1014d.md`。编号：T38 停服、T39 运营看板、T40 使用事件、T41 每日汇总告警、T42 debrief、T43 试跑核对、T44（#68 补号）、T45（#65 补号）、T46 收尾说明只显示一次。决策 0036 预留给 T35，下一个 0040。
+
 ## 2026-10-14 T24 研究周和每周问卷（PR 草稿，分支 `feat/weekly-schedule`）
 
 - 做了什么：研究周换算函数（服务器 `functions/study_week.js`、App `lib/core/scheduling/study_week.dart`，同一张测试表 `test/fixtures/study_week_table.json`）；每周问卷按研究周排程（`functions/weekly_schedule.js`、`lib/core/scheduling/weekly_schedule.dart`，同一张表 `test/fixtures/weekly_schedule_table.json`）；一个流程四部分（`lib/features/weekly_bundle/`）；按人推送、提醒、记缺失的定时函数 `weeklyBundleDispatch`；记录的研究周字段只由服务器写（触发器 + 规则）；`brief_pr` 按会话结束时间补周次（`onBriefPrWritten`）；社会接触探针 S12（`social_contact_probes`）。T34 的 `pi_alert.js` 改用共享函数。
