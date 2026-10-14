@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * tool/randomization_sequence.js — T19 (decision 0029).  Run by the
- * UNBLINDED researcher only (Keran).  The PI must not run it, see its
- * output, or know the seed.
+ * tool/randomization_sequence.js — T19 (decision 0029), reworked in T30
+ * (dev-tasks-1010 §四 T30 §2.4; dev-tasks-1014 §二 rule 9).  Run by
+ * CALVIN only, on his own machine.  Junyu does not generate, upload or
+ * see the sequence; the seed never leaves Calvin's machine.
  *
  * Generates one permuted-block sequence per stratum (low = W0 DJG
- * emotional 0–1, high = 2–3) from a seed the researcher chooses: 1:1,
- * blocks of 2 and 4 mixed at random, at least 60 positions each
+ * emotional 0–1, high = 2–3) from a seed Calvin chooses: 1:1, blocks of 2
+ * and 4 mixed at random, at least 60 positions each
  * (functions/randomization.js generateSequences).  Same seed → same
  * sequences, so the offline copy can be re-checked.
  *
@@ -14,33 +15,46 @@
  *   1. generate  — writes ONE file with the seed and both sequences into
  *                  randomization-private/ (git-ignored).  Prints only the
  *                  lengths and SHA-256 fingerprints, never the arms.
- *                  Hand that file to the supervisor for offline storage,
- *                  then delete it from the laptop.
- *   2. --upload  — writes randomization_sequences/{low,high} and sets
- *                  randomization_state/{low,high}.next = 0.  Refuses if a
- *                  sequence is already there (use --replace only before
- *                  anyone has been allocated).  The seed is never uploaded.
+ *                  Hand that file to the supervisor's offline store, then
+ *                  delete it from the laptop.
+ *   2. --upload  — signs Calvin in with HIS OWN App login (e-mail +
+ *                  password, Firebase Auth REST) and calls the
+ *                  uploadRandomizationSequence Cloud Function with the two
+ *                  sequences (arms, blocks, fingerprints — no seed).  The
+ *                  server checks his role (`sequence_uploader`), the
+ *                  switch meta/randomization_config.sequenceUploadEnabled,
+ *                  that nobody has been allocated, and logs the upload.
+ *                  NO service-account credentials are involved.
  *
- * Target: the Firestore emulator by default.  A real project needs
- * --project=<id> --production-confirm=<same id> (tool/firestore_target.js).
+ * Targets
+ *   emulator (default): FIREBASE_AUTH_EMULATOR_HOST and
+ *     FUNCTIONS_EMULATOR_HOST (e.g. localhost:9099 / localhost:5001) set.
+ *   real project: --project=<id> --production-confirm=<same id>
+ *     (and neither emulator variable set).
  *
  * Usage
  *   NODE_PATH=functions/node_modules node tool/randomization_sequence.js \
  *     --seed-file=/path/to/my-seed.txt [--length=60] [--out=randomization-private]
- *   ... --seed-file=... --upload --operator=keran@example.org
+ *   ... --seed-file=... --upload --email=calvin@example.org \
+ *       --password-file=/path/to/pw.txt [--replace]
  *   ... (real project) --project=loneliness-pilot-dev \
- *       --production-confirm=loneliness-pilot-dev
+ *       --production-confirm=loneliness-pilot-dev [--api-key=<web API key>]
  *
  * --seed=<text> also works but leaves the seed in the shell history;
- * prefer --seed-file.  The seed must be at least 16 characters.
+ * prefer --seed-file.  The seed must be at least 16 characters.  The web
+ * API key (public, not a secret) is read from android/app/google-services
+ * .json when --api-key is not given.
  */
 
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
-const {parseArgs, checkTarget} = require('./firestore_target');
+const {parseArgs} = require('./firestore_target');
 const randomization = require('../functions/randomization');
+
+const REGION = 'asia-east2';
+const CALLABLE = 'uploadRandomizationSequence';
 
 function readSeed(args) {
   if (typeof args['seed-file'] === 'string') {
@@ -57,7 +71,106 @@ function summary(seqs) {
 }
 
 /**
- * Upload both sequences.  Returns {ok, lines}.
+ * The callable payload: arms, blocks and fingerprint per stratum.  Never
+ * the seed.
+ */
+function buildPayload(seqs, opts) {
+  const sequences = {};
+  for (const s of randomization.STRATA) {
+    sequences[s] = {arms: seqs[s].arms, blocks: seqs[s].blocks,
+      sha256: seqs[s].sha256};
+  }
+  return {sequences, replace: !!(opts && opts.replace)};
+}
+
+/**
+ * Which Auth / Functions endpoints to talk to.
+ * @return {{ok: boolean, reason: string, authUrl?: string,
+ *     functionUrl?: string, projectId?: string}}
+ */
+function callableTarget(env, args) {
+  const authHost = env.FIREBASE_AUTH_EMULATOR_HOST;
+  const fnHost = env.FUNCTIONS_EMULATOR_HOST;
+  if (authHost || fnHost) {
+    if (!authHost || !fnHost) {
+      return {ok: false, reason: 'set BOTH FIREBASE_AUTH_EMULATOR_HOST and ' +
+        'FUNCTIONS_EMULATOR_HOST for the emulator, or neither'};
+    }
+    if (args['production-confirm']) {
+      return {ok: false, reason: '--production-confirm given but emulator ' +
+        'hosts are set; refusing an ambiguous target'};
+    }
+    const projectId = args.project || env.GCLOUD_PROJECT ||
+      'demo-randomization';
+    return {ok: true, reason: `emulator (${authHost}, ${fnHost})`, projectId,
+      authUrl: `http://${authHost}/identitytoolkit.googleapis.com/v1/` +
+        'accounts:signInWithPassword?key=emulator',
+      functionUrl: `http://${fnHost}/${projectId}/${REGION}/${CALLABLE}`};
+  }
+  const project = typeof args.project === 'string' ? args.project : '';
+  if (!project) {
+    return {ok: false, reason: 'not on the emulator and no --project; ' +
+      'refusing'};
+  }
+  if (args['production-confirm'] !== project) {
+    return {ok: false, reason: `refusing to touch real project ${project}. ` +
+      `Add --production-confirm=${project}`};
+  }
+  const apiKey = typeof args['api-key'] === 'string' ? args['api-key'] :
+    readWebApiKey();
+  if (!apiKey) {
+    return {ok: false, reason: 'no web API key: pass --api-key=<key> ' +
+      '(Firebase console → project settings → Web API key)'};
+  }
+  return {ok: true, reason: `REAL PROJECT ${project}`, projectId: project,
+    authUrl: 'https://identitytoolkit.googleapis.com/v1/' +
+      `accounts:signInWithPassword?key=${apiKey}`,
+    functionUrl: `https://${REGION}-${project}.cloudfunctions.net/` +
+      CALLABLE};
+}
+
+function readWebApiKey() {
+  try {
+    const f = path.join(__dirname, '..', 'android', 'app',
+        'google-services.json');
+    const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+    return j.client[0].api_key[0].current_key || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Sign in with e-mail + password and call the callable.  `fetchFn` is
+ * injectable for tests.  Returns {ok, status, body}.
+ */
+async function uploadViaCallable(p) {
+  const fetchFn = p.fetch || global.fetch;
+  const signIn = await fetchFn(p.authUrl, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({email: p.email, password: p.password,
+      returnSecureToken: true}),
+  });
+  const signInBody = await signIn.json();
+  if (!signIn.ok || !signInBody.idToken) {
+    return {ok: false, status: signIn.status, body: {
+      error: (signInBody.error && signInBody.error.message) || 'sign-in ' +
+        'failed'}};
+  }
+  const call = await fetchFn(p.functionUrl, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json',
+      'Authorization': `Bearer ${signInBody.idToken}`},
+    body: JSON.stringify({data: p.payload}),
+  });
+  const body = await call.json();
+  return {ok: call.ok && !body.error, status: call.status, body};
+}
+
+/**
+ * Admin-SDK upload — used ONLY by the emulator tests to seed sequences
+ * (functions/test/randomization_emulator_test.js).  Not reachable from the
+ * command line: Calvin uploads through the callable above.
  */
 async function upload(db, seqs, opts) {
   const lines = [];
@@ -145,20 +258,39 @@ async function main() {
     return;
   }
 
-  const t = checkTarget(process.env, args);
+  const t = callableTarget(process.env, args);
   if (!t.ok) {
     console.error(`randomization_sequence: ${t.reason}`);
     process.exit(2);
   }
-  console.log(`Upload target: ${t.reason} (project ${t.projectId})`);
-  const admin = require('firebase-admin');
-  admin.initializeApp({projectId: t.projectId});
-  const r = await upload(admin.firestore(), seqs, {
-    replace: args.replace === true,
-    operator: typeof args.operator === 'string' ? args.operator : null,
+  const email = typeof args.email === 'string' ? args.email : '';
+  const password = typeof args['password-file'] === 'string' ?
+    fs.readFileSync(args['password-file'], 'utf8').trim() : '';
+  if (!email || !password) {
+    console.error('Need --email=<your App login> and --password-file=<file ' +
+      'holding your password> (your own account, role sequence_uploader).');
+    process.exit(2);
+  }
+  console.log(`Upload target: ${t.reason} (project ${t.projectId}), as ` +
+    `${email} through ${CALLABLE}`);
+  const r = await uploadViaCallable({
+    fetch: global.fetch, authUrl: t.authUrl, functionUrl: t.functionUrl,
+    email, password, payload: buildPayload(seqs, {replace: args.replace ===
+      true}),
   });
-  r.lines.forEach((l) => console.log(l));
-  process.exit(r.ok ? 0 : 1);
+  if (!r.ok) {
+    const err = r.body && r.body.error;
+    console.error(`! upload refused (${r.status}): ` +
+      `${err && (err.message || err.status || err) || 'unknown error'}`);
+    process.exit(1);
+  }
+  const result = r.body.result || {};
+  for (const s of randomization.STRATA) {
+    const u = result.uploaded && result.uploaded[s];
+    if (u) console.log(`+ ${s}: uploaded ${u.length} positions, sha256 ${u.sha256}`);
+  }
+  console.log(result.replaced ? 'Replaced the earlier sequences.' :
+    'Done. The server logged the upload (sequence_upload_log).');
 }
 
 if (require.main === module) {
@@ -168,4 +300,5 @@ if (require.main === module) {
   });
 }
 
-module.exports = {upload, readSeed};
+module.exports = {upload, readSeed, buildPayload, callableTarget,
+  uploadViaCallable, REGION, CALLABLE};

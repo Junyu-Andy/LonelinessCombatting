@@ -47,4 +47,17 @@ enum DashboardAccess {
   /// (`pi_alerts` read: `isUnblinded()`) and the `acknowledgeAlert`
   /// callable enforce the same line server-side.
   bool get showsSafetyAlerts => this == DashboardAccess.unblinded;
+
+  /// T30 — pooled outcome completion rates (`outcomeCompletionSummary`):
+  /// unblinded only, and only with the remote switch on; the server checks
+  /// both again.
+  bool showsOutcomeCompletion({required bool switchOn}) =>
+      switchOn && this == DashboardAccess.unblinded;
+
+  /// T30 — with `assessorViewEnabled` on, a `blinded` account is a W4
+  /// outcome assessor: it has its own view and nothing of this dashboard.
+  DashboardAccess withAssessorView({required bool assessorViewOn}) =>
+      assessorViewOn && this == DashboardAccess.blinded
+          ? DashboardAccess.denied
+          : this;
 }

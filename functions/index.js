@@ -24,6 +24,11 @@ const stt = require("./stt");
 const blinding = require("./blinding");
 const djgW2 = require("./djg_w2");
 const ada = require("./ada");
+// T30: assessor view, sequence upload by Calvin, process export, pairing log.
+const assessor = require("./assessor");
+const sequenceUpload = require("./sequence_upload");
+const processExport = require("./process_export");
+const pairingLog = require("./pairing_log");
 const weeklySchedule = require("./weekly_schedule");
 
 admin.initializeApp();
@@ -1567,7 +1572,34 @@ exports.blindedDataExport = onSchedule(
     // (research IDs, fixed group mapping, outcome allowlist) replaces the
     // legacy one below.  Off by default.
     const blindingConfig = await blinding.readBlindingConfig(db);
+    // T30: process-data export for the unblinded researcher (research ID +
+    // real arm, no outcome values), and the pause of the outcome-value
+    // export before the data lock.  Both switches default off
+    // (meta/blinding_config.processExportEnabled / outcomeExportPaused).
+    const t30 = processExport.switchesFromSnap(
+        await db.doc(blinding.CONFIG_DOC).get());
+    if (t30.processExportEnabled) {
+      try {
+        const builtP = await processExport.buildProcessExport(db, {dateKey});
+        const leaks = processExport.leakCheck(builtP);
+        if (leaks.length) throw new Error(`leak check: ${leaks.join(",")}`);
+        const nP = await processExport.writeProcessExport(
+            admin.storage().bucket(), builtP, dateKey);
+        await db.collection(processExport.LOG_COLLECTION).add({
+          at: admin.firestore.FieldValue.serverTimestamp(), dateKey,
+          files: nP, rowCounts: builtP.manifest.rowCounts, by: "server",
+        });
+        console.log(`processExport: wrote ${nP} files for ${dateKey}`);
+      } catch (err) {
+        console.error("processExport failed", {err: String(err)});
+      }
+    }
     if (blindingConfig.enabled) {
+      if (t30.outcomeExportPaused) {
+        console.log("blindedDataExport v2 paused (outcomeExportPaused) " +
+          `for ${dateKey}: no outcome values before the data lock`);
+        return;
+      }
       const built = await blinding.buildBlindedExport(db, {
         dateKey, includeUsageSummary: blindingConfig.includeUsageSummary,
         includeBriefPr: blindingConfig.includeBriefPr,
@@ -1575,6 +1607,11 @@ exports.blindedDataExport = onSchedule(
       const n = await blinding.writeBlindedExport(
           admin.storage().bucket(), built, dateKey);
       console.log(`blindedDataExport v2: wrote ${n} files for ${dateKey}`);
+      return;
+    }
+    if (t30.outcomeExportPaused) {
+      console.log("blindedDataExport legacy paused (outcomeExportPaused) " +
+        `for ${dateKey}`);
       return;
     }
 
@@ -2097,6 +2134,119 @@ exports.enrollParticipant = onCall(
     }
   },
 );
+
+// ---------------------------------------------------------------------------
+// T30 — roles, assessor view, sequence upload (functions/assessor.js,
+// functions/sequence_upload.js, functions/pairing_log.js).  Every callable
+// re-checks the Auth role server-side; the switches default off.
+// ---------------------------------------------------------------------------
+const _ASSESSOR_ERRORS = {
+  not_blinded: "permission-denied",
+  not_unblinded: "permission-denied",
+  disabled: "failed-precondition",
+  unknown_research_id: "not-found",
+  not_phase_b: "failed-precondition",
+  already_entered: "already-exists",
+  entry_not_found: "not-found",
+};
+
+/**
+ * @param {object} request onCall request (authenticated)
+ * @return {{uid: string, email: ?string, role: ?string}}
+ */
+function callerOf(request) {
+  const token = request.auth.token || {};
+  return {uid: request.auth.uid, email: token.email || null,
+    role: token.role || null};
+}
+
+/**
+ * Wrap an assessor.js entry point as an onCall handler.
+ * @param {function(object, object, object): Promise<object>} fn
+ * @return {function(object): Promise<object>}
+ */
+function assessorCallable(fn) {
+  return async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+    try {
+      return await fn(admin.firestore(), callerOf(request), request.data || {});
+    } catch (err) {
+      const code = err && err.assessorCode;
+      if (code) {
+        throw new HttpsError(_ASSESSOR_ERRORS[code] || "invalid-argument",
+            code);
+      }
+      console.error("assessor callable failed", {err: String(err)});
+      throw new HttpsError("internal", "assessor_failed");
+    }
+  };
+}
+
+// The W4 due list for the `blinded` assessor (no arm, no process data).
+exports.assessorDueList = onCall(
+    {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+    assessorCallable((db, caller) => assessor.dueList(db, caller)));
+
+// One paper outcome entry; scores stay on the server.
+exports.submitOutcomeEntry = onCall(
+    {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+    assessorCallable((db, caller, data) =>
+      assessor.submitEntry(db, caller, data)));
+
+// Pooled completion per instrument per timepoint for `unblinded`.
+exports.outcomeCompletionSummary = onCall(
+    {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+    assessorCallable((db, caller) => assessor.completionSummary(db, caller)));
+
+const _UPLOAD_ERRORS = {
+  not_uploader: "permission-denied",
+  disabled: "failed-precondition",
+  invalid_sequences: "invalid-argument",
+  already_uploaded: "already-exists",
+  already_allocated: "failed-precondition",
+};
+
+// Calvin (`sequence_uploader`) uploads the sequences he generated locally.
+exports.uploadRandomizationSequence = onCall(
+    {region: "asia-east2", enforceAppCheck: false, maxInstances: 1},
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Sign in required");
+      }
+      try {
+        return await sequenceUpload.uploadSequence(admin.firestore(),
+            callerOf(request), request.data || {});
+      } catch (err) {
+        const code = err && err.uploadCode;
+        if (code) {
+          throw new HttpsError(_UPLOAD_ERRORS[code] || "invalid-argument",
+              code);
+        }
+        console.error("uploadRandomizationSequence failed",
+            {err: String(err)});
+        throw new HttpsError("internal", "upload_failed");
+      }
+    });
+
+// Server-side log of an Ah Jan / Ah Bak pairing change on the profile
+// (switch pairingChangeServerLogEnabled, default off).
+exports.onUserPairingChanged = onDocumentWritten(
+    {document: "users/{uid}", region: "asia-east2"},
+    async (event) => {
+      const before = event.data && event.data.before.exists ?
+        event.data.before.data() : null;
+      const after = event.data && event.data.after.exists ?
+        event.data.after.data() : null;
+      try {
+        await pairingLog.logPairingChange(admin.firestore(),
+            {uid: event.params.uid, before, after});
+      } catch (err) {
+        console.error("pairing change log failed",
+            {uid: event.params.uid, err: String(err)});
+      }
+    });
 
 exports.week2Push = onSchedule(
   {
