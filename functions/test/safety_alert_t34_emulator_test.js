@@ -545,6 +545,14 @@ test("export: safety rows carry sourceGroup; per-source counts; AI-reply " +
       console.log(`  FAIL ${t.name}\n       ${err.stack}`);
     }
   }
+  // Leave the emulator as the next test file expects it: no alert
+  // config (switch off), no blinding config, no T34 rows.
+  await db.doc("meta/alert_config").delete();
+  await db.doc("meta/blinding_config").delete();
+  for (const n of ["safety_events", "safety_event_dedup", "pi_alerts",
+    "alert_audit_log", "research_id_map", "research_ids", "users"]) {
+    await clear(n);
+  }
   console.log(`safety_alert_t34_emulator_test: ${tests.length - failed}/` +
     `${tests.length} passed`);
   process.exit(failed ? 1 : 0);

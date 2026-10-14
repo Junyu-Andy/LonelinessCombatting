@@ -292,7 +292,7 @@ test("questionnaire rule: PHQ-9 item 9 = 0 → nothing; ≠ 0 → event", () => 
   assert.strictEqual(t(null), false);
 });
 
-test("questionnaire entry refuses bad input before touching the db", async () => {
+test("questionnaire entry refuses bad input before the db", async () => {
   const db = {collection: () => {
     throw new Error("must not be called");
   }};
