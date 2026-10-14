@@ -436,6 +436,9 @@ exports.proxyDeepSeek = onCall(
         callType: llmLog.callTypeForModule(moduleId),
         agentId,
         uid: request.auth.uid,
+        // T25 — the App's session id (same field memory injection logs).
+        sessionId: typeof payload.sessionId === "string" ?
+          payload.sessionId : null,
       },
       body: {
         model: DEEPSEEK_MODEL,
