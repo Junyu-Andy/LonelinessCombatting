@@ -60,7 +60,7 @@
 | `test/rules/usage_events_rules.test.js`（16 项） | 已登记本人可新建（两种 cohort）；没 cohort、测试员、`phase_a` 拒绝；本人不能读改删；7 个服务器字段都不能由客户端带；坏类型 / 字符串时间 / 客户端 receivedAt / schemaVersion 2 / 缺字段 / 多字段都拒绝；他人、`unblinded`、`blinded` 拒绝；通用规则其他子集合不受影响 | 16/16（模拟器） |
 | `functions/test/usage_events_test.js`（9 项） | 在线行不算晚；离线 40 分钟算晚、`clientAt` 不改；5 分钟边界；香港日期跨午夜；时钟超前 = `clockSkew`；没 W0 / 没对照表；`receivedAt` 缺省；已盖章 / 坏类型 / 缺时间 = 不动；盖章字段集合 = 规则拒绝的集合 | 9/9 |
 | `functions/test/usage_events_emulator_test.js` | 合成 PILOT-03：在线一对盖章（研究编号、香港日、研究日 5）；**三条离线行**（手机时间 10:00、10:20、10:40，12:00 一起上传）都 `uploadedLate: true`、手机时间不变；第二次运行不动；行只含 App 7 个字段 + 服务器 7 个字段 | 通过（模拟器） |
-| `flutter analyze` | | 0 error、0 warning |
+| `flutter analyze` | | 0 error；其余 info / warning 都是改动前已有的 |
 | `tool/ci_flutter_tests.sh`（六套） | | 六套全过（本机，Flutter 3.35.3） |
 | `tool/ci_backend_tests.sh`（Functions + 规则 + 删除脚本） | | 全过（本机模拟器；规则 183 项含新 16 项） |
 | ESLint（`usage_events.js`、两个测试） | ES2018，没有 `??` `?.` | 0 问题 |
