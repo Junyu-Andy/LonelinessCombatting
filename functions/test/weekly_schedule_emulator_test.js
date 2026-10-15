@@ -101,7 +101,7 @@ test("placeholder copy: nothing is sent, nothing is marked pushed",
       // blocks the push.
       const counts = await run(m, hk(7, 20),
           {push: "【占位】草稿", reminder: "【占位】草稿"});
-      // ua, ub (W1) and the pilot account (its W4 is day 7).
+      // ua, ub and the pilot account (same schedule): W1 on day 7.
       assert.strictEqual(counts.blocked_placeholder, 3);
       assert.strictEqual(m.sent.length, 0);
       assert.strictEqual((await status("ua")).exists, false);
@@ -161,12 +161,13 @@ async () => {
       hk(7, 20).toISOString());
   assert.strictEqual(sa.bundles.W1.windowEnd.toDate().toISOString(),
       hk(10, 20).toISOString());
-  // The pilot account got its W4 (day 7), no DJG in it.
+  // The pilot account runs the same schedule: W1 on day 7, DJG included.
   const sp = (await status("up")).data();
-  assert.strictEqual(sp.scheduleMode, "pilot");
-  assert.ok(sp.bundles.W4.pushedAt);
-  assert.strictEqual(sp.bundles.W4.windowEnd.toDate().toISOString(),
-      hk(8, 20).toISOString());
+  assert.strictEqual(sp.scheduleMode, "standard");
+  assert.ok(sp.bundles.W1.pushedAt);
+  assert.strictEqual(sp.bundles.W4, undefined);
+  assert.strictEqual(sp.bundles.W1.windowEnd.toDate().toISOString(),
+      hk(10, 20).toISOString());
   // The research ID never lands under users/{uid}.
   const underUser = await db.collection("users").doc("ua").listCollections();
   for (const c of underUser) {
@@ -194,27 +195,30 @@ async () => {
   // Day 8 19:00: < 24 h.
   await run(m, hk(8, 19));
   assert.strictEqual(m.sent.length, 3);
-  // Day 8 20:00: reminder for ub only (ua finished; the pilot account's
-  // 1-day W4 window closes at this very tick → missed, not reminded).
+  // Day 8 20:00: reminder for ub and the pilot account (ua finished);
+  // nothing is missed yet, the window runs to day 10.
   const c8 = await run(m, hk(8, 20));
-  assert.strictEqual(c8.reminded, 1);
-  assert.strictEqual(c8.missed, 1);
-  assert.strictEqual(m.sent[3].token, "tok-ub");
+  assert.strictEqual(c8.reminded, 2);
+  assert.strictEqual(c8.missed, undefined);
+  assert.deepStrictEqual(m.sent.slice(3).map((s) => s.token).sort(),
+      ["tok-ub", "tok-up"]);
   assert.strictEqual(m.sent[3].notification.body, FINAL_COPY.reminder);
   assert.strictEqual(m.sent[3].data.kind, "weekly_bundle_reminder");
-  assert.strictEqual((await part("up", "pgic", "W4")).data().status,
-      "missed");
+  assert.strictEqual((await part("up", "pgic", "W1")).exists, false);
   // Only once.
   await run(m, hk(9, 10));
-  assert.strictEqual(m.sent.length, 4);
+  assert.strictEqual(m.sent.length, 5);
 
   // Day 10 19:59: still open, nothing missed.
   await run(m, hk(10, 19, 59));
   assert.strictEqual((await part("ub", "weekly_pr", "W1")).exists, false);
-  // Day 10 20:00: window closed → ub's three parts are missed, ua none.
+  // Day 10 20:00: window closed → ub's and the pilot account's three parts
+  // are missed, ua none.
   const c10 = await run(m, hk(10, 20));
-  assert.strictEqual(c10.missed, 1);
+  assert.strictEqual(c10.missed, 2);
   assert.strictEqual(c10.closed_complete, 1);
+  assert.strictEqual((await part("up", "pgic", "W1")).data().status,
+      "missed");
   const d = (await part("ub", "djg_responses", "W1")).data();
   assert.strictEqual(d.status, "missed");
   assert.strictEqual(d.missed, true);
@@ -246,7 +250,7 @@ async () => {
   // Missed only once; nothing more happens later in the week.
   const c11 = await run(m, hk(11, 10));
   assert.strictEqual(c11.missed, undefined);
-  assert.strictEqual(m.sent.length, 4);
+  assert.strictEqual(m.sent.length, 5);
   // Events per person.
   const ev = await db.collection("users").doc("ub").collection("events")
       .get();
@@ -287,35 +291,42 @@ test("week 4 (day 26 open, closes end of day 29) and PGIC-only week 5",
           false);
     });
 
-test("pilot account: days 1, 3, 5, 7; DJG in the first three; 1-day " +
-    "window; the Phase B account is untouched by the pilot days", async () => {
+test("pilot account (10/15): the standard Phase B schedule, nothing on " +
+    "days 1, 3, 5; W1 with DJG on day 7; 3-day window", async () => {
   await reset(ON);
   await seedUser("up", {arm: "B", cohort: "pilot"});
   await seedUser("ua", {arm: "A", cohort: "phase_b"});
   const m = fakeMessaging();
-  for (const day of [1, 3, 5, 7]) {
+  for (const day of [1, 3, 5]) {
     const c = await run(m, hk(day, 20));
-    assert.strictEqual(c.pushed, day === 7 ? 2 : 1, `day ${day}`);
+    assert.strictEqual(c.pushed, undefined, `day ${day}`);
   }
-  assert.strictEqual(m.sent.filter((s) => s.token === "tok-up").length, 4);
-  assert.strictEqual(m.sent.filter((s) => s.token === "tok-ua").length, 1);
-  // Close each pilot window one day later → missed parts show the shape.
-  await run(m, hk(8, 20));
-  const sp = (await status("up")).data().bundles;
-  const all3 = ["djg", "pgic", "weekly_pr"];
-  assert.deepStrictEqual(sp.W1.missedParts.sort(), all3);
-  assert.deepStrictEqual(sp.W3.missedParts.sort(), all3);
-  assert.deepStrictEqual(sp.W4.missedParts.sort(), ["pgic", "weekly_pr"]);
-  assert.strictEqual((await part("up", "djg_responses", "W4")).exists, false);
-  const d3 = (await part("up", "djg_responses", "W3")).data();
-  assert.strictEqual(d3.scheduleMode, "pilot");
-  assert.strictEqual(d3.studyDay, 5);
-  assert.strictEqual(d3.studyWeek, 1);
-  assert.strictEqual(d3.windowEnd.toDate().toISOString(),
-      hk(6, 20).toISOString());
-  // The Phase B account's W1 is still open on day 8.
-  assert.strictEqual((await status("ua")).data().bundles.W1.missedAt,
-      undefined);
+  assert.strictEqual(m.sent.length, 0);
+  const c7 = await run(m, hk(7, 20));
+  assert.strictEqual(c7.pushed, 2);
+  assert.strictEqual(m.sent.filter((s) => s.token === "tok-up").length, 1);
+  const strip = (s) => JSON.stringify(Object.assign({}, s, {token: ""}));
+  assert.strictEqual(strip(m.sent[0]), strip(m.sent[1]));
+  // Day 8 20:00: a 1-day window would have closed here; nothing is missed.
+  const c8 = await run(m, hk(8, 20));
+  assert.strictEqual(c8.missed, undefined);
+  assert.strictEqual(c8.reminded, 2);
+  // Day 10 20:00: both W1 windows close together, same shape of record.
+  await run(m, hk(10, 20));
+  const sp = (await status("up")).data();
+  assert.strictEqual(sp.scheduleMode, "standard");
+  assert.deepStrictEqual(Object.keys(sp.bundles), ["W1"]);
+  assert.deepStrictEqual(sp.bundles.W1.missedParts.sort(),
+      ["djg", "pgic", "weekly_pr"]);
+  const d1 = (await part("up", "djg_responses", "W1")).data();
+  assert.strictEqual(d1.scheduleMode, "standard");
+  assert.strictEqual(d1.studyDay, 7);
+  assert.strictEqual(d1.studyWeek, 1);
+  assert.strictEqual(d1.windowEnd.toDate().toISOString(),
+      hk(10, 20).toISOString());
+  const da = (await part("ua", "djg_responses", "W1")).data();
+  assert.strictEqual(da.windowEnd.toDate().toISOString(),
+      d1.windowEnd.toDate().toISOString());
 });
 
 test("stampPartRecord: weekly_pr / pgic / probe / DJG records get the " +

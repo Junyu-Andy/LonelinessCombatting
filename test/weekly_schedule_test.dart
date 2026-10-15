@@ -209,7 +209,7 @@ void main() {
     });
     test('mode by cohort', () {
       expect(WeeklySchedule.modeForCohort('phase_b'), WeeklyScheduleMode.standard);
-      expect(WeeklySchedule.modeForCohort('pilot'), WeeklyScheduleMode.pilot);
+      expect(WeeklySchedule.modeForCohort('pilot'), WeeklyScheduleMode.standard);
       expect(WeeklySchedule.modeForCohort('phase_a'), null);
       expect(WeeklySchedule.modeForCohort(null), null);
     });
