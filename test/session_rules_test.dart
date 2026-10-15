@@ -25,7 +25,8 @@ void main() {
       expect(c.freeChatValidMinUserMessages, 3);
       expect(c.hybridCheckInValidRequiresMood, isTrue);
       expect(c.hybridCheckInValidMinUserMessages, 1);
-      expect(c.hybridReminiscenceValidRequiresSave, isTrue);
+      expect(c.hybridReminiscenceValidRequiresSave, isFalse,
+          reason: '1014e §2.7: Hybrid reminiscence counts by messages');
     });
 
     test('switch is on only when literally true; numbers clamp', () {
@@ -50,7 +51,7 @@ void main() {
       expect(c.freeChatValidMinUserMessages, 3);
       expect(c.hybridCheckInValidRequiresMood, isFalse);
       expect(c.hybridCheckInValidMinUserMessages, 0);
-      expect(c.hybridReminiscenceValidRequiresSave, isTrue);
+      expect(c.hybridReminiscenceValidRequiresSave, isFalse);
     });
   });
 
@@ -144,16 +145,19 @@ void main() {
           summarySaved: saved,
         );
 
-    test('valid only once the weekly summary is saved via 儲存', () {
-      expect(v2.isValid(t(saved: true)), isTrue);
-      expect(v2.isValid(t(saved: false, replies: 10)), isFalse);
+    test('default (1014e §2.7): the free-chat rule — ≥ 3 replied messages; '
+        '儲存 alone is not enough', () {
+      expect(v2.isValid(t(saved: false, replies: 3)), isTrue);
+      expect(v2.isValid(t(saved: false, replies: 2)), isFalse);
+      expect(v2.isValid(t(saved: true)), isFalse);
+      expect(v2.isValid(t(saved: true, replies: 3)), isTrue);
     });
 
-    test('config: save not required → free-chat rule applies', () {
+    test('config: save required (true) → valid only once saved via 儲存', () {
       const r = SessionRules(
-          v2: true, idleTimeoutMin: 30, reminiscenceValidRequiresSave: false);
-      expect(r.isValid(t(saved: false, replies: 3)), isTrue);
-      expect(r.isValid(t(saved: false, replies: 2)), isFalse);
+          v2: true, idleTimeoutMin: 30, reminiscenceValidRequiresSave: true);
+      expect(r.isValid(t(saved: true)), isTrue);
+      expect(r.isValid(t(saved: false, replies: 10)), isFalse);
     });
   });
 
