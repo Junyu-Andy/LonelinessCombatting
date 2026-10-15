@@ -5,7 +5,7 @@
 /// text, options and footnote are copied verbatim from
 /// docs/spec/copy/short-texts.md S12.  Every answer is saved; leaving
 /// half-way resumes at the first unanswered item.  No arm check.  Screen
-/// text other than S12 is a 【占位】 draft.
+/// text is final since 10/15 (docs/spec/copy S14).
 library;
 
 import 'package:flutter/material.dart';
@@ -18,7 +18,7 @@ class SocialContactProbePage extends StatefulWidget {
     super.key,
     required this.store,
     this.part,
-    this.title = '【占位】每週問卷',
+    this.title = '每週問卷',
   });
 
   final SocialContactStore store;

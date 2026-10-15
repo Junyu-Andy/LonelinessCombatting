@@ -1,0 +1,6 @@
+# 这四份文档每个 PR 都在同一处加内容，合并时用 union 驱动：两边的新行都保留，不再报冲突。
+# 配套规则见 CLAUDE.md「文档规则」：只加自己的行，不改别人的行。
+docs/history.md merge=union
+docs/STUDY_CHANGELOG.md merge=union
+docs/dev/architecture.md merge=union
+docs/dev/backlog.md merge=union

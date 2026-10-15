@@ -283,14 +283,14 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
     }
     final wb = p.weeklyBundle;
     if (wb != null) {
-      // T24 — draft copy (【占位】), research team to sign off.
+      // T24 — final copy (10/15 item 6 C(8), docs/spec/copy S14).
       tiles.add(_BannerTile(
         key: const ValueKey('weekly_bundle_card'),
         icon: Icons.assignment_outlined,
         title: kWeeklyBundleTitle,
         subtitle: wb.bundle.parts.length == 1
-            ? '【占位】一條問題，好快答完。'
-            : '【占位】分 ${wb.bundle.parts.length} 部分，可以分開做。',
+            ? '只有一條問題，好快答完。'
+            : '一共 ${wb.bundle.parts.length} 部分，可以分開做。',
         onTap: () => _openWeeklyBundle(wb),
       ));
     }

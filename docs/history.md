@@ -9,6 +9,28 @@
 ## 2026-10-15 1014e 第 2 节第 6 条：教育文章危机提示的机构名更正（PR 草稿，分支 `fix/education-hotline-name`）
 
 - `education_library.dart` 两篇文章的提示把 2382 0000 写成撒瑪利亞防止自殺會，改为生命熱線；号码不动。新测试：文章里每个热线号码都要和 `crisis_resources.json` 的机构对得上。`verifiedDate` 等 Junyu 核对后填。报告 `docs/dev-reports/1014e-education-hotline-name-20261015.md`。
+## 2026-10-15 1014e 第 2 节第 3 条：`isTester` 只允许管理员写（PR 草稿，分支 `fix/istester-admin-only`）
+
+- 规则：`users/{uid}` 新建不能带 `isTester`，更新不能动它；App `UserProfile.toMap` 不再写它（merge 写保留服务器值），设置页测试员开关改只读说明；新脚本 `tool/set_tester.js`（`--uid` / `--email`、`--tester=true|false`、`--list`，登记过的账号要 `--allow-registered`）。规则测试 5 项、脚本模拟器测试、Dart 测试。随规则在 10/19 开门前部署；部署后给团队和评估员账号设上。报告 `docs/dev-reports/1014e-istester-admin-only-20261015.md`。
+## 2026-10-15 试跑改走正式每周问卷排程（PR 草稿，分支 `fix/pilot-standard-schedule`）
+
+- Junyu 10/15 定：试跑流程和正式一样，推送都按 Phase B 正常走。代码里 `cohort: pilot` 原来还是 T24 的压缩排程（第 1、3、5、7 天、1 天窗口），开关一开，现有试跑老人会被补记缺失、新试跑老人第 1 天晚上就收推送。改法：服务器 `scheduleModeFor` 和 App `modeForCohort` 把 `pilot` 映射到 `standard`，各一行；压缩排程的代码和配置键留着不删（只有共用表测试用）。
+- 模拟器测试改成验证试跑账号第 1、3、5 天什么都没有、第 7 天和 Phase B 账号同一条推送、同一个窗口。报告 `docs/dev-reports/pilot-standard-schedule-20261015.md`。
+
+## 2026-10-15 第 6 条：三组文字定稿接入（PR 草稿，分支 `fix/copy-1015-item6`）
+
+- 产品窗口 10/15 定稿了三组文字，照抄进代码：A. 规则组回忆页的心情提示（S13，取代现包里老人看得到的【占位】）；B. 收尾按钮首次说明分号改句号（S10c）；C. 每周问卷全部文字（S14：推送两句、标题「每週問卷」、开头一句、四个部分名称、状态字、完成句、首页提醒卡两句）。Brief PR 按钮和 S10b 不动。
+- 每周问卷的推送从此不再带【占位】：`weeklyScheduleV2Enabled` 打开后会真的发出；测试里的「带占位不发」改用覆盖文字验证，保护逻辑没拆。
+- 一处产品窗口没给：流程开头的第二句「可以隨時停，下次會由停低嗰度繼續。」沿用原文，等 Junyu 确认。按约定，这个 PR 等 Junyu 回「可以」再合。报告 `docs/dev-reports/copy-1015-item6-20261015.md`。
+
+## 2026-10-15 1014e 第 2 节第 11 条：研究员登记页加「研究員儀錶板」入口（PR 草稿，分支 `feat/dashboard-entry`）
+
+- T19 起 `unblinded` 登录直接进登记页，T34 的告警列表和「確認處理」、T30 的完成率所在的「研究員儀錶板」从此没有入口（T39 核对时发现，Junyu 10/15 同意加）。登记页右上角加一个按钮；只有 `unblinded` 到得了登记页，儀錶板页自己再查一次 claims。没有开关（只是通往已有页面的链接）。T43 报告里“確認處理”那一步合并打包后可做。
+- 报告 `docs/dev-reports/1014e-dashboard-entry-20261015.md`。
+
+## 2026-10-15 1014e 第 2 节第 9 条：注册页删 UCLA 输入框（PR 草稿，分支 `fix/remove-ucla-field`）
+
+- `login_page.dart` 去掉「研究人員填寫」一节和「UCLA 基線總分（20–80）」字段；`baselineUclaScore` 留在模型里不再写。1014e 第 3 节第 2 题的答案：这个字段没有任何分层读取方（`enrollParticipant` 用 DJG-ES 情感分），只有盲法导出 / 锁库导出把它当参与者属性原样导出；注册页老人自己填的是电邮、密码、称呼、年龄、紧急联络人称呼和电话。报告 `docs/dev-reports/1014e-remove-ucla-field-20261015.md`。
 
 ## 2026-10-14 T39 运营看板「每人」页（PR 草稿，分支 `feat/ops-dashboard`）
 

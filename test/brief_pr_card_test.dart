@@ -64,18 +64,31 @@ void main() {
               agentName: '阿伯',
               sessionEndedAt: DateTime(2026, 10, 14, 9, 0),
               now: DateTime(2026, 10, 14, 10, 0)),
-          '你今朝同阿伯傾過偈，想問返你嗰次嘅感覺，大概半分鐘。');
+          '你頭先同阿伯傾過偈，想問返你嗰次嘅感覺，大概半分鐘。');
       expect(
           BriefPrInviteCard.text(
               channel: BriefPrInviteChannel.catchUp,
               agentName: '阿珍',
               sessionEndedAt: t0,
               now: t0.add(const Duration(hours: 1))),
-          '你星期三 下晝同阿珍傾過偈，想問返你嗰次嘅感覺，大概半分鐘。');
+          '你頭先同阿珍傾過偈，想問返你嗰次嘅感覺，大概半分鐘。');
       expect(BriefPrInviteCard.acceptLabel, '好呀');
       expect(BriefPrInviteCard.skipLabel, '今次唔評');
       expect(SessionCloseButton.label, '今日傾到呢度');
-      expect(SessionCloseButton.firstUseNote, startsWith('【占位】'));
+      // 1014e §2.8: the first-use note and the questionnaire buttons are
+      // final; no 【占位】 anywhere on these screens.
+      expect(SessionCloseButton.firstUseNote,
+          '撳「今日傾到呢度」就係今次傾完。想再傾隨時返嚟。');
+      expect(BriefPrFlowPage.nextLabel, '下一題');
+      expect(BriefPrFlowPage.backLabel, '上一題');
+      expect(BriefPrFlowPage.abandonLabel, '唔評住');
+      for (final s in [
+        SessionCloseButton.firstUseNote, BriefPrFlowPage.nextLabel,
+        BriefPrFlowPage.backLabel, BriefPrFlowPage.abandonLabel,
+        BriefPrScheduler.timePhraseFixed,
+      ]) {
+        expect(s, isNot(contains('【占位】')));
+      }
     });
 
     testWidgets('card shows the copy and both buttons; nothing else blocks',
@@ -260,7 +273,7 @@ void main() {
       await tester.pumpWidget(wrap(BriefPrCardHost(
           scheduler: scheduler, uid: 'u1', clock: () => now)));
       await tester.pumpAndSettle();
-      expect(find.text('你星期三 下晝同通通傾過偈，想問返你嗰次嘅感覺，大概半分鐘。'),
+      expect(find.text('你頭先同通通傾過偈，想問返你嗰次嘅感覺，大概半分鐘。'),
           findsOneWidget);
     });
 

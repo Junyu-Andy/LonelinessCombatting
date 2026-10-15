@@ -14,9 +14,10 @@
 ///          the end of day [PhaseBConfig.week4CloseDay] (29) or of the W4
 ///          visit day, whichever is later ([week4CloseFor]); no DJG.
 ///   W5–W7  PGIC only, [PhaseBConfig.pgicOnlyDays] (35, 42, 49).
-/// Pilot (cohort `pilot`): [PhaseBConfig.pilotBundleDays] (1, 3, 5, 7) →
-///   W1–W4, window [PhaseBConfig.pilotWindowDays] × 24 h, DJG in the first
-///   three, no PGIC-only weeks.
+/// Pilot (cohort `pilot`): the SAME standard schedule (10/15: the pilot run
+///   follows Phase B day for day).  [WeeklyScheduleMode.pilot] (days 1, 3,
+///   5, 7, 1-day windows) is kept only for the shared table test; no cohort
+///   maps to it any more.
 ///
 /// Every window is `[open, close)`: open = push instant, close exclusive.
 library;
@@ -86,10 +87,11 @@ class WeeklyWindow {
 class WeeklySchedule {
   WeeklySchedule._();
 
-  /// Schedule mode by cohort (T21); null = not scheduled.
+  /// Schedule mode by cohort (T21); null = not scheduled.  10/15: a pilot
+  /// account runs the standard Phase B schedule.
   static WeeklyScheduleMode? modeForCohort(String? cohort) => switch (cohort) {
         'phase_b' => WeeklyScheduleMode.standard,
-        'pilot' => WeeklyScheduleMode.pilot,
+        'pilot' => WeeklyScheduleMode.standard,
         _ => null,
       };
 

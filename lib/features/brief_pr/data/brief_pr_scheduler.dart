@@ -148,16 +148,6 @@ class BriefPrScheduler {
         await store.put(r.copyWith(finalStatus: BriefPrStatus.expired));
         continue;
       }
-      // 10/14 fix: a catch-up card whose time phrase is not finalised must
-      // not reach the elder with a 【占位】 draft; record why instead.
-      if (channelFor(r) == BriefPrInviteChannel.catchUp &&
-          timePhrase(r.sessionEndedAt, t) == timePhrasePlaceholder) {
-        await store.put(r.copyWith(
-          finalStatus: BriefPrStatus.dueNotInvited,
-          dueNotInvitedReason: BriefPrDueNotInvitedReason.copyPending,
-        ));
-        continue;
-      }
       if (best == null || r.sessionEndedAt.isAfter(best.sessionEndedAt)) {
         best = r;
       }
@@ -229,31 +219,11 @@ class BriefPrScheduler {
 
   // -- S10b time phrase ------------------------------------------------------
 
-  static const _weekdays = ['一', '二', '三', '四', '五', '六', '日'];
+  /// The one approved word (dev-tasks-1014e §2.8, 10/15): every catch-up
+  /// card says 「頭先」, whatever the gap.  The three time-of-day forms
+  /// (今朝 / 尋晚 / 星期X 下晝) and the 【占位】 fallback of T25 are retired,
+  /// so no card is ever held back for a missing phrase.
+  static const timePhraseFixed = '頭先';
 
-  /// Placeholder used when none of the three approved phrases fits.
-  static const timePhrasePlaceholder = '【占位】早排';
-
-  /// Only the three forms short-texts.md S10b allows:
-  ///   - same local day, ended before 12:00 → 今朝
-  ///   - the previous day, ended 18:00 or later → 尋晚
-  ///   - ended 12:00–17:59 (any day) → 星期X 下晝
-  /// Everything else (e.g. same-day evening, two days ago) →
-  /// [timePhrasePlaceholder]; the uncovered cases are listed in the T25
-  /// report for the research side.
-  static String timePhrase(DateTime endedAt, DateTime now) {
-    final sameDay = endedAt.year == now.year &&
-        endedAt.month == now.month &&
-        endedAt.day == now.day;
-    final yesterday = now.subtract(const Duration(days: 1));
-    final prevDay = endedAt.year == yesterday.year &&
-        endedAt.month == yesterday.month &&
-        endedAt.day == yesterday.day;
-    if (sameDay && endedAt.hour < 12) return '今朝';
-    if (prevDay && endedAt.hour >= 18) return '尋晚';
-    if (endedAt.hour >= 12 && endedAt.hour < 18 && (sameDay || prevDay)) {
-      return '星期${_weekdays[endedAt.weekday - 1]} 下晝';
-    }
-    return timePhrasePlaceholder;
-  }
+  static String timePhrase(DateTime endedAt, DateTime now) => timePhraseFixed;
 }

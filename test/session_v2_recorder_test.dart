@@ -136,11 +136,15 @@ void main() {
       ci.markMoodRecorded();
       expect(ci.isValid, isTrue);
 
+      // 1014e §2.7: Hybrid reminiscence counts by replied messages (≥ 3),
+      // like free chat; 儲存 is recorded but no longer required.
       final rem = make(agentId: 'ah_jan_ah_bak', moduleId: 'm3_reminiscence_w2');
-      await chat(rem, 6);
+      await chat(rem, 2);
       expect(rem.sessionType, SessionType.reminiscence);
       expect(rem.isValid, isFalse);
       rem.markSummarySaved();
+      expect(rem.isValid, isFalse, reason: 'saving alone is not enough');
+      await chat(rem, 1);
       expect(rem.isValid, isTrue);
     });
 
