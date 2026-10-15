@@ -344,22 +344,25 @@ class _SettingsPageState extends State<SettingsPage> {
               title: isEn ? 'Tester tools' : '測試員工具',
             ),
             const SizedBox(height: 14),
-            _SwitchTileCard(
-              icon: Icons.science_outlined,
-              title: isEn ? 'Tester account' : '測試員帳號',
-              subtitle: isEn
-                  ? 'Excludes this account from research data; acute alerts '
-                      'are logged but the PI is not emailed.'
-                  : '呢個帳號唔計入研究數據；acute 事件會記錄但唔會 email PI。',
-              value: settings.profile?.isTester ?? false,
-              onChanged: (value) async {
-                final profile = settings.profile;
-                if (profile == null) return;
-                final auth = AuthServiceScope.of(context);
-                final updated = profile.copyWith(isTester: value);
-                await auth.updateProfile(updated);
-                settings.profile = updated;
-              },
+            // 1014e §2.3 (backlog 96): the tester flag is admin-only now —
+            // the rules refuse any client write — so this is read-only.
+            Card(
+              key: const Key('settings_tester_flag'),
+              child: ListTile(
+                leading: const Icon(Icons.science_outlined),
+                title: Text(isEn ? 'Tester account' : '測試員帳號'),
+                subtitle: Text(isEn
+                    ? ((settings.profile?.isTester ?? false)
+                        ? 'This account is a tester: excluded from research '
+                            'data; acute alerts are logged but not e-mailed. '
+                            'Set by the admin (tool/set_tester.js).'
+                        : 'Not a tester. Only the admin can change this '
+                            '(tool/set_tester.js or the console).')
+                    : ((settings.profile?.isTester ?? false)
+                        ? '呢個帳號係測試員：唔計入研究數據；acute 事件會記錄但唔會 email。'
+                            '由管理員設定（tool/set_tester.js）。'
+                        : '唔係測試員。只有管理員可以改（tool/set_tester.js 或控制台）。')),
+              ),
             ),
             const SizedBox(height: 12),
             SizedBox(

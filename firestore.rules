@@ -152,11 +152,26 @@ service cloud.firestore {
         .hasAny(assignmentFields());
     }
 
+    // 1014e §2.3 (backlog 96): `isTester` is admin-only.  It decides
+    // whether an account passes the enrolment gate and whether its acute
+    // alerts are e-mailed, so a client must never create or change it;
+    // tool/set_tester.js (Admin SDK) or the console sets it.
+    function createLeavesTesterEmpty(data) {
+      return !('isTester' in data);
+    }
+
+    function updateLeavesTesterUntouched() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['isTester']);
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)
-        && createLeavesAssignmentEmpty(request.resource.data);
-      allow update: if isOwner(uid) && updateLeavesAssignmentUntouched();
+        && createLeavesAssignmentEmpty(request.resource.data)
+        && createLeavesTesterEmpty(request.resource.data);
+      allow update: if isOwner(uid) && updateLeavesAssignmentUntouched()
+        && updateLeavesTesterUntouched();
       allow delete: if false;
     }
 
