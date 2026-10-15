@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-15 W0 装机脚本 v1、iOS 包的编译参数（PR 草稿）
+
+- `docs/release/w0-install-script.md` 按 #59–#76 合并后的 main 重写（取代 #61 的草稿 v0，#61 已关闭）：面访前 Junyu 的 10 项准备、Android/iOS 打包和装机（iOS 10/15 走 Xcode USB，TestFlight internal 作更新通道）、登记门开/关两种顺序、讲给老人听的话（草稿原样保留）、App 现状、要定的事。
+- `codemagic.yaml`：bundle id 改成 `hk.hku.hkuimse.withyouapp`，构建加 `PHASE_B=true`、`RULE_TEMPLATE_REPLIES=true`，和 Android `phase_b_templates` 一致。不部署、不改行为。
+- 发现：iPhone 推送要补 APNs 密钥和 Xcode Push Notifications 能力，10/22 前要做；记在脚本第 2.3 节。
+
 ## 2026-10-14 晚 产品窗口 10/14 第 5–10 条：登记表 v10，任务单 1014c、1014d（T38–T46）
 
 - **定了**：试跑一轮 3 人（PILOT-01、02 Hybrid，03 规则组）10/15 做 W0，按正式配置跑完整 8 周；W8 问卷 13 题加可跳过的 AIMHS，试跑也推；第 63 天后推 debrief，约第 70 天停服；记忆不能整个关闭；告警急性即时、中级每日汇总、低级只记录；运营看板和使用事件记录（回访用）。

@@ -31,6 +31,12 @@
 
 **Flutter 版本：** CI、打包和 Codemagic 都固定用 Flutter 3.35.3，和团队本地一致（见 `.metadata`）。升级 Flutter 时要同时把 Gradle 升到 8.14 以上（`android/gradle/wrapper/gradle-wrapper.properties`），单独开一个 PR 做。
 
+## iOS 包
+
+- 本机 Mac 编不了 iOS 时走 Codemagic（`codemagic.yaml`，TestFlight internal），或在能跑 Xcode 的 Mac 上用 USB 直接装。两种都用和 Android `phase_b_templates` 一样的编译参数：`--dart-define=PHASE_B=true --dart-define=RULE_TEMPLATE_REPLIES=true`。少了就不是 Phase B 的包。
+- `codemagic.yaml` 的 bundle id 是 `hk.hku.hkuimse.withyouapp`，和 Xcode 工程、`ios/Runner/GoogleService-Info.plist` 一致；签名和 App Store Connect 的接入还要在 Codemagic 后台配。
+- iPhone 推送要先配 APNs 密钥和 Xcode 的 Push Notifications 能力，步骤见 `docs/release/w0-install-script.md` 第 2.3 节。没配好时 iPhone 收不到任何提醒。
+
 ## 部署的一次性设置
 
 仓库 **Settings** 里做两件事：
