@@ -58,6 +58,11 @@
 ///                               `unblinded` role pooled completion rates
 ///                               per outcome instrument per timepoint (all
 ///                               participants together, hidden under n < 5).
+///   - [usageEventsEnabled]    — T40 (registry C23): write a usage event
+///                               (`users/{uid}/usage_events`) when the App
+///                               comes to the foreground and goes to the
+///                               background, for an enrolled account only;
+///                               both arms, nothing visible.  Off = no row.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -79,6 +84,7 @@ class RemoteFeatureFlags {
     this.onboardingAfterEnrollmentFix = false,
     this.assessorViewEnabled = false,
     this.outcomeCompletionSummaryEnabled = false,
+    this.usageEventsEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -91,6 +97,7 @@ class RemoteFeatureFlags {
   final bool onboardingAfterEnrollmentFix;
   final bool assessorViewEnabled;
   final bool outcomeCompletionSummaryEnabled;
+  final bool usageEventsEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -135,6 +142,7 @@ class RemoteFeatureFlags {
         assessorViewEnabled: map['assessorViewEnabled'] == true,
         outcomeCompletionSummaryEnabled:
             map['outcomeCompletionSummaryEnabled'] == true,
+        usageEventsEnabled: map['usageEventsEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

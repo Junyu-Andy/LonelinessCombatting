@@ -25,6 +25,7 @@ import '../features/brief_pr/data/brief_pr_v2.dart';
 import '../core/telemetry/screen_dwell_observer.dart';
 import '../core/version/build_info.dart';
 import '../core/telemetry/screen_dwell_tracker.dart';
+import '../core/usage/usage_event_recorder.dart';
 import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
 import '../features/auth/data/auth_service.dart';
@@ -54,6 +55,10 @@ class MyApp extends StatefulWidget {
   final AgentGreetingService agentGreeting;
   final FcmService fcm;
 
+  /// T40: usage events (foreground / background).  Null = build one over
+  /// Firestore; tests pass a recorder with an in-memory sink.
+  final UsageEventRecorder? usageEvents;
+
   const MyApp({
     super.key,
     required this.settings,
@@ -73,6 +78,7 @@ class MyApp extends StatefulWidget {
     required this.handoffExecutor,
     required this.agentGreeting,
     required this.fcm,
+    this.usageEvents,
   });
 
   @override
@@ -90,10 +96,21 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool _sessionOpen = false;
   DateTime _sessionStartedAt = DateTime.now();
 
+  // T40 — usage events ride on the same lifecycle boundaries as the
+  // analytics session (one per foreground stretch).  The recorder itself
+  // decides whether a row is written (switch on, account enrolled).
+  late final UsageEventRecorder _usage;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _usage = widget.usageEvents ??
+        UsageEventRecorder(
+          sink: FirestoreUsageEventSink(),
+          platform: _currentPlatform(),
+        );
+    _usage.onForeground(DateTime.now());
     widget.settings.addListener(_onSettingsChange);
     _onSettingsChange();
     ScreenDwellTracker.instance.bind(widget.analytics);
@@ -154,6 +171,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           _sessionStartedAt = DateTime.now();
           widget.analytics.logSessionStart(platform: _currentPlatform());
           widget.analytics.logEvent(PhaseAEvents.appForeground);
+          _usage.onForeground(_sessionStartedAt);
         }
         break;
       case AppLifecycleState.inactive:
@@ -168,6 +186,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         if (_sessionOpen) {
           _sessionOpen = false;
           widget.analytics.logEvent(PhaseAEvents.appBackground);
+          _usage.onBackground(DateTime.now());
           widget.analytics.logSessionEnd(
             durationSeconds:
                 DateTime.now().difference(_sessionStartedAt).inSeconds,
@@ -248,6 +267,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               // T30: staff accounts (assessors, the registering
               // researcher) get no participant pushes.
               onStaffRoute: widget.fcm.suppressForStaff,
+              // T40: the recorder follows the signed-in account.
+              onProfileSeen: _usage.setProfile,
             ),
           ),
           ),

@@ -30,6 +30,7 @@ const sequenceUpload = require("./sequence_upload");
 const processExport = require("./process_export");
 const pairingLog = require("./pairing_log");
 const weeklySchedule = require("./weekly_schedule");
+const usageEvents = require("./usage_events");
 
 admin.initializeApp();
 
@@ -2419,6 +2420,26 @@ exports.onBriefPrWritten = onDocumentWritten(
         event.params.docId, after);
   },
 );
+
+// ---------------------------------------------------------------------------
+// T40 (SPEC:C23) — usage events.  The App appends a row on foreground /
+// background (switch usageEventsEnabled, enrolled accounts only, both
+// arms).  The trigger stamps the research ID, the Hong Kong day, the
+// study day and `uploadedLate` (offline rows uploaded > 5 min after their
+// client time).  Process data only (functions/usage_events.js).
+// ---------------------------------------------------------------------------
+exports.onUsageEventCreated = onDocumentCreated(
+    {document: "users/{uid}/usage_events/{eventId}", region: "asia-east2"},
+    async (event) => {
+      const data = event.data && event.data.exists ? event.data.data() : null;
+      try {
+        await usageEvents.stampCreated(admin.firestore(), event.params.uid,
+            event.params.eventId, data);
+      } catch (err) {
+        console.error("usage event stamp failed",
+            {uid: event.params.uid, err: String(err)});
+      }
+    });
 
 // ---------------------------------------------------------------------------
 // T17b — Phase A ADA day-7 flow (SPEC:C22, decision 0030).  Phase A only,

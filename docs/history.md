@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-14 T40 使用事件记录（PR 草稿，分支 `feat/usage-events`）
+
+- 1014d 第 6 题的答案：App 早就在 `events` 里记 `app_foreground` / `app_background`，但那条行的 `timestamp` 被服务器时间覆盖，手机时间没有留下；也没有构建版本号、补传标记、登记前不记。所以 T40 按“补齐缺的、放开关后”做：新子集合 `users/{uid}/usage_events`，App 写类型、手机时间、服务器时间、版本号、平台；服务器触发器补研究编号、香港日期、研究日、`uploadedLate`。开关 `usageEventsEnabled` 默认关；规则只让已登记的本人新建、不能读改删。
+- 离线：靠 Firestore SDK 的离线队列缓存、联网后补传；`uploadedLate` 由服务器按“收到时间比手机时间晚 5 分钟以上”判定（客户端自己判不可靠，离线时被杀掉会丢标记）。真机断网三次的验收要在 W0 装机时做，模拟器只能模拟“晚到的行”。
+- 报告 `docs/dev-reports/T40-usage-events-20261014.md`，决策草稿在第 7 节。
+
 ## 2026-10-14 T46 收尾按钮首次说明只显示一次（PR 草稿，分支 `fix/session-end-hint-once`）
 
 - T25 的收尾按钮说明每次启动 App 都再显示一次（当时 App 没有本机存储）。T37 之后有了 `shared_preferences`，T46 把“已经说明过”记在本机（`session.closeHintShown`），同一台手机只显示一次；重装会再显示一次。两组相同，文字不改。存储读不到时退回每次启动一次。
