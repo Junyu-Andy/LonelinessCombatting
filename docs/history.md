@@ -19,6 +19,9 @@
 ## 2026-10-15 选项按钮对比度（PR 草稿，分支 `fix/chip-contrast`）
 
 - Junyu 10/15 在安卓研究员页和老人的 iPhone 上都看到：表单选项未选时全是白的，点了才变黄。原因是主题里 chip 的边框色 #E7E0D8 和页面底色 #F7F5F1 几乎一样，字也用淡色。改主题一处：未选深色边框 1.5px 和深色字，选中底色用主色 22% 并打勾，高对比模式黑边 2px。加 `test/chip_contrast_test.dart`。
+## 2026-10-15 陪伴者页面顶栏统一（PR 草稿，分支 `ui/companion-appbar`）
+
+- Junyu 10/15 看到三位陪伴者页面左上角、右上角不一样。盘点后：标题三种写法、右上角只有阿珍 A 页有第二个结束按钮、规则组两页没有 T25 的收尾按钮（和「两组相同」的规定相悖）。新建 `lib/core/agents/companion_app_bar.dart`，六个页面统一用它；阿珍／阿伯页的当周主题移到页内第一行。加 `test/companion_app_bar_test.dart` 钉住规则组两页和 Hybrid 组一样。
 
 ## 2026-10-15 iOS 最低版本 13.0 → 15.0（PR 草稿，分支 `fix/ios-deployment-target-15`）
 
