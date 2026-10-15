@@ -281,7 +281,10 @@ try again in the afternoon." No extra encouragement or suggestions.
         title: Text(isEn ? 'Plan a small step' : '計劃一個小行動'),
       ),
       body: SafeArea(
-        child: Padding(
+        // 10/15: scrolling page (was a fixed column with Spacers), so the
+        // keyboard that opens with the autofocused field never hides the
+        // 下一步 button, at any font size.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -316,7 +319,7 @@ try again in the afternoon." No extra encouragement or suggestions.
                           ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 24),
                 FilledButton(
                   onPressed: _busy ? null : _savePlan,
                   child: Padding(
@@ -328,14 +331,14 @@ try again in the afternoon." No extra encouragement or suggestions.
                   ),
                 ),
               ] else if (_step == _Step.saved) ...[
-                const Spacer(),
+                const SizedBox(height: 24),
                 Center(
                   child: Text(
                     isEn ? 'Saved — see you back here.' : '收到。等你返嚟同我講件事點。',
                     style: theme.textTheme.titleMedium,
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 24),
               ] else ...[
                 Text(
                   isEn ? _promptEn() : _promptZh(),
@@ -349,6 +352,7 @@ try again in the afternoon." No extra encouragement or suggestions.
                       child: TextField(
                         controller: _ctrl,
                         autofocus: true,
+                        scrollPadding: const EdgeInsets.only(bottom: 120),
                         style: theme.textTheme.bodyLarge,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
@@ -364,7 +368,7 @@ try again in the afternoon." No extra encouragement or suggestions.
                     ),
                   ],
                 ),
-                const Spacer(),
+                const SizedBox(height: 24),
                 FilledButton(
                   onPressed: _advance,
                   child: Padding(

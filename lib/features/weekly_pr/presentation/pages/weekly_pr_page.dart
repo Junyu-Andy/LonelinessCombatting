@@ -212,6 +212,9 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
             if (widget.part != null) WeeklyPartHeader(part: widget.part!),
             Expanded(
               child: ListView(
+                // 10/15: a new key per page so 下一頁 starts at the top
+                // instead of keeping the previous page's scroll offset.
+                key: ValueKey('weekly_pr_page_$_pageIndex'),
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
                 children: [
                   _AgentHeader(

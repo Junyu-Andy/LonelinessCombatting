@@ -789,10 +789,10 @@ clay-pot rice stand..."
         appBar: AppBar(
             title: const CompanionTitle(agentId: AgentRegistry.ahJanAhBakId)),
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          // 10/15: scrolling page so the keyboard never hides the field
+          // or the save button (was a fixed column).
+          child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               children: [
                 Text(
                   isEn
@@ -801,18 +801,17 @@ clay-pot rice stand..."
                   style: theme.textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _summaryCtrl,
-                    maxLines: null,
-                    expands: true,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontSize: 20,
-                      height: 1.8,
-                    ),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                    ),
+                TextField(
+                  controller: _summaryCtrl,
+                  minLines: 6,
+                  maxLines: null,
+                  scrollPadding: const EdgeInsets.only(bottom: 160),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontSize: 20,
+                    height: 1.8,
+                  ),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
                   ),
                 ),
                 if (_busy)
@@ -852,7 +851,6 @@ clay-pot rice stand..."
                   },
                 ),
               ],
-            ),
           ),
         ),
       );
@@ -881,8 +879,11 @@ clay-pot rice stand..."
           children: [
             Expanded(
               child: ListView(
+                // 10/15: newest message at the bottom edge; the list follows the
+                // keyboard up instead of leaving the last turn under the composer.
+                reverse: true,
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-                children: [
+                children: <Widget>[
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Text(title,
@@ -921,7 +922,7 @@ clay-pot rice stand..."
                         ),
                       ),
                     ),
-                ],
+                ].reversed.toList(),
               ),
             ),
             if (_pendingOffline != null)
