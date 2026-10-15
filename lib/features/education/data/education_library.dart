@@ -415,8 +415,8 @@ If you want to hold them:
 
 Remembering them isn't staying behind. It's carrying them forward.
 ''',
-      crisisHintZh: '如果你有時感到好難頂，唔需要一個人扛。撒瑪利亞防止自殺會熱線 2382 0000，24 小時都有人聽。',
-      crisisHintEn: 'If the weight sometimes feels too heavy to carry alone, you don\'t have to. Samaritans of HK: 2382 0000 — 24 hours.',
+      crisisHintZh: '如果你有時感到好難頂，唔需要一個人扛。生命熱線 2382 0000，24 小時都有人聽。',
+      crisisHintEn: 'If the weight sometimes feels too heavy to carry alone, you don\'t have to. Suicide Prevention Services (生命熱線): 2382 0000 — 24 hours.',
     ),
     EducationArticle(
       id: 'mh_jong_bo_fan_yan',
@@ -530,8 +530,8 @@ A few ways:
 "Action" doesn't have to mean a big thing.
 Small and light is enough.
 ''',
-      crisisHintZh: '如果你有時感到好難頂，唔需要一個人扛。撒瑪利亞防止自殺會熱線 2382 0000，24 小時都有人聽。',
-      crisisHintEn: 'If things ever feel too heavy: Samaritans of HK 2382 0000 — 24 hours, always someone there.',
+      crisisHintZh: '如果你有時感到好難頂，唔需要一個人扛。生命熱線 2382 0000，24 小時都有人聽。',
+      crisisHintEn: 'If things ever feel too heavy: Suicide Prevention Services (生命熱線) 2382 0000 — 24 hours, always someone there.',
     ),
     EducationArticle(
       id: 'saying_yes_when_unsure',

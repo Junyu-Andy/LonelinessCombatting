@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-15 1014e 第 2 节第 6 条：教育文章危机提示的机构名更正（PR 草稿，分支 `fix/education-hotline-name`）
+
+- `education_library.dart` 两篇文章的提示把 2382 0000 写成撒瑪利亞防止自殺會，改为生命熱線；号码不动。新测试：文章里每个热线号码都要和 `crisis_resources.json` 的机构对得上。`verifiedDate` 等 Junyu 核对后填。报告 `docs/dev-reports/1014e-education-hotline-name-20261015.md`。
+
 ## 2026-10-14 T39 运营看板「每人」页（PR 草稿，分支 `feat/ops-dashboard`）
 
 - 按 1014c 边界 + 1014d 收窄只做第 2 页（每人一行 → 每日网格、最近会话、CSV）和第 1 页第 7 项（今日回访到期名单）。聚合在 Cloud Function：`opsDashboardPeople` / `Person` / `Csv`（`functions/ops_dashboard.js`），每日 `opsDailyRollup` 把过去的研究日存成 `ops_daily`，今天按需算。开关 `opsDashboardEnabled` 默认关，只给 `unblinded`。
