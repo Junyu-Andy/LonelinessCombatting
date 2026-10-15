@@ -11,14 +11,10 @@
  *   3. Both pointers exactly as in step 1 (no position used); the
  *      allocation log is empty.
  *   4. pilot_assignment_log holds exactly 3 `designate` rows.
- *   5. The blinded assessor calls the W4 due list on PILOT day 25.
- *      CURRENT BEHAVIOUR (T30, functions/assessor.js phaseBParticipants):
- *      the list only reads enrollments.studyPeriod == "B", so the three
- *      PILOT accounts are NOT on it.  dev-tasks-1014c §0 item 1 asks for
- *      the list to include PILOT by 11/9 — that change is not in main, so
- *      the test pins today's behaviour and the report lists the gap.  A
- *      PB- control participant is registered so the leak check runs on a
- *      real row: nothing in the returned object says arm / cohort /
+ *   5. The blinded assessor calls the W4 due list on PILOT day 25: since
+ *      dev-tasks-1014e §2.12 (functions/assessor.js assessedParticipants)
+ *      the three PILOT accounts are on it next to a PB- control
+ *      participant, and nothing in the returned object says arm / cohort /
  *      version / hybrid / rule / A 組 / B 組.
  *   6. meta/alert_config on (T34 field names); PILOT-01 (no isTester)
  *      writes an acute safety_events row → one e-mail to the primary,
@@ -279,9 +275,9 @@ test("4. pilot_assignment_log: exactly 3 rows, all `designate`", async () => {
 });
 
 // Step 5
-test("5a. assessor W4 list on PILOT day 25 — CURRENT BEHAVIOUR: the three " +
-    "PILOT accounts are not listed (T30 lists studyPeriod B only; 1014c §0 " +
-    "wants them in by 11/9)", async () => {
+test("5a. assessor W4 list on PILOT day 25: the three PILOT accounts are " +
+    "listed with the PB- control (1014e §2.12; 1014c §0 item 1)",
+async () => {
   await db.doc("app_config/feature_flags").set({assessorViewEnabled: true},
       {merge: true});
   // A PB- control participant, W0 today, so the list has a real row to
@@ -298,11 +294,13 @@ test("5a. assessor W4 list on PILOT day 25 — CURRENT BEHAVIOUR: the three " +
   const list = await A.dueList(db, KERAN, {now: DAY25});
   const ids = list.rows.map((r) => r.researchId);
   const pilotRows = ids.filter((id) => id.startsWith("PILOT-"));
-  assert.strictEqual(pilotRows.length, 0,
-      "today's code: PILOT not on the W4 list (1014c expects 3)");
-  assert.deepStrictEqual(ids, [PB_CONTROL.rid]);
-  assert.strictEqual(list.rows[0].studyDay, 25);
-  assert.strictEqual(list.rows[0].windowState, "open");
+  assert.strictEqual(pilotRows.length, 3, "the three PILOT accounts listed");
+  assert.deepStrictEqual(ids.slice().sort(),
+      [PB_CONTROL.rid, "PILOT-01", "PILOT-02", "PILOT-03"]);
+  for (const r of list.rows) {
+    assert.strictEqual(r.studyDay, 25);
+    assert.strictEqual(r.windowState, "open");
+  }
 });
 
 test("5b. nothing in the assessor's list says arm / cohort / version / " +

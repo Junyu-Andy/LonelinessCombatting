@@ -37,6 +37,9 @@
 ## 2026-10-15 1014e 第 2 节第 1 条：`usage_weekly` 按 `endedAt` 归周（PR 草稿，分支 `fix/usage-weekly-endedat`）
 
 - `functions/blinding.js` 新 `sessionWeekAnchor(endedAt, startedAt)`（结束时间优先，退回开始时间），盲法导出和 `process_export.js` 都用它；行上加 `weekBasis: "endedAt"`。单元测试 + 两个模拟器测试加了跨周一的会话。T25 报告第 5、10 节标已定。报告 `docs/dev-reports/1014e-usage-weekly-endedat-20261015.md`。
+## 2026-10-15 1014e 第 2 节第 12 条：评估员 W4 名单含 PILOT（PR 草稿，分支 `feat/w4-list-pilot`）
+
+- `functions/assessor.js`：`assessedParticipants`（B + PILOT）给名单和录入，`phaseBParticipants`（只 B）留给全体合并完成率——T43 报告第 5 节第 1 项的三个选项取 (b)，Junyu 要 (a) 的话改一处常量。App 两句文字加“或試跑”。T43 测试第 5a 步的断言反过来（三位 PILOT 在名单上）。报告 `docs/dev-reports/1014e-w4-list-pilot-20261015.md`。
 
 ## 2026-10-14 T39 运营看板「每人」页（PR 草稿，分支 `feat/ops-dashboard`）
 
