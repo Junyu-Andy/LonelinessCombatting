@@ -9,6 +9,11 @@
 ## 2026-10-15 1014e 第 2 节第 3 条：`isTester` 只允许管理员写（PR 草稿，分支 `fix/istester-admin-only`）
 
 - 规则：`users/{uid}` 新建不能带 `isTester`，更新不能动它；App `UserProfile.toMap` 不再写它（merge 写保留服务器值），设置页测试员开关改只读说明；新脚本 `tool/set_tester.js`（`--uid` / `--email`、`--tester=true|false`、`--list`，登记过的账号要 `--allow-registered`）。规则测试 5 项、脚本模拟器测试、Dart 测试。随规则在 10/19 开门前部署；部署后给团队和评估员账号设上。报告 `docs/dev-reports/1014e-istester-admin-only-20261015.md`。
+## 2026-10-15 试跑改走正式每周问卷排程（PR 草稿，分支 `fix/pilot-standard-schedule`）
+
+- Junyu 10/15 定：试跑流程和正式一样，推送都按 Phase B 正常走。代码里 `cohort: pilot` 原来还是 T24 的压缩排程（第 1、3、5、7 天、1 天窗口），开关一开，现有试跑老人会被补记缺失、新试跑老人第 1 天晚上就收推送。改法：服务器 `scheduleModeFor` 和 App `modeForCohort` 把 `pilot` 映射到 `standard`，各一行；压缩排程的代码和配置键留着不删（只有共用表测试用）。
+- 模拟器测试改成验证试跑账号第 1、3、5 天什么都没有、第 7 天和 Phase B 账号同一条推送、同一个窗口。报告 `docs/dev-reports/pilot-standard-schedule-20261015.md`。
+
 ## 2026-10-15 第 6 条：三组文字定稿接入（PR 草稿，分支 `fix/copy-1015-item6`）
 
 - 产品窗口 10/15 定稿了三组文字，照抄进代码：A. 规则组回忆页的心情提示（S13，取代现包里老人看得到的【占位】）；B. 收尾按钮首次说明分号改句号（S10c）；C. 每周问卷全部文字（S14：推送两句、标题「每週問卷」、开头一句、四个部分名称、状态字、完成句、首页提醒卡两句）。Brief PR 按钮和 S10b 不动。

@@ -59,7 +59,7 @@ test("config: defaults, literal-true switches, bad lists ignored", () => {
 
 test("schedule mode by cohort", () => {
   assert.strictEqual(ws.scheduleModeFor({cohort: "phase_b"}), "standard");
-  assert.strictEqual(ws.scheduleModeFor({cohort: "pilot"}), "pilot");
+  assert.strictEqual(ws.scheduleModeFor({cohort: "pilot"}), "standard");
   assert.strictEqual(ws.scheduleModeFor({cohort: "phase_a"}), null);
   assert.strictEqual(ws.scheduleModeFor({armAssignmentMode: "randomise"}),
       null);

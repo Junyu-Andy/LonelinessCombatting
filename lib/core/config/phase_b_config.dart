@@ -70,7 +70,8 @@
 ///   - [weeklyPushHour]              — HK hour of the push.  20 (today's
 ///                                     Sunday weekly reminder hour).
 ///   - [socialContactProbeEnabled]   — 4th part, S12.  Default OFF.
-///   - [pilotBundleDays]             — pilot (cohort `pilot`) pushes, W1–W4.
+///   - [pilotBundleDays]             — retired 10/15 (the pilot runs the
+///                                     standard schedule); table test only.
 ///                                     [1, 3, 5, 7].
 ///   - [pilotWindowDays]             — pilot answer window.  1.
 ///
