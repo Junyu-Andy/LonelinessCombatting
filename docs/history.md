@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-15 T43 PILOT 版本指定核对清单（emulator，PR 草稿，分支 `chore/t43-pilot-checklist`）
+
+- 按 1014c 第 2 节在模拟器上把 W0 当天的流程串成一条链跑了一遍（`functions/test/t43_pilot_checklist_emulator_test.js`，11 步）：登记 PILOT-01、02（Hybrid）、03（规则组）→ 两层序列指针不动 → `pilot_assignment_log` 三条 `designate` → 评估员 W4 名单没有组别字眼 → PILOT 账号 acute 告警发一封到第一收件人、测试账号不发 → 登记门开着时 PILOT Hybrid 能用 LLM、没登记的和规则组被拒。
+- **一条不过**：评估员的 W4 名单（和 W4 纸本录入）现在只含 `PB-`，三位 PILOT 不在名单上（`functions/assessor.js` 只认 `studyPeriod == "B"`）。1014c 第 0 节要 11/9 前含 PILOT，是行为改动，待 Junyu 定改法和编号。
+- 没有改行为代码，只加测试和文档。报告：`docs/dev-reports/T43-pilot-checklist-20261015.md`（含给 W0 现场的 8 条提醒）。
+- 同一 PR：1014c 第 1 节五题、1014d 第 0 节两题的正式回答 `docs/dev-reports/answers-1014c-20261015.md`。要点：PILOT 告警会发；T21 已在部署的 Functions（Deploy Firebase 第 7 次 = main `c1f88d6`）；`stripPII` 只去电话、邮箱、身份证样式、西式楼层单位，不去姓名和中文地址；参与者包里没有记忆总开关；后台 8 节、导出 4 套、没有运营看板；`events` 有 `app_foreground` / `app_background` 但存的是服务器时间（handoff 初步答案反了）；离线写入缓存后补传、不丢、无补传标记。
+
 ## 2026-10-15 W0 装机脚本 v1、iOS 包的编译参数（PR 草稿）
 
 - `docs/release/w0-install-script.md` 按 #59–#76 合并后的 main 重写（取代 #61 的草稿 v0，#61 已关闭）：面访前 Junyu 的 10 项准备、Android/iOS 打包和装机（iOS 10/15 走 Xcode USB，TestFlight internal 作更新通道）、登记门开/关两种顺序、讲给老人听的话（草稿原样保留）、App 现状、要定的事。
