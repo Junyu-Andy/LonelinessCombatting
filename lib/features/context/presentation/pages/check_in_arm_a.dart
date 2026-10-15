@@ -8,6 +8,7 @@ import '../../../../core/agent_context/agent_context_service.dart';
 import '../../../../core/agent_context/rolling_summary_compiler.dart';
 import '../../../../core/agent_context/shared_context_service.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/agents/companion_app_bar.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
 import '../../../../core/connectivity/offline_pending_banner.dart';
@@ -37,7 +38,6 @@ import '../../../today/data/mood_recorder.dart';
 import 'check_in_shared.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
-import '../../../brief_pr/presentation/widgets/session_close_button.dart';
 
 /// M2 — hybrid check-in (Arm A). Free-text or voice opener, LLM produces
 /// a brief empathetic reflection + at most one adaptive follow-up. The
@@ -956,7 +956,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
   Widget _buildMoodGate(bool isEn) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(isEn ? 'Siu Yan' : '小欣')),
+      appBar: AppBar(
+          title: const CompanionTitle(agentId: AgentRegistry.siuYanId)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
@@ -1020,18 +1021,14 @@ class _CheckInArmAState extends State<CheckInArmA> {
           if (didPop) unawaited(_finalizeOnExit());
         },
         child: Scaffold(
-        appBar: AppBar(
-          // T25 — S9 close button (v2 only); back key / gesture still work.
-          leading: BriefPrV2.enabled
-              ? SessionCloseButton(onPressed: () {
-                  _closeReason = SessionEndReason.closeButton;
-                  Navigator.of(context).maybePop();
-                })
-              : null,
-          leadingWidth:
-              BriefPrV2.enabled ? SessionCloseButton.leadingWidth : null,
-          title: Text(isEn ? 'Siu Yan' : '小欣'),
-        ),
+        // T25 S9 close button (v2 only); back key / gesture still work.
+        // 10/15: one bar for every companion page (companion_app_bar).
+        appBar: companionAppBar(context,
+            agentId: AgentRegistry.siuYanId,
+            onClose: () {
+              _closeReason = SessionEndReason.closeButton;
+              Navigator.of(context).maybePop();
+            }),
         body: SafeArea(
           child: Column(
             children: [

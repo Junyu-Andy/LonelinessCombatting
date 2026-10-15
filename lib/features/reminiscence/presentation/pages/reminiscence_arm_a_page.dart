@@ -7,6 +7,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agent_context/agent_context_service.dart';
 import '../../../../core/agent_context/rolling_summary_compiler.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/agents/companion_app_bar.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
 import '../../../../core/connectivity/offline_pending_banner.dart';
@@ -29,7 +30,6 @@ import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
-import '../../../brief_pr/presentation/widgets/session_close_button.dart';
 
 /// M3 — Reminiscence, Arm A.
 ///
@@ -786,7 +786,8 @@ clay-pot rice stand..."
 
     if (_showingSummary) {
       return Scaffold(
-        appBar: AppBar(title: Text(title)),
+        appBar: AppBar(
+            title: const CompanionTitle(agentId: AgentRegistry.ahJanAhBakId)),
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -867,29 +868,14 @@ clay-pot rice stand..."
           if (didPop) await _maybeSurfaceBriefPr(Navigator.of(context));
         },
         child: Scaffold(
-      appBar: AppBar(
-        // T25 — S9 close button (v2 only): on this page finishing means
-        // the summary + 儲存 flow, so S9 starts it.  Back key / gesture
-        // still leave without a summary.
-        leading: BriefPrV2.enabled
-            ? SessionCloseButton(
-                onPressed: _busy ? () {} : () => _generateSummary())
-            : null,
-        leadingWidth:
-            BriefPrV2.enabled ? SessionCloseButton.leadingWidth : null,
-        title: Text(title),
-        actions: [
-          TextButton(
-            onPressed: _busy ? null : _generateSummary,
-            child: Text(
-              // "story told for today" — distinct from Siu Yan's check-in
-              // completion so the two 完成 semantics stop colliding.
-              isEn ? "That's it for today" : '今日講到呢度',
-              style: const TextStyle(fontSize: 16),
-            ),
-          ),
-        ],
-      ),
+      // T25 S9 close button (v2 only): on this page finishing means the
+      // summary + 儲存 flow, so S9 starts it.  Back key / gesture still
+      // leave without a summary.  10/15: the second top-right 「今日講到
+      // 呢度」 is gone (two end buttons on one page); the week theme moved
+      // from the title into the page so the bar shows the companion.
+      appBar: companionAppBar(context,
+          agentId: AgentRegistry.ahJanAhBakId,
+          onClose: _busy ? () {} : () => _generateSummary()),
       body: SafeArea(
         child: Column(
           children: [
@@ -897,6 +883,12 @@ clay-pot rice stand..."
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text(title,
+                        key: const Key('reminiscence_theme_title'),
+                        style: theme.textTheme.titleMedium),
+                  ),
                   if (_priorWeeks.isNotEmpty)
                     _PriorWeeksHint(entries: _priorWeeks, isEn: isEn),
                   for (int i = 0; i < _turns.length; i++) ...[
