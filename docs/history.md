@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-15 iOS 最低版本 13.0 → 15.0（PR 草稿，分支 `fix/ios-deployment-target-15`）
+
+- Junyu 用新版 Xcode 打 TestFlight 包报错：Xcode 只支持 15.0 以上的部署目标。`Runner.xcodeproj` 三处 `IPHONEOS_DEPLOYMENT_TARGET` 改成 15.0；iOS 15 覆盖 iPhone 6s 及以后，老人的机不受影响。本机的 `ios/Podfile`（不在仓库里）也要改成 `platform :ios, '15.0'` 再 `pod install`。
+
 ## 2026-10-15 Junyu 五项决定落盘 + Firestore 配置核对表（PR 草稿，分支 `chore/1015-decisions-partner-config`）
 
 - 决策 0041（告警不设后备，PR #86）、0042（试跑走正式排程，PR #92）落盘；0038 标明由 0041 部分取代。
