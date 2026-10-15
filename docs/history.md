@@ -12,6 +12,24 @@
 - 离线：靠 Firestore SDK 的离线队列缓存、联网后补传；`uploadedLate` 由服务器按“收到时间比手机时间晚 5 分钟以上”判定（客户端自己判不可靠，离线时被杀掉会丢标记）。真机断网三次的验收要在 W0 装机时做，模拟器只能模拟“晚到的行”。
 - 报告 `docs/dev-reports/T40-usage-events-20261014.md`，决策草稿在第 7 节。
 
+## 2026-10-14 T46 收尾按钮首次说明只显示一次（PR 草稿，分支 `fix/session-end-hint-once`）
+
+- T25 的收尾按钮说明每次启动 App 都再显示一次（当时 App 没有本机存储）。T37 之后有了 `shared_preferences`，T46 把“已经说明过”记在本机（`session.closeHintShown`），同一台手机只显示一次；重装会再显示一次。两组相同，文字不改。存储读不到时退回每次启动一次。
+- 要在打开 `sessionBriefPrV2Enabled` 前合并。报告 `docs/dev-reports/T46-session-end-hint-20261014.md`。
+
+## 2026-10-15 T43 PILOT 版本指定核对清单（emulator，PR 草稿，分支 `chore/t43-pilot-checklist`）
+
+- 按 1014c 第 2 节在模拟器上把 W0 当天的流程串成一条链跑了一遍（`functions/test/t43_pilot_checklist_emulator_test.js`，11 步）：登记 PILOT-01、02（Hybrid）、03（规则组）→ 两层序列指针不动 → `pilot_assignment_log` 三条 `designate` → 评估员 W4 名单没有组别字眼 → PILOT 账号 acute 告警发一封到第一收件人、测试账号不发 → 登记门开着时 PILOT Hybrid 能用 LLM、没登记的和规则组被拒。
+- **一条不过**：评估员的 W4 名单（和 W4 纸本录入）现在只含 `PB-`，三位 PILOT 不在名单上（`functions/assessor.js` 只认 `studyPeriod == "B"`）。1014c 第 0 节要 11/9 前含 PILOT，是行为改动，待 Junyu 定改法和编号。
+- 没有改行为代码，只加测试和文档。报告：`docs/dev-reports/T43-pilot-checklist-20261015.md`（含给 W0 现场的 8 条提醒）。
+- 同一 PR：1014c 第 1 节五题、1014d 第 0 节两题的正式回答 `docs/dev-reports/answers-1014c-20261015.md`。要点：PILOT 告警会发；T21 已在部署的 Functions（Deploy Firebase 第 7 次 = main `c1f88d6`）；`stripPII` 只去电话、邮箱、身份证样式、西式楼层单位，不去姓名和中文地址；参与者包里没有记忆总开关；后台 8 节、导出 4 套、没有运营看板；`events` 有 `app_foreground` / `app_background` 但存的是服务器时间（handoff 初步答案反了）；离线写入缓存后补传、不丢、无补传标记。
+
+## 2026-10-15 W0 装机脚本 v1、iOS 包的编译参数（PR 草稿）
+
+- `docs/release/w0-install-script.md` 按 #59–#76 合并后的 main 重写（取代 #61 的草稿 v0，#61 已关闭）：面访前 Junyu 的 10 项准备、Android/iOS 打包和装机（iOS 10/15 走 Xcode USB，TestFlight internal 作更新通道）、登记门开/关两种顺序、讲给老人听的话（草稿原样保留）、App 现状、要定的事。
+- `codemagic.yaml`：bundle id 改成 `hk.hku.hkuimse.withyouapp`，构建加 `PHASE_B=true`、`RULE_TEMPLATE_REPLIES=true`，和 Android `phase_b_templates` 一致。不部署、不改行为。
+- 发现：iPhone 推送要补 APNs 密钥和 Xcode Push Notifications 能力，10/22 前要做；记在脚本第 2.3 节。
+
 ## 2026-10-14 晚 产品窗口 10/14 第 5–10 条：登记表 v10，任务单 1014c、1014d（T38–T46）
 
 - **定了**：试跑一轮 3 人（PILOT-01、02 Hybrid，03 规则组）10/15 做 W0，按正式配置跑完整 8 周；W8 问卷 13 题加可跳过的 AIMHS，试跑也推；第 63 天后推 debrief，约第 70 天停服；记忆不能整个关闭；告警急性即时、中级每日汇总、低级只记录；运营看板和使用事件记录（回访用）。

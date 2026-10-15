@@ -6,13 +6,16 @@
 /// shows the rating card on the companion list page only when the session
 /// was valid.  Both arms, same button.
 ///
-/// The first time in a process the button appears, a one-line explanation
+/// The first time the button appears on a phone, a one-line explanation
 /// is shown once as a snack bar.  The wording is not finalised, so it is a
-/// `【占位】` draft; persisting "already explained" across App starts is
-/// listed in the T25 report (no local store is available in the App).
+/// `【占位】` draft.  T46: "already explained" is kept on the device
+/// ([SessionCloseHint], `shared_preferences`), so the note shows once per
+/// phone instead of once per App start; same in both arms.
 library;
 
 import 'package:flutter/material.dart';
+
+import 'session_close_hint.dart';
 
 class SessionCloseButton extends StatefulWidget {
   const SessionCloseButton({super.key, required this.onPressed});
@@ -21,16 +24,11 @@ class SessionCloseButton extends StatefulWidget {
 
   static const label = '今日傾到呢度';
 
-  /// Draft (not finalised): shown once per process.
+  /// Draft (not finalised): shown once per phone (T46).
   static const firstUseNote = '【占位】撳「今日傾到呢度」就係今次傾完；想再傾隨時返嚟。';
 
   /// Width to give `AppBar.leadingWidth` so the label is not clipped.
   static const leadingWidth = 168.0;
-
-  static bool _noteShown = false;
-
-  @visibleForTesting
-  static void resetForTest() => _noteShown = false;
 
   @override
   State<SessionCloseButton> createState() => _SessionCloseButtonState();
@@ -40,8 +38,7 @@ class _SessionCloseButtonState extends State<SessionCloseButton> {
   @override
   void initState() {
     super.initState();
-    if (!SessionCloseButton._noteShown) {
-      SessionCloseButton._noteShown = true;
+    if (SessionCloseHint.claimFirstUse()) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(

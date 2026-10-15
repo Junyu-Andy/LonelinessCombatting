@@ -30,6 +30,7 @@ import 'core/safety/safety_classifier.dart';
 import 'core/safety/safety_event_writer.dart';
 import 'features/analytics/data/analytics_service.dart';
 import 'features/auth/data/auth_service.dart';
+import 'features/brief_pr/presentation/widgets/session_close_hint.dart';
 import 'features/llm_features/data/llm_turn_features.dart';
 import 'features/onboarding/data/intake_repository.dart';
 import 'firebase_options.dart';
@@ -143,6 +144,9 @@ Future<void> main() async {
   // T37 — font size, high contrast and the two notification switches come
   // back from the device (shared_preferences) before the first frame.
   final settings = await AppSettings.restore(locale: const Locale('zh'));
+  // T46 — the S9 close button's first-use note is shown once per phone;
+  // the marker comes back from the same device store.
+  await SessionCloseHint.restore();
 
   runApp(
     MyApp(
