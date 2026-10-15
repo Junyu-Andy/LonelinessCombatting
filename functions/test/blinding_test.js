@@ -71,6 +71,18 @@ test("plain(): timestamps to ISO, references dropped", () => {
         c: [1, {d: "2026-10-07T01:02:03.000Z"}]});
 });
 
+test("sessionWeekAnchor (1014e §2.1): endedAt wins, startedAt fallback", () => {
+  const a = blinding.sessionWeekAnchor(new Date("2026-10-11T16:10:00Z"),
+      new Date("2026-10-11T15:50:00Z"));
+  assert.strictEqual(a.toISOString(), "2026-10-11T16:10:00.000Z");
+  assert.strictEqual(blinding.isoWeekHk(a), "2026-W42");
+  const b = blinding.sessionWeekAnchor(null, "2026-10-11T15:50:00Z");
+  assert.strictEqual(blinding.isoWeekHk(b), "2026-W41");
+  assert.strictEqual(blinding.sessionWeekAnchor(null, null), null);
+  assert.strictEqual(blinding.sessionWeekAnchor("bad", undefined), null);
+  assert.strictEqual(blinding.USAGE_WEEK_BASIS, "endedAt");
+});
+
 test("isoWeekHk", () => {
   assert.strictEqual(blinding.isoWeekHk(new Date("2026-10-07T04:00:00Z")),
       "2026-W41");

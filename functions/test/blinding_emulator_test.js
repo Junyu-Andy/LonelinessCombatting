@@ -121,6 +121,11 @@ async function seedUser(uid, arm, extra) {
   await u.collection("sessions").add({participantId: uid, kind: "agent",
     moduleId: "m2_check_in", startedAt: ts("2026-10-06T02:00:00Z"),
     isValid: true, scheduleVersion: 2}); // T25 valid session
+  // 1014e §2.1: started Sunday 2026-10-11 23:50 HKT (W41), ended Monday
+  // 00:10 HKT (W42) → counted in W42 (the week isValid was written).
+  await u.collection("sessions").add({participantId: uid, kind: "agent",
+    moduleId: "m2_check_in", startedAt: ts("2026-10-11T15:50:00Z"),
+    endedAt: ts("2026-10-11T16:10:00Z"), isValid: true, scheduleVersion: 2});
   await u.collection("turns").add({participantId: uid,
     llm: arm === "A" ?
       {status: "ok", model: "deepseek-flash", promptVersion: "v3"} :
@@ -278,10 +283,17 @@ test("v2 export of a synthetic two-arm cohort passes the checker",
       assert.strictEqual(weekly.length, 2);
       assert.ok(weekly.every((r) => r.sessionCountThisWeek === undefined));
       const usage = readNdjson(dir, "usage_weekly");
-      assert.strictEqual(usage.length, 2); // both sessions in 2026-W41
-      assert.ok(usage.every((r) => r.isoWeek === "2026-W41" &&
-          r.sessionCount === 2 && r.activeDays === 2 &&
-          r.validSessionCount === 1)); // T25: only the isValid row
+      // 1014e §2.1: two rows per person — W41 (two sessions without an
+      // endedAt → startedAt) and W42 (the one that ended on Monday).
+      assert.strictEqual(usage.length, 4);
+      const w41 = usage.filter((r) => r.isoWeek === "2026-W41");
+      const w42 = usage.filter((r) => r.isoWeek === "2026-W42");
+      assert.strictEqual(w41.length, 2);
+      assert.strictEqual(w42.length, 2);
+      assert.ok(w41.every((r) => r.sessionCount === 2 && r.activeDays === 2 &&
+          r.validSessionCount === 1 && r.weekBasis === "endedAt"));
+      assert.ok(w42.every((r) => r.sessionCount === 1 && r.activeDays === 1 &&
+          r.validSessionCount === 1));
       // T18: W2 DJG rows from both arms, scores kept, same field set.
       const djg = readNdjson(dir, "djg_responses");
       assert.strictEqual(djg.length, 2);

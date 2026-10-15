@@ -9,6 +9,19 @@
 ## 2026-10-15 1014e 第 2 节第 4 条：取消告警后备（PR 草稿，分支 `fix/alert-no-backup`）
 
 - `escalateDue` 在 `backupEmail` 为空时直接返回（不认领、不写日志），告警留在待处理；后台告警列表把 `primaryFailedAt` 的行标成「郵件未發出…請即處理」（1014e 第 1 节第 5 条要的确认：首发失败写 `alert_audit_log` `email_failed` / `no_recipients`，并在列表标出）。决策 0038 状态行标“部分被取代”，新决策草稿在报告第 5 节，编号待分配。模拟器测试 17/17（新增 1 项）。报告 `docs/dev-reports/1014e-alert-no-backup-20261015.md`。
+## 2026-10-15 1014e 第 2 节第 6 条：教育文章危机提示的机构名更正（PR 草稿，分支 `fix/education-hotline-name`）
+
+- `education_library.dart` 两篇文章的提示把 2382 0000 写成撒瑪利亞防止自殺會，改为生命熱線；号码不动。新测试：文章里每个热线号码都要和 `crisis_resources.json` 的机构对得上。`verifiedDate` 等 Junyu 核对后填。报告 `docs/dev-reports/1014e-education-hotline-name-20261015.md`。
+## 2026-10-15 1014e 第 2 节第 18 条：App 名称（PR 草稿，分支 `feat/app-name-1014e-18`）
+
+- Android `android:label` 从 `app_demo` 改为「陪住」，iOS `CFBundleName` 改为 WithYou；图标用 Junyu 10/15 给的图（`assets/icon/app_icon.png`），flutter_launcher_icons 生成全部尺寸。
+- 同一 PR 放进 10/15 修订版 `dev-tasks-1014e.md`（第 1 节第 3 条开关清单、第 2 节第 14、17、18、19 条）。
+- 核对 10/15 中午的开关：`weeklyScheduleV2Enabled`、`socialContactProbeEnabled` 在 `app_config/phase_b` 已开；`sessionBriefPrV2Enabled` 被写到了 `feature_flags`，代码读的是 `phase_b`，没生效；`feature_flags` 里 `onboardingAfterEnrollmentFix`、`voiceInputEnabled`、`usageEventsEnabled`、`opsDashboardEnabled` 都还没设。报告 `docs/dev-reports/1014e-app-name-20261015.md`。
+## 2026-10-15 通知与问卷排查 A1–A15（PR 草稿，分支 `docs/notifications-audit-1015`）
+
+- 按产品窗口的 `notifications-audit-1015.md` 第 4 节 A 部分在 emulator 跑完 A1–A15，全部通过；服务器端固化成 `functions/test/notifications_audit_emulator_test.js`（8 条），A12、A13 由已有 Flutter 测试覆盖。五个 [待核] 按代码答了。
+- 两处和排查文件不一致要研究侧定：W4 含 S12（三部分）；提醒是「推送实际发出后 24 小时的下一个整点」。报告 `docs/dev-reports/notifications-audit-20261015.md`。
+
 ## 2026-10-15 1014e 第 2 节第 3 条：`isTester` 只允许管理员写（PR 草稿，分支 `fix/istester-admin-only`）
 
 - 规则：`users/{uid}` 新建不能带 `isTester`，更新不能动它；App `UserProfile.toMap` 不再写它（merge 写保留服务器值），设置页测试员开关改只读说明；新脚本 `tool/set_tester.js`（`--uid` / `--email`、`--tester=true|false`、`--list`，登记过的账号要 `--allow-registered`）。规则测试 5 项、脚本模拟器测试、Dart 测试。随规则在 10/19 开门前部署；部署后给团队和评估员账号设上。报告 `docs/dev-reports/1014e-istester-admin-only-20261015.md`。
@@ -31,6 +44,12 @@
 ## 2026-10-15 1014e 第 2 节第 9 条：注册页删 UCLA 输入框（PR 草稿，分支 `fix/remove-ucla-field`）
 
 - `login_page.dart` 去掉「研究人員填寫」一节和「UCLA 基線總分（20–80）」字段；`baselineUclaScore` 留在模型里不再写。1014e 第 3 节第 2 题的答案：这个字段没有任何分层读取方（`enrollParticipant` 用 DJG-ES 情感分），只有盲法导出 / 锁库导出把它当参与者属性原样导出；注册页老人自己填的是电邮、密码、称呼、年龄、紧急联络人称呼和电话。报告 `docs/dev-reports/1014e-remove-ucla-field-20261015.md`。
+## 2026-10-15 1014e 第 2 节第 1 条：`usage_weekly` 按 `endedAt` 归周（PR 草稿，分支 `fix/usage-weekly-endedat`）
+
+- `functions/blinding.js` 新 `sessionWeekAnchor(endedAt, startedAt)`（结束时间优先，退回开始时间），盲法导出和 `process_export.js` 都用它；行上加 `weekBasis: "endedAt"`。单元测试 + 两个模拟器测试加了跨周一的会话。T25 报告第 5、10 节标已定。报告 `docs/dev-reports/1014e-usage-weekly-endedat-20261015.md`。
+## 2026-10-15 1014e 第 2 节第 12 条：评估员 W4 名单含 PILOT（PR 草稿，分支 `feat/w4-list-pilot`）
+
+- `functions/assessor.js`：`assessedParticipants`（B + PILOT）给名单和录入，`phaseBParticipants`（只 B）留给全体合并完成率——T43 报告第 5 节第 1 项的三个选项取 (b)，Junyu 要 (a) 的话改一处常量。App 两句文字加“或試跑”。T43 测试第 5a 步的断言反过来（三位 PILOT 在名单上）。报告 `docs/dev-reports/1014e-w4-list-pilot-20261015.md`。
 
 ## 2026-10-14 T39 运营看板「每人」页（PR 草稿，分支 `feat/ops-dashboard`）
 

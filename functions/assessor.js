@@ -19,7 +19,9 @@
  * outcomeCompletionSummaryEnabled (same document) gates the pooled rates.
  *
  * What the assessor sees (W4 only — W8 is pushed in the App, T35):
- *   dueList      Phase B participants (enrollments.studyPeriod == "B"):
+ *   dueList      Phase B AND pilot participants (enrollments.studyPeriod
+ *                "B" or "PILOT"; dev-tasks-1014e §2.12 — the three PILOT
+ *                elders' W4 is done by Keran too, 1014c §0 item 1):
  *                research ID, the W4 window (day 25–31 from w0Date), today's
  *                study day, whether DJG-ES W4 is entered, out-of-window
  *                flag.  No arm, group code, Brief PR, Weekly PR, usage,
@@ -56,6 +58,13 @@ const ENTRIES = "outcome_entries";
 const CORRECTIONS = "outcome_entry_corrections";
 const WEEKLY_STATUS = "weekly_status";
 const TIMEPOINT = "W4";
+/**
+ * Study periods whose W4 the assessors do (1014e §2.12).  The pooled
+ * completion rate (completionSummary) stays Phase B only — the pilot is
+ * not part of the trial's outcome denominator (T43 report §5 item 1 left
+ * that to the lead; this keeps today's definition).
+ */
+const ASSESSED_PERIODS = ["B", "PILOT"];
 /** W4 window, days after W0 (dev-tasks-1010 §四 T30 §3.2). */
 const W4_WINDOW = {start: 25, end: 31};
 const MODES = ["in_person", "phone", "video"];
@@ -93,14 +102,15 @@ async function requireFlag(db, flag) {
 }
 
 /**
- * Phase B participants with a registration record (PB- IDs only: pilot
- * accounts are not assessed, testers cannot be registered).
+ * Registered participants of the given study periods (testers cannot be
+ * registered, so none here).
  * @param {object} db
+ * @param {Array<string>} periods enrollments.studyPeriod values
  * @return {Promise<Array<{uid: string, researchId: string, w0Date: string}>>}
  */
-async function phaseBParticipants(db) {
+async function participantsOf(db, periods) {
   const snap = await db.collection(randomization.ENROLL_COLLECTION)
-      .where("studyPeriod", "==", "B").get();
+      .where("studyPeriod", "in", periods).get();
   const out = [];
   for (const d of snap.docs) {
     const e = d.data();
@@ -110,6 +120,24 @@ async function phaseBParticipants(db) {
   out.sort((a, b) => a.w0Date < b.w0Date ? -1 : a.w0Date > b.w0Date ? 1 :
     a.researchId.localeCompare(b.researchId));
   return out;
+}
+
+/**
+ * Phase B participants only (the pooled completion denominator).
+ * @param {object} db
+ * @return {Promise<Array<{uid: string, researchId: string, w0Date: string}>>}
+ */
+function phaseBParticipants(db) {
+  return participantsOf(db, ["B"]);
+}
+
+/**
+ * Everyone the W4 assessors see: Phase B and the pilot (1014e §2.12).
+ * @param {object} db
+ * @return {Promise<Array<{uid: string, researchId: string, w0Date: string}>>}
+ */
+function assessedParticipants(db) {
+  return participantsOf(db, ASSESSED_PERIODS);
 }
 
 /**
@@ -165,7 +193,7 @@ async function dueList(db, caller, opts) {
   const now = (opts && opts.now) || new Date();
   const today = randomization.hkDateKey(now);
   const [people, entered] = await Promise.all([
-    phaseBParticipants(db), entriesByResearchId(db, TIMEPOINT)]);
+    assessedParticipants(db), entriesByResearchId(db, TIMEPOINT)]);
   const rows = people.map((p) => {
     const w = w4Window(p.w0Date, today);
     return {
@@ -216,7 +244,10 @@ async function submitEntry(db, caller, input, opts) {
   const uid = ridSnap.get("uid");
   const enrol = await db.collection(randomization.ENROLL_COLLECTION)
       .doc(uid).get();
-  if (!enrol.exists || enrol.get("studyPeriod") !== "B") {
+  // 1014e §2.12: Phase B and PILOT entries are accepted; the code name
+  // `not_phase_b` is kept for the App's error map.
+  if (!enrol.exists ||
+      ASSESSED_PERIODS.indexOf(enrol.get("studyPeriod")) < 0) {
     throw assessorError("not_phase_b");
   }
   const w0Date = enrol.get("w0Date");
@@ -408,6 +439,7 @@ async function correctEntry(db, p, opts) {
 module.exports = {
   ASSESSOR_ROLE, UNBLINDED_ROLE, VIEW_FLAG, SUMMARY_FLAG, ENTRIES,
   CORRECTIONS, WEEKLY_STATUS, TIMEPOINT, W4_WINDOW, MODES, MIN_N,
-  w4Window, phaseBParticipants, dueList, submitEntry, w4VisitDateFor,
+  w4Window, phaseBParticipants, assessedParticipants, participantsOf,
+  ASSESSED_PERIODS, dueList, submitEntry, w4VisitDateFor,
   completionSummary, summaryRow, correctEntry,
 };
