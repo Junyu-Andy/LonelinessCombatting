@@ -11,7 +11,7 @@
 /// the flow again jumps to the first part not yet finished, and a part
 /// reopens on the screen where it stopped (DJG, probe).  Every part shows
 /// 「第 N 部分，共 M 部分」 at the top.  Both arms get exactly this page; no
-/// arm check.  Screen text other than the instruments is a 【占位】 draft.
+/// arm check.  Screen text is final since 10/15 (docs/spec/copy S14).
 ///
 /// T35 (the W8 bundle) reuses this page with its own [WeeklyBundle].
 library;
@@ -27,15 +27,16 @@ import '../../weekly_pr/presentation/pages/weekly_pr_page.dart';
 import '../data/weekly_bundle.dart';
 import 'social_contact_probe_page.dart';
 
-/// Draft (【占位】) names of the parts, for the intro list.
+/// Final names of the parts (10/15 item 6 C(5), docs/spec/copy S14).
 String weeklyPartTitle(WeeklyPart p) => switch (p) {
-      WeeklyPart.djg => '【占位】最近嘅感受（6 條）',
-      WeeklyPart.weeklyPr => '【占位】每週夥伴評估',
-      WeeklyPart.pgic => '【占位】每週感受變化',
-      WeeklyPart.socialContact => '【占位】過去 7 日嘅社交接觸',
+      WeeklyPart.djg => '最近嘅感受',
+      WeeklyPart.weeklyPr => '今個禮拜同夥伴傾偈嘅感覺',
+      WeeklyPart.pgic => '同開始用嗰時比較',
+      WeeklyPart.socialContact => '過去 7 日同人見面、聯絡',
     };
 
-const kWeeklyBundleTitle = '【占位】每週問卷';
+/// Entry and page title (10/15 item 6 C(3)).
+const kWeeklyBundleTitle = '每週問卷';
 
 class WeeklyBundleFlowPage extends StatefulWidget {
   const WeeklyBundleFlowPage({
@@ -190,10 +191,11 @@ class _WeeklyBundleFlowPageState extends State<WeeklyBundleFlowPage> {
 
   String _statusLabel(WeeklyPart p) {
     final s = _status[p];
-    if (s == null) return '【占位】未開始';
-    if (s == WeeklyPartStatus.inProgress) return '【占位】做咗一半';
-    if (s == WeeklyPartStatus.missed) return '【占位】已截止';
-    return '【占位】已完成';
+    // 10/15 item 6 C(6).
+    if (s == null) return '未開始';
+    if (s == WeeklyPartStatus.inProgress) return '未做完';
+    if (s == WeeklyPartStatus.missed) return '已過時間';
+    return '已完成';
   }
 
   @override
@@ -213,9 +215,13 @@ class _WeeklyBundleFlowPageState extends State<WeeklyBundleFlowPage> {
                       padding: const EdgeInsets.all(20),
                       children: [
                         Text(
+                          // 10/15 item 6 C(4), C(7).  The second sentence
+                          // of the intro was in the T24 draft and was not
+                          // part of the 10/15 wording; kept, flagged in
+                          // the report for the product window.
                           next == null
-                              ? '【占位】全部做完喇，多謝你！'
-                              : '【占位】一共有 ${parts.length} 部分。'
+                              ? '全部做完喇，多謝你！'
+                              : '今次一共有 ${parts.length} 部分。'
                                   '可以隨時停，下次會由停低嗰度繼續。',
                           key: const ValueKey('weekly_intro'),
                           style: theme.textTheme.titleLarge?.copyWith(

@@ -287,12 +287,12 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
                 ),
               ] else if (_ruleReplies && !_saved) ...[
                 const SizedBox(height: 12),
-                // Placeholder copy — final wording from the research team
-                // (decision 0023; draft in the T15 report).
+                // Final wording (10/15 item 6 A, docs/spec/copy S13);
+                // the English line is for testers only.
                 Text(
                   isEn
-                      ? '[PLACEHOLDER] How do you feel now? (optional)'
-                      : '【占位】你而家心情點？（可以唔揀）',
+                      ? 'After this memory, how do you feel now? Optional.'
+                      : '講完呢段往事，你而家心情點？唔揀都可以。',
                   style: theme.textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),

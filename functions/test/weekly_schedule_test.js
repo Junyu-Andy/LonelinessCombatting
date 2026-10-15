@@ -198,9 +198,12 @@ test("partSubmitted per part type", () => {
   assert.strictEqual(ws.partSubmitted("social_contact", null), false);
 });
 
-test("placeholder copy is never sendable", () => {
-  assert.strictEqual(ws.isPlaceholder(ws.PUSH_BODY), true);
-  assert.strictEqual(ws.isPlaceholder(ws.REMINDER_BODY), true);
+test("placeholder copy is never sendable; the 10/15 final copy is", () => {
+  assert.strictEqual(ws.isPlaceholder(ws.PUSH_BODY), false);
+  assert.strictEqual(ws.isPlaceholder(ws.REMINDER_BODY), false);
+  assert.strictEqual(ws.PUSH_BODY, "今個禮拜嘅問卷開咗，得閒入嚟答幾條。");
+  assert.strictEqual(ws.REMINDER_BODY, "今個禮拜嘅問卷仲未答完，得閒入嚟答埋佢。");
+  assert.strictEqual(ws.isPlaceholder("【占位】今個禮拜嘅問卷"), true);
   assert.strictEqual(ws.isPlaceholder("今個禮拜嘅問卷"), false);
   assert.strictEqual(ws.isPlaceholder(""), true);
 });

@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-15 第 6 条：三组文字定稿接入（PR 草稿，分支 `fix/copy-1015-item6`）
+
+- 产品窗口 10/15 定稿了三组文字，照抄进代码：A. 规则组回忆页的心情提示（S13，取代现包里老人看得到的【占位】）；B. 收尾按钮首次说明分号改句号（S10c）；C. 每周问卷全部文字（S14：推送两句、标题「每週問卷」、开头一句、四个部分名称、状态字、完成句、首页提醒卡两句）。Brief PR 按钮和 S10b 不动。
+- 每周问卷的推送从此不再带【占位】：`weeklyScheduleV2Enabled` 打开后会真的发出；测试里的「带占位不发」改用覆盖文字验证，保护逻辑没拆。
+- 一处产品窗口没给：流程开头的第二句「可以隨時停，下次會由停低嗰度繼續。」沿用原文，等 Junyu 确认。按约定，这个 PR 等 Junyu 回「可以」再合。报告 `docs/dev-reports/copy-1015-item6-20261015.md`。
+
+---
+
 ## 2026-10-14 T39 运营看板「每人」页（PR 草稿，分支 `feat/ops-dashboard`）
 
 - 按 1014c 边界 + 1014d 收窄只做第 2 页（每人一行 → 每日网格、最近会话、CSV）和第 1 页第 7 项（今日回访到期名单）。聚合在 Cloud Function：`opsDashboardPeople` / `Person` / `Csv`（`functions/ops_dashboard.js`），每日 `opsDailyRollup` 把过去的研究日存成 `ops_daily`，今天按需算。开关 `opsDashboardEnabled` 默认关，只给 `unblinded`。

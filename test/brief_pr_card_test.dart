@@ -78,7 +78,7 @@ void main() {
       // 1014e §2.8: the first-use note and the questionnaire buttons are
       // final; no 【占位】 anywhere on these screens.
       expect(SessionCloseButton.firstUseNote,
-          '撳「今日傾到呢度」就係今次傾完；想再傾隨時返嚟。');
+          '撳「今日傾到呢度」就係今次傾完。想再傾隨時返嚟。');
       expect(BriefPrFlowPage.nextLabel, '下一題');
       expect(BriefPrFlowPage.backLabel, '上一題');
       expect(BriefPrFlowPage.abandonLabel, '唔評住');

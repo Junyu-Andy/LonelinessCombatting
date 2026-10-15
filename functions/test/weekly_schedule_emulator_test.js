@@ -97,7 +97,10 @@ test("placeholder copy: nothing is sent, nothing is marked pushed",
       await reset(ON);
       await seedCohort();
       const m = fakeMessaging();
-      const counts = await run(m, hk(7, 20), {});
+      // The built-in copy is final since 10/15; a draft override still
+      // blocks the push.
+      const counts = await run(m, hk(7, 20),
+          {push: "【占位】草稿", reminder: "【占位】草稿"});
       // ua, ub (W1) and the pilot account (its W4 is day 7).
       assert.strictEqual(counts.blocked_placeholder, 3);
       assert.strictEqual(m.sent.length, 0);
