@@ -90,10 +90,11 @@ class AuthService {
     String? emergencyContactPhone,
     String? preferredLanguage,
     ConsentFlags consent = const ConsentFlags(),
-    /// C.2 — baseline UCLA-LS-V3 total used for stratification (Phase B
-    /// §4.4).  Pass when known at signup (HKU baseline assessment
-    /// completed before in-person onboarding).  Null in Phase A is
-    /// acceptable: the server assigns Arm A to everyone in Phase A.
+    /// Historical: the pre-T19 UCLA-LS-V3 baseline total.  No longer
+    /// collected anywhere (dev-tasks-1014e §2.9 removed the registration
+    /// field; Phase B stratifies on the researcher's DJG-ES score).  Kept
+    /// as an optional parameter so old callers / tests compile; always
+    /// null from the App.
     int? baselineUclaScore,
   }) async {
     _ensureAvailable();
