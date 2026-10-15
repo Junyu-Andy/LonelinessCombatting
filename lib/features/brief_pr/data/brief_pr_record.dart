@@ -38,6 +38,8 @@ class BriefPrDueNotInvitedReason {
   /// 10/14 fix: the catch-up card (S10b) would need a time phrase the copy
   /// spec does not provide yet (only 今朝 / 尋晚 / 星期X 下晝 are final), so
   /// the elder is not asked rather than shown a 【占位】 draft.
+  /// Written by the 10/14 fix while the S10b phrase was not finalised;
+  /// since 1014e §2.8 (頭先) no new row gets it.  Kept so old rows read.
   static const copyPending = 'copy_pending';
 }
 

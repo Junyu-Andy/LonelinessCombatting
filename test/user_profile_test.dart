@@ -2,6 +2,7 @@ import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testerFlagTests();
   group('UserProfile arm + consent round-trip', () {
     test('serialises and deserialises arm code', () {
       final profile = UserProfile(
@@ -51,5 +52,22 @@ void main() {
       expect(copy.arm, ArmAssignment.b);
       expect(copy.consent.functionalData, true);
     });
+  });
+}
+
+// 1014e §2.3 (backlog 96) — `isTester` is admin-only: the App never writes
+// it (the rules would refuse), but still reads it.
+void testerFlagTests() {
+  test('toMap never carries isTester; fromMap still reads it', () {
+    final tester = UserProfile(uid: 'u1', email: 'a@b', displayName: 'x',
+        isTester: true);
+    expect(tester.toMap().containsKey('isTester'), isFalse);
+    expect(UserProfile(uid: 'u1', email: 'a@b', displayName: 'x').toMap()
+        .containsKey('isTester'), isFalse);
+    expect(UserProfile.fromMap('u1', {'isTester': true}).isTester, isTrue);
+    expect(UserProfile.fromMap('u1', {}).isTester, isFalse);
+    // A round trip through toMap drops the flag: the server's value wins
+    // on the merge write.
+    expect(UserProfile.fromMap('u1', tester.toMap()).isTester, isFalse);
   });
 }

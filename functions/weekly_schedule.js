@@ -16,9 +16,10 @@
  *          week4CloseDay (29) or the W4 visit day, whichever is later
  *          (week4CloseFor — the visit date arrives with T30); no DJG.
  *   W5–W7  PGIC only, pgicOnlyDays (35, 42, 49), weeklyWindowDays window.
- * Pilot (cohort "pilot"): pilotBundleDays (1, 3, 5, 7) → W1–W4, window
- *   pilotWindowDays (1) × 24 h, DJG in the first three; no PGIC-only
- *   weeks.
+ * Pilot (cohort "pilot"): the SAME standard schedule (10/15: the pilot run
+ *   follows Phase B day for day).  The compressed mode below (pilotBundleDays
+ *   1, 3, 5, 7, pilotWindowDays 1, no PGIC-only weeks) is kept only for the
+ *   shared table test; no cohort maps to it any more.
  *
  * Records (one document per part, id = bundle id W1…W7):
  *   users/{uid}/djg_responses/{W1|W2|W3}      (T18 schema; server scores)
@@ -38,7 +39,8 @@
  * Dispatcher (dispatchWeeklyBundles, hourly 08:00–21:00 HKT): per person
  * (fcm_tokens, never a topic), one push when the window opens, T18's one
  * reminder djgW2ReminderHours later if a part is still open, the missed
- * marks after the window.  Draft copy carries 【占位】, so nothing is
+ * marks after the window.  Copy is final since 10/15 (item 6); a draft
+ * override carrying 【占位】 is never sent, so nothing is
  * sent until the research team signs the text off (counted as
  * blocked_placeholder, like T18).  Quiet hours (functions/quiet_hours.js)
  * postpone a push to the next tick.
@@ -105,9 +107,10 @@ const REMINDER_SLACK_MS = 5 * 60 * 1000;
 
 const PLACEHOLDER_MARK = "【占位】";
 const PUSH_TITLE = "陪住";
-// Draft copy — not sent while it carries the placeholder mark.
-const PUSH_BODY = "【占位】今個禮拜嘅問卷已經開咗，得閒入嚟答幾條。";
-const REMINDER_BODY = "【占位】今個禮拜嘅問卷仲未答完，得閒入嚟答埋佢。";
+// Final copy (10/15 item 6 C(1)(2), docs/spec/copy/short-texts.md S14).
+// isPlaceholder() still guards any override that carries the mark.
+const PUSH_BODY = "今個禮拜嘅問卷開咗，得閒入嚟答幾條。";
+const REMINDER_BODY = "今個禮拜嘅問卷仲未答完，得閒入嚟答埋佢。";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -176,14 +179,15 @@ async function readConfig(db) {
 
 /**
  * Schedule mode of a participant: by cohort (T21).  null = not scheduled
- * (Phase A, unregistered, tester handled by the caller).
+ * (Phase A, unregistered, tester handled by the caller).  10/15: a pilot
+ * account runs the standard Phase B schedule; MODE_PILOT is never returned.
  * @param {?object} user users/{uid} data
- * @return {?string} "standard" | "pilot" | null
+ * @return {?string} "standard" | null
  */
 function scheduleModeFor(user) {
   const u = user || {};
   if (u.cohort === "phase_b") return MODE_STANDARD;
-  if (u.cohort === "pilot") return MODE_PILOT;
+  if (u.cohort === "pilot") return MODE_STANDARD;
   return null;
 }
 

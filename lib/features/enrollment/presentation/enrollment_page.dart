@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/feature_flags/remote_feature_flags.dart';
 import '../../ops_dashboard/presentation/ops_dashboard_page.dart';
+import '../../researcher_dashboard/presentation/pages/researcher_dashboard_page.dart';
 import '../data/enrollment_service.dart';
 
 class EnrollmentPage extends StatefulWidget {
@@ -37,6 +38,10 @@ class EnrollmentPage extends StatefulWidget {
   /// T39 test hook: what the 營運看板 button opens (default: the page).
   final VoidCallback? onOpenOpsDashboard;
 
+  /// 1014e §2.11 test hook: what the 研究員儀錶板 button opens (default:
+  /// the page).
+  final VoidCallback? onOpenResearcherDashboard;
+
   const EnrollmentPage({
     super.key,
     this.backend = const CloudEnrollmentBackend(),
@@ -44,6 +49,7 @@ class EnrollmentPage extends StatefulWidget {
     this.onSignOut,
     this.opsDashboardOn,
     this.onOpenOpsDashboard,
+    this.onOpenResearcherDashboard,
   });
 
   @override
@@ -208,6 +214,19 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
       appBar: AppBar(
         title: const Text('研究員登記'),
         actions: [
+          // 1014e §2.11 (10/15 item 3 (1)): the researcher dashboard
+          // (T34 alert list + 確認處理, T30 pooled completion, T12
+          // sections) had no entry since T19 sent `unblinded` straight
+          // here.  Unblinded only: this page is only reached by that
+          // role, and the dashboard page re-checks the claim itself.
+          IconButton(
+            key: const Key('enroll_researcher_dashboard'),
+            icon: const Icon(Icons.dashboard_outlined),
+            tooltip: '研究員儀錶板',
+            onPressed: widget.onOpenResearcherDashboard ??
+                () => Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => const ResearcherDashboardPage())),
+          ),
           // T39: the operations dashboard (unblinded only — this page is
           // only reached by that role; the server checks again).
           if (widget.opsDashboardOn ??

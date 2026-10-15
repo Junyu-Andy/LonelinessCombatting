@@ -435,7 +435,10 @@ class UserProfile {
         'hasCompletedIntake': hasCompletedIntake,
         'inputMode': inputMode,
         'preferredTimes': preferredTimes,
-        'isTester': isTester,
+        // 1014e §2.3 (backlog 96): `isTester` is admin-only — the rules
+        // refuse any client write of it, so it is never in the map; it is
+        // still read back in fromMap.  Set it with tool/set_tester.js or
+        // the console.
         'baselineUclaScore': baselineUclaScore,
         // T37: omitted while null so a stale profile write can't erase it.
         if (onboardingCompletedAt != null)

@@ -45,7 +45,11 @@
 ///                                           replied user messages.  1.
 ///   - [hybridReminiscenceValidRequiresSave] — Hybrid reminiscence: the
 ///                                           weekly summary must be saved
-///                                           via 儲存.  true.
+///                                           via 儲存.  **false** since
+///                                           dev-tasks-1014e §2.7 (10/15):
+///                                           like free chat, ≥ 3 replied
+///                                           user messages count; 儲存 is
+///                                           no longer required.
 ///
 /// T24 (registry C15 / C17) — study weeks and the weekly questionnaire
 /// bundle.  All behind [weeklyScheduleV2Enabled]; with it OFF the Sunday
@@ -66,7 +70,8 @@
 ///   - [weeklyPushHour]              — HK hour of the push.  20 (today's
 ///                                     Sunday weekly reminder hour).
 ///   - [socialContactProbeEnabled]   — 4th part, S12.  Default OFF.
-///   - [pilotBundleDays]             — pilot (cohort `pilot`) pushes, W1–W4.
+///   - [pilotBundleDays]             — retired 10/15 (the pilot runs the
+///                                     standard schedule); table test only.
 ///                                     [1, 3, 5, 7].
 ///   - [pilotWindowDays]             — pilot answer window.  1.
 ///
@@ -90,7 +95,7 @@ class PhaseBConfig {
     this.freeChatValidMinUserMessages = 3,
     this.hybridCheckInValidRequiresMood = true,
     this.hybridCheckInValidMinUserMessages = 1,
-    this.hybridReminiscenceValidRequiresSave = true,
+    this.hybridReminiscenceValidRequiresSave = false,
     this.weeklyScheduleV2Enabled = false,
     this.weeklyBundleDays = const [7, 14, 21, 26],
     this.weeklyWindowDays = 3,

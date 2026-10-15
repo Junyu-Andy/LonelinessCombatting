@@ -1,7 +1,7 @@
 # 待办与待决定
 
 > 随时更新。做完的移到 `docs/history.md`，划掉或删掉这里的条目。
-> 最后更新：2026-10-15（1014e 第 2 节第 4 条 PR 草稿，第 92 项关闭；T39 运营看板 PR 草稿，第 111 项；T40 使用事件记录 PR 草稿，第 110 项；T46 收尾说明只显示一次 PR 草稿，第 97 项 ③ 已做；瘦身批次定号 SL1–SL8，决策 0040 提议中，见末尾；T27 语音改走服务器 PR 草稿，第 101–103 项；T34 安全告警邮件 PR 草稿，第 97–100 项；T21 第二次更新：决策 0037 六项过渡默认，第 1 项 `PHASE_B` 改为保留，加第 96 项 `isTester` 客户端可写）
+> 最后更新：2026-10-15（1014e 第 2 节第 4 条 PR 草稿，第 92 项关闭；1014e 第 2 节第 3 条 PR 草稿，第 96 项已做；试跑改走正式每周问卷排程 PR 草稿，试跑压缩排程作废；10/15 第 6 条文字定稿接入 PR 草稿，第 97 项 ⑥ 已做、第 106 项已做；1014e 第 2 节第 11 条 PR 草稿，第 111 项 ⑤ 已做；1014e 第 2 节第 7、8 条 PR 草稿，第 97 项 ⑤ 已做、加 ⑥；T39 运营看板 PR 草稿，第 111 项；T40 使用事件记录 PR 草稿，第 110 项；T46 收尾说明只显示一次 PR 草稿，第 97 项 ③ 已做；瘦身批次定号 SL1–SL8，决策 0040 提议中，见末尾；T27 语音改走服务器 PR 草稿，第 101–103 项；T34 安全告警邮件 PR 草稿，第 97–100 项；T21 第二次更新：决策 0037 六项过渡默认，第 1 项 `PHASE_B` 改为保留，加第 96 项 `isTester` 客户端可写）
 
 ## 1. 已决定、待开发
 
@@ -15,11 +15,11 @@
 | 71 | **T21 研究期和登记**（`dev-tasks-1010.md` 第三节、`1010b.md` 更正）：第一部分已做（PR 草稿，分支 `fix/phase-config-split`）：编号前缀定研究期（只认 `PB-`、`PILOT-`）、试跑由研究员指定版本、登记门（等待页 S8、未登记不给 LLM、不收研究数据，开关默认关）。**还没做**：定时推送对未登记账号的筛选（广播推送按主题发，交 T24）；评估员账号在登记门打开后的去向（交 T30，`dev-tasks-1014.md` T30 第 3 条）。编译开关 `PHASE_B` 10/14 定为保留（决策 0037 第 1 项），不再列为待做 | `docs/dev-reports/T21-phase-config-20261014.md`；决策 0037 | PR #59。合并后删“已做”的部分；0037 的六项待负责人确认 |
 | 84 | **T26 LoRA 两组、两期和试跑共用**（决策 0033；`turns.safetyTurnId`；上线清单 H 节；10/10 补 Phase A 和试跑） | `docs/dev-reports/T26-lora-both-arms-20261009.md` | PR 草稿（分支 `feat/lora-both-arms-v2`）。合并后删这一行 |
 | 90 | **T34 安全告警邮件**：字段（研究编号、研究期、陪伴者、来源、级别和类别、词库版本、LoRA、研究日、危机页、事件编号）；收件人配置（Junyu、后备 Calvin Or，评估员不在名单、测试账号不发）；后台“确认处理”；12 小时没确认转后备；PHQ-9 第 9 题的问卷和评估员录入来源；导出带来源 | 产品窗口 10/10 第 6–8 条；`docs/dev-tasks/dev-tasks-1010b.md` | 现在可以开；评估员录入那一头等 T30 和 PHQ-9 规格文件 |
-| 97 | **T25 会话定义与 Brief PR 第二版**：已做数据层、邀请规则、评价卡、问卷、收尾按钮、`llm_calls.session_id`（PR 草稿，分支 `feat/session-briefpr`，开关默认关）。待做：① 截图；② `brief_pr` 加 T24 的 `studyWeek` / `studyDay`；③ ~~收尾按钮首次说明跨次启动只显示一次~~（T46 已做，PR 草稿 `fix/session-end-hint-once`）；④ 决策记录（旧弹窗只在开关关时保留、anchor 取消）编号待分配后落盘；⑤ 开关打开前研究侧定稿 `【占位】` 文字（下一題 / 返回 / 放棄評價 / 首次说明 / S10b 其余时间说法） | `dev-tasks-1009b.md` T25、`1010.md` §三、`1010b.md` §二 | `docs/dev-reports/T25-session-briefpr-20261014.md` |
+| 97 | **T25 会话定义与 Brief PR 第二版**：已做数据层、邀请规则、评价卡、问卷、收尾按钮、`llm_calls.session_id`（PR 草稿，分支 `feat/session-briefpr`，开关默认关）。待做：① 截图；② `brief_pr` 加 T24 的 `studyWeek` / `studyDay`；③ ~~收尾按钮首次说明跨次启动只显示一次~~（T46 已做，PR 草稿 `fix/session-end-hint-once`）；④ 决策记录（旧弹窗只在开关关时保留、anchor 取消）编号待分配后落盘；⑤ ~~开关打开前研究侧定稿【占位】文字~~（10/15 已定稿并接入，PR 草稿 `fix/t25-copy-final`）；⑥ ~~规则组回忆 B 页的「【占位】你而家心情點？（可以唔揀）」仍待产品窗口定稿（现包里可见）~~（10/15 第 6 条已定稿 S13 并接入，PR 草稿 `fix/copy-1015-item6`） | `dev-tasks-1009b.md` T25、`1010.md` §三、`1010b.md` §二 | `docs/dev-reports/T25-session-briefpr-20261014.md` |
 | 98 | T25 后续：开关打开后把会话第 1 版的字段（`userTurnCount`、`briefPR`、`user_left` / `app_killed`）和弹窗 Brief PR 代码路径（`BriefPrGate`、`BriefPrPage`、`isAnchorPromptFor`）删掉；`sessions` 的 `scheduleVersion` 区分新旧行 | T25 报告 | 等开关打开并稳定一周 |
 | 99 | T29、T30 用 T25 的 `sessions.isValid` / `brief_pr.finalStatus`：每人每周有效会话数查询见 T25 报告第 5 节；`usage_weekly.validSessionCount` 已加 | `dev-tasks-1009b.md` T29、`1010.md` T30 | — |
 | 110 | **T40 使用事件记录**（PR 草稿，分支 `feat/usage-events`，开关 `usageEventsEnabled` 默认关）：待做 ① 真机断网三次再联网，核对三条 `uploadedLate: true`、手机时间不变（W0 装机或试跑第一周做）；② T39 看板读 `usage_events`（按 `dayKey` 聚合）；③ 旧的 `events` `app_foreground` / `app_background` 行没有手机时间，T39 后备口径只能用会话记录；④ 决策记录编号（报告第 7 节草稿） | `dev-tasks-1014d.md` T40 | `docs/dev-reports/T40-usage-events-20261014.md` |
-| 111 | **T39 运营看板**（PR 草稿，分支 `feat/ops-dashboard`，开关 `opsDashboardEnabled` 默认关）：已做第 2 页每人 / 每日 / CSV 和第 1 页第 7 项。待做 ① 第 1 页其余项（已登记人数、今天有效会话人数、告警数、本周完成率、未来 7 天到期、14 天柱状图）；② 第 3 页按组汇总（Junyu 定）；③ 每人页「查看该人对话记录」链接（Junyu 定，要走现有路径并记审计）；④ W8 / debrief 两列等 T35、T42；⑤ 旧的「研究員儀錶板」没有入口（T34 告警确认、T30 完成率在那页），要定放哪里；⑥ 参与者多于几十人时 `opsDashboardPeople` 要改为分页或只读 `ops_daily` | `dev-tasks-1014c.md` T39、`1014d.md` | `docs/dev-reports/T39-ops-dashboard-20261014.md` |
+| 111 | **T39 运营看板**（PR 草稿，分支 `feat/ops-dashboard`，开关 `opsDashboardEnabled` 默认关）：已做第 2 页每人 / 每日 / CSV 和第 1 页第 7 项。待做 ① 第 1 页其余项（已登记人数、今天有效会话人数、告警数、本周完成率、未来 7 天到期、14 天柱状图）；② 第 3 页按组汇总（Junyu 定）；③ 每人页「查看该人对话记录」链接（Junyu 定，要走现有路径并记审计）；④ W8 / debrief 两列等 T35、T42；⑤ ~~旧的「研究員儀錶板」没有入口~~（10/15 1014e 第 2 节第 11 条：登记页右上角加入口，PR 草稿 `feat/dashboard-entry`）；⑥ 参与者多于几十人时 `opsDashboardPeople` 要改为分页或只读 `ops_daily` | `dev-tasks-1014c.md` T39、`1014d.md` | `docs/dev-reports/T39-ops-dashboard-20261014.md` |
 | 90 | **T34 安全告警邮件**：字段（研究编号、研究期、陪伴者、来源、级别和类别、词库版本、LoRA、研究日、危机页、事件编号）；收件人配置（Junyu、后备 Calvin Or，评估员不在名单、测试账号不发）；后台“确认处理”；12 小时没确认转后备；PHQ-9 第 9 题的问卷和评估员录入来源；导出带来源 | 产品窗口 10/10 第 6–8 条；`docs/dev-tasks/dev-tasks-1010b.md` | 现在可以开；评估员录入那一头等 T30 和 PHQ-9 规格文件 | PR 草稿已出（分支 `feat/safety-alert-email`，`docs/dev-reports/T34-safety-alert-email-20261014.md`）；评估员录入那一头等 T30 和 PHQ-9 规格文件；开关 `meta/alert_config.enabled` 默认关 |
 
 ## 2. 上线前必须做（负责人操作）
@@ -99,7 +99,7 @@
 | 93 | **T33 S5 入组引导那一屏**：放在通通之后、「完成」之前（截图见 T33 报告）；开关 `app_config/usage_copy.onboardingUsageAdviceEnabled` 何时打开。T20 的 7 处原文不动，等产品窗口写短版 | T33 报告第 3 节 | 负责人 / 产品窗口 |
 | 94 | **T33 其余发现**：回忆 B 心情提示「你而家心情點？」还是【占位】，模板开关打开前要定稿；心情脸文字（好差 / 差 / 麻麻地 / 幾好 / 好好）和定稿心情名（好唔開心 … 好開心）不同；签到命中 `moderate_review` 仍不给模板；模板和 S1a 没有英文定稿，英文界面也显示粤语 | T33 报告「要带回研究侧的发现」 | 研究侧 |
 | 95 | 网页版构建里 `SafetyService.newTurnId` 用 `nextInt(1 << 32)`，JavaScript 里是 0，签到 B、回忆 B 提交会报错（Android 不受影响）。截图时本地临时改过，没提交 | T33 报告 | 开发（另开任务，改 `lib/core/safety/`，两组同时生效） |
-| 96 | **`isTester` 客户端可写，能绕过登记门**：`users/{uid}.isTester` 由测试员工具里的开关写（要先输入测试密码 `TESTER_PIN` 才看得到，`lib/core/testing/tester_gate.dart`、`lib/features/settings/presentation/pages/settings_page.dart`）；登记门（`enrollmentGateEnabled`）和服务器的 LLM 拒绝都把 `isTester: true` 当测试账号放行，所以拿到测试密码的人可以自己把账号设成测试账号绕过等待页。10/14 暂按 (a) 不改（决策 0037 第 4 项）。选项：(a) 维持，测试密码只给团队；(b) 把 `isTester` 加进 `firestore.rules` 只有服务器能写的字段，测试员工具里的开关改成只显示，由脚本或控制台设 | T21 报告第 4.4 节；决策 0037 | 负责人 |
+| 96 | ~~**`isTester` 客户端可写，能绕过登记门**~~ 10/15 已做（1014e 第 2 节第 3 条，PR 草稿 `fix/istester-admin-only`）：规则拒绝客户端写 `isTester`，App 不再写，设置页开关改只读，管理员用 `tool/set_tester.js` 或控制台设置。登记门开前要给团队、评估员账号设上 | T21 报告第 4.4 节；决策 0037 | 负责人 |
 | 97 | **T37 开关 `onboardingAfterEnrollmentFix` 的上线默认**：W0 装机脚本是“先登记后引导”，关着时伙伴介绍、兴趣、S5 整段跳过。建议在第一位参与者登记前打开（`app_config/feature_flags`），打开那天在 STUDY_CHANGELOG 补一行 | T37 报告第 3 节；现在默认关 | 负责人 |
 | 98 | **改配对的日志搬到服务器**：T30 已做（`onUserPairingChanged` → `pairing_change_log`，开关 `pairingChangeServerLogEnabled` 默认关）；App 的 `events` 行保留 | T37 报告第 2.4 节；T30 报告 5.2 | 已做（T30 PR 草稿） |
 | 76 | 求助电话号码写进 `app_config/phaseA_schedule.adaHelpPhone`（没写时按钮不拨号，只说研究员会打来）；打开 ADA 前要配好 | T17b 报告第 2 节第 5 条 | 研究侧 |
@@ -126,7 +126,7 @@
 | 103 | **每周推送钟点**：`weeklyPushHour` 默认 20（沿用现在星期日 20:00 的每周推送）。T18 的 DJG 推送是 10:00。20:00 推送意味着窗口在第 10 天 20:00 关，老人晚上收推送。Junyu 定钟点后在控制台改一个数字即可 | T24 报告「要 Junyu 定的事」 | Junyu，开关打开前 |
 | 104 | **W4 问卷延到面访当天结束**：`week4CloseFor(w0Date, w4VisitDate)` 已留钩子，所有调用处现在传 null（只按第 29 天关）。T30 合并后把评估员录入的 W4 施测日期接进去（服务器 `functions/weekly_schedule.js` `windowFor` 的 `opts.w4VisitDate`、App `PendingPromptsService.weeklyBundleDue`） | T24 报告第 3 节 | T30 之后 |
 | 105 | **每日心情提醒仍是主题广播**（`dailyMoodReminder`，`topic: all`），没登记的账号也收到，也不看安静时段。T24 只把每周提醒改成按人发。要不要改成按人发（成本：每天 72 人 × 设备数的单发） | T21 报告 4.5；T24 报告「交叉」 | Junyu |
-| 106 | **流程、推送的最终文字**：每周问卷的推送两句、流程开头说明、四个部分的名称、首页卡片两句，全部是【占位】（`functions/weekly_schedule.js` `PUSH_BODY` / `REMINDER_BODY`、`lib/features/weekly_bundle/presentation/weekly_bundle_flow_page.dart` `weeklyPartTitle`、`pending_prompts_banner.dart`）。研究侧定稿后替换，推送去掉【占位】才会发 | T24 报告第 7 节 | 研究侧，开关打开前 |
+| 106 | ~~**流程、推送的最终文字**：每周问卷的推送两句、流程开头说明、四个部分的名称、首页卡片两句，全部是【占位】~~（10/15 第 6 条已定稿 S14 并接入，PR 草稿 `fix/copy-1015-item6`；开头第二句「可以隨時停，下次會由停低嗰度繼續。」产品窗口没给，沿用原文，待 Junyu 确认）| T24 报告第 7 节；`docs/dev-reports/copy-1015-item6-20261015.md` | 等 Junyu 回「可以」后合并 |
 | 107 | **旧的每周孤独探针代码**（`lib/features/loneliness_probe/`、`weeklyLonelinessProbe`）现在没有任何页面挂它，`WEEKLY_PROBE` 编译开关默认关，服务器只给 `weeklyProbeEnabled: true` 的用户排队。登记表 C15 写「不含」，可以在 Phase A 代码清理时一起删 | T24 报告第 8 节 | T32 以后 |
 
 ## 4. 暂缓或以后再做
