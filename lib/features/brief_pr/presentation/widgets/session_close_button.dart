@@ -24,9 +24,9 @@ class SessionCloseButton extends StatefulWidget {
 
   static const label = '今日傾到呢度';
 
-  /// Final wording (dev-tasks-1014e §2.8 keeps the T25 draft as is);
+  /// Final wording (10/15 item 6 B: two sentences, docs/spec/copy S10c);
   /// shown once per phone (T46).
-  static const firstUseNote = '撳「今日傾到呢度」就係今次傾完；想再傾隨時返嚟。';
+  static const firstUseNote = '撳「今日傾到呢度」就係今次傾完。想再傾隨時返嚟。';
 
   /// Width to give `AppBar.leadingWidth` so the label is not clipped.
   static const leadingWidth = 168.0;

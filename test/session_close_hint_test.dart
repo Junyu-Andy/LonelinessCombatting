@@ -98,7 +98,7 @@ void main() {
     testWidgets('wording final (1014e §2.8 keeps the T25 draft text)', (tester) async {
       expect(SessionCloseButton.label, '今日傾到呢度');
       expect(SessionCloseButton.firstUseNote,
-          '撳「今日傾到呢度」就係今次傾完；想再傾隨時返嚟。');
+          '撳「今日傾到呢度」就係今次傾完。想再傾隨時返嚟。');
     });
   });
 }
