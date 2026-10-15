@@ -34,6 +34,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -48,3 +49,11 @@ flutter:
     # the client shows the same strings the server would return.
     - functions/prompts/safety_acknowledgements.json
     - functions/prompts/crisis_resources.json
+
+# 1014e §2.18 — App icon (10/15, Junyu's 1024 PNG).  Regenerate with:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  remove_alpha_ios: true
