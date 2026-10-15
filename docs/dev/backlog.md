@@ -1,7 +1,7 @@
 # 待办与待决定
 
 > 随时更新。做完的移到 `docs/history.md`，划掉或删掉这里的条目。
-> 最后更新：2026-10-15（10/15 第 6 条文字定稿接入 PR 草稿，第 97 项 ⑥ 已做、第 106 项已做；1014e 第 2 节第 7、8 条 PR 草稿，第 97 项 ⑤ 已做、加 ⑥；T39 运营看板 PR 草稿，第 111 项；T40 使用事件记录 PR 草稿，第 110 项；T46 收尾说明只显示一次 PR 草稿，第 97 项 ③ 已做；瘦身批次定号 SL1–SL8，决策 0040 提议中，见末尾；T27 语音改走服务器 PR 草稿，第 101–103 项；T34 安全告警邮件 PR 草稿，第 97–100 项；T21 第二次更新：决策 0037 六项过渡默认，第 1 项 `PHASE_B` 改为保留，加第 96 项 `isTester` 客户端可写）
+> 最后更新：2026-10-15（10/15 第 6 条文字定稿接入 PR 草稿，第 97 项 ⑥ 已做、第 106 项已做；1014e 第 2 节第 11 条 PR 草稿，第 111 项 ⑤ 已做；1014e 第 2 节第 7、8 条 PR 草稿，第 97 项 ⑤ 已做、加 ⑥；T39 运营看板 PR 草稿，第 111 项；T40 使用事件记录 PR 草稿，第 110 项；T46 收尾说明只显示一次 PR 草稿，第 97 项 ③ 已做；瘦身批次定号 SL1–SL8，决策 0040 提议中，见末尾；T27 语音改走服务器 PR 草稿，第 101–103 项；T34 安全告警邮件 PR 草稿，第 97–100 项；T21 第二次更新：决策 0037 六项过渡默认，第 1 项 `PHASE_B` 改为保留，加第 96 项 `isTester` 客户端可写）
 
 ## 1. 已决定、待开发
 
@@ -19,7 +19,7 @@
 | 98 | T25 后续：开关打开后把会话第 1 版的字段（`userTurnCount`、`briefPR`、`user_left` / `app_killed`）和弹窗 Brief PR 代码路径（`BriefPrGate`、`BriefPrPage`、`isAnchorPromptFor`）删掉；`sessions` 的 `scheduleVersion` 区分新旧行 | T25 报告 | 等开关打开并稳定一周 |
 | 99 | T29、T30 用 T25 的 `sessions.isValid` / `brief_pr.finalStatus`：每人每周有效会话数查询见 T25 报告第 5 节；`usage_weekly.validSessionCount` 已加 | `dev-tasks-1009b.md` T29、`1010.md` T30 | — |
 | 110 | **T40 使用事件记录**（PR 草稿，分支 `feat/usage-events`，开关 `usageEventsEnabled` 默认关）：待做 ① 真机断网三次再联网，核对三条 `uploadedLate: true`、手机时间不变（W0 装机或试跑第一周做）；② T39 看板读 `usage_events`（按 `dayKey` 聚合）；③ 旧的 `events` `app_foreground` / `app_background` 行没有手机时间，T39 后备口径只能用会话记录；④ 决策记录编号（报告第 7 节草稿） | `dev-tasks-1014d.md` T40 | `docs/dev-reports/T40-usage-events-20261014.md` |
-| 111 | **T39 运营看板**（PR 草稿，分支 `feat/ops-dashboard`，开关 `opsDashboardEnabled` 默认关）：已做第 2 页每人 / 每日 / CSV 和第 1 页第 7 项。待做 ① 第 1 页其余项（已登记人数、今天有效会话人数、告警数、本周完成率、未来 7 天到期、14 天柱状图）；② 第 3 页按组汇总（Junyu 定）；③ 每人页「查看该人对话记录」链接（Junyu 定，要走现有路径并记审计）；④ W8 / debrief 两列等 T35、T42；⑤ 旧的「研究員儀錶板」没有入口（T34 告警确认、T30 完成率在那页），要定放哪里；⑥ 参与者多于几十人时 `opsDashboardPeople` 要改为分页或只读 `ops_daily` | `dev-tasks-1014c.md` T39、`1014d.md` | `docs/dev-reports/T39-ops-dashboard-20261014.md` |
+| 111 | **T39 运营看板**（PR 草稿，分支 `feat/ops-dashboard`，开关 `opsDashboardEnabled` 默认关）：已做第 2 页每人 / 每日 / CSV 和第 1 页第 7 项。待做 ① 第 1 页其余项（已登记人数、今天有效会话人数、告警数、本周完成率、未来 7 天到期、14 天柱状图）；② 第 3 页按组汇总（Junyu 定）；③ 每人页「查看该人对话记录」链接（Junyu 定，要走现有路径并记审计）；④ W8 / debrief 两列等 T35、T42；⑤ ~~旧的「研究員儀錶板」没有入口~~（10/15 1014e 第 2 节第 11 条：登记页右上角加入口，PR 草稿 `feat/dashboard-entry`）；⑥ 参与者多于几十人时 `opsDashboardPeople` 要改为分页或只读 `ops_daily` | `dev-tasks-1014c.md` T39、`1014d.md` | `docs/dev-reports/T39-ops-dashboard-20261014.md` |
 | 90 | **T34 安全告警邮件**：字段（研究编号、研究期、陪伴者、来源、级别和类别、词库版本、LoRA、研究日、危机页、事件编号）；收件人配置（Junyu、后备 Calvin Or，评估员不在名单、测试账号不发）；后台“确认处理”；12 小时没确认转后备；PHQ-9 第 9 题的问卷和评估员录入来源；导出带来源 | 产品窗口 10/10 第 6–8 条；`docs/dev-tasks/dev-tasks-1010b.md` | 现在可以开；评估员录入那一头等 T30 和 PHQ-9 规格文件 | PR 草稿已出（分支 `feat/safety-alert-email`，`docs/dev-reports/T34-safety-alert-email-20261014.md`）；评估员录入那一头等 T30 和 PHQ-9 规格文件；开关 `meta/alert_config.enabled` 默认关 |
 
 ## 2. 上线前必须做（负责人操作）

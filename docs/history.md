@@ -12,7 +12,14 @@
 - 每周问卷的推送从此不再带【占位】：`weeklyScheduleV2Enabled` 打开后会真的发出；测试里的「带占位不发」改用覆盖文字验证，保护逻辑没拆。
 - 一处产品窗口没给：流程开头的第二句「可以隨時停，下次會由停低嗰度繼續。」沿用原文，等 Junyu 确认。按约定，这个 PR 等 Junyu 回「可以」再合。报告 `docs/dev-reports/copy-1015-item6-20261015.md`。
 
----
+## 2026-10-15 1014e 第 2 节第 11 条：研究员登记页加「研究員儀錶板」入口（PR 草稿，分支 `feat/dashboard-entry`）
+
+- T19 起 `unblinded` 登录直接进登记页，T34 的告警列表和「確認處理」、T30 的完成率所在的「研究員儀錶板」从此没有入口（T39 核对时发现，Junyu 10/15 同意加）。登记页右上角加一个按钮；只有 `unblinded` 到得了登记页，儀錶板页自己再查一次 claims。没有开关（只是通往已有页面的链接）。T43 报告里“確認處理”那一步合并打包后可做。
+- 报告 `docs/dev-reports/1014e-dashboard-entry-20261015.md`。
+
+## 2026-10-15 1014e 第 2 节第 9 条：注册页删 UCLA 输入框（PR 草稿，分支 `fix/remove-ucla-field`）
+
+- `login_page.dart` 去掉「研究人員填寫」一节和「UCLA 基線總分（20–80）」字段；`baselineUclaScore` 留在模型里不再写。1014e 第 3 节第 2 题的答案：这个字段没有任何分层读取方（`enrollParticipant` 用 DJG-ES 情感分），只有盲法导出 / 锁库导出把它当参与者属性原样导出；注册页老人自己填的是电邮、密码、称呼、年龄、紧急联络人称呼和电话。报告 `docs/dev-reports/1014e-remove-ucla-field-20261015.md`。
 
 ## 2026-10-14 T39 运营看板「每人」页（PR 草稿，分支 `feat/ops-dashboard`）
 
