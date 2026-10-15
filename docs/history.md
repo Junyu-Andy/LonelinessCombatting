@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-10-14 T46 收尾按钮首次说明只显示一次（PR 草稿，分支 `fix/session-end-hint-once`）
+
+- T25 的收尾按钮说明每次启动 App 都再显示一次（当时 App 没有本机存储）。T37 之后有了 `shared_preferences`，T46 把“已经说明过”记在本机（`session.closeHintShown`），同一台手机只显示一次；重装会再显示一次。两组相同，文字不改。存储读不到时退回每次启动一次。
+- 要在打开 `sessionBriefPrV2Enabled` 前合并。报告 `docs/dev-reports/T46-session-end-hint-20261014.md`。
+
 ## 2026-10-15 T43 PILOT 版本指定核对清单（emulator，PR 草稿，分支 `chore/t43-pilot-checklist`）
 
 - 按 1014c 第 2 节在模拟器上把 W0 当天的流程串成一条链跑了一遍（`functions/test/t43_pilot_checklist_emulator_test.js`，11 步）：登记 PILOT-01、02（Hybrid）、03（规则组）→ 两层序列指针不动 → `pilot_assignment_log` 三条 `designate` → 评估员 W4 名单没有组别字眼 → PILOT 账号 acute 告警发一封到第一收件人、测试账号不发 → 登记门开着时 PILOT Hybrid 能用 LLM、没登记的和规则组被拒。
