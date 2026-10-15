@@ -9,6 +9,9 @@
 ## 2026-10-15 1014e 第 2 节第 4 条：取消告警后备（PR 草稿，分支 `fix/alert-no-backup`）
 
 - `escalateDue` 在 `backupEmail` 为空时直接返回（不认领、不写日志），告警留在待处理；后台告警列表把 `primaryFailedAt` 的行标成「郵件未發出…請即處理」（1014e 第 1 节第 5 条要的确认：首发失败写 `alert_audit_log` `email_failed` / `no_recipients`，并在列表标出）。决策 0038 状态行标“部分被取代”，新决策草稿在报告第 5 节，编号待分配。模拟器测试 17/17（新增 1 项）。报告 `docs/dev-reports/1014e-alert-no-backup-20261015.md`。
+## 2026-10-15 1014e 第 2 节第 6 条：教育文章危机提示的机构名更正（PR 草稿，分支 `fix/education-hotline-name`）
+
+- `education_library.dart` 两篇文章的提示把 2382 0000 写成撒瑪利亞防止自殺會，改为生命熱線；号码不动。新测试：文章里每个热线号码都要和 `crisis_resources.json` 的机构对得上。`verifiedDate` 等 Junyu 核对后填。报告 `docs/dev-reports/1014e-education-hotline-name-20261015.md`。
 ## 2026-10-15 1014e 第 2 节第 3 条：`isTester` 只允许管理员写（PR 草稿，分支 `fix/istester-admin-only`）
 
 - 规则：`users/{uid}` 新建不能带 `isTester`，更新不能动它；App `UserProfile.toMap` 不再写它（merge 写保留服务器值），设置页测试员开关改只读说明；新脚本 `tool/set_tester.js`（`--uid` / `--email`、`--tester=true|false`、`--list`，登记过的账号要 `--allow-registered`）。规则测试 5 项、脚本模拟器测试、Dart 测试。随规则在 10/19 开门前部署；部署后给团队和评估员账号设上。报告 `docs/dev-reports/1014e-istester-admin-only-20261015.md`。
