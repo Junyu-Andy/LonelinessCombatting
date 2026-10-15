@@ -135,6 +135,7 @@ class _CheckInArmBState extends State<CheckInArmB> {
             TextField(
               controller: _noteCtrl,
               maxLines: 4,
+              scrollPadding: const EdgeInsets.only(bottom: 140),
               style: theme.textTheme.bodyLarge,
               decoration: InputDecoration(
                 hintText: isEn

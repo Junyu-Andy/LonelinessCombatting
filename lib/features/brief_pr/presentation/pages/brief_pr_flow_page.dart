@@ -142,6 +142,8 @@ class _BriefPrFlowPageState extends State<BriefPrFlowPage> {
         ),
         body: SafeArea(
           child: ListView(
+            // 10/15: a new key per question so 下一題 starts at the top.
+            key: ValueKey('brief_pr_question_$_index'),
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
             children: [
               Text(

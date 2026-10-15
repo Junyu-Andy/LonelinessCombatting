@@ -803,8 +803,11 @@ class _TungTungPageState extends State<TungTungPage> {
                 _ArticleContextBanner(title: widget.articleTitle!),
               Expanded(
                 child: ListView(
+                  // 10/15: newest message at the bottom edge; the list follows the
+                  // keyboard up instead of leaving the last turn under the composer.
+                  reverse: true,
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                  children: [
+                  children: <Widget>[
                     for (int i = 0; i < _turns.length; i++) ...[
                       _TurnBubble(turn: _turns[i]),
                       if (!_turns[i].fromUser && !_turns[i].isSystem)
@@ -855,7 +858,7 @@ class _TungTungPageState extends State<TungTungPage> {
                         _searches.last.unavailable)
                       _SearchUnavailableHint(
                           reason: _searches.last.reason),
-                  ],
+                  ].reversed.toList(),
                 ),
               ),
               if (_pendingOffline != null)

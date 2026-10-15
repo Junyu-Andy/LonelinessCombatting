@@ -247,11 +247,12 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
           agentId: AgentRegistry.ahJanAhBakId,
           onClose: () => Navigator.of(context).maybePop()),
       body: SafeArea(
-        child: Padding(
+        // 10/15: a scrolling page (was a fixed column with an expanding
+        // field), so the keyboard pushes nothing off-screen and the save
+        // button is reachable at every font size.
+        child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+          children: [
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Text(title,
@@ -274,21 +275,20 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
                 ),
               ),
               const SizedBox(height: 4),
-              Expanded(
-                child: TextField(
-                  controller: _textCtrl,
-                  maxLines: null,
-                  expands: true,
-                  style: theme.textTheme.bodyLarge,
-                  decoration: InputDecoration(
-                    border: const OutlineInputBorder(),
-                    hintText: isEn
-                        ? 'Write whatever you remember, or tap the mic to speak.'
-                        : '記得幾多寫幾多，或者撳咪用講嘅。',
-                    alignLabelWithHint: true,
-                  ),
-                  textAlignVertical: TextAlignVertical.top,
+              TextField(
+                controller: _textCtrl,
+                minLines: 6,
+                maxLines: null,
+                scrollPadding: const EdgeInsets.only(bottom: 160),
+                style: theme.textTheme.bodyLarge,
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  hintText: isEn
+                      ? 'Write whatever you remember, or tap the mic to speak.'
+                      : '記得幾多寫幾多，或者撳咪用講嘅。',
+                  alignLabelWithHint: true,
                 ),
+                textAlignVertical: TextAlignVertical.top,
               ),
               if (_ruleReplies && _ruleReply != null) ...[
                 const SizedBox(height: 12),
@@ -337,8 +337,7 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
                     ),
                   ),
                 ),
-            ],
-          ),
+          ],
         ),
       ),
     );

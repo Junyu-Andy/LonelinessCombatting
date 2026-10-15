@@ -566,8 +566,11 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
             children: [
               Expanded(
                 child: ListView(
+                  // 10/15: newest message at the bottom edge; the list follows the
+                  // keyboard up instead of leaving the last turn under the composer.
+                  reverse: true,
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                  children: [
+                  children: <Widget>[
                     if (_turns.isEmpty)
                       Text(
                         _personalisedOpener ??
@@ -618,7 +621,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
                         onDismiss: () =>
                             setState(() => _pendingReferral = null),
                       ),
-                  ],
+                  ].reversed.toList(),
                 ),
               ),
               if (_pendingOffline != null)
