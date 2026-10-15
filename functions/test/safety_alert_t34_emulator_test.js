@@ -352,6 +352,41 @@ test("escalation: configurable hours; disabled switch does nothing",
       assert.strictEqual(off.skipped, "disabled");
     });
 
+test("1014e §2.4: no backup recipient → escalation does nothing: rows stay " +
+    "pending, a failed primary keeps its flag, no claim, no audit row",
+async () => {
+  await reset({enabled: true, primaryEmail: PRIMARY});
+  await fire({turnId: "nobk1"});
+  const id = (await alerts())[0].id;
+  await backdate(id, 13);
+  // A second alert whose primary send failed (SMTP error path).
+  await fire({turnId: "nobk2"});
+  const id2 = (await alerts()).map((d) => d.id).find((x) => x !== id);
+  await db.doc(`pi_alerts/${id2}`).update(
+      piAlert.primaryFailedPatch(new Date(), "email_failed"));
+  sent = [];
+  const before = (await db.collection("alert_audit_log").get()).size;
+  const out = await piAlert.escalateDue(db, deps(new Date()));
+  assert.strictEqual(out.skipped, "no_backup_email");
+  assert.strictEqual(out.due, 0);
+  assert.strictEqual(sent.length, 0);
+  const r1 = (await db.doc(`pi_alerts/${id}`).get()).data();
+  assert.strictEqual(r1.escalationPending, true, "not claimed");
+  assert.strictEqual(r1.escalatedAt, null);
+  const r2 = (await db.doc(`pi_alerts/${id2}`).get()).data();
+  assert.strictEqual(r2.escalationPending, true);
+  assert.ok(r2.primaryFailedAt, "the dashboard flag stays");
+  assert.strictEqual(r2.primaryFailedReason, "email_failed");
+  assert.strictEqual((await db.collection("alert_audit_log").get()).size,
+      before, "no audit row every sweep");
+  // Filling backupEmail turns escalation back on.
+  await db.doc("meta/alert_config").update({backupEmail: BACKUP});
+  const on = await piAlert.escalateDue(db, deps(new Date()));
+  assert.strictEqual(on.skipped, null);
+  assert.strictEqual(on.due, 2);
+  assert.strictEqual(on.escalated, 2);
+});
+
 test("escalation: a blinded backup is dropped and logged, nothing sent",
     async () => {
       await reset(Object.assign({}, ON, {backupEmail: ASSESSOR}));

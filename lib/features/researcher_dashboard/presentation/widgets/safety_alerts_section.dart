@@ -30,6 +30,9 @@ class SafetyAlertView {
     required this.escalatedAt,
     required this.isTester,
     required this.alertVersion,
+    this.primaryFailedAt,
+    this.primaryFailedReason,
+    this.emailSentAt,
   });
 
   final String alertId;
@@ -44,8 +47,16 @@ class SafetyAlertView {
   final bool isTester;
   final int alertVersion;
 
+  /// 10/14 fix + 1014e §2.4: the first e-mail did not go out (SMTP error
+  /// or no recipient after the role check).  With no backup recipient
+  /// configured nobody else is told, so the list must say so.
+  final DateTime? primaryFailedAt;
+  final String? primaryFailedReason;
+  final DateTime? emailSentAt;
+
   bool get acknowledged => acknowledgedAt != null;
   bool get escalated => escalatedAt != null;
+  bool get primaryFailed => primaryFailedAt != null;
 
   /// From a `pi_alerts` document.  Works for the T19 (v2) row, which has
   /// no source / companion, and the T34 (v3) row.
@@ -63,6 +74,9 @@ class SafetyAlertView {
       escalatedAt: ts(d['escalatedAt']),
       isTester: d['isTester'] == true,
       alertVersion: (d['alertVersion'] as num?)?.toInt() ?? 2,
+      primaryFailedAt: ts(d['primaryFailedAt']),
+      primaryFailedReason: d['primaryFailedReason'] as String?,
+      emailSentAt: ts(d['emailSentAt']),
     );
   }
 
@@ -91,6 +105,14 @@ class SafetyAlertView {
       return (isEn ? 'Acknowledged' : '已確認處理') + who;
     }
     if (a.escalated) return isEn ? 'Escalated to backup' : '已轉後備';
+    if (a.primaryFailed) {
+      final why = a.primaryFailedReason == 'no_recipients'
+          ? (isEn ? 'no recipient' : '冇收件人')
+          : (isEn ? 'send error' : '發送出錯');
+      return isEn
+          ? 'E-MAIL NOT SENT ($why) — nobody was told; handle now'
+          : '郵件未發出（$why）— 冇人收到通知，請即處理';
+    }
     return isEn ? 'Not acknowledged' : '未確認';
   }
 

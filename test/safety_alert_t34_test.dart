@@ -86,6 +86,37 @@ void main() {
       expect(SafetyAlertView.stateLabel(v3, isEn: false), '未確認');
     });
 
+    test('1014e §2.4: a failed first e-mail is flagged in the list (no '
+        'backup recipient → nobody else is told)', () {
+      final failed = SafetyAlertView.fromData('f', {
+        'alertVersion': 3,
+        'escalationPending': true,
+        'primaryFailedAt': Timestamp.fromDate(created),
+        'primaryFailedReason': 'email_failed',
+      });
+      expect(failed.primaryFailed, isTrue);
+      expect(SafetyAlertView.stateLabel(failed, isEn: false),
+          '郵件未發出（發送出錯）— 冇人收到通知，請即處理');
+      final noRcpt = SafetyAlertView.fromData('n', {
+        'primaryFailedAt': Timestamp.fromDate(created),
+        'primaryFailedReason': 'no_recipients',
+      });
+      expect(SafetyAlertView.stateLabel(noRcpt, isEn: true),
+          'E-MAIL NOT SENT (no recipient) — nobody was told; handle now');
+      // Acknowledged wins over the flag; a sent e-mail has no flag.
+      final ackedFailed = SafetyAlertView.fromData('a', {
+        'primaryFailedAt': Timestamp.fromDate(created),
+        'acknowledgedAt': Timestamp.fromDate(created),
+      });
+      expect(SafetyAlertView.stateLabel(ackedFailed, isEn: false),
+          startsWith('已確認處理'));
+      final sent = SafetyAlertView.fromData('s', {
+        'emailSentAt': Timestamp.fromDate(created),
+      });
+      expect(sent.primaryFailed, isFalse);
+      expect(SafetyAlertView.stateLabel(sent, isEn: false), '未確認');
+    });
+
     test('v2 (T19) rows still load, acknowledged / escalated states', () {
       final v2 = SafetyAlertView.fromData('old', {
         'uid': 'u',
