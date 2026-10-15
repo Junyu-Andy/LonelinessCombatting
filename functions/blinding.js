@@ -322,6 +322,29 @@ function isBlindedParticipant(u) {
   return u.armAssignmentMode === "randomise";
 }
 
+/** usage_weekly rows are attributed by the session's end (1014e §2.1). */
+const USAGE_WEEK_BASIS = "endedAt";
+
+/**
+ * The instant a session is attributed to: its end, else its start.
+ * @param {*} endedAt Firestore Timestamp / Date / ISO string / null
+ * @param {*} startedAt same
+ * @return {?Date}
+ */
+function sessionWeekAnchor(endedAt, startedAt) {
+  const toDate = (v) => {
+    if (!v) return null;
+    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+    if (typeof v.toDate === "function") return v.toDate();
+    if (typeof v === "string") {
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  };
+  return toDate(endedAt) || toDate(startedAt);
+}
+
 /**
  * ISO week label (e.g. "2026-W41") for a Date, UTC+8.
  * @param {Date} d
@@ -395,9 +418,12 @@ async function buildBlindedExport(db, opts) {
       const sessions = await userDoc.ref.collection("sessions").get();
       const byWeek = {};
       for (const s of sessions.docs) {
-        const started = s.get("startedAt");
-        if (!started || typeof started.toDate !== "function") continue;
-        const at = started.toDate();
+        // 1014e §2.1 (10/14 item 11 (4)): a session belongs to the week
+        // it ENDED in — the moment isValid is written — falling back to
+        // startedAt for a row that never got an endedAt (still open, or
+        // written by a pre-T25 build).
+        const at = sessionWeekAnchor(s.get("endedAt"), s.get("startedAt"));
+        if (!at) continue;
         const week = isoWeekHk(at);
         const day = new Date(at.getTime() + 8 * 3600 * 1000)
             .toISOString().slice(0, 10);
@@ -412,6 +438,7 @@ async function buildBlindedExport(db, opts) {
       }
       for (const week of Object.keys(byWeek).sort()) {
         files.usage_weekly.push({researchId, groupCode, isoWeek: week,
+          weekBasis: USAGE_WEEK_BASIS,
           sessionCount: byWeek[week].sessions,
           validSessionCount: byWeek[week].valid,
           activeDays: Object.keys(byWeek[week].days).length});
@@ -490,4 +517,5 @@ module.exports = {
   writeResearchIdTx, ensureResearchId, stableArmMapping,
   isBlindedParticipant, isoWeekHk, plain, pick, buildBlindedExport,
   writeBlindedExport,
+  sessionWeekAnchor, USAGE_WEEK_BASIS,
 };

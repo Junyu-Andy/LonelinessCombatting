@@ -127,7 +127,7 @@
 users/{uid}/sessions where isValid == true and endedAt in [周一 00:00, 下周一 00:00)
 ```
 
-按 `startedAt` 还是 `endedAt` 归周要研究侧定（`usage_weekly` 现在按 `startedAt`）。
+按 `startedAt` 还是 `endedAt` 归周要研究侧定（`usage_weekly` 现在按 `startedAt`）。**10/15 已定 `endedAt`**（10/14 第 11 条 (4)，1014e 第 2 节第 1 条；PR 草稿 `fix/usage-weekly-endedat`）。
 
 ## 6. `llm_calls` 会话编号
 
@@ -185,7 +185,7 @@ users/{uid}/sessions where isValid == true and endedAt in [周一 00:00, 下周�
 | 阿珍回忆页的 S9 | A. 按 S9 = 走小结 + 儲存（现做法，保证能成为有效会话）；B. S9 直接结束不存小结（会让大多数回忆会话无效） | A |
 | 问卷 2、3、5、6 分没有文字锚点 | A. 只显示数字（现做法，和原弹窗一致）；B. 研究侧给七档文字 | 研究侧定 |
 | `【占位】` 文字定稿 | 下一題 / 返回 / 放棄評價 / 首次说明 / S10b 其余时间说法（第 11 节） | 开关打开前定稿，开发窗口更新 `docs/spec/copy/` |
-| 每人每周有效会话按 `startedAt` 还是 `endedAt` 归周 | — | 建议 `endedAt`，和 `isValid` 同一时刻写 |
+| 每人每周有效会话按 `startedAt` 还是 `endedAt` 归周 | — | **已定 `endedAt`**（10/14 第 11 条 (4)；1014e 第 2 节第 1 条） |
 | 决策记录编号 | 第 12 节草稿 | 开发窗口分配后落盘 |
 
 ## 11. 要带回研究侧的发现
