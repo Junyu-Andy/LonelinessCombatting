@@ -17,6 +17,10 @@
 - Android `android:label` 从 `app_demo` 改为「陪住」，iOS `CFBundleName` 改为 WithYou；图标用 Junyu 10/15 给的图（`assets/icon/app_icon.png`），flutter_launcher_icons 生成全部尺寸。
 - 同一 PR 放进 10/15 修订版 `dev-tasks-1014e.md`（第 1 节第 3 条开关清单、第 2 节第 14、17、18、19 条）。
 - 核对 10/15 中午的开关：`weeklyScheduleV2Enabled`、`socialContactProbeEnabled` 在 `app_config/phase_b` 已开；`sessionBriefPrV2Enabled` 被写到了 `feature_flags`，代码读的是 `phase_b`，没生效；`feature_flags` 里 `onboardingAfterEnrollmentFix`、`voiceInputEnabled`、`usageEventsEnabled`、`opsDashboardEnabled` 都还没设。报告 `docs/dev-reports/1014e-app-name-20261015.md`。
+## 2026-10-15 通知与问卷排查 A1–A15（PR 草稿，分支 `docs/notifications-audit-1015`）
+
+- 按产品窗口的 `notifications-audit-1015.md` 第 4 节 A 部分在 emulator 跑完 A1–A15，全部通过；服务器端固化成 `functions/test/notifications_audit_emulator_test.js`（8 条），A12、A13 由已有 Flutter 测试覆盖。五个 [待核] 按代码答了。
+- 两处和排查文件不一致要研究侧定：W4 含 S12（三部分）；提醒是「推送实际发出后 24 小时的下一个整点」。报告 `docs/dev-reports/notifications-audit-20261015.md`。
 
 ## 2026-10-15 1014e 第 2 节第 3 条：`isTester` 只允许管理员写（PR 草稿，分支 `fix/istester-admin-only`）
 

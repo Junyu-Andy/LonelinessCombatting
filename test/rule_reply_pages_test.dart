@@ -164,6 +164,8 @@ void main() {
         ReminiscenceArmBPage(theme: week1, replyHistory: store),
       );
       expect(find.byType(MoodFacePicker), findsOneWidget);
+      // 10/15 item 6 A (S13): the mood hint above the submit area is final.
+      expect(find.text('講完呢段往事，你而家心情點？唔揀都可以。'), findsOneWidget);
       await _saveMemory(tester, '細個住喺深水埗', face: '😊');
       expect(
         find.textContaining(_text('Z1-1'), findRichText: true),
