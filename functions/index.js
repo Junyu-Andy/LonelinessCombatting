@@ -30,6 +30,7 @@ const sequenceUpload = require("./sequence_upload");
 const processExport = require("./process_export");
 const pairingLog = require("./pairing_log");
 const weeklySchedule = require("./weekly_schedule");
+const usageEvents = require("./usage_events");
 const opsDashboard = require("./ops_dashboard");
 
 admin.initializeApp();
@@ -2422,6 +2423,24 @@ exports.onBriefPrWritten = onDocumentWritten(
 );
 
 // ---------------------------------------------------------------------------
+// T40 (SPEC:C23) — usage events.  The App appends a row on foreground /
+// background (switch usageEventsEnabled, enrolled accounts only, both
+// arms).  The trigger stamps the research ID, the Hong Kong day, the
+// study day and `uploadedLate` (offline rows uploaded > 5 min after their
+// client time).  Process data only (functions/usage_events.js).
+// ---------------------------------------------------------------------------
+exports.onUsageEventCreated = onDocumentCreated(
+    {document: "users/{uid}/usage_events/{eventId}", region: "asia-east2"},
+    async (event) => {
+      const data = event.data && event.data.exists ? event.data.data() : null;
+      try {
+        await usageEvents.stampCreated(admin.firestore(), event.params.uid,
+            event.params.eventId, data);
+      } catch (err) {
+        console.error("usage event stamp failed",
+            {uid: event.params.uid, err: String(err)});
+      }
+    });
 // T39 (SPEC:C19 / C20) — operations dashboard for the unblinded researcher:
 // per person per day (opened, first open, foreground minutes, valid
 // sessions per companion, Brief PR), follow-up stage, today's follow-up

@@ -1,6 +1,6 @@
 # 陪住 App 技术文档
 
-> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T25 会话定义和 Brief PR 第二版（第 6 节，开关默认关）。2026-10-14 T24 研究周和每周问卷流程（第 6.2 节、第 8、9 节；开关 `app_config/phase_b.weeklyScheduleV2Enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T39 运营看板每人页（第 8、9、12 节；开关 `opsDashboardEnabled` 默认关；PR 草稿）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T25 会话定义和 Brief PR 第二版（第 6 节，开关默认关）。2026-10-14 T24 研究周和每周问卷流程（第 6.2 节、第 8、9 节；开关 `app_config/phase_b.weeklyScheduleV2Enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T46 收尾按钮首次说明每台手机只显示一次（第 6.0 节；PR 草稿）。 2026-10-14 T40 使用事件记录（第 8、9、12 节；开关 `usageEventsEnabled` 默认关；PR 草稿）。 2026-10-14 T39 运营看板每人页（第 8、9、12 节；开关 `opsDashboardEnabled` 默认关；PR 草稿）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 补 T34 安全告警邮件（开关 `meta/alert_config.enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）；2026-10-14 T30 角色含义、评估员视图、Calvin 上传序列、过程/结局数据分开、锁库导出（第 4 节「角色」、第 8、9、12 节；PR 草稿，七个开关默认关）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T27 语音改走服务器 STT v2（`transcribeAudio`，只用 asia-southeast1 / chirp_2，重试 1 次，失败显示 S6 并记 `voice_transcription_failed`；开关 `voiceInputEnabled` 仍默认关；PR 草稿）。
@@ -176,7 +176,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 | 项目 | 开关打开后 | 位置 |
 |---|---|---|
-| 会话结束 | 收尾按钮 S9「今日傾到呢度」（`close_button`）；返回键 / 手势（`back`）；另一位陪伴者开始会话（`switch_agent`）；**30 分钟**没有新消息（`timeout`，`sessionIdleTimeoutMinV2`）；acute（`crisis`）；App 被杀掉的下次启动按已存消息补判（`recovered`，不再是 `app_killed`）。切 App、锁屏只暂停计时 | `chat_session_recorder.dart`、`idle_session_timer.dart`、`session_close_button.dart` |
+| 会话结束 | 收尾按钮 S9「今日傾到呢度」（`close_button`）；返回键 / 手势（`back`）；另一位陪伴者开始会话（`switch_agent`）；**30 分钟**没有新消息（`timeout`，`sessionIdleTimeoutMinV2`）；acute（`crisis`）；App 被杀掉的下次启动按已存消息补判（`recovered`，不再是 `app_killed`）。切 App、锁屏只暂停计时。收尾按钮第一次出现时的一句说明（【占位】）**每台手机只显示一次**（T46：标记存在本机 `shared_preferences`，键 `session.closeHintShown`，`main()` 启动时读回；不进 Firestore；存储读不到时退回 T25 的每次启动一次） | `chat_session_recorder.dart`、`idle_session_timer.dart`、`session_close_button.dart`、`session_close_hint.dart` |
 | 有效会话 `isValid` | 自由聊天（通通、反思对话）≥3 条**有回复**的消息（`freeChatValidMinUserMessages`）；Hybrid 签到 = 记录了心情 + ≥1 条有回复（`hybridCheckInValidRequiresMood`、`hybridCheckInValidMinUserMessages`）；Hybrid 回忆 = 按「儲存」存了小结（`hybridReminiscenceValidRequiresSave`）；签到 B、回忆 B = 一次完整提交（`submitted`，决策 0015）。fallback 和危机短路的回合不算回复 | `SessionRules.isValid` |
 | 会话日志新字段 | `sessionType`、`userMessageCount`、`replyCount`、`lastReplyAt`、`isValid`、`moodRecorded`、`summarySaved`、`isRuleSubmission`、`ruleSubmissionCompleted`、`briefPrInvitedTodayAlready`、`briefPrSkippedByCap`、`scheduleVersion`（1 旧 / 2 新） | `users/{uid}/sessions/{id}` |
 | Brief PR 邀请 | 只在有效会话结束后，由 `BriefPrScheduler` 决定：每位陪伴者每天最多 1 次（`briefPrDailyCapPerAgent`，超过的不建记录、会话行标 `briefPrSkippedByCap`）；危机结束或处置中不邀请（记录 `due_not_invited` + 原因）；不再在聊天页弹窗，也没有主动评价入口 | `lib/features/brief_pr/data/brief_pr_scheduler.dart` |
@@ -250,6 +250,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | 用户文档本身 | 资料、年龄段、UCLA 基线、`arm`、`strataCell`、分组时间和方式、同意设定、`memory_enabled` | App；分组字段由服务器写 |
 | `sessions` / `turns` | 每次会话、每一轮对话（含模型、`promptVersion`、延迟、安全等级；`safetyTurnId` = 这一轮安全记录的编号，两组都写，T26） | App |
 | `events` | 行为事件（打开页面、推送、按钮等）。T27：`voice_transcription_failed`（语音转写失败：`sessionId`、`agentId`、`category`、`at`；不存录音、不存文字；两组相同） | App |
+| `usage_events` | T40（登记表 C23）：App 进入前台 / 退到后台各一条，只在开关 `usageEventsEnabled` 开且账号已登记时写。App 写 `type`（foreground / background）、`clientAt`（手机时钟）、`receivedAt`（服务器时间戳，离线补传时是补传那一刻）、`appVersion`、`buildNumber`、`platform`、`schemaVersion`；服务器触发器补 `researchId`（从 `research_id_map`）、`dayKey`（香港日期）、`studyDay`、`uploadedLate`（收到比手机时间晚 >5 分钟）、`lateByMs`、`clockSkew`、`stampedAt`。本人只能新建，不能读、改、删（研究编号不进老人能读的文档，决策 0021）；规则要求 `cohort` 是 `phase_b` / `pilot`。只作过程数据，盲法导出列入“揭盲前不导出” | App 写；服务器补字段 |
 | `brief_pr`、`weekly_pr`、`daily_mood`、`djg_es`、`pgic`、`ppr_responses`、`loneliness_probes`、`check_in_responses` | 问卷和量表。`brief_pr` 第二版（T25）文档编号 = 会话编号，`schemaVersion: 3`，字段见第 6.0 节 | App |
 | `djg_responses/{W1\|W2\|W3}` | Phase B 第 2 周 DJG（6 题，决策 0027）；T24 的每周问卷把 W1–W3 也存这里（多 `bundle`、`studyWeek` 等服务器字段）：原始答案（q1–q6 → yes / mostly / no / skipped）、状态、开始和提交时间；服务器补 `scores`（情感、社交、总分，跳题的分量表为空）、`outsideWindow`、窗口日期、`pushSentAt`、`reminderSentAt`、缺失标记。开关打开后取代 Phase B 的 `djg_es`（旧集合保留） | App 写答案；分数等由服务器写，App 不能改；提交或缺失后 App 不能再改 |
 | `social_contact_probes/{W1…W4}` | T24 每周社会接触探针（S12，两题，原始值 0–3）：`bundle`、`answers`、状态、时间；服务器补 `studyWeek`、`studyDay`、`submittedStudyDay`、窗口、`missed`、`scheduleMode`。只在 `socialContactProbeEnabled` 开时出现。`weekly_pr/{Wn}`、`pgic/{Wn}` 在开关开时同样有这些服务器字段，`brief_pr` 有 `studyWeek`、`studyDay`（第 6.2 节） | App 写答案；周次等由服务器写，App 不能写 |
@@ -316,6 +317,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `opsDashboardPeople`、`opsDashboardPerson`、`opsDashboardCsv` | 研究员登记页「營運看板」调用 | T39：只有 `role: unblinded`，开关 `opsDashboardEnabled`；每人一行 + 今日回访到期名单、每人每日网格 + 最近会话、每人每日 CSV（`functions/ops_dashboard.js`）。只读过程数据，代码不读任何结局集合；每次调用写 `ops_audit_log` |
 | `opsDailyRollup` | 每天 02:10（香港时间） | T39：开关开时，把每位参与者已过去的研究日算成一行存 `ops_daily/{uid}/days/{日期}`；今天的一行调用时按需算 |
 | `onUserPairingChanged` | `users/{uid}` 写入 | T30：配对字段变了且 `pairingChangeServerLogEnabled` 开时写 `pairing_change_log` |
+| `onUsageEventCreated` | `users/{uid}/usage_events` 新建 | T40：补研究编号、香港日期、研究第几天、`uploadedLate`（`functions/usage_events.js`）；已盖章的行不再动 |
 | `memoryEndSession` | App 调用（离开聊天页） | v1：整理这次对话的记忆 |
 | `memorySweep` | 每 15 分钟 | v1：补整理 30 分钟没有新消息的对话 |
 | `memoryFactDeleted`、`memoryFollowupDeleted` | 删除一条记忆事实或跟进时 | v1：连带删除来源会话的摘要和同样措辞的条目（T10） |
@@ -404,6 +406,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `outcomeCompletionSummaryEnabled` | 关 | T30：研究员后台（`unblinded`）「結局問卷完成率（全體合併）」一节；少于 5 人不显示 |
 | `opsDashboardEnabled` | 关 | T39：研究员登记页右上角「營運看板」入口（只有 `unblinded` 到得了那页）；服务器三个 `opsDashboard*` 函数和每日 `opsDailyRollup` 看同一个开关 |
 | `pairingChangeServerLogEnabled` | 关 | T30：阿珍/阿伯改动由服务器写 `pairing_change_log` |
+| `usageEventsEnabled` | 关 | T40：App 进入前台 / 退到后台各写一条 `users/{uid}/usage_events`（第 8 节），只对已登记账号；两组相同，老人看不到。关 = 不写 |
 | `onboardingAfterEnrollmentFix` | 关 | T37：「介紹三個夥伴」要不要做改为看标记 `users/{uid}.onboardingCompletedAt`（第 4 节末）；先登记后引导时不再跳过；改配对记 `events`。建议第一位参与者登记前打开 |
 
 > ⚠️ **重要功能：HREC 批准 STT 后开启 `voiceInputEnabled`。** T27 起不再有系统云端识别的选项：录音一律经研究服务器送 Google STT v2（asia-southeast1）。开之前在 Google Cloud 控制台核对 Speech-to-Text 的 data logging 没开（步骤见 `docs/dev-reports/T27-stt-server-20261014.md` 第 6 节）。打开属于行为改动，要在 `docs/STUDY_CHANGELOG.md` 写明生效日期和组别。

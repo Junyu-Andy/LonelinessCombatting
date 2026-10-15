@@ -52,6 +52,7 @@ rules_version = '2';
 //   users/{uid}/social_contact_probes/{Wn}       -> T24 weekly social-contact probe (client: answers 0–3; server: study-week stamps)
 //   users/{uid}/weekly_pr|pgic|brief_pr          -> T24: studyWeek/studyDay/window/missed fields are server-only
 //   weekly_status/{uid}                          -> T24 weekly bundle status, research ID, push times (server only)
+//   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events (owner: create only; server stamps research ID, study day, uploadedLate)
 //   ops_daily/{uid}/days/{dayKey}, ops_audit_log/{id} -> T39 operations dashboard: stored day rows + open log (server only)
 
 service cloud.firestore {
@@ -190,10 +191,12 @@ service cloud.firestore {
       allow read: if isOwner(uid) && !collection.matches('mem_.*')
         && collection != 'djg_responses'
         && collection != 'social_contact_probes'
+        && collection != 'usage_events'
         && !(collection in phaseASurveyCollections());
       allow write: if isOwner(uid) && !collection.matches('mem_.*')
         && collection != 'djg_responses'
         && collection != 'social_contact_probes'
+        && collection != 'usage_events'
         && !(collection in phaseASurveyCollections())
         && researchWriteOpen(uid, collection)
         && leavesWeekStampsAlone(collection);
@@ -293,6 +296,47 @@ service cloud.firestore {
              .hasOnly(socialClientKeys())
         && socialValid(request.resource.data, bundleId);
       allow delete: if false;
+    }
+
+    // ============================================================
+    // T40 (registry C23) — usage events, users/{uid}/usage_events/{id}.
+    // The App appends one row when it comes to the foreground and one
+    // when it goes to the background (switch usageEventsEnabled, App
+    // side).  Only an ENROLLED account (cohort phase_b / pilot) may
+    // write — "not before registration" is enforced here as well as in
+    // the App; testers without a cohort get nothing.  The owner only
+    // creates: no read (the server stamps the research ID — decision
+    // 0021), no update, no delete.  Server-only fields can never come
+    // from the client.
+    // ============================================================
+    function isEnrolledParticipant(uid) {
+      let u = get(/databases/$(database)/documents/users/$(uid)).data;
+      return u.get('cohort', null) in ['phase_b', 'pilot'];
+    }
+
+    function usageEventClientKeys() {
+      return ['type', 'clientAt', 'receivedAt', 'appVersion', 'buildNumber',
+              'platform', 'schemaVersion'];
+    }
+
+    function usageEventValid(d) {
+      return d.type in ['foreground', 'background']
+        && d.clientAt is timestamp
+        && d.receivedAt == request.time
+        && d.appVersion is string
+        && d.buildNumber is string
+        && d.platform is string
+        && d.schemaVersion == 1;
+    }
+
+    match /users/{uid}/usage_events/{eventId} {
+      allow read: if false;
+      allow create: if isOwner(uid)
+        && isEnrolledParticipant(uid)
+        && request.resource.data.keys().hasOnly(usageEventClientKeys())
+        && request.resource.data.keys().hasAll(usageEventClientKeys())
+        && usageEventValid(request.resource.data);
+      allow update, delete: if false;
     }
 
     // T24 — server-only weekly bundle status (functions/weekly_schedule.js):

@@ -58,6 +58,11 @@
 ///                               `unblinded` role pooled completion rates
 ///                               per outcome instrument per timepoint (all
 ///                               participants together, hidden under n < 5).
+///   - [usageEventsEnabled]    — T40 (registry C23): write a usage event
+///                               (`users/{uid}/usage_events`) when the App
+///                               comes to the foreground and goes to the
+///                               background, for an enrolled account only;
+///                               both arms, nothing visible.  Off = no row.
 ///   - [opsDashboardEnabled]   — T39 (registry C19): the operations
 ///                               dashboard (per person per day, follow-up
 ///                               stage, CSV) for the `unblinded` role; the
@@ -83,6 +88,7 @@ class RemoteFeatureFlags {
     this.onboardingAfterEnrollmentFix = false,
     this.assessorViewEnabled = false,
     this.outcomeCompletionSummaryEnabled = false,
+    this.usageEventsEnabled = false,
     this.opsDashboardEnabled = false,
   });
 
@@ -96,6 +102,7 @@ class RemoteFeatureFlags {
   final bool onboardingAfterEnrollmentFix;
   final bool assessorViewEnabled;
   final bool outcomeCompletionSummaryEnabled;
+  final bool usageEventsEnabled;
   final bool opsDashboardEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
@@ -141,6 +148,7 @@ class RemoteFeatureFlags {
         assessorViewEnabled: map['assessorViewEnabled'] == true,
         outcomeCompletionSummaryEnabled:
             map['outcomeCompletionSummaryEnabled'] == true,
+        usageEventsEnabled: map['usageEventsEnabled'] == true,
         opsDashboardEnabled: map['opsDashboardEnabled'] == true,
       );
 
