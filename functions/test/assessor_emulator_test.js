@@ -147,7 +147,9 @@ test("due list: window day 25–31, states, two assessors see the same, " +
   // W0 2026-10-20 → day 38 (after).
   await participant("p3uid000000000000000000000003", "PB-003", "2026-10-20",
       "B");
-  // A pilot account and a tester must not appear.
+  // 1014e §2.12: a registered pilot account IS listed (W0 11-01 → day 26,
+  // open), with the same fields and nothing more; a tester cannot be
+  // registered so never appears.
   await db.doc("users/pilotUid000000000000000000004").set({arm: "A",
     cohort: "pilot", w0Date: "2026-11-01"});
   await db.doc("enrollments/pilotUid000000000000000000004").set({
@@ -159,13 +161,17 @@ test("due list: window day 25–31, states, two assessors see the same, " +
   assert.deepStrictEqual(l1, l2, "both assessors see the same list");
   assert.strictEqual(l1.today, "2026-11-27");
   assert.deepStrictEqual(l1.rows.map((r) => r.researchId),
-      ["PB-001", "PB-002", "PB-003"]);
+      ["PB-001", "PILOT-01", "PB-002", "PB-003"]);
+  const pilot = l1.rows[1];
+  assert.deepStrictEqual(pilot, {researchId: "PILOT-01",
+    windowStartDate: "2026-11-26", windowEndDate: "2026-12-02", studyDay: 26,
+    windowState: "open", entered: {}});
   const r1 = l1.rows[0];
   assert.deepStrictEqual(r1, {researchId: "PB-001",
     windowStartDate: "2026-11-26", windowEndDate: "2026-12-02", studyDay: 26,
     windowState: "open", entered: {}});
-  assert.strictEqual(l1.rows[1].windowState, "before");
-  assert.strictEqual(l1.rows[2].windowState, "after");
+  assert.strictEqual(l1.rows[2].windowState, "before");
+  assert.strictEqual(l1.rows[3].windowState, "after");
   assertNoForbiddenKeys(l1, "dueList");
   assert.ok(!JSON.stringify(l1).match(/"[AB]"/), "no arm letter");
 });
@@ -181,7 +187,6 @@ test("entry: validation codes", async () => {
     [entry("PB-001", {answers: answers({q1: "maybe"})}), "invalid_answers"],
     [entry("PB-001", {confirmed: false}), "not_confirmed"],
     [entry("PB-999"), "unknown_research_id"],
-    [entry("PILOT-01"), "not_phase_b"],
   ];
   for (const [input, expected] of cases) {
     assert.strictEqual(await code(A.submitEntry(db, KERAN, input,
@@ -219,6 +224,21 @@ test("entry: stored with server scores, nothing returned but the receipt; " +
   assert.deepStrictEqual(list.rows[0].entered,
       {"DJG-ES": {assessmentDate: "2026-11-27", outOfWindow: false}});
 });
+
+test("1014e §2.12: a PILOT entry is accepted and stored like a Phase B one",
+    async () => {
+      const r = await A.submitEntry(db, KERAN, entry("PILOT-01"), {now: NOW});
+      assert.deepStrictEqual(r, {recorded: true, researchId: "PILOT-01",
+        instrument: "DJG-ES", timepoint: "W4", outOfWindow: false,
+        missingItems: []});
+      const rows = (await db.collection("outcome_entries")
+          .where("researchId", "==", "PILOT-01").get()).docs;
+      assert.strictEqual(rows.length, 1);
+      assert.strictEqual(rows[0].get("timepoint"), "W4");
+      // Pooled completion still counts Phase B only.
+      const s = await A.completionSummary(db, JUNYU, {now: NOW});
+      assert.ok(!JSON.stringify(s).match(/PILOT/));
+    });
 
 test("entry outside the window is accepted and marked outOfWindow",
     async () => {

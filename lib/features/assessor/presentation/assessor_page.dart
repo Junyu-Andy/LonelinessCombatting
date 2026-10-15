@@ -86,7 +86,7 @@ class _AssessorPageState extends State<AssessorPage> {
           final list = snap.data!;
           if (list.rows.isEmpty) {
             return const Center(
-              child: Text('暫時冇 Phase B 參加者。',
+              child: Text('暫時冇 Phase B 或試跑參加者。',
                   key: Key('assessor_empty')),
             );
           }

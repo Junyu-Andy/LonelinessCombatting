@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-15 1014e 第 2 节第 12 条：评估员 W4 名单含 PILOT（PR 草稿，分支 `feat/w4-list-pilot`）
+
+- `functions/assessor.js`：`assessedParticipants`（B + PILOT）给名单和录入，`phaseBParticipants`（只 B）留给全体合并完成率——T43 报告第 5 节第 1 项的三个选项取 (b)，Junyu 要 (a) 的话改一处常量。App 两句文字加“或試跑”。T43 测试第 5a 步的断言反过来（三位 PILOT 在名单上）。报告 `docs/dev-reports/1014e-w4-list-pilot-20261015.md`。
+
 ## 2026-10-14 T39 运营看板「每人」页（PR 草稿，分支 `feat/ops-dashboard`）
 
 - 按 1014c 边界 + 1014d 收窄只做第 2 页（每人一行 → 每日网格、最近会话、CSV）和第 1 页第 7 项（今日回访到期名单）。聚合在 Cloud Function：`opsDashboardPeople` / `Person` / `Csv`（`functions/ops_dashboard.js`），每日 `opsDailyRollup` 把过去的研究日存成 `ops_daily`，今天按需算。开关 `opsDashboardEnabled` 默认关，只给 `unblinded`。
