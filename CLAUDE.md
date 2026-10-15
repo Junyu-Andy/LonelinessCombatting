@@ -10,6 +10,7 @@
 - 已打 phaseB-* tag 之后，行为上的改动要在 changelog 里写明影响的 cohort/组别和生效日期。
 - 代码行为变了，同一个 PR 里更新 docs/dev/architecture.md；合并或做出决定后在 docs/history.md 加一段；待办的增减更新 docs/dev/backlog.md。
 - 文档用简体中文，写给非开发背景的负责人看：先说结论，短句，少术语。
+- history、STUDY_CHANGELOG、architecture、backlog 这四份用 union 合并（`.gitattributes`）：每个 PR 只**新加自己的行**（history 加一段、changelog 加一行、architecture 和 backlog 的表头下面各加一行 `> 2026-MM-DD ……`），不改已有的「最后核对 / 最后更新」行，合并就不会冲突。
 
 ## 开发须知
 - Flutter 固定 3.35.3（Gradle 8.12 不支持更新的 Flutter）。
