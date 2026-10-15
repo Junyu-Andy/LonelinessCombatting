@@ -34,6 +34,9 @@
 ## 2026-10-15 1014e 第 2 节第 9 条：注册页删 UCLA 输入框（PR 草稿，分支 `fix/remove-ucla-field`）
 
 - `login_page.dart` 去掉「研究人員填寫」一节和「UCLA 基線總分（20–80）」字段；`baselineUclaScore` 留在模型里不再写。1014e 第 3 节第 2 题的答案：这个字段没有任何分层读取方（`enrollParticipant` 用 DJG-ES 情感分），只有盲法导出 / 锁库导出把它当参与者属性原样导出；注册页老人自己填的是电邮、密码、称呼、年龄、紧急联络人称呼和电话。报告 `docs/dev-reports/1014e-remove-ucla-field-20261015.md`。
+## 2026-10-15 1014e 第 2 节第 1 条：`usage_weekly` 按 `endedAt` 归周（PR 草稿，分支 `fix/usage-weekly-endedat`）
+
+- `functions/blinding.js` 新 `sessionWeekAnchor(endedAt, startedAt)`（结束时间优先，退回开始时间），盲法导出和 `process_export.js` 都用它；行上加 `weekBasis: "endedAt"`。单元测试 + 两个模拟器测试加了跨周一的会话。T25 报告第 5、10 节标已定。报告 `docs/dev-reports/1014e-usage-weekly-endedat-20261015.md`。
 
 ## 2026-10-14 T39 运营看板「每人」页（PR 草稿，分支 `feat/ops-dashboard`）
 

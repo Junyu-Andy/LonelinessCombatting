@@ -198,8 +198,8 @@ test("process export: research ID + real arm, T25 fields, sources; no " +
   assert.strictEqual(bp.agentDisplayName, undefined);
   const uw = f.usage_weekly.find((r) => r.researchId === "PB-102");
   assert.deepStrictEqual(uw, {researchId: "PB-102", arm: "B",
-    isoWeek: "2026-W45", sessionCount: 2, validSessionCount: 1,
-    activeDays: 2});
+    isoWeek: "2026-W45", weekBasis: "endedAt", sessionCount: 2,
+    validSessionCount: 1, activeDays: 2});
   assert.strictEqual(f.sessions.length, 4);
   assert.strictEqual(f.sessions[0].participantId, undefined);
   const se = f.safety_events;

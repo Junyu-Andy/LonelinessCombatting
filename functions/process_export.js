@@ -136,8 +136,9 @@ async function buildProcessExport(db, opts) {
     // Usage per ISO week: sessions, valid sessions (T25), active days.
     const byWeek = {};
     for (const s of files.sessions.filter((r) => r.researchId === researchId)) {
-      if (typeof s.startedAt !== "string") continue;
-      const at = new Date(s.startedAt);
+      // 1014e §2.1: attributed by the session's end, else its start.
+      const at = blinding.sessionWeekAnchor(s.endedAt, s.startedAt);
+      if (!at) continue;
       const week = blinding.isoWeekHk(at);
       const day = new Date(at.getTime() + 8 * 3600 * 1000).toISOString()
           .slice(0, 10);
@@ -148,6 +149,7 @@ async function buildProcessExport(db, opts) {
     }
     for (const week of Object.keys(byWeek).sort()) {
       files.usage_weekly.push({researchId, arm: u.arm, isoWeek: week,
+        weekBasis: blinding.USAGE_WEEK_BASIS,
         sessionCount: byWeek[week].sessions,
         validSessionCount: byWeek[week].valid,
         activeDays: Object.keys(byWeek[week].days).length});
