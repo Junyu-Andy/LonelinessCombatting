@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-14 T39 运营看板「每人」页（PR 草稿，分支 `feat/ops-dashboard`）
+
+- 按 1014c 边界 + 1014d 收窄只做第 2 页（每人一行 → 每日网格、最近会话、CSV）和第 1 页第 7 项（今日回访到期名单）。聚合在 Cloud Function：`opsDashboardPeople` / `Person` / `Csv`（`functions/ops_dashboard.js`），每日 `opsDailyRollup` 把过去的研究日存成 `ops_daily`，今天按需算。开关 `opsDashboardEnabled` 默认关，只给 `unblinded`。
+- 入口放在研究员登记页右上角：核对时发现原来的「研究員儀錶板」（`researcher_dashboard_page.dart`，T34 告警、T30 完成率都在那里）在 App 里**没有任何入口**（T19 起 `unblinded` 登录直接进登记页），要带回研究侧。
+- 回访阶段、旧构建后备口径、单段 60 分钟封顶都按 1014d；结局集合一个都不读（测试扫源码）。报告 `docs/dev-reports/T39-ops-dashboard-20261014.md`。
+
 ## 2026-10-14 T40 使用事件记录（PR 草稿，分支 `feat/usage-events`）
 
 - 1014d 第 6 题的答案：App 早就在 `events` 里记 `app_foreground` / `app_background`，但那条行的 `timestamp` 被服务器时间覆盖，手机时间没有留下；也没有构建版本号、补传标记、登记前不记。所以 T40 按“补齐缺的、放开关后”做：新子集合 `users/{uid}/usage_events`，App 写类型、手机时间、服务器时间、版本号、平台；服务器触发器补研究编号、香港日期、研究日、`uploadedLate`。开关 `usageEventsEnabled` 默认关；规则只让已登记的本人新建、不能读改删。

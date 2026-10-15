@@ -1,6 +1,6 @@
 # 陪住 App 技术文档
 
-> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T25 会话定义和 Brief PR 第二版（第 6 节，开关默认关）。2026-10-14 T24 研究周和每周问卷流程（第 6.2 节、第 8、9 节；开关 `app_config/phase_b.weeklyScheduleV2Enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T46 收尾按钮首次说明每台手机只显示一次（第 6.0 节；PR 草稿）。 2026-10-14 T40 使用事件记录（第 8、9、12 节；开关 `usageEventsEnabled` 默认关；PR 草稿）。
+> 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T25 会话定义和 Brief PR 第二版（第 6 节，开关默认关）。2026-10-14 T24 研究周和每周问卷流程（第 6.2 节、第 8、9 节；开关 `app_config/phase_b.weeklyScheduleV2Enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T46 收尾按钮首次说明每台手机只显示一次（第 6.0 节；PR 草稿）。 2026-10-14 T40 使用事件记录（第 8、9、12 节；开关 `usageEventsEnabled` 默认关；PR 草稿）。 2026-10-14 T39 运营看板每人页（第 8、9、12 节；开关 `opsDashboardEnabled` 默认关；PR 草稿）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 补 T34 安全告警邮件（开关 `meta/alert_config.enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）；2026-10-14 T30 角色含义、评估员视图、Calvin 上传序列、过程/结局数据分开、锁库导出（第 4 节「角色」、第 8、9、12 节；PR 草稿，七个开关默认关）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T27 语音改走服务器 STT v2（`transcribeAudio`，只用 asia-southeast1 / chirp_2，重试 1 次，失败显示 S6 并记 `voice_transcription_failed`；开关 `voiceInputEnabled` 仍默认关；PR 草稿）。
@@ -285,6 +285,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `llm_denied_log` | T19：规则组调用 LLM 接口被拒的记录（uid、接口、时间）。客户端不能读写 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开、T10 修复开关、抽取 prompt 版本、记忆分层 `layersEnabled`（T31） |
 | `safety_events`、`pi_alerts` | 安全事件、告警队列。事件字段：`source`（user_input / ai_output_scan / form；T34 加服务器专用的 questionnaire / assessor_entry）、`inputPoint`、`turnId`、级别、命中词、文字的哈希、**`crisisPageShown`（T34：这一轮有没有弹出全屏危机页，两组同样写，acute 即 true）**；问卷来源的事件带 `instrument`、`item`、`rawValue`、`alwaysAlert`（只有服务器能写）；服务器补 `dedup_key`、`isDuplicate`、`duplicateOf`、`escalatedBy`。分析只数 `isDuplicate == false`（决策 0018）。`pi_alerts`：开关关时是 T19 的记录（`alertVersion: 2`：uid、研究编号、级别、`dedupKey`、`isTester`、`eventPath`、时间）；开关开时是 T34 的记录（`alertVersion: 3`：加研究期、研究日、陪伴者、来源和 `sourceGroup`、级别类别、词库版本、`classifierInvolved`、`crisisPageShown`、`emailSentAt/To`、`acknowledgedAt/By`、`escalatedAt/To`），`unblinded` 可读、客户端不能写 |
+| `ops_daily/{uid}/days/{日期}`、`ops_audit_log` | T39 运营看板：每人每日一行（当天是否打开、第一次打开时刻、前台分钟、各陪伴者有效会话、Brief PR 邀请 / 完成、口径 usage / legacy）由每日任务或调用时写；打开和导出的记录（谁、何时、看了谁 / 导了谁）。客户端一律不能读写 | 服务器 |
 | `meta/alert_config`、`alert_audit_log` | T34：告警邮件的总开关和收件人（`enabled`、`primaryEmail`、`backupEmail`、`escalateAfterHours`，没有文档 = 关）；告警的日志（发信、去掉 blinded 地址、确认、转后备、失败）。都只有服务器能读写 |
 | `hotline_filter_log` | Hybrid 组 AI 回复里被替换的电话号码：时间、uid、模块、个数、种类、是否在批准清单里。不存原文和号码。只有服务器写 |
 | `meta/safety_config` | 热线规则和热线过滤的开关（`hotlinePromptRule`、`hotlineOutputFilter`），没有这个文档 = 都开。T8 分类器：`classifierEnabled`（默认关）、`classifierUrl`、`classifierTimeoutMs`、`classifierMaxChars` |
@@ -313,6 +314,8 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `uploadRandomizationSequence` | Calvin 的脚本调用 | T30：只有 `role: sequence_uploader`，开关 `meta/randomization_config.sequenceUploadEnabled`；校验两层序列、没人分配才写；记 `sequence_upload_log` |
 | `assessorDueList`、`submitOutcomeEntry` | 评估员视图调用 | T30：只有 `role: blinded`，开关 `assessorViewEnabled`；W4 到期名单（第 25–31 天）和纸本录入；分数服务器算；PHQ-9 第 9 题 ≠ 0 调 `questionnaire_safety.js`；写 `weekly_status.w4VisitDate` |
 | `outcomeCompletionSummary` | 研究员后台调用 | T30：只有 `role: unblinded`，开关 `outcomeCompletionSummaryEnabled`；每份结局问卷按时间点全体合并完成率，少于 5 人不给数字 |
+| `opsDashboardPeople`、`opsDashboardPerson`、`opsDashboardCsv` | 研究员登记页「營運看板」调用 | T39：只有 `role: unblinded`，开关 `opsDashboardEnabled`；每人一行 + 今日回访到期名单、每人每日网格 + 最近会话、每人每日 CSV（`functions/ops_dashboard.js`）。只读过程数据，代码不读任何结局集合；每次调用写 `ops_audit_log` |
+| `opsDailyRollup` | 每天 02:10（香港时间） | T39：开关开时，把每位参与者已过去的研究日算成一行存 `ops_daily/{uid}/days/{日期}`；今天的一行调用时按需算 |
 | `onUserPairingChanged` | `users/{uid}` 写入 | T30：配对字段变了且 `pairingChangeServerLogEnabled` 开时写 `pairing_change_log` |
 | `onUsageEventCreated` | `users/{uid}/usage_events` 新建 | T40：补研究编号、香港日期、研究第几天、`uploadedLate`（`functions/usage_events.js`）；已盖章的行不再动 |
 | `memoryEndSession` | App 调用（离开聊天页） | v1：整理这次对话的记忆 |
@@ -401,6 +404,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `enrollmentGateEnabled` | 关 | T21 登记门：没登记、不是测试账号的人只看到等待页 S8；服务器拒绝它的 LLM 调用和研究数据写入（第 4 节）。服务器最多 1 分钟后生效；Firestore 规则立即生效 |
 | `assessorViewEnabled` | 关 | T30：`blinded` 账号登录直接进评估员视图（W4 名单和纸本录入）；服务器函数 `assessorDueList` / `submitOutcomeEntry` 才接受调用 |
 | `outcomeCompletionSummaryEnabled` | 关 | T30：研究员后台（`unblinded`）「結局問卷完成率（全體合併）」一节；少于 5 人不显示 |
+| `opsDashboardEnabled` | 关 | T39：研究员登记页右上角「營運看板」入口（只有 `unblinded` 到得了那页）；服务器三个 `opsDashboard*` 函数和每日 `opsDailyRollup` 看同一个开关 |
 | `pairingChangeServerLogEnabled` | 关 | T30：阿珍/阿伯改动由服务器写 `pairing_change_log` |
 | `usageEventsEnabled` | 关 | T40：App 进入前台 / 退到后台各写一条 `users/{uid}/usage_events`（第 8 节），只对已登记账号；两组相同，老人看不到。关 = 不写 |
 | `onboardingAfterEnrollmentFix` | 关 | T37：「介紹三個夥伴」要不要做改为看标记 `users/{uid}.onboardingCompletedAt`（第 4 节末）；先登记后引导时不再跳过；改配对记 `events`。建议第一位参与者登记前打开 |

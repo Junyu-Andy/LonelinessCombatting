@@ -63,6 +63,10 @@
 ///                               comes to the foreground and goes to the
 ///                               background, for an enrolled account only;
 ///                               both arms, nothing visible.  Off = no row.
+///   - [opsDashboardEnabled]   — T39 (registry C19): the operations
+///                               dashboard (per person per day, follow-up
+///                               stage, CSV) for the `unblinded` role; the
+///                               server callables check the same flag.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -85,6 +89,7 @@ class RemoteFeatureFlags {
     this.assessorViewEnabled = false,
     this.outcomeCompletionSummaryEnabled = false,
     this.usageEventsEnabled = false,
+    this.opsDashboardEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -98,6 +103,7 @@ class RemoteFeatureFlags {
   final bool assessorViewEnabled;
   final bool outcomeCompletionSummaryEnabled;
   final bool usageEventsEnabled;
+  final bool opsDashboardEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -143,6 +149,7 @@ class RemoteFeatureFlags {
         outcomeCompletionSummaryEnabled:
             map['outcomeCompletionSummaryEnabled'] == true,
         usageEventsEnabled: map['usageEventsEnabled'] == true,
+        opsDashboardEnabled: map['opsDashboardEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

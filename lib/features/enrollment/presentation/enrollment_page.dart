@@ -19,6 +19,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/feature_flags/remote_feature_flags.dart';
+import '../../ops_dashboard/presentation/ops_dashboard_page.dart';
 import '../data/enrollment_service.dart';
 
 class EnrollmentPage extends StatefulWidget {
@@ -29,11 +31,19 @@ class EnrollmentPage extends StatefulWidget {
 
   final VoidCallback? onSignOut;
 
+  /// T39 test hook; defaults to [RemoteFeatureFlags.current].
+  final bool? opsDashboardOn;
+
+  /// T39 test hook: what the 營運看板 button opens (default: the page).
+  final VoidCallback? onOpenOpsDashboard;
+
   const EnrollmentPage({
     super.key,
     this.backend = const CloudEnrollmentBackend(),
     this.today = DateTime.now,
     this.onSignOut,
+    this.opsDashboardOn,
+    this.onOpenOpsDashboard,
   });
 
   @override
@@ -198,6 +208,18 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
       appBar: AppBar(
         title: const Text('研究員登記'),
         actions: [
+          // T39: the operations dashboard (unblinded only — this page is
+          // only reached by that role; the server checks again).
+          if (widget.opsDashboardOn ??
+              RemoteFeatureFlags.current.opsDashboardEnabled)
+            IconButton(
+              key: const Key('enroll_ops_dashboard'),
+              icon: const Icon(Icons.insights_outlined),
+              tooltip: '營運看板',
+              onPressed: widget.onOpenOpsDashboard ??
+                  () => Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) => const OpsDashboardPage())),
+            ),
           if (widget.onSignOut != null)
             TextButton(onPressed: widget.onSignOut, child: const Text('登出')),
         ],

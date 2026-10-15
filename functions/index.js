@@ -31,6 +31,7 @@ const processExport = require("./process_export");
 const pairingLog = require("./pairing_log");
 const weeklySchedule = require("./weekly_schedule");
 const usageEvents = require("./usage_events");
+const opsDashboard = require("./ops_dashboard");
 
 admin.initializeApp();
 
@@ -2440,6 +2441,69 @@ exports.onUsageEventCreated = onDocumentCreated(
             {uid: event.params.uid, err: String(err)});
       }
     });
+// T39 (SPEC:C19 / C20) — operations dashboard for the unblinded researcher:
+// per person per day (opened, first open, foreground minutes, valid
+// sessions per companion, Brief PR), follow-up stage, today's follow-up
+// list, CSV.  Process data only, never an outcome value; role `unblinded`
+// only; switch opsDashboardEnabled; every open audited (ops_audit_log).
+// opsDailyRollup stores each finished day (functions/ops_dashboard.js).
+// ---------------------------------------------------------------------------
+const _OPS_ERRORS = {
+  not_unblinded: "permission-denied",
+  disabled: "failed-precondition",
+  invalid_research_id: "invalid-argument",
+  unknown_research_id: "not-found",
+};
+
+/**
+ * Wrap an ops_dashboard.js entry point as an onCall handler.
+ * @param {function(object, object, object): Promise<object>} fn
+ * @return {function(object): Promise<object>}
+ */
+function opsCallable(fn) {
+  return async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+    try {
+      return await fn(admin.firestore(), callerOf(request), request.data || {});
+    } catch (err) {
+      const code = err && err.opsCode;
+      if (code) {
+        throw new HttpsError(_OPS_ERRORS[code] || "invalid-argument", code);
+      }
+      console.error("ops dashboard callable failed", {err: String(err)});
+      throw new HttpsError("internal", "ops_failed");
+    }
+  };
+}
+
+exports.opsDashboardPeople = onCall(
+    {region: "asia-east2", enforceAppCheck: false, maxInstances: 5,
+      timeoutSeconds: 120},
+    opsCallable((db, caller) => opsDashboard.people(db, caller)));
+
+exports.opsDashboardPerson = onCall(
+    {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+    opsCallable((db, caller, data) => opsDashboard.person(db, caller, data)));
+
+exports.opsDashboardCsv = onCall(
+    {region: "asia-east2", enforceAppCheck: false, maxInstances: 5,
+      timeoutSeconds: 120},
+    opsCallable((db, caller, data) => opsDashboard.csv(db, caller, data)));
+
+exports.opsDailyRollup = onSchedule(
+    {
+      schedule: "10 2 * * *",
+      timeZone: "Asia/Hong_Kong",
+      region: "asia-east2",
+      retryCount: 0,
+      timeoutSeconds: 300,
+    },
+    async (_event) => {
+      await opsDashboard.rollup(admin.firestore());
+    },
+);
 
 // ---------------------------------------------------------------------------
 // T17b — Phase A ADA day-7 flow (SPEC:C22, decision 0030).  Phase A only,
