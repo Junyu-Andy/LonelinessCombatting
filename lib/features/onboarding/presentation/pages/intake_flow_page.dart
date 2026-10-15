@@ -1550,8 +1550,8 @@ class _Part5Page extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           isEn
-              ? "This is optional. Whatever you write here, our AI won't bring up on its own."
-              : '係可選嘅。你寫落嘅，我哋嘅 AI 都唔會主動提起。',
+              ? "This is optional. Whatever you write here, your companions won't bring up on their own."
+              : '係可選嘅。你寫落嘅，夥伴都唔會主動提起。',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 15,
@@ -1669,7 +1669,7 @@ class _Part6Page extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                isEn ? 'How do you like to talk with the AI?' : '你喜歡點樣同 AI 溝通？',
+                isEn ? 'How do you like to talk with your companions?' : '你喜歡點樣同夥伴溝通？',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                   fontSize: 20,

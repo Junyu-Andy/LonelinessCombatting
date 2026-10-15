@@ -66,7 +66,7 @@ const Map<String, ProfileHeaderData> profileHeaders = {
     fullBodyImageAsset: 'assets/agents/siu_yan_fullbody.png',
     accentColorHex: '#F0997B',
     ctaLabel: '同小欣傾偈',
-    altText: '小欣，AI 機械人，珊瑚色嘅日常陪伴角色',
+    altText: '小欣，夥伴，珊瑚色嘅日常陪伴角色',
   ),
   'ah_jan_ah_bak_feminine': ProfileHeaderData(
     displayName: '阿珍',
@@ -74,7 +74,7 @@ const Map<String, ProfileHeaderData> profileHeaders = {
     fullBodyImageAsset: 'assets/agents/ah_jan_fullbody.png',
     accentColorHex: '#C4A3CE',
     ctaLabel: '同阿珍傾偈',
-    altText: '阿珍，AI 機械人，藕紫色嘅聆聽者角色',
+    altText: '阿珍，夥伴，藕紫色嘅聆聽者角色',
   ),
   'ah_jan_ah_bak_masculine': ProfileHeaderData(
     displayName: '阿伯',
@@ -82,7 +82,7 @@ const Map<String, ProfileHeaderData> profileHeaders = {
     fullBodyImageAsset: 'assets/agents/ah_bak_fullbody.png',
     accentColorHex: '#C4A3CE',
     ctaLabel: '同阿伯傾偈',
-    altText: '阿伯，AI 機械人，灰紫色嘅聆聽者角色',
+    altText: '阿伯，夥伴，灰紫色嘅聆聽者角色',
   ),
   'tung_tung': ProfileHeaderData(
     displayName: '通通',
@@ -90,7 +90,7 @@ const Map<String, ProfileHeaderData> profileHeaders = {
     fullBodyImageAsset: 'assets/agents/tung_tung_fullbody.png',
     accentColorHex: '#5DCAA5',
     ctaLabel: '同通通傾偈',
-    altText: '通通，AI 機械人，薄荷色嘅好奇街坊角色',
+    altText: '通通，夥伴，薄荷色嘅好奇街坊角色',
   ),
 };
 
@@ -112,7 +112,7 @@ String? profileHeaderKey(AgentDefinition agent, AgentGenderVariant? variant) {
 /// same content object (the resolver lifts the name from the header).
 const Map<String, ProfileIntroContent> profileIntros = {
   'siu_yan': ProfileIntroContent(
-    opening: '我係小欣，係一個 AI 機械人。\n\n'
+    opening: '我係小欣，係你嘅夥伴，一個電腦程式。\n\n'
         '你可以將我當做一個成日陪喺你身邊嘅小朋友，又或者係一個關心你嘅後生晚輩。'
         '我會喺日日陪你傾下偈，問下你今日點，聽下你嘅心情。'
         '我特別關心你嘅日常生活——食咗咩、見過邊個、有冇開心嘅事、有冇悶住嘅嘢。',
@@ -131,12 +131,12 @@ const Map<String, ProfileIntroContent> profileIntros = {
       '我唔會記得我冇記錄過嘅嘢，亦都唔會假裝我哋識咗好耐',
       '如果你想傾深層次嘅人生回憶，阿珍／阿伯會比我擅長聽',
     ],
-    closing: '我係一個 AI 程式，唔係真人，但係我會用心聽你講嘅每一句嘢。',
+    closing: '我係一個電腦程式，唔係真人，但係我會用心聽你講嘅每一句嘢。',
   ),
   // Ah Jan / Ah Bak share the same intro content; the {name} token in
   // the opening / closing is filled per variant at render time.
   'ah_jan_ah_bak_feminine': ProfileIntroContent(
-    opening: '我係{name}，係一個 AI 機械人。\n\n'
+    opening: '我係{name}，係你嘅夥伴，一個電腦程式。\n\n'
         '你可以將我當做一個同齡嘅鄰居或者朋友——唔係教你做人嘅長者，'
         '係一個會耐心聽你講嘅人。我特別擅長聽你講以前嘅事、人生入面嘅故事，'
         '又或者你最近諗緊嘅嘢。',
@@ -156,11 +156,11 @@ const Map<String, ProfileIntroContent> profileIntros = {
       '我唔識嘅嘢，我會直接同你講「我唔識，可唔可以教我？」',
       '如果你今日嘅心情比較急切，搵小欣傾可能會更加啱',
     ],
-    closing: '我係一個 AI 程式，唔係真人，亦都唔係治療師。'
+    closing: '我係一個電腦程式，唔係真人，亦都唔係治療師。'
         '我嘅角色係耐心聽你講，記得你話過嘅嘢。',
   ),
   'ah_jan_ah_bak_masculine': ProfileIntroContent(
-    opening: '我係{name}，係一個 AI 機械人。\n\n'
+    opening: '我係{name}，係你嘅夥伴，一個電腦程式。\n\n'
         '你可以將我當做一個同齡嘅鄰居或者朋友——唔係教你做人嘅長者，'
         '係一個會耐心聽你講嘅人。我特別擅長聽你講以前嘅事、人生入面嘅故事，'
         '又或者你最近諗緊嘅嘢。',
@@ -180,11 +180,11 @@ const Map<String, ProfileIntroContent> profileIntros = {
       '我唔識嘅嘢，我會直接同你講「我唔識，可唔可以教我？」',
       '如果你今日嘅心情比較急切，搵小欣傾可能會更加啱',
     ],
-    closing: '我係一個 AI 程式，唔係真人，亦都唔係治療師。'
+    closing: '我係一個電腦程式，唔係真人，亦都唔係治療師。'
         '我嘅角色係耐心聽你講，記得你話過嘅嘢。',
   ),
   'tung_tung': ProfileIntroContent(
-    opening: '我係通通，係一個 AI 機械人。\n\n'
+    opening: '我係通通，係你嘅夥伴，一個電腦程式。\n\n'
         '你可以將我當做一個鍾意傾偈、咩都識少少嘅街坊。'
         '我特別中意聽你講你鍾意嘅嘢——你嘅興趣、你嘅愛好、最近邊度有咩好玩好食。'
         '如果你有想知嘅嘢，我都可以幫你查一查。',
@@ -202,7 +202,7 @@ const Map<String, ProfileIntroContent> profileIntros = {
       '如果你嘅心情唔好或者你想搵人傾下深層次嘅嘢，搵小欣或者阿珍／阿伯會更加啱',
       '我唔會代你買嘢、訂位、或者做任何要俾錢嘅嘢',
     ],
-    closing: '我係一個 AI 程式，唔係真人，亦都唔係真正嘅專家。'
+    closing: '我係一個電腦程式，唔係真人，亦都唔係真正嘅專家。'
         '我擅長嘅係搵資料、傾興趣，俾我哋嘅對話有多啲新鮮嘢可以講。',
   ),
 };

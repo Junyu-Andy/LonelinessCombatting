@@ -1,7 +1,7 @@
 # 0038：安全告警邮件发给非盲研究人员，带处理所需字段，评估员永远不收（取代 0029 第五节）
 
 - 日期：2026-10-14
-- 状态：已采纳（负责人 2026-10-14 确认编号 0038；T34 已合并，PR #64；开关 `meta/alert_config.enabled` 默认关，打开即生效）。**部分被取代（2026-10-15）**：第 1 条的“后备 Calvin Or”和“12 小时后备”取消——负责人 10/14 第 11 条 (7) 定不设后备收件人；`backupEmail` 为空时 `escalateAlerts` 什么都不做，代码保留，填上地址即恢复。新决策记录草稿在 `docs/dev-reports/1014e-alert-no-backup-20261015.md` 第 5 节，编号待开发窗口分配后在此处填上。其余各条不变。
+- 状态：已采纳（负责人 2026-10-14 确认编号 0038；T34 已合并，PR #64；开关 `meta/alert_config.enabled` 默认关，打开即生效）。**部分被取代（2026-10-15，决策 0041）**：第 1 条的“后备 Calvin Or”和“12 小时后备”取消——负责人 10/14 第 11 条 (7) 定不设后备收件人；`backupEmail` 为空时 `escalateAlerts` 什么都不做，代码保留，填上地址即恢复。新决策记录草稿在 `docs/dev-reports/1014e-alert-no-backup-20261015.md` 第 5 节，编号待开发窗口分配后在此处填上。其余各条不变。
 - 影响范围：phase_b、pilot × 两组（告警邮件）；所有 cohort × 两组（`safety_events.crisisPageShown`）
 - 相关代码：PR #64（T34，SPEC:C12、C19、C20）。`functions/pi_alert.js`、`functions/index.js`、`functions/questionnaire_safety.js`、`firestore.rules`、`lib/core/safety/safety_event_writer.dart`、`lib/features/researcher_dashboard/`
 - 取代：决策 0029 第五节（给 PI 的告警不带组别线索）。0029 其余部分不变。

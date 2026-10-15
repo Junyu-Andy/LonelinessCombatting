@@ -391,19 +391,19 @@ class _IntroWelcome extends StatelessWidget {
         children: [
           Text(
             isEn
-                ? 'Three AI companions, each with a different role'
-                : '三個 AI 夥伴，各有唔同角色',
+                ? 'Three companions, each with a different role'
+                : '三個夥伴，各有唔同角色',
             style: theme.textTheme.headlineSmall,
           ),
           const SizedBox(height: 14),
           Text(
             isEn
-                ? 'These are AI robots, not people. They will not replace '
+                ? 'They are computer programs, not people. They will not replace '
                     'your relationships with real friends and family. Each '
                     'one is designed for a specific kind of conversation, '
                     'so you choose who to talk to based on what you want '
                     'to share today.'
-                : '佢哋係 AI 機械人，唔係真人，亦都唔會代替你身邊嘅家人朋友。'
+                : '佢哋係電腦程式，唔係真人，亦都唔會代替你身邊嘅家人朋友。'
                     '佢哋每一個都係專門做一件事，所以你想傾乜，就揀對應嘅夥伴。',
             style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
           ),

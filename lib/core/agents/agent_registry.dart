@@ -159,24 +159,24 @@ class AgentIntroText {
 
 const _firstIntroTexts = <String, AgentIntroText>{
   'siu_yan_v1': AgentIntroText(
-    zh: '你好啊，我係小欣，一個 AI 機械人。我會喺日日陪你傾下偈，'
+    zh: '你好啊，我係小欣，一個電腦程式夥伴，唔係真人。我會喺日日陪你傾下偈，'
         '聽你今日點。你想點開始都得。',
     en:
-        'Hi, I\'m Siu Yan, an AI robot. I\'ll keep you company day by day '
+        'Hi, I\'m Siu Yan, a computer companion, not a person. I\'ll keep you company day by day '
         'and listen to how you\'re doing. We can start however you like.',
   ),
   'ah_jan_ah_bak_v1': AgentIntroText(
-    zh: '你好，我係阿珍／阿伯，一個 AI 機械人。我會聽你講你嘅故事，'
+    zh: '你好，我係阿珍／阿伯，一個電腦程式夥伴，唔係真人。我會聽你講你嘅故事，'
         '唔會評論，亦都唔會教你做人。慢慢嚟。',
     en:
-        'Hello, I\'m Ah Jan / Ah Bak, an AI robot. I\'ll listen to your '
+        'Hello, I\'m Ah Jan / Ah Bak, a computer companion, not a person. I\'ll listen to your '
         'stories without judging or telling you how to live. Take your time.',
   ),
   'tung_tung_v1': AgentIntroText(
-    zh: '你好，我係通通，一個 AI 機械人。乜嘢都鍾意聽下，'
+    zh: '你好，我係通通，一個電腦程式夥伴，唔係真人。乜嘢都鍾意聽下，'
         '咩都鍾意傾下。你最近有冇咩想知嘅嘢？',
     en:
-        'Hi, I\'m Tung Tung, an AI robot. I\'m curious about almost '
+        'Hi, I\'m Tung Tung, a computer companion, not a person. I\'m curious about almost '
         'anything. What have you been wondering about lately?',
   ),
 };
