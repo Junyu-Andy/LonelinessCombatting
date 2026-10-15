@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-10-15 通知与问卷排查 A1–A15（PR 草稿，分支 `docs/notifications-audit-1015`）
+
+- 按产品窗口的 `notifications-audit-1015.md` 第 4 节 A 部分在 emulator 跑完 A1–A15，全部通过；服务器端固化成 `functions/test/notifications_audit_emulator_test.js`（8 条），A12、A13 由已有 Flutter 测试覆盖。五个 [待核] 按代码答了。
+- 两处和排查文件不一致要研究侧定：W4 含 S12（三部分）；提醒是「推送实际发出后 24 小时的下一个整点」。报告 `docs/dev-reports/notifications-audit-20261015.md`。
+
 ## 2026-10-15 1014e 第 2 节第 3 条：`isTester` 只允许管理员写（PR 草稿，分支 `fix/istester-admin-only`）
 
 - 规则：`users/{uid}` 新建不能带 `isTester`，更新不能动它；App `UserProfile.toMap` 不再写它（merge 写保留服务器值），设置页测试员开关改只读说明；新脚本 `tool/set_tester.js`（`--uid` / `--email`、`--tester=true|false`、`--list`，登记过的账号要 `--allow-registered`）。规则测试 5 项、脚本模拟器测试、Dart 测试。随规则在 10/19 开门前部署；部署后给团队和评估员账号设上。报告 `docs/dev-reports/1014e-istester-admin-only-20261015.md`。
