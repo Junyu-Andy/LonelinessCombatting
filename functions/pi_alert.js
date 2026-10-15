@@ -705,11 +705,28 @@ function escalationDue(d, cutoff) {
   return !!sentAt && sentAt.getTime() <= cutoff;
 }
 
+/**
+ * The escalation sweep (escalateAlerts, every 15 minutes).
+ * @param {object} db admin.firestore()
+ * @param {{now: (Date|undefined), smtp: ?object, config: (object|undefined),
+ *     auth: ?object, serverTimestamp: function(): *}} deps
+ * @return {Promise<{skipped: ?string, due: number, escalated: number,
+ *     noBackup: number, failed: number}>}
+ */
 async function escalateDue(db, deps) {
   const out = {skipped: null, due: 0, escalated: 0, noBackup: 0, failed: 0};
   const cfg = deps.config || await readAlertConfig(db);
   if (!cfg.enabled) {
     out.skipped = "disabled";
+    return out;
+  }
+  // 1014e §2.4 (10/14 item 11 (7)): no backup recipient configured →
+  // nothing to escalate to, so do nothing at all: rows stay pending (a
+  // failed primary send keeps its primaryFailedAt flag for the dashboard),
+  // nothing is claimed, no audit row every 15 minutes.  Filling
+  // backupEmail in meta/alert_config turns escalation back on.
+  if (!cfg.backupEmail) {
+    out.skipped = "no_backup_email";
     return out;
   }
   const now = deps.now || new Date();
