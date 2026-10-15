@@ -23,7 +23,7 @@ const ELDER = {uid: "u1", email: "e@example.org", role: null};
 
 const ANSWERS = {
   mainGoals: ["companionship", "share_memories"],
-  importantPeople: [{name: "阿女", relationship: "女"},
+  importantPeople: [{name: "阿女", relationship: "女", share: true},
     {name: "", relationship: "x"}, {name: "黃太", relationship: "鄰居"}],
   interests: ["yum_cha", "mahjong"],
   interestsOther: "聽粵曲",
@@ -70,8 +70,9 @@ const test = (name, fn) => tests.push({name, fn});
 test("normaliseAnswers: caps, ids, empty rows", () => {
   const a = ri.normaliseAnswers(ANSWERS);
   assert.deepStrictEqual(a.mainGoals, ["companionship", "share_memories"]);
-  assert.deepStrictEqual(a.people, [{name: "阿女", relationship: "女"},
-    {name: "黃太", relationship: "鄰居"}]);
+  assert.deepStrictEqual(a.people, [
+    {name: "阿女", relationship: "女", share: true},
+    {name: "黃太", relationship: "鄰居", share: false}]);
   assert.deepStrictEqual(a.interests, ["yum_cha", "mahjong"]);
   assert.strictEqual(a.interestsOther, "聽粵曲");
   assert.strictEqual(a.avoidTopics, "唔好提我先生");
@@ -122,13 +123,13 @@ test("recordIntake: writes the intake doc, the profile fields and an audit " +
   assert.deepStrictEqual(d.activities, ["yum_cha", "mahjong"]);
   assert.strictEqual(d.activitiesOther, "聽粵曲");
   assert.deepStrictEqual(d.importantPeople[0],
-      {name: "阿女", relationship: "女", extra: null});
+      {name: "阿女", relationship: "女", extra: null, share: true});
   const u = (await db.doc("users/u1").get()).data();
   assert.strictEqual(u.hasCompletedIntake, true);
   assert.deepStrictEqual(u.interests, ["yum_cha", "mahjong"]);
   assert.deepStrictEqual(u.closeContacts, [
-    {name: "阿女", relation: "女", phone: null},
-    {name: "黃太", relation: "鄰居", phone: null}]);
+    {name: "阿女", relation: "女", phone: null, share: true},
+    {name: "黃太", relation: "鄰居", phone: null, share: false}]);
   assert.strictEqual(u.avoidTopics, "唔好提我先生");
   assert.strictEqual(u.inputMode, "voice");
   assert.strictEqual(u.arm, "B"); // untouched
@@ -173,6 +174,67 @@ test("recordIntake: refused for blinded / participant callers, unknown, " +
   assert.strictEqual((await db.collection(ri.AUDIT_COLLECTION).get()).size, 0);
   assert.strictEqual((await db.doc("users/u1").get()).get("hasCompletedIntake"),
       false);
+});
+
+test("T48 intakeFactsFor: routing per companion, only shared people, " +
+    "nothing for empty answers", () => {
+  const a = ri.normaliseAnswers(ANSWERS);
+  const facts = ri.intakeFactsFor(a);
+  const by = (agent) => facts.filter((f) => f.agent_id === agent)
+      .map((f) => `${f.category}:${f.key}`);
+  assert.deepStrictEqual(by("siu_yan"), ["preference:嚟呢度主要想",
+    "hobby:平時鍾意", "family:重要嘅人", "preference:唔想主動提起"]);
+  assert.deepStrictEqual(by("tung_tung"), ["preference:嚟呢度主要想",
+    "hobby:平時鍾意", "preference:唔想主動提起"]);
+  assert.deepStrictEqual(by("ah_jan_ah_bak"), ["preference:嚟呢度主要想",
+    "preference:唔想主動提起"]);
+  const people = facts.find((f) => f.key === "重要嘅人");
+  assert.strictEqual(people.value, "阿女（女）"); // 黃太 not shared
+  const hobby = facts.find((f) => f.key === "平時鍾意");
+  assert.strictEqual(hobby.value, "飲茶／一盅兩件、打牌／打麻雀、聽粵曲");
+  assert.deepStrictEqual(ri.intakeFactsFor(ri.normaliseAnswers({})), []);
+});
+
+test("T48 recordIntake: Hybrid arm gets the facts (superseded on " +
+    "re-record, conversation facts untouched); rule arm gets none",
+async () => {
+  await reset();
+  await enrolled("u1", {arm: "A"});
+  const col = db.collection("users/u1/mem_facts");
+  await col.add({agent_id: "siu_yan", category: "name", key: "稱呼",
+    value: "陳太", status: "active", source_session_id: "sess-1"});
+  const r = await ri.recordIntake(db, K1, {uid: "u1", answers: ANSWERS},
+      {now: NOW});
+  assert.strictEqual(r.memoryFacts, 9);
+  const active = (await col.where("status", "==", "active").get()).docs
+      .map((d) => d.data());
+  assert.strictEqual(active.length, 10); // 9 intake + the conversation one
+  const intake = active.filter((f) => f.source_session_id === "intake");
+  assert.strictEqual(intake.length, 9);
+  for (const f of intake) {
+    assert.strictEqual(f.visibility, "agent");
+    assert.strictEqual(f.layer, "private");
+    assert.strictEqual(f.sourceAgent, f.agent_id);
+    assert.strictEqual(f.sensitivity, "normal");
+  }
+  // Re-record with fewer answers: old intake facts superseded.
+  const r2 = await ri.recordIntake(db, K1, {uid: "u1",
+    answers: {mainGoals: ["curious"]}}, {now: NOW});
+  assert.strictEqual(r2.memoryFacts, 3);
+  const after = (await col.get()).docs.map((d) => d.data());
+  assert.strictEqual(after.filter((f) => f.status === "active").length, 4);
+  assert.strictEqual(after.filter((f) => f.status === "superseded").length,
+      9);
+  assert.strictEqual(after.find((f) => f.source_session_id === "sess-1")
+      .status, "active");
+  // Rule arm: nothing.
+  await enrolled("u9", {arm: "B"});
+  await db.doc("research_id_map/u9").set({researchId: "PILOT-02"});
+  const rb = await ri.recordIntake(db, K1, {uid: "u9", answers: ANSWERS},
+      {now: NOW});
+  assert.strictEqual(rb.memoryFacts, 0);
+  assert.strictEqual((await db.collection("users/u9/mem_facts").get()).size,
+      0);
 });
 
 test("uidForResearchId: case-insensitive, unknown → empty", async () => {

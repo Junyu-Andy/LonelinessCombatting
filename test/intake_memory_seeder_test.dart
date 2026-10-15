@@ -39,6 +39,30 @@ void main() {
     expect(seed, contains('唔好主動講')); // avoidTopics → tone only
   });
 
+  test('T48: shared people reach 小欣 only, and only when passed', () {
+    final siu = IntakeMemorySeeder.seedFor(
+      agentId: AgentRegistry.siuYanId,
+      intake: buildIntake(),
+      interests: interests,
+      sharedPeople: const ['阿女（女）'],
+    )!;
+    expect(siu, contains('佢身邊重要嘅人：阿女（女）。'));
+    expect(siu, isNot(contains('阿明'))); // intake importantPeople still HOLD
+    final tung = IntakeMemorySeeder.seedFor(
+      agentId: AgentRegistry.tungTungId,
+      intake: buildIntake(),
+      interests: interests,
+      sharedPeople: const ['阿女（女）'],
+    )!;
+    expect(tung, isNot(contains('阿女')));
+    final none = IntakeMemorySeeder.seedFor(
+      agentId: AgentRegistry.siuYanId,
+      intake: buildIntake(),
+      interests: interests,
+    )!;
+    expect(none, isNot(contains('重要嘅人')));
+  });
+
   test('tung_tung seed carries interests + goals, not typical day', () {
     final seed = IntakeMemorySeeder.seedFor(
       agentId: AgentRegistry.tungTungId,

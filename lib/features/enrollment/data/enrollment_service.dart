@@ -173,9 +173,15 @@ class CloudEnrollmentBackend implements EnrollmentBackend {
 class IntakePerson {
   final String name;
   final String relationship;
-  const IntakePerson({required this.name, required this.relationship});
 
-  Map<String, dynamic> toMap() => {'name': name, 'relationship': relationship};
+  /// T48: 「可以畀夥伴知道」 — the elder agreed; only then do the
+  /// companions get this person.
+  final bool share;
+  const IntakePerson(
+      {required this.name, required this.relationship, this.share = false});
+
+  Map<String, dynamic> toMap() =>
+      {'name': name, 'relationship': relationship, 'share': share};
 }
 
 /// The five answers (dev-tasks-1015-intake §1).

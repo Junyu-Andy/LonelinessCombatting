@@ -128,9 +128,11 @@ class _IntakeShortPageState extends State<IntakeShortPage> {
         interests: _interests.toList(),
         closeContacts: [
           for (final p in people)
+            // T48: the elder typed them for the companions — shared.
             CloseContact(
                 name: p.name,
-                relation: p.relationship.isEmpty ? null : p.relationship),
+                relation: p.relationship.isEmpty ? null : p.relationship,
+                share: true),
         ],
         avoidTopics: avoid,
         inputMode: response.inputMode,

@@ -56,6 +56,7 @@ class _IntakeSectionState extends State<IntakeSection> {
   final _people = List.generate(
       IntakeQuestions.maxPeople,
       (_) => (name: TextEditingController(), rel: TextEditingController()));
+  final _share = List<bool>.filled(IntakeQuestions.maxPeople, false);
   final _interests = <String>{};
   final _interestsOther = TextEditingController();
   final _avoid = TextEditingController();
@@ -92,7 +93,9 @@ class _IntakeSectionState extends State<IntakeSection> {
           for (final p in _people)
             if (p.name.text.trim().isNotEmpty)
               IntakePerson(
-                  name: p.name.text.trim(), relationship: p.rel.text.trim()),
+                  name: p.name.text.trim(),
+                  relationship: p.rel.text.trim(),
+                  share: _share[_people.indexOf(p)]),
         ],
         interests: _interests.toList(),
         interestsOther: _interestsOther.text.trim().isEmpty
@@ -133,6 +136,7 @@ class _IntakeSectionState extends State<IntakeSection> {
         p.name.clear();
         p.rel.clear();
       }
+      _share.fillRange(0, _share.length, false);
       _interestsOther.clear();
       _avoid.clear();
     });
@@ -204,23 +208,36 @@ class _IntakeSectionState extends State<IntakeSection> {
       for (var i = 0; i < _people.length; i++)
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
-          child: Row(children: [
-            Expanded(
-              child: TextField(
-                key: Key('intake_person_name_$i'),
-                controller: _people[i].name,
-                decoration: const InputDecoration(
-                    labelText: '稱呼', border: OutlineInputBorder()),
+          child: Column(children: [
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  key: Key('intake_person_name_$i'),
+                  controller: _people[i].name,
+                  decoration: const InputDecoration(
+                      labelText: '稱呼', border: OutlineInputBorder()),
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                key: Key('intake_person_rel_$i'),
-                controller: _people[i].rel,
-                decoration: const InputDecoration(
-                    labelText: '關係', border: OutlineInputBorder()),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  key: Key('intake_person_rel_$i'),
+                  controller: _people[i].rel,
+                  decoration: const InputDecoration(
+                      labelText: '關係', border: OutlineInputBorder()),
+                ),
               ),
+            ]),
+            // T48: ask the elder; unchecked = stored only, companions never
+            // hear of this person.
+            CheckboxListTile(
+              key: Key('intake_person_share_$i'),
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: _share[i],
+              onChanged: (v) => setState(() => _share[i] = v == true),
+              title: const Text('老人家同意：可以畀夥伴知道呢位'),
             ),
           ]),
         ),

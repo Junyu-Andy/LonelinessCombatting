@@ -17,8 +17,11 @@
 ///
 /// HARD RULES honoured here (Sprint Plan §0):
 ///   • `onMind` is NEVER read or seeded.
-///   • `importantPeople` / `reconnectPeople` / `closeContacts` are HOLD —
-///     never seeded (no third-party names pushed to the endpoint).
+///   • `importantPeople` / `reconnectPeople` are never seeded from the
+///     intake document.  T48: contacts the elder agreed to share
+///     (`profile.closeContacts` with `share`) go to 小欣 only, as the
+///     [sharedPeople] labels the caller passes; unshared ones never leave
+///     the device.
 ///   • `avoidTopics` is referenced only as a tone instruction, never echoed
 ///     as a topic to raise.
 library;
@@ -49,10 +52,14 @@ class IntakeMemorySeeder {
     required String agentId,
     required IntakeResponse? intake,
     required List<String> interests,
+    List<String> sharedPeople = const [],
   }) {
     if (intake == null) return null;
 
     final goals = _goalsLine(intake);
+    final peopleLine = sharedPeople.isEmpty
+        ? null
+        : '佢身邊重要嘅人：${sharedPeople.join('、')}。';
     final interestLine = _interestsLine(interests, intake);
     final avoidLine = (intake.avoidTopics?.trim().isNotEmpty ?? false)
         ? '有啲話題用戶唔想提起，系統已記低，唔好主動講。'
@@ -62,6 +69,7 @@ class IntakeMemorySeeder {
     switch (agentId) {
       case AgentRegistry.siuYanId:
         if (goals != null) parts.add(goals);
+        if (peopleLine != null) parts.add(peopleLine);
         if (interestLine != null) parts.add(interestLine);
         if (avoidLine != null) parts.add(avoidLine);
         break;

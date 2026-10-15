@@ -116,6 +116,9 @@ void main() {
           find.byKey(const Key('intake_person_name_0')), '阿女');
       await tester.enterText(
           find.byKey(const Key('intake_person_rel_0')), '女');
+      await _scrollTo(tester, find.byKey(const Key('intake_person_share_0')));
+      await tester.tap(find.byKey(const Key('intake_person_share_0')));
+      await tester.pump();
       await _scrollTo(tester, find.byKey(const Key('intake_interest_yum_cha')));
       await tester.tap(find.byKey(const Key('intake_interest_yum_cha')));
       await tester.pump();
@@ -136,6 +139,7 @@ void main() {
       expect(c.answers.mainGoals, ['companionship', 'share_memories']);
       expect(c.answers.importantPeople.single.name, '阿女');
       expect(c.answers.importantPeople.single.relationship, '女');
+      expect(c.answers.importantPeople.single.share, isTrue); // T48
       expect(c.answers.interests, ['yum_cha']);
       expect(c.answers.avoidTopics, '唔好提我先生');
       expect(c.answers.inputMode, IntakeOptions.inputVoice);
@@ -237,6 +241,7 @@ void main() {
       expect(p.interests, ['mahjong']);
       expect(p.closeContacts.single.name, '黃太');
       expect(p.closeContacts.single.relation, '鄰居');
+      expect(p.closeContacts.single.share, isTrue); // T48: elder typed it
       expect(p.inputMode, IntakeOptions.inputBoth);
       expect(repo.saved!.mainGoals, ['share_memories']);
       expect(repo.saved!.allCompleted, isTrue);

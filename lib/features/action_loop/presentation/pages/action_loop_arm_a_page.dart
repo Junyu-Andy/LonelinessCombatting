@@ -10,6 +10,7 @@ import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/app_loading_indicator.dart';
 import '../../../../shared/widgets/app_stepper.dart';
 import '../../../auth/data/auth_service.dart';
+import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/action_plan.dart';
 
@@ -66,6 +67,14 @@ try again in the afternoon." No extra encouragement or suggestions.
   String _whenText = '';
   String _whereText = '';
   String _whoWith = '';
+
+  /// T48: contacts the elder agreed to share (profile.closeContacts).
+  List<CloseContact> _sharedContacts(BuildContext context) => [
+        for (final c
+            in AppSettingsScope.read(context).profile?.closeContacts ??
+                const <CloseContact>[])
+          if (c.share) c,
+      ];
   String _fallback = '';
   String _summary = '';
   bool _busy = false;
@@ -342,6 +351,19 @@ try again in the afternoon." No extra encouragement or suggestions.
                   style: theme.textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
+                // T48: the people the elder agreed to share, one tap each.
+                if (_step == _Step.who && _sharedContacts(context).isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Wrap(spacing: 8, runSpacing: 8, children: [
+                      for (final c in _sharedContacts(context))
+                        ActionChip(
+                          key: Key('plan_contact_${c.name}'),
+                          label: Text(c.label),
+                          onPressed: () => setState(() => _ctrl.text = c.name),
+                        ),
+                    ]),
+                  ),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
