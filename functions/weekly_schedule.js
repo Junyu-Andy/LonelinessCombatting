@@ -16,9 +16,10 @@
  *          week4CloseDay (29) or the W4 visit day, whichever is later
  *          (week4CloseFor — the visit date arrives with T30); no DJG.
  *   W5–W7  PGIC only, pgicOnlyDays (35, 42, 49), weeklyWindowDays window.
- * Pilot (cohort "pilot"): pilotBundleDays (1, 3, 5, 7) → W1–W4, window
- *   pilotWindowDays (1) × 24 h, DJG in the first three; no PGIC-only
- *   weeks.
+ * Pilot (cohort "pilot"): the SAME standard schedule (10/15: the pilot run
+ *   follows Phase B day for day).  The compressed mode below (pilotBundleDays
+ *   1, 3, 5, 7, pilotWindowDays 1, no PGIC-only weeks) is kept only for the
+ *   shared table test; no cohort maps to it any more.
  *
  * Records (one document per part, id = bundle id W1…W7):
  *   users/{uid}/djg_responses/{W1|W2|W3}      (T18 schema; server scores)
@@ -178,14 +179,15 @@ async function readConfig(db) {
 
 /**
  * Schedule mode of a participant: by cohort (T21).  null = not scheduled
- * (Phase A, unregistered, tester handled by the caller).
+ * (Phase A, unregistered, tester handled by the caller).  10/15: a pilot
+ * account runs the standard Phase B schedule; MODE_PILOT is never returned.
  * @param {?object} user users/{uid} data
- * @return {?string} "standard" | "pilot" | null
+ * @return {?string} "standard" | null
  */
 function scheduleModeFor(user) {
   const u = user || {};
   if (u.cohort === "phase_b") return MODE_STANDARD;
-  if (u.cohort === "pilot") return MODE_PILOT;
+  if (u.cohort === "pilot") return MODE_STANDARD;
   return null;
 }
 
