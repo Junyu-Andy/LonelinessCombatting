@@ -1,20 +1,20 @@
-# T10 — Codemagic CI for the iOS build (Dev TestWeek background task).
+# Codemagic：iOS 包（TestFlight 内测）。
 #
-# iOS is the eventual primary platform but the local build is blocked
-# (Intel Mac / Xcode 26), so iOS goes through Codemagic. This is NOT on the
-# Android internal-test critical path — it's started now only because Apple
-# signing assets have external lead time.
+# 本机 Mac 编不了 iOS（Intel Mac / Xcode 26），iOS 走 Codemagic 或另一台 Mac 的 Xcode。
+# Android 参与者包走 GitHub Actions（.github/workflows/build-apk.yml，选 phase_b_templates）。
 #
-# BEFORE this runs you must (one-time, external):
-#   1. Apple Developer Program membership (paid).
-#   2. App registered in App Store Connect with bundle id com.example.appDemo
-#      (rename off com.example before any public TestFlight).
-#   3. In Codemagic: connect the App Store Connect API key as an integration
-#      and create an "app_store_credentials" group, OR use Codemagic-managed
-#      signing. Fill the placeholders marked TODO below.
-#   4. Add ios/Runner/GoogleService-Info.plist (flutterfire configure) — it
-#      is gitignored, so upload it as an encrypted env var or add via a
-#      pre-build script.
+# 一次性外部准备（Junyu）：
+#   1. Apple Developer Program（已有）；App Store Connect 里的 App，bundle id
+#      hk.hku.hkuimse.withyouapp（和 ios/Runner.xcodeproj、GoogleService-Info.plist 一致）。
+#   2. Codemagic：接 App Store Connect API key（integration），建 app_store_credentials
+#      变量组（APP_STORE_CONNECT_* + 签名），或用 Codemagic 托管签名。
+#   3. ios/Runner/GoogleService-Info.plist 已在仓库里（loneliness-pilot-dev），不用再注入；
+#      下面的 Restore 步骤只在设了 GOOGLE_SERVICE_INFO_PLIST 时覆盖它。
+#
+# 参与者包的编译开关和 Android 的 phase_b_templates 完全一样：
+#   --dart-define=PHASE_B=true --dart-define=RULE_TEMPLATE_REPLIES=true
+# 少了任何一个都不是 Phase B 的包（会显示 Phase A 界面，或规则组没有模板回应）。
+# 不要加 FORCE_ARM、TESTER_PIN、RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER。
 #
 # Docs: https://docs.codemagic.io/yaml-quick-start/building-a-flutter-app/
 
@@ -30,7 +30,9 @@ workflows:
       groups:
         - app_store_credentials # TODO: APP_STORE_CONNECT_* + signing vars
       vars:
-        BUNDLE_ID: "com.example.appDemo" # TODO: rename before public release
+        BUNDLE_ID: "hk.hku.hkuimse.withyouapp"
+        # T36 同款编译开关；改这里要同时改 .github/workflows/build-apk.yml 的 phase_b_templates
+        DART_DEFINES: "--dart-define=PHASE_B=true --dart-define=RULE_TEMPLATE_REPLIES=true"
     integrations:
       app_store_connect: codemagic_asc_api_key # TODO: name of your ASC API key
     scripts:
@@ -38,7 +40,7 @@ workflows:
         script: flutter pub get
       - name: Restore GoogleService-Info.plist
         script: |
-          # TODO: provide the plist as a base64 env var GOOGLE_SERVICE_INFO_PLIST
+          # 仓库里已有 plist；只有设了 GOOGLE_SERVICE_INFO_PLIST 才覆盖
           if [ -n "$GOOGLE_SERVICE_INFO_PLIST" ]; then
             echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode \
               > ios/Runner/GoogleService-Info.plist
@@ -52,7 +54,8 @@ workflows:
           flutter test || true
       - name: Build IPA
         script: |
-          flutter build ipa --release \
+          echo "dart-defines: $DART_DEFINES"
+          flutter build ipa --release $DART_DEFINES \
             --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
