@@ -260,20 +260,17 @@ void main() {
       });
     }
 
-    test('10/14 fix: a catch-up card whose time phrase is not finalised is '
-        'not shown; the record says copy_pending', () async {
-      // Ended 20:30, reopened 22:00 the same day: no approved phrase.
+    test('1014e §2.8: a same-day evening catch-up card is shown (頭先), '
+        'never held back as copy_pending', () async {
       final evening = DateTime(t0.year, t0.month, t0.day, 20, 30);
       clock.now = evening;
       await s.onSessionEnded(ended(at: evening, endReason: SessionEndReason.timeout),
           agentDisplayName: '通通');
       clock.now = DateTime(t0.year, t0.month, t0.day, 22, 0);
-      expect(BriefPrScheduler.timePhrase(evening, clock.now),
-          BriefPrScheduler.timePhrasePlaceholder);
-      expect(await s.nextCard('u1'), isNull);
-      final rec = store.records.values.single;
-      expect(rec.finalStatus, BriefPrStatus.dueNotInvited);
-      expect(rec.dueNotInvitedReason, BriefPrDueNotInvitedReason.copyPending);
+      final card = await s.nextCard('u1');
+      expect(card, isNotNull);
+      expect(s.channelFor(card!), BriefPrInviteChannel.catchUp);
+      expect(card.finalStatus, isNull);
     });
 
     test('a list-page invitation not seen before the App was killed is shown '
@@ -437,29 +434,14 @@ void main() {
     });
   });
 
-  group('S10b time phrase (only the three approved forms)', () {
-    final noon = DateTime(2026, 10, 14, 12, 0);
-    test('same day before noon → 今朝', () {
-      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 14, 9, 30), noon), '今朝');
-      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 14, 11, 59), DateTime(2026, 10, 14, 13, 0)), '今朝');
-    });
-    test('previous day 18:00 or later → 尋晚', () {
-      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 13, 23, 30), DateTime(2026, 10, 14, 0, 40)), '尋晚');
-      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 13, 18, 0), DateTime(2026, 10, 14, 8, 0)), '尋晚');
-    });
-    test('12:00–17:59 → 星期X 下晝 with the session\'s weekday', () {
-      // 2026-10-14 is a Wednesday.
-      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 14, 15, 20), DateTime(2026, 10, 14, 16, 0)), '星期三 下晝');
-      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 13, 14, 0), DateTime(2026, 10, 14, 9, 0)), '星期二 下晝');
-      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 18, 17, 59), DateTime(2026, 10, 18, 18, 30)), '星期日 下晝');
-    });
-    test('uncovered cases → 【占位】 (same-day evening, two days ago, '
-        'previous-day morning)', () {
-      const ph = BriefPrScheduler.timePhrasePlaceholder;
-      expect(ph, startsWith('【占位】'));
-      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 14, 20, 0), DateTime(2026, 10, 14, 21, 0)), ph);
-      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 12, 15, 0), DateTime(2026, 10, 14, 9, 0)), ph);
-      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 13, 9, 0), DateTime(2026, 10, 14, 9, 0)), ph);
+  group('S10b time phrase', () {
+    test('1014e §2.8: always 頭先, whatever the gap', () {
+      final noon = DateTime(2026, 10, 14, 12, 0);
+      expect(BriefPrScheduler.timePhraseFixed, '頭先');
+      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 14, 9, 30), noon), '頭先');
+      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 13, 23, 30), DateTime(2026, 10, 14, 0, 40)), '頭先');
+      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 14, 20, 0), DateTime(2026, 10, 14, 21, 0)), '頭先');
+      expect(BriefPrScheduler.timePhrase(DateTime(2026, 10, 12, 15, 0), DateTime(2026, 10, 14, 9, 0)), '頭先');
     });
   });
 }
