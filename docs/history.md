@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-15 1014e 第 2 节第 18 条：App 名称（PR 草稿，分支 `feat/app-name-1014e-18`）
+
+- Android `android:label` 从 `app_demo` 改为「陪住」，iOS `CFBundleName` 改为 WithYou；图标等 Junyu 给 1024 PNG 后用 flutter_launcher_icons 在同一分支补。
+- 同一 PR 放进 10/15 修订版 `dev-tasks-1014e.md`（第 1 节第 3 条开关清单、第 2 节第 14、17、18、19 条）。
+- 核对 10/15 中午的开关：`weeklyScheduleV2Enabled`、`socialContactProbeEnabled` 在 `app_config/phase_b` 已开；`sessionBriefPrV2Enabled` 被写到了 `feature_flags`，代码读的是 `phase_b`，没生效；`feature_flags` 里 `onboardingAfterEnrollmentFix`、`voiceInputEnabled`、`usageEventsEnabled`、`opsDashboardEnabled` 都还没设。报告 `docs/dev-reports/1014e-app-name-20261015.md`。
+
 ## 2026-10-15 1014e 第 2 节第 3 条：`isTester` 只允许管理员写（PR 草稿，分支 `fix/istester-admin-only`）
 
 - 规则：`users/{uid}` 新建不能带 `isTester`，更新不能动它；App `UserProfile.toMap` 不再写它（merge 写保留服务器值），设置页测试员开关改只读说明；新脚本 `tool/set_tester.js`（`--uid` / `--email`、`--tester=true|false`、`--list`，登记过的账号要 `--allow-registered`）。规则测试 5 项、脚本模拟器测试、Dart 测试。随规则在 10/19 开门前部署；部署后给团队和评估员账号设上。报告 `docs/dev-reports/1014e-istester-admin-only-20261015.md`。
