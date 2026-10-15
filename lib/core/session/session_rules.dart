@@ -160,7 +160,7 @@ class SessionRules {
     this.freeChatValidMinUserMessages = 3,
     this.checkInValidRequiresMood = true,
     this.checkInValidMinUserMessages = 1,
-    this.reminiscenceValidRequiresSave = true,
+    this.reminiscenceValidRequiresSave = false,
   });
 
   /// `app_config/phase_b.sessionBriefPrV2Enabled`.  Off = pre-T25

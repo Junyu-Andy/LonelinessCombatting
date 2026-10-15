@@ -186,7 +186,7 @@ void main() {
         noReferent: (_) async => noReferentCalls++,
       )));
       await tester.pumpAndSettle();
-      expect(find.text('【占位】每週問卷'), findsOneWidget);
+      expect(find.text('每週問卷'), findsOneWidget);
       expect(find.textContaining('一共有 3 部分'), findsOneWidget);
       expect(find.text('第 1 部分：${weeklyPartTitle(WeeklyPart.djg)}'), findsOneWidget);
       expect(find.text('第 2 部分：${weeklyPartTitle(WeeklyPart.weeklyPr)}'), findsOneWidget);
@@ -211,9 +211,9 @@ void main() {
       await tester.tap(find.text('提交'));
       await tester.pumpAndSettle();
       // Back on the intro: all done.
-      expect(find.text('【占位】全部做完喇，多謝你！'), findsOneWidget);
+      expect(find.text('全部做完喇，多謝你！'), findsOneWidget);
       expect(find.byKey(const ValueKey('weekly_done')), findsOneWidget);
-      expect(find.text('【占位】已完成'), findsNWidgets(3));
+      expect(find.text('已完成'), findsNWidgets(3));
     });
 
     testWidgets('resume: DJG done, Weekly PR half-way → continue opens part 2',
@@ -235,9 +235,9 @@ void main() {
       )));
       await tester.pumpAndSettle();
       expect(find.text('繼續'), findsOneWidget);
-      expect(find.text('【占位】已完成'), findsOneWidget);
-      expect(find.text('【占位】做咗一半'), findsOneWidget);
-      expect(find.text('【占位】未開始'), findsOneWidget);
+      expect(find.text('已完成'), findsOneWidget);
+      expect(find.text('未做完'), findsOneWidget);
+      expect(find.text('未開始'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('weekly_start')));
       await tester.pumpAndSettle();
       // Straight to part 2 (Weekly PR), not the DJG.
@@ -248,7 +248,7 @@ void main() {
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       expect(find.text('繼續'), findsOneWidget);
-      expect(find.text('【占位】已完成'), findsOneWidget);
+      expect(find.text('已完成'), findsOneWidget);
     });
 
     testWidgets('DJG resumes at the first unanswered item', (tester) async {
@@ -312,7 +312,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(social.saves.last.$1, {'q1': 2, 'q2': 0});
       expect(social.saves.last.$2, true);
-      expect(find.text('【占位】全部做完喇，多謝你！'), findsOneWidget);
+      expect(find.text('全部做完喇，多謝你！'), findsOneWidget);
     });
 
     testWidgets('PGIC-only week: one part, header 1/1', (tester) async {

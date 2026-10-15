@@ -38,7 +38,8 @@
  * Dispatcher (dispatchWeeklyBundles, hourly 08:00–21:00 HKT): per person
  * (fcm_tokens, never a topic), one push when the window opens, T18's one
  * reminder djgW2ReminderHours later if a part is still open, the missed
- * marks after the window.  Draft copy carries 【占位】, so nothing is
+ * marks after the window.  Copy is final since 10/15 (item 6); a draft
+ * override carrying 【占位】 is never sent, so nothing is
  * sent until the research team signs the text off (counted as
  * blocked_placeholder, like T18).  Quiet hours (functions/quiet_hours.js)
  * postpone a push to the next tick.
@@ -105,9 +106,10 @@ const REMINDER_SLACK_MS = 5 * 60 * 1000;
 
 const PLACEHOLDER_MARK = "【占位】";
 const PUSH_TITLE = "陪住";
-// Draft copy — not sent while it carries the placeholder mark.
-const PUSH_BODY = "【占位】今個禮拜嘅問卷已經開咗，得閒入嚟答幾條。";
-const REMINDER_BODY = "【占位】今個禮拜嘅問卷仲未答完，得閒入嚟答埋佢。";
+// Final copy (10/15 item 6 C(1)(2), docs/spec/copy/short-texts.md S14).
+// isPlaceholder() still guards any override that carries the mark.
+const PUSH_BODY = "今個禮拜嘅問卷開咗，得閒入嚟答幾條。";
+const REMINDER_BODY = "今個禮拜嘅問卷仲未答完，得閒入嚟答埋佢。";
 
 // ---------------------------------------------------------------------------
 // Config

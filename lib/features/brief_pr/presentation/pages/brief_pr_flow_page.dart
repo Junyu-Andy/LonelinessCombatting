@@ -56,10 +56,10 @@ class BriefPrFlowPage extends StatefulWidget {
   final BriefPrScheduler? scheduler;
 
   static const stem = '今次傾偈';
-  static const nextLabel = '【占位】下一題';
+  static const nextLabel = '下一題';
   static const submitLabel = '完成';
-  static const backLabel = '【占位】返回';
-  static const abandonLabel = '【占位】放棄評價';
+  static const backLabel = '上一題';
+  static const abandonLabel = '唔評住';
   static const pickHint = '撳一個數字（1–7），最似你嘅感受。';
 
   @override
