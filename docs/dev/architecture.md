@@ -1,6 +1,7 @@
 # 陪住 App 技术文档
 
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T25 会话定义和 Brief PR 第二版（第 6 节，开关默认关）。2026-10-14 T24 研究周和每周问卷流程（第 6.2 节、第 8、9 节；开关 `app_config/phase_b.weeklyScheduleV2Enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T46 收尾按钮首次说明每台手机只显示一次（第 6.0 节；PR 草稿）。 2026-10-14 T40 使用事件记录（第 8、9、12 节；开关 `usageEventsEnabled` 默认关；PR 草稿）。 2026-10-14 T39 运营看板每人页（第 8、9、12 节；开关 `opsDashboardEnabled` 默认关；PR 草稿）。 2026-10-15 1014e 第 2 节第 7、8 条：Hybrid 回忆有效按条数、S10b 一律「頭先」、问卷按钮和首次说明定稿（第 6.0 节；PR 草稿）。 2026-10-15 1014e 第 2 节第 9 条：注册页删 UCLA 输入框（第 8 节；PR 草稿）。 2026-10-15 1014e 第 2 节第 11 条：研究员登记页右上角加「研究員儀錶板」入口（第 4 节「角色」；PR 草稿）。 2026-10-15 第 6 条文字定稿接入：规则组回忆页心情提示 S13、每周问卷 S14、首次说明 S10c（第 6.2 节；PR 草稿）。 2026-10-15 1014e 第 2 节第 3 条：`isTester` 只允许管理员写（第 4 节；PR 草稿）。 2026-10-15 1014e 第 2 节第 4 条：取消告警后备（第 9、10 节；PR 草稿）。 2026-10-15 1014e 第 2 节第 6 条：教育文章热线机构名更正（第 10 节；PR 草稿）。 2026-10-15 1014e 第 2 节第 1 条：`usage_weekly` 按 `endedAt` 归周（第 6.0 节；PR 草稿）。 2026-10-15 1014e 第 2 节第 12 条：评估员 W4 名单含 PILOT（第 4、9 节；PR 草稿）。
+> 2026-10-15 T47 入组问卷精简为五题、改由研究员在登记页录入，配对改为只记录老人自选（第 4 节、第 8、9、12 节；开关 `researcherIntakeEnabled` 默认关；PR 草稿）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 补 T34 安全告警邮件（开关 `meta/alert_config.enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）；2026-10-14 T30 角色含义、评估员视图、Calvin 上传序列、过程/结局数据分开、锁库导出（第 4 节「角色」、第 8、9、12 节；PR 草稿，七个开关默认关）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T27 语音改走服务器 STT v2（`transcribeAudio`，只用 asia-southeast1 / chirp_2，重试 1 次，失败显示 S6 并记 `voice_transcription_failed`；开关 `voiceInputEnabled` 仍默认关；PR 草稿）。
@@ -81,7 +82,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 1. 老人先在自己手机上注册（研究员在旁协助）。这时 `arm` 为空，App 显示规则组界面（决策 0004）。
 2. 非盲研究员（Auth 角色 `unblinded`）用自己的账号登录同一个 App，登录后直接进「研究員登記」页（`lib/features/enrollment/`）。填老人的登入电邮、研究编号、W0 纸本 DJG 情感分（0–3）、阿珍/阿伯、W0 日期 → 「檢查」（服务器试运行：找到账号、显示名字，不显示组别）→ 确认框里再选一次情感分，两次一致才能提交。
-3. Cloud Function `enrollParticipant`（`functions/randomization.js`）在一个事务里：按情感分分层（0–1 低层、2–3 高层），取该层分配序列的下一个未用位置，写入 `users/{uid}`：`arm`、`strataCell`（0 低 / 1 高）、`armAssignmentMode: "randomise"`、`armAssignmentMethod: "permuted_block_v1"`、`armAssignedBy: "server"`、`armAssignedAt`、`w0Date`、`ahJanAhBakVariant`；同时写登记记录 `enrollments/{uid}`、研究编号对照表、分配日志 `arm_assignment_log`（研究编号、层、序列位置、时间、操作的研究员）。
+3. Cloud Function `enrollParticipant`（`functions/randomization.js`）在一个事务里：按情感分分层（0–1 低层、2–3 高层），取该层分配序列的下一个未用位置，写入 `users/{uid}`：`arm`、`strataCell`（0 低 / 1 高）、`armAssignmentMode: "randomise"`、`armAssignmentMethod: "permuted_block_v1"`、`armAssignedBy: "server"`、`armAssignedAt`、`w0Date`（T47 起**不再写** `ahJanAhBakVariant`：配对是老人在引导里自己揀的，登记只把当时老人已选的记进 `enrollments.companionVariant`，没选就记空）；同时写登记记录 `enrollments/{uid}`、研究编号对照表、分配日志 `arm_assignment_log`（研究编号、层、序列位置、时间、操作的研究员）。
 4. 组别只在研究员的登记页显示，用于按组引导。老人完全关闭 App 再打开后，新组别生效。
 
 **研究期按研究编号前缀，T21 起**（登记表 v8 C01；Phase A 暂停，决策 0034）：登记页按编号开头决定填什么，服务器再查一次（`functions/study_period.js`）。
@@ -95,6 +96,8 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 - `cohort` 用决策 0011 的字段，只有服务器能写。试跑的 Hybrid 账号和 Phase B 的 Hybrid 一样有服务器记忆（`memory.js` `inScope`、App `MemoryModes`）；试跑不进盲法导出，也不收旧的 Phase A 第 2 周推送（`week2Push`）。
 - **测试账号标记 `users/{uid}.isTester`**（10/15 1014e 第 2 节第 3 条，backlog 96）：**只有管理员能写**——规则拒绝客户端新建或改动这个字段，App 的 `toMap` 不再带它，设置页的测试员开关改为只读说明；用 `tool/set_tester.js --uid=… --tester=true`（登记过的账号要加 `--allow-registered`）或控制台设置。登记门打开前要给团队和评估员账号设上。
 - **登记门**（开关 `app_config/feature_flags.enrollmentGateEnabled`，默认关）：开时，没有 `cohort`、也不是测试账号（`isTester: true`）的账号，App 只显示等待页 S8（`lib/features/enrollment/presentation/enrollment_wait_gate.dart`，放在同意页之前）；服务器拒绝它的 LLM 调用，`llm_denied_log` 记 `reason: "not_enrolled"`；Firestore 规则不让它写 `users/{uid}/` 下的研究数据（推送令牌 `fcm_tokens` 除外，用户文档本身照常）。关时和以前一样。
+
+**入组问卷（T47，`docs/dev-tasks/dev-tasks-1015-intake.md`）**：原来注册后的 6 页「入組問卷」（10–15 分钟）老人答得吃力，10/15 定为五题（想 app 帮到乜、重要的人、平时钟意做乜、唔想提起的话题、打字定讲），由研究员在 W0 面访口头问、在登记页「入組資料」录入（`recordResearcherIntake`，开关 `researcherIntakeEnabled`）。答案只用于个人化：`mainGoals` 进三位陪伴者的首次记忆、`interests` 给通通（和老人在引导里自选的兴趣是同一个字段，后录入的覆盖）、`closeContacts` 存着备用（现在没有读取方）、`avoidTopics` 只作小欣首次记忆里的一句「有啲話題唔好主動講」（不进服务器提示词）。规则组不读 intake 的任何字段（模板回应只看陪伴者和心情），两组相同。原 6 页里的作息、心事、想重新联系的人、人生阶段、偏好时段等字段不再收集，旧数据原样留在文档里，没有读取方。
 
 **登记后的入组引导顺序（T37，开关 `app_config/feature_flags.onboardingAfterEnrollmentFix`，默认关）**：登录后 App 的门按顺序是 `StaffGate`（研究员去登记页）→ `EnrollmentWaitGate`（登记门，上面）→ `ConsentGate`（同意页 → 入组问卷 → 「介紹三個夥伴」引导）→ 主页（`lib/features/auth/presentation/pages/auth_gate.dart`、`lib/features/consent/presentation/consent_gate.dart`）。引导要不要做，以前只看“有没有阿珍/阿伯配对”；登记也写配对，所以“先登记后引导”会整段跳过。开关开时改为看标记 `users/{uid}.onboardingCompletedAt`（老人按「完成」时 App 写，开关关着也照写）：有标记就不做；没标记、没配对就做；没标记、有配对：没登记过的算做过（配对只能是 App 写的），登记过的只有当 App 留有自己的痕迹（`consent.transcriptRetentionByAgent` 三个键，只有 App 的「完成」会写）才算做过，否则做。引导里的配对一屏预选登记值；老人改选时 App 记一条 `events`（`ah_jan_ah_bak_changed`：from、to、at、where），`enrollments/{uid}` 里的登记值不动，分析以它为准（T30 以后把这条日志搬到服务器）。开关关时和以前完全一样。
 
@@ -283,7 +286,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `meta/arm_counter` | 已停用（T19）：旧最小化分配的计数器。客户端一律不能读写 |
 | `meta/randomization_config` | T19 登记分组开关：`enabled`（默认 false = 不能登记，`assignArm` 照旧给 Phase A 分 A 组）。其余字段（分层、方法）只做记录。客户端不能读写 |
 | `randomization_sequences/{low,high}`、`randomization_state/{low,high}` | T19 分配序列（`arms`、`blocks`、`length`、`sha256`，不含种子）和下一个未用位置 `next`。只有服务器和上传脚本写，客户端不能读写 |
-| `enrollments/{uid}` | T19 登记记录：研究编号、W0 情感分、层、阿珍/阿伯、W0 日期、组别、序列位置、`studyPeriod`、登记时间和研究员。客户端不能读写 |
+| `enrollments/{uid}` | T19 登记记录：研究编号、W0 情感分、层、阿珍/阿伯（T47 起是老人自己选的，登记时没选就空）、W0 日期、组别、序列位置、`studyPeriod`、登记时间和研究员。客户端不能读写 |
 | `arm_assignment_log` | T19 分配日志：`allocate` / `resubmit` / `correction`，研究编号、层、序列位置、组别、时间、操作人；更正带理由和原组别。客户端不能读写 |
 | `llm_denied_log` | T19：规则组调用 LLM 接口被拒的记录（uid、接口、时间）。客户端不能读写 |
 | `meta/memory_config` | 记忆总开关、共享策略、Phase B A 组强制开、T10 修复开关、抽取 prompt 版本、记忆分层 `layersEnabled`（T31） |
@@ -313,7 +316,8 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 |---|---|---|
 | `proxyDeepSeek` | App 调用 | 所有 LLM 对话；拼 prompt 和记忆 |
 | `assignArm` | App 调用（注册、登录补分） | 返回已有组别；`meta/randomization_config.enabled` 关着时给 Phase A / pilot 分 A 组，开着时不分（T19） |
-| `enrollParticipant` | 研究员登记页调用 | T19：只有 `role: unblinded` 能用。登记并按置换区组序列分组（`functions/randomization.js`）；试运行只核对账号，不显示组别；重复提交返回原组别 |
+| `enrollParticipant` | 研究员登记页调用 | T19：只有 `role: unblinded` 能用。登记并按置换区组序列分组（`functions/randomization.js`）；试运行只核对账号，不显示组别；重复提交返回原组别。T47：不再收研究员选的配对，返回老人自己选的那位给确认框显示 |
+| `recordResearcherIntake` | 研究员登记页「入組資料」调用 | T47：只有 `role: unblinded`。按登入电邮或研究编号找到老人，写 `users/{uid}/onboarding/intake`（五题，和 App 自答同一结构，旧字段保留）、`users/{uid}` 的 `hasCompletedIntake`、`interests`、`closeContacts`、`avoidTopics`、`inputMode`，再记一条 `intake_audit_log`（谁、何时、哪个编号，不含答案）。没登记、测试员、自己的账号都拒绝（`functions/researcher_intake.js`） |
 | `uploadRandomizationSequence` | Calvin 的脚本调用 | T30：只有 `role: sequence_uploader`，开关 `meta/randomization_config.sequenceUploadEnabled`；校验两层序列、没人分配才写；记 `sequence_upload_log` |
 | `assessorDueList`、`submitOutcomeEntry` | 评估员视图调用 | T30：只有 `role: blinded`，开关 `assessorViewEnabled`；W4 到期名单（第 25–31 天；Phase B 和试跑，1014e 第 2 节第 12 条）和纸本录入；分数服务器算；PHQ-9 第 9 题 ≠ 0 调 `questionnaire_safety.js`；写 `weekly_status.w4VisitDate` |
 | `outcomeCompletionSummary` | 研究员后台调用 | T30：只有 `role: unblinded`，开关 `outcomeCompletionSummaryEnabled`；每份结局问卷按时间点全体合并完成率，少于 5 人不给数字 |
@@ -408,6 +412,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `assessorViewEnabled` | 关 | T30：`blinded` 账号登录直接进评估员视图（W4 名单和纸本录入）；服务器函数 `assessorDueList` / `submitOutcomeEntry` 才接受调用 |
 | `outcomeCompletionSummaryEnabled` | 关 | T30：研究员后台（`unblinded`）「結局問卷完成率（全體合併）」一节；少于 5 人不显示 |
 | `opsDashboardEnabled` | 关 | T39：研究员登记页右上角「營運看板」入口（只有 `unblinded` 到得了那页）；服务器三个 `opsDashboard*` 函数和每日 `opsDailyRollup` 看同一个开关 |
+| `researcherIntakeEnabled` | 关 | T47：开着时老人的 App 不再出现入组问卷（同意页之后直接进「介紹三個夥伴」），由研究员在登记页「入組資料」口头问五题后录入；研究员没录入前陪伴者当作没有 intake（不播种记忆）。关着时老人自己答五题一页的精简版（`intake_short_page.dart`，取代原来的 6 页）。录入函数不看这个开关 |
 | `pairingChangeServerLogEnabled` | 关 | T30：阿珍/阿伯改动由服务器写 `pairing_change_log` |
 | `usageEventsEnabled` | 关 | T40：App 进入前台 / 退到后台各写一条 `users/{uid}/usage_events`（第 8 节），只对已登记账号；两组相同，老人看不到。关 = 不写 |
 | `onboardingAfterEnrollmentFix` | 关 | T37：「介紹三個夥伴」要不要做改为看标记 `users/{uid}.onboardingCompletedAt`（第 4 节末）；先登记后引导时不再跳过；改配对记 `events`。建议第一位参与者登记前打开 |

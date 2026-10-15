@@ -32,6 +32,7 @@ const pairingLog = require("./pairing_log");
 const weeklySchedule = require("./weekly_schedule");
 const usageEvents = require("./usage_events");
 const opsDashboard = require("./ops_dashboard");
+const researcherIntake = require("./researcher_intake");
 
 admin.initializeApp();
 
@@ -2491,6 +2492,56 @@ exports.opsDashboardCsv = onCall(
     {region: "asia-east2", enforceAppCheck: false, maxInstances: 5,
       timeoutSeconds: 120},
     opsCallable((db, caller, data) => opsDashboard.csv(db, caller, data)));
+
+// ---------------------------------------------------------------------------
+// T47 — the researcher records the shortened intake for an elder
+// (functions/researcher_intake.js).  `unblinded` only; the elder is named
+// by login email (resolved through Auth) or research ID (research_ids).
+// ---------------------------------------------------------------------------
+
+const _INTAKE_ERRORS = {
+  not_unblinded_researcher: "permission-denied",
+  account_not_found: "not-found",
+  not_enrolled: "failed-precondition",
+  tester_account: "failed-precondition",
+  own_account: "invalid-argument",
+};
+
+exports.recordResearcherIntake = onCall(
+    {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Sign in required");
+      }
+      const token = request.auth.token || {};
+      const data = request.data || {};
+      const db = admin.firestore();
+      let uid = "";
+      if (token.role === randomization.UNBLINDED_ROLE) {
+        if (typeof data.email === "string" && data.email.trim()) {
+          try {
+            uid = (await admin.auth().getUserByEmail(data.email.trim())).uid;
+          } catch (_) {
+            uid = "";
+          }
+        } else if (typeof data.researchId === "string") {
+          uid = await researcherIntake.uidForResearchId(db, data.researchId);
+        }
+      }
+      try {
+        return await researcherIntake.recordIntake(db, callerOf(request),
+            {uid, answers: data.answers || data});
+      } catch (err) {
+        const code = err && err.intakeCode;
+        if (code) {
+          throw new HttpsError(_INTAKE_ERRORS[code] || "invalid-argument",
+              code);
+        }
+        console.error("recordResearcherIntake failed", {err: String(err)});
+        throw new HttpsError("internal", "intake_failed");
+      }
+    },
+);
 
 exports.opsDailyRollup = onSchedule(
     {

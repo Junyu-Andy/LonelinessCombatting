@@ -9,7 +9,9 @@
 /// the user opens a room with an empty summary.
 ///
 /// Field routing follows Appendix C:
-///   • 小欣 (siu_yan)      = goals + typicalDay + interests + avoidTopics(tone)
+///   • 小欣 (siu_yan)      = goals + interests + avoidTopics(tone)
+///     (T47: the typical-day fields are no longer collected, so the
+///     day line is gone; older six-part answers simply lose that line)
 ///   • 通通 (tung_tung)    = interests/topics + goals
 ///   • 阿珍/阿伯 (ah_jan)  = goals only (lifeChapters HOLD → Phase B)
 ///
@@ -52,7 +54,6 @@ class IntakeMemorySeeder {
 
     final goals = _goalsLine(intake);
     final interestLine = _interestsLine(interests, intake);
-    final dayLine = _typicalDayLine(intake);
     final avoidLine = (intake.avoidTopics?.trim().isNotEmpty ?? false)
         ? '有啲話題用戶唔想提起，系統已記低，唔好主動講。'
         : null;
@@ -61,7 +62,6 @@ class IntakeMemorySeeder {
     switch (agentId) {
       case AgentRegistry.siuYanId:
         if (goals != null) parts.add(goals);
-        if (dayLine != null) parts.add(dayLine);
         if (interestLine != null) parts.add(interestLine);
         if (avoidLine != null) parts.add(avoidLine);
         break;
@@ -102,22 +102,5 @@ class IntakeMemorySeeder {
     }
     if (names.isEmpty) return null;
     return '佢平時鍾意：${names.join('、')}。';
-  }
-
-  static String? _typicalDayLine(IntakeResponse intake) {
-    final segs = <String>[];
-    void add(String? raw) {
-      final t = raw?.trim();
-      if (t != null && t.isNotEmpty) segs.add(t);
-    }
-
-    add(intake.typicalMorning);
-    add(intake.typicalAfternoon);
-    add(intake.typicalEvening);
-    if (segs.isEmpty) return null;
-    // Keep it short — a one-line gist, not a transcript.
-    final joined = segs.join('；');
-    final gist = joined.length > 80 ? '${joined.substring(0, 80)}…' : joined;
-    return '佢嘅日常大致係：$gist。';
   }
 }

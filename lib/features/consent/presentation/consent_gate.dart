@@ -4,12 +4,13 @@ import '../../../app/app_settings_scope.dart';
 import '../../../core/feature_flags/remote_feature_flags.dart';
 import '../../auth/data/user_profile.dart';
 import '../../onboarding/presentation/pages/agent_onboarding_page.dart';
-import '../../onboarding/presentation/pages/intake_flow_page.dart';
+import '../../onboarding/presentation/pages/intake_short_page.dart';
 import 'pages/consent_page.dart';
 
 /// First-run sequencing under the AuthGate (after T21's EnrollmentWaitGate):
 ///   1. Functional-data consent
-///   2. Intake questionnaire (6-part onboarding intake)
+///   2. Intake questionnaire — T47: skipped when the researcher records it
+///      (`researcherIntakeEnabled`); otherwise the short five-question page
 ///   3. Agent onboarding 「介紹三個夥伴」 (Ah Jan / Ah Bak pairing, interests,
 ///      S5 when that switch is on)
 ///   4. Main shell
@@ -31,7 +32,15 @@ class ConsentGate extends StatelessWidget {
   /// Test hook; defaults to [RemoteFeatureFlags.current].
   final bool? onboardingFixOn;
 
-  const ConsentGate({super.key, required this.child, this.onboardingFixOn});
+  /// T47 test hook; defaults to [RemoteFeatureFlags.current].  On, the
+  /// researcher records the intake and the elder sees no questionnaire.
+  final bool? researcherIntakeOn;
+
+  const ConsentGate(
+      {super.key,
+      required this.child,
+      this.onboardingFixOn,
+      this.researcherIntakeOn});
 
   /// Registered by the researcher (T19 / T21): the server wrote the
   /// pairing together with the arm.  `cohort` exists since T21; the two
@@ -79,11 +88,17 @@ class ConsentGate extends StatelessWidget {
     if (!profile.consent.functionalData) {
       return const ConsentPage();
     }
-    if (!profile.hasCompletedIntake) {
-      return IntakeFlowPage(
+    // T47: with the researcher recording the intake, the elder skips this
+    // step entirely (the companions treat a missing intake as "nothing
+    // seeded" until the researcher has recorded it).  Off: the short
+    // five-question page.
+    final researcherIntake = researcherIntakeOn ??
+        RemoteFeatureFlags.current.researcherIntakeEnabled;
+    if (!researcherIntake && !profile.hasCompletedIntake) {
+      return IntakeShortPage(
         onComplete: () async {
-          // Profile already updated inside IntakeFlowPage._complete();
-          // rebuild will be triggered by settings.profile setter.
+          // Profile already updated inside IntakeShortPage; the rebuild
+          // is triggered by the settings.profile setter.
         },
       );
     }

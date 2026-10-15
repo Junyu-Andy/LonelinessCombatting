@@ -39,7 +39,6 @@ Future<void> _fill(WidgetTester tester, {int score = 2}) async {
       find.byKey(const Key('enroll_research_id')), 'pb-001');
   await tester.pump();
   await tester.tap(find.byKey(Key('enroll_score_$score')));
-  await tester.tap(find.byKey(const Key('enroll_variant_masculine')));
   await tester.pump();
 }
 
@@ -50,7 +49,6 @@ Future<void> _fillPilot(WidgetTester tester, {String arm = 'A'}) async {
       find.byKey(const Key('enroll_research_id')), 'pilot-01');
   await tester.pump();
   await tester.tap(find.byKey(Key('enroll_pilot_arm_$arm')));
-  await tester.tap(find.byKey(const Key('enroll_variant_feminine')));
   await tester.pump();
 }
 
@@ -132,7 +130,7 @@ void main() {
     final payload = b.calls.last.input.toPayload(dryRun: false);
     expect(payload['researchId'], 'PB-001');
     expect(payload['w0DjgEmotional'], 2);
-    expect(payload['companionVariant'], 'masculine');
+    expect(payload.containsKey('companionVariant'), isFalse); // T47
     expect(payload['w0Date'], '2026-10-07');
     expect(payload['confirmed'], isTrue);
     expect(find.byKey(const Key('enroll_arm')), findsOneWidget);
@@ -159,7 +157,6 @@ void main() {
             find.byKey(const Key('enroll_research_id')), rid);
         await tester.pump();
         await tester.tap(find.byKey(const Key('enroll_score_1')));
-        await tester.tap(find.byKey(const Key('enroll_variant_feminine')));
         await tester.pump();
         expect(find.byKey(const Key('enroll_prefix_hint')), findsOneWidget);
         expect(

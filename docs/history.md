@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-15 T47 入组问卷精简为五题、研究员后台录入（PR 草稿，分支 `feat/t47-researcher-intake`）
+
+- 10/15 第 10 条：老人答 6 页问卷太吃力。先按代码答了第 0 节四题（报告第 2 节）：原问卷 17 个字段只有 `mainGoals`、作息三句、`avoidTopics` 被首次记忆播种读过；`interests` 其实来自引导里通通那一步，`closeContacts` 从来没被写过也没人读；规则组一个字段都不读。
+- 做了：服务器 `recordResearcherIntake`（`functions/researcher_intake.js`，只有 `unblinded`，写 intake 文档 + 资料字段 + `intake_audit_log`）；登记页加「入組資料」区；开关 `researcherIntakeEnabled` 开着时 `ConsentGate` 跳过问卷；关着时老人答五题一页的 `IntakeShortPage`（原 6 页 `intake_flow_page.dart` 删掉）；登记页不再要研究员选配对，`enrollParticipant` 只记录老人自选的那位，不再写 `ahJanAhBakVariant`。
+- 没做：登记表（`feature-registry.md`）按规矩不改，第 2 节第 5 条的三处改动写在报告里给产品窗口。报告 `docs/dev-reports/T47-researcher-intake-20261015.md`。
+
 ## 2026-10-15 iOS 最低版本 13.0 → 15.0（PR 草稿，分支 `fix/ios-deployment-target-15`）
 
 - Junyu 用新版 Xcode 打 TestFlight 包报错：Xcode 只支持 15.0 以上的部署目标。`Runner.xcodeproj` 三处 `IPHONEOS_DEPLOYMENT_TARGET` 改成 15.0；iOS 15 覆盖 iPhone 6s 及以后，老人的机不受影响。本机的 `ios/Podfile`（不在仓库里）也要改成 `platform :ios, '15.0'` 再 `pod install`。

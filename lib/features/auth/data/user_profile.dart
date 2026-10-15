@@ -254,7 +254,8 @@ class UserProfile {
   final String? avoidTopics;
 
   /// True once the 6-part intake questionnaire is completed.
-  /// Used by ConsentGate to decide whether to show IntakeFlowPage.
+  /// Used by ConsentGate to decide whether to show the intake page (T47:
+  /// only while `researcherIntakeEnabled` is off).
   final bool hasCompletedIntake;
 
   /// Preferred input mode from intake Part 6 (typing / voice / both / unsure).

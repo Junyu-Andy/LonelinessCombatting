@@ -21,7 +21,7 @@ import 'package:app_demo/features/consent/presentation/consent_gate.dart';
 import 'package:app_demo/features/consent/presentation/pages/consent_page.dart';
 import 'package:app_demo/features/enrollment/presentation/enrollment_wait_gate.dart';
 import 'package:app_demo/features/onboarding/presentation/pages/agent_onboarding_page.dart';
-import 'package:app_demo/features/onboarding/presentation/pages/intake_flow_page.dart';
+import 'package:app_demo/features/onboarding/presentation/pages/intake_short_page.dart';
 import 'package:app_demo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -283,7 +283,7 @@ void main() {
       // 3. 繼續 on the consent page → the intake questionnaire.
       await tester.tap(find.text('繼續'));
       await tester.pumpAndSettle();
-      expect(find.byType(IntakeFlowPage), findsOneWidget);
+      expect(find.byType(IntakeShortPage), findsOneWidget);
       expect(settings.profile!.consent.functionalData, isTrue);
 
       // 4. Intake done (its own pages are unchanged) → the onboarding slides.

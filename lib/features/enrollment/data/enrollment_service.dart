@@ -40,7 +40,11 @@ class EnrollmentInput {
   final String email;
   final String researchId;
   final int? w0DjgEmotional;
-  final String companionVariant; // 'feminine' (阿珍) | 'masculine' (阿伯)
+
+  /// T47: no longer chosen by the researcher.  The server records the
+  /// elder's own pick (`users/{uid}.ahJanAhBakVariant`) and ignores this
+  /// field; it is kept only for older tests and tools.
+  final String? companionVariant;
   final String? w0Date; // YYYY-MM-DD
   final String? pilotArm; // 'A' | 'B', PILOT- only
 
@@ -48,7 +52,7 @@ class EnrollmentInput {
     required this.email,
     required this.researchId,
     this.w0DjgEmotional,
-    required this.companionVariant,
+    this.companionVariant,
     this.w0Date,
     this.pilotArm,
   });
@@ -69,7 +73,7 @@ class EnrollmentInput {
         'researchId': researchId.trim().toUpperCase(),
         if (isPilot) 'pilotArm': pilotArm,
         if (!isPilot) 'w0DjgEmotional': w0DjgEmotional,
-        'companionVariant': companionVariant,
+        if (companionVariant != null) 'companionVariant': companionVariant,
         if (!isPilot) 'w0Date': w0Date,
         'dryRun': dryRun,
         'confirmed': !dryRun,
@@ -159,3 +163,114 @@ class CloudEnrollmentBackend implements EnrollmentBackend {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// T47 — the researcher records the shortened intake (five answers asked out
+// loud at the W0 visit) through `recordResearcherIntake`.
+// ---------------------------------------------------------------------------
+
+/// One important person: what the elder calls them + the relation.
+class IntakePerson {
+  final String name;
+  final String relationship;
+  const IntakePerson({required this.name, required this.relationship});
+
+  Map<String, dynamic> toMap() => {'name': name, 'relationship': relationship};
+}
+
+/// The five answers (dev-tasks-1015-intake §1).
+class IntakeAnswers {
+  final List<String> mainGoals; // ≤ 2 IntakeOptions.mainGoal* ids
+  final List<IntakePerson> importantPeople; // ≤ 3
+  final List<String> interests; // ≤ 3 InterestLabels ids
+  final String? interestsOther;
+  final String? avoidTopics;
+  final String inputMode; // IntakeOptions.input* id
+
+  const IntakeAnswers({
+    this.mainGoals = const [],
+    this.importantPeople = const [],
+    this.interests = const [],
+    this.interestsOther,
+    this.avoidTopics,
+    this.inputMode = 'unsure',
+  });
+
+  Map<String, dynamic> toMap() => {
+        'mainGoals': mainGoals,
+        'importantPeople': importantPeople.map((p) => p.toMap()).toList(),
+        'interests': interests,
+        'interestsOther': interestsOther,
+        'avoidTopics': avoidTopics,
+        'inputMode': inputMode,
+      };
+}
+
+/// What the server answered after recording.
+class IntakeRecordResult {
+  final String? researchId;
+  final String? recordedAt;
+  final int people;
+  const IntakeRecordResult(
+      {this.researchId, this.recordedAt, this.people = 0});
+
+  factory IntakeRecordResult.fromMap(Map<String, dynamic> m) =>
+      IntakeRecordResult(
+        researchId: m['researchId'] as String?,
+        recordedAt: m['recordedAt'] as String?,
+        people: (m['people'] as num?)?.toInt() ?? 0,
+      );
+}
+
+class IntakeError implements Exception {
+  final String code;
+  const IntakeError(this.code);
+  @override
+  String toString() => 'IntakeError($code)';
+}
+
+/// Injectable so the page can be tested without Firebase.
+abstract class IntakeBackend {
+  /// [email] or [researchId] names the elder (email wins when both given).
+  Future<IntakeRecordResult> record(IntakeAnswers answers,
+      {String? email, String? researchId});
+}
+
+class CloudIntakeBackend implements IntakeBackend {
+  const CloudIntakeBackend();
+
+  @override
+  Future<IntakeRecordResult> record(IntakeAnswers answers,
+      {String? email, String? researchId}) async {
+    try {
+      final payload = <String, dynamic>{
+        if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+        if (researchId != null && researchId.trim().isNotEmpty)
+          'researchId': researchId.trim().toUpperCase(),
+        'answers': answers.toMap(),
+      };
+      final result = await FirebaseFunctions.instanceFor(region: 'asia-east2')
+          .httpsCallable('recordResearcherIntake')
+          .call<Map<String, dynamic>>(payload)
+          .timeout(const Duration(seconds: 30));
+      return IntakeRecordResult.fromMap(Map<String, dynamic>.from(result.data));
+    } on FirebaseFunctionsException catch (e) {
+      throw IntakeError(e.message ?? e.code);
+    }
+  }
+}
+
+String intakeErrorText(String code) => switch (code) {
+      'not_unblinded_researcher' => '呢個帳號冇非盲研究員權限。',
+      'account_not_found' => '搵唔到呢個電郵／研究編號嘅老人家帳號。',
+      'not_enrolled' => '呢個帳號仲未登記，請先登記再錄入。',
+      'tester_account' => '測試員帳號唔可以錄入。',
+      'own_account' => '唔可以錄入自己個研究員帳號。',
+      'too_many_goals' => '第 1 題最多揀兩項。',
+      'too_many_people' => '第 2 題最多三個人。',
+      'too_many_interests' => '第 3 題最多揀三項。',
+      'name_too_long' => '稱呼或關係太長（最多 20 字）。',
+      'other_too_long' => '「其他」太長（最多 40 字）。',
+      'avoid_too_long' => '第 4 題太長（最多 200 字）。',
+      _ => '錄入失敗（$code）。請再試，或者聯絡負責人。',
+    };

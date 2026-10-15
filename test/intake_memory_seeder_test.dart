@@ -26,7 +26,7 @@ void main() {
 
   const interests = ['yum_cha', 'gardening'];
 
-  test('siu_yan seed carries goals + typical day + interests + avoid-tone',
+  test('siu_yan seed carries goals + interests + avoid-tone (no typical day)',
       () {
     final seed = IntakeMemorySeeder.seedFor(
       agentId: AgentRegistry.siuYanId,
@@ -34,7 +34,7 @@ void main() {
       interests: interests,
     )!;
     expect(seed, contains('想有人陪下傾偈'));
-    expect(seed, contains('飲茶')); // typical day
+    expect(seed, isNot(contains('日常'))); // T47: typical day retired
     expect(seed, contains('飲茶／一盅兩件')); // interest label
     expect(seed, contains('唔好主動講')); // avoidTopics → tone only
   });

@@ -118,7 +118,6 @@ test("input checks: score, ID, pairing, W0 date, confirmation", async () => {
     [input("u1", "PB-001", 1.5), "invalid_score"],
     [input("u1", "PB-001", "2"), "invalid_score"],
     [input("u1", "PB 001", 1), "invalid_research_id"],
-    [input("u1", "PB-001", 1, {companionVariant: "x"}), "invalid_variant"],
     [input("u1", "PB-001", 1, {w0Date: "2026-10-09"}), "invalid_w0_date"],
     [input("u1", "PB-001", 1, {confirmed: false}), "not_confirmed"],
     [input("ghost", "PB-001", 1), "account_not_found"],
@@ -204,8 +203,11 @@ test("72 synthetic participants, two researchers at the same time",
         assert.strictEqual(u.cohort, "phase_b"); // T21
         assert.strictEqual(u.w0Date, "2026-10-06");
         assert.strictEqual(u.strataCell, p.score <= 1 ? 0 : 1);
-        assert.strictEqual(u.ahJanAhBakVariant,
-            p.score % 2 ? "masculine" : "feminine");
+        // T47: the researcher no longer writes the pairing; the elder's
+        // own choice (none seeded here) is what the enrolment records.
+        assert.strictEqual(u.ahJanAhBakVariant, undefined);
+        assert.strictEqual((await db.doc(`enrollments/${p.uid}`).get())
+            .get("companionVariant"), null);
         const map = (await db.doc(`research_id_map/${p.uid}`).get()).data();
         assert.strictEqual(map.researchId, p.rid);
         assert.strictEqual(map.via, "enrollment");
@@ -433,8 +435,6 @@ test("T21: PILOT- input checks (version, pairing, confirmation)",
       const cases = [
         [pilotInput("u1", "PILOT-01", undefined), "invalid_pilot_arm"],
         [pilotInput("u1", "PILOT-01", "C"), "invalid_pilot_arm"],
-        [pilotInput("u1", "PILOT-01", "A", {companionVariant: "x"}),
-          "invalid_variant"],
         [pilotInput("u1", "PILOT-01", "A", {confirmed: false}),
           "not_confirmed"],
         [pilotInput("ghost", "PILOT-01", "A"), "account_not_found"],
@@ -462,17 +462,20 @@ test("T21: PILOT- takes the researcher's version, no sequence, logged",
     async () => {
       // Sequences uploaded, so a used position would show in the state.
       await setup();
-      await account("pa");
+      // T47: pa chose 阿珍 in the App's onboarding; pb has not chosen yet.
+      await account("pa", {ahJanAhBakVariant: "feminine"});
       await account("pb");
       const ra = await R.enrol(db, K1, pilotInput("pa", "PILOT-01", "A"),
           {now: NOW});
       const rb = await R.enrol(db, K2, pilotInput("pb", "PILOT-02", "B",
           {companionVariant: "masculine"}), {now: NOW});
+      assert.strictEqual(ra.companionVariant, "feminine");
+      assert.strictEqual(rb.companionVariant, null); // input ignored
       assert.strictEqual(ra.arm, "A");
       assert.strictEqual(rb.arm, "B");
       for (const [uid, rid, arm, variant] of [
         ["pa", "PILOT-01", "A", "feminine"],
-        ["pb", "PILOT-02", "B", "masculine"]]) {
+        ["pb", "PILOT-02", "B", undefined]]) {
         const u = (await db.doc(`users/${uid}`).get()).data();
         assert.strictEqual(u.arm, arm);
         assert.strictEqual(u.cohort, "pilot");
@@ -484,6 +487,7 @@ test("T21: PILOT- takes the researcher's version, no sequence, logged",
         assert.strictEqual(u.ahJanAhBakVariant, variant);
         assert.strictEqual(u.strataCell, undefined);
         const e = (await db.doc(`enrollments/${uid}`).get()).data();
+        assert.strictEqual(e.companionVariant, variant || null);
         assert.strictEqual(e.studyPeriod, "PILOT");
         assert.strictEqual(e.researchId, rid);
         assert.strictEqual(e.arm, arm);
