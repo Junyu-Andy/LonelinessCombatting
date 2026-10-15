@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-10-15 1014e 第 2 节第 11 条：研究员登记页加「研究員儀錶板」入口（PR 草稿，分支 `feat/dashboard-entry`）
+
+- T19 起 `unblinded` 登录直接进登记页，T34 的告警列表和「確認處理」、T30 的完成率所在的「研究員儀錶板」从此没有入口（T39 核对时发现，Junyu 10/15 同意加）。登记页右上角加一个按钮；只有 `unblinded` 到得了登记页，儀錶板页自己再查一次 claims。没有开关（只是通往已有页面的链接）。T43 报告里“確認處理”那一步合并打包后可做。
+- 报告 `docs/dev-reports/1014e-dashboard-entry-20261015.md`。
+
 ## 2026-10-14 T39 运营看板「每人」页（PR 草稿，分支 `feat/ops-dashboard`）
 
 - 按 1014c 边界 + 1014d 收窄只做第 2 页（每人一行 → 每日网格、最近会话、CSV）和第 1 页第 7 项（今日回访到期名单）。聚合在 Cloud Function：`opsDashboardPeople` / `Person` / `Csv`（`functions/ops_dashboard.js`），每日 `opsDailyRollup` 把过去的研究日存成 `ops_daily`，今天按需算。开关 `opsDashboardEnabled` 默认关，只给 `unblinded`。
