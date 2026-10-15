@@ -44,7 +44,7 @@ void main() {
       expect(siuYan.tileSubtitleZh, '日日陪你傾偈，聽你今日點');
       expect(siuYan.tileSubtitleEn, 'Daily companion — hears how you are');
       final intro = AgentRegistry.introTextFor('siu_yan_v1')!;
-      expect(intro.zh, startsWith('你好啊，我係小欣，一個 AI 機械人。我會喺日日陪你傾下偈，'));
+      expect(intro.zh, startsWith('你好啊，我係小欣，一個電腦程式夥伴，唔係真人。我會喺日日陪你傾下偈，'));
     });
 
     test('profile intros are returned as written', () {

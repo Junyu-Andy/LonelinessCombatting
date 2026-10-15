@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-15 Junyu 五项决定落盘 + Firestore 配置核对表（PR 草稿，分支 `chore/1015-decisions-partner-config`）
+
+- 决策 0041（告警不设后备，PR #86）、0042（试跑走正式排程，PR #92）落盘；0038 标明由 0041 部分取代。
+- W4 要 S12（代码不动）；提醒时间按代码（推送后 24 小时的下一个整点），排查文件 A4、A7 改了。
+- 介绍陪伴者不再说「AI」，改叫「夥伴」（S15，六处），「唔係真人」保留并加进第一句问候。
+- W4 完成率的分母不含试跑（#89 现状不动）。
+- 新写 `docs/release/firestore-config-checklist-1015.md`：代码读的每一份配置文档和每个键、默认值、现在该设什么。核对发现 `app_config/phase_a` 里留着测试值（`sessionIdleTimeoutMin: 1`、`w2DayOffset: 0`、`week1NudgeDays: [1]`），要删；`meta/memory_config.enabled` 和 `phaseBArmA`、`meta/randomization_config.enabled` 是 10/19 前必须确认的。
+
 ## 2026-10-15 1014e 第 2 节第 4 条：取消告警后备（PR 草稿，分支 `fix/alert-no-backup`）
 
 - `escalateDue` 在 `backupEmail` 为空时直接返回（不认领、不写日志），告警留在待处理；后台告警列表把 `primaryFailedAt` 的行标成「郵件未發出…請即處理」（1014e 第 1 节第 5 条要的确认：首发失败写 `alert_audit_log` `email_failed` / `no_recipients`，并在列表标出）。决策 0038 状态行标“部分被取代”，新决策草稿在报告第 5 节，编号待分配。模拟器测试 17/17（新增 1 项）。报告 `docs/dev-reports/1014e-alert-no-backup-20261015.md`。
