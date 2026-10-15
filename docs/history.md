@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-15 选项按钮对比度（PR 草稿，分支 `fix/chip-contrast`）
+
+- Junyu 10/15 在安卓研究员页和老人的 iPhone 上都看到：表单选项未选时全是白的，点了才变黄。原因是主题里 chip 的边框色 #E7E0D8 和页面底色 #F7F5F1 几乎一样，字也用淡色。改主题一处：未选深色边框 1.5px 和深色字，选中底色用主色 22% 并打勾，高对比模式黑边 2px。加 `test/chip_contrast_test.dart`。
+
 ## 2026-10-15 iOS 最低版本 13.0 → 15.0（PR 草稿，分支 `fix/ios-deployment-target-15`）
 
 - Junyu 用新版 Xcode 打 TestFlight 包报错：Xcode 只支持 15.0 以上的部署目标。`Runner.xcodeproj` 三处 `IPHONEOS_DEPLOYMENT_TARGET` 改成 15.0；iOS 15 覆盖 iPhone 6s 及以后，老人的机不受影响。本机的 `ios/Podfile`（不在仓库里）也要改成 `platform :ios, '15.0'` 再 `pod install`。

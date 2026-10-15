@@ -216,11 +216,25 @@ class AppTheme {
           textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
       ),
+      // 10/15 pilot: unselected option chips were a white box with a
+      // border almost the colour of the page (#E7E0D8 on #F7F5F1) and a
+      // muted label, so elders could not tell the options were there until
+      // one was tapped.  Now: a visible ink border, ink label, and a clearly
+      // tinted selected state with a check mark.  Both arms, every chip.
       chipTheme: ChipThemeData(
-        labelStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+        labelStyle: TextStyle(
+            fontSize: 17, fontWeight: FontWeight.w500, color: ink),
+        secondaryLabelStyle: TextStyle(
+            fontSize: 17, fontWeight: FontWeight.w700, color: ink),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         backgroundColor: cardColor,
-        side: BorderSide(color: outline, width: borderWidth),
+        selectedColor: highContrast
+            ? const Color(0xFFFFE08A)
+            : primary.withValues(alpha: 0.22),
+        checkmarkColor: ink,
+        side: BorderSide(
+            color: highContrast ? Colors.black : inkMuted,
+            width: highContrast ? 2.0 : 1.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
         ),
