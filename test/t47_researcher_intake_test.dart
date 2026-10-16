@@ -139,8 +139,9 @@ void main() {
       final c = intake.calls.single;
       expect(c.rid, 'PILOT-01');
       expect(c.email, isNull);
-      // The third goal was refused by the cap of two.
-      expect(c.answers.mainGoals, ['companionship', 'share_memories']);
+      // 10/16: no cap — all three goals go through.
+      expect(c.answers.mainGoals,
+          ['companionship', 'share_memories', 'learning']);
       expect(c.answers.importantPeople.single.name, '阿女');
       expect(c.answers.importantPeople.single.relationship, '女');
       expect(c.answers.importantPeople.single.share, isTrue); // T48
@@ -256,6 +257,11 @@ void main() {
           find.byKey(const Key('intake_short_person_name_0')), '黃太');
       await tester.enterText(
           find.byKey(const Key('intake_short_person_rel_0')), '鄰居');
+      // 10/16: no cap — 加多一位 adds a fourth row.
+      await _scrollTo(tester, find.byKey(const Key('intake_short_person_add')));
+      await tester.tap(find.byKey(const Key('intake_short_person_add')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('intake_short_person_name_3')), findsOneWidget);
       await next();
       // 4 最想 app 幫到乜 — 上一題 keeps the answers.
       expect(find.text(IntakeShortCopy.q1), findsOneWidget);

@@ -35,9 +35,11 @@ const UNBLINDED_ROLE = "unblinded";
 /** Q1 — IntakeOptions.mainGoal* ids (lib/features/onboarding/data). */
 const MAIN_GOALS = ["companionship", "emotional_outlet", "reconnect_others",
   "learning", "share_memories", "curious"];
-const MAX_GOALS = 2;
+// 10/16 Junyu: no selection caps.  These are technical ceilings only
+// (every option / a payload guard), never shown as a rule.
+const MAX_GOALS = 6;
 /** Q2 — up to three people, a name (what the elder calls them) + relation. */
-const MAX_PEOPLE = 3;
+const MAX_PEOPLE = 20;
 const MAX_NAME = 20;
 /** Q3 — InterestLabels ids (lib/features/onboarding/data/interest_labels). */
 const INTERESTS = ["yum_cha", "cooking", "wet_market", "buffet", "tv_drama",
@@ -45,7 +47,7 @@ const INTERESTS = ["yum_cha", "cooking", "wet_market", "buffet", "tv_drama",
   "park_walk", "tai_chi", "swimming", "cantonese_opera", "museums",
   "elderly_centre", "religious", "visit_friends", "volunteering",
   "meditation", "prayer", "news"];
-const MAX_INTERESTS = 3;
+const MAX_INTERESTS = 23;
 const MAX_OTHER = 40;
 /** Q4 — free text, may be empty. */
 const MAX_AVOID = 200;

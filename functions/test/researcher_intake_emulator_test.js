@@ -90,13 +90,19 @@ test("normaliseAnswers: caps, ids, empty rows", () => {
     }
     return "no error";
   };
-  assert.strictEqual(bad({mainGoals: ["a", "b", "c"]}), "too_many_goals");
+  // 10/16: no selection caps; only technical ceilings remain.
+  assert.strictEqual(bad({mainGoals: ["companionship", "learning",
+    "curious"]}), "no error");
+  assert.strictEqual(bad({mainGoals: ["companionship", "learning", "curious",
+    "share_memories", "reconnect_others", "emotional_outlet",
+    "companionship"]}), "too_many_goals");
   assert.strictEqual(bad({mainGoals: ["winning"]}), "invalid_goal");
-  assert.strictEqual(bad({importantPeople: [{}, {}, {}, {}]}),
+  assert.strictEqual(bad({importantPeople: [{}, {}, {}, {}]}), "no error");
+  assert.strictEqual(bad({importantPeople: new Array(21).fill({})}),
       "too_many_people");
   assert.strictEqual(bad({interests: ["yum_cha", "x"]}), "invalid_interest");
   assert.strictEqual(bad({interests: ["yum_cha", "radio", "news", "tv_drama"]}),
-      "too_many_interests");
+      "no error");
   assert.strictEqual(bad({avoidTopics: "x".repeat(201)}), "avoid_too_long");
   assert.strictEqual(bad({researcherNote: "x".repeat(201)}), "note_too_long");
   assert.strictEqual(bad({inputMode: "shout"}), "invalid_input_mode");
