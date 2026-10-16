@@ -19,9 +19,10 @@ import '../data/enrollment_service.dart';
 /// The question texts the researcher reads out (§1, Cantonese).
 class IntakeQuestions {
   IntakeQuestions._();
-  static const q1 = '你最想呢個 app 幫到你啲乜？（最多兩項）';
-  static const q2 = '有冇邊幾位屋企人或者朋友，想夥伴知道？講個稱呼同關係就得。（最多三位）';
-  static const q3 = '你平時鍾意做啲咩？（最多三項）';
+  // 10/16 Junyu: no selection caps on any question.
+  static const q1 = '你最想呢個 app 幫到你啲乜？（揀幾多項都得）';
+  static const q2 = '有冇邊幾位屋企人或者朋友，想夥伴知道？講個稱呼同關係就得。';
+  static const q3 = '你平時鍾意做啲咩？（揀幾多項都得）';
   static const q4 = '有冇咩話題你唔想夥伴提起？（可以冇）';
   static const q5 = '你打字多定係講多？';
 
@@ -38,9 +39,8 @@ class IntakeQuestions {
     (IntakeOptions.inputVoice, '講'),
     (IntakeOptions.inputBoth, '都得'),
   ];
-  static const maxGoals = 2;
-  static const maxPeople = 3;
-  static const maxInterests = 3;
+  /// Rows shown at first; 「加多一位」 adds more (no cap, 10/16).
+  static const initialPeople = 3;
 }
 
 class IntakeSection extends StatefulWidget {
@@ -59,12 +59,20 @@ class _IntakeSectionState extends State<IntakeSection> {
   final _who = TextEditingController();
   final _goals = <String>{};
   final _people = List.generate(
-      IntakeQuestions.maxPeople,
+      IntakeQuestions.initialPeople,
       (_) => (name: TextEditingController(), rel: TextEditingController()));
-  final _share = List<bool>.filled(IntakeQuestions.maxPeople, false);
+  final _share = List<bool>.filled(IntakeQuestions.initialPeople, false,
+      growable: true);
+
+  void _addPerson() => setState(() {
+        _people.add(
+            (name: TextEditingController(), rel: TextEditingController()));
+        _share.add(false);
+      });
   final _interests = <String>{};
   final _interestsOther = TextEditingController();
   final _avoid = TextEditingController();
+  final _note = TextEditingController();
   String? _inputMode;
   bool _open = false;
   bool _busy = false;
@@ -89,6 +97,7 @@ class _IntakeSectionState extends State<IntakeSection> {
     }
     _interestsOther.dispose();
     _avoid.dispose();
+    _note.dispose();
     super.dispose();
   }
 
@@ -108,6 +117,7 @@ class _IntakeSectionState extends State<IntakeSection> {
             : _interestsOther.text.trim(),
         avoidTopics: _avoid.text.trim().isEmpty ? null : _avoid.text.trim(),
         inputMode: _inputMode ?? IntakeOptions.inputUnsure,
+        researcherNote: _note.text.trim().isEmpty ? null : _note.text.trim(),
       );
 
   Future<void> _submit() async {
@@ -144,6 +154,7 @@ class _IntakeSectionState extends State<IntakeSection> {
       _share.fillRange(0, _share.length, false);
       _interestsOther.clear();
       _avoid.clear();
+      _note.clear();
     });
   }
 
@@ -210,9 +221,7 @@ class _IntakeSectionState extends State<IntakeSection> {
               selected: _interests.contains(id),
               onSelected: (on) => setState(() {
                 if (on) {
-                  if (_interests.length < IntakeQuestions.maxInterests) {
-                    _interests.add(id);
-                  }
+                  _interests.add(id);
                 } else {
                   _interests.remove(id);
                 }
@@ -265,6 +274,12 @@ class _IntakeSectionState extends State<IntakeSection> {
               ),
             ]),
           ),
+        OutlinedButton.icon(
+          key: const Key('intake_person_add'),
+          onPressed: _addPerson,
+          icon: const Icon(Icons.person_add_alt),
+          label: const Text('加多一位'),
+        ),
       ]),
       _block(theme, 4, IntakeQuestions.q1, [
         Wrap(spacing: 8, runSpacing: 8, children: [
@@ -275,9 +290,7 @@ class _IntakeSectionState extends State<IntakeSection> {
               selected: _goals.contains(id),
               onSelected: (on) => setState(() {
                 if (on) {
-                  if (_goals.length < IntakeQuestions.maxGoals) {
-                    _goals.add(id);
-                  }
+                  _goals.add(id);
                 } else {
                   _goals.remove(id);
                 }
@@ -295,6 +308,29 @@ class _IntakeSectionState extends State<IntakeSection> {
               labelText: '一句就得，可以留空', border: OutlineInputBorder()),
         ),
       ]),
+      // 10/16 — the researcher's own note (not a question; the elder never
+      // sees it).  Goes verbatim to all three companions as 「研究員觀察」.
+      Padding(
+        padding: const EdgeInsets.only(top: 16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('研究員備註（唔使問老人家；可以留空）',
+              style: theme.textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text('你自己嘅觀察，原句畀三位夥伴做記憶，例如「老人家健談，咩都想講」。'
+              '老人家睇唔到。最多 200 字。',
+              style: theme.textTheme.bodySmall),
+          const SizedBox(height: 10),
+          TextField(
+            key: const Key('intake_note'),
+            controller: _note,
+            minLines: 2,
+            maxLines: 4,
+            maxLength: 200,
+            decoration: const InputDecoration(
+                labelText: '研究員觀察', border: OutlineInputBorder()),
+          ),
+        ]),
+      ),
       if (_error != null) ...[
         const SizedBox(height: 8),
         Text(_error!,
