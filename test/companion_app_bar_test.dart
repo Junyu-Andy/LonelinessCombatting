@@ -55,6 +55,34 @@ void main() {
     });
   });
 
+  testWidgets('large text: the S9 label still fits (leading width grows)',
+      (tester) async {
+    PhaseBConfig.current = const PhaseBConfig(sessionBriefPrV2Enabled: true);
+    addTearDown(() => PhaseBConfig.current = const PhaseBConfig());
+    await tester.binding.setSurfaceSize(const Size(800, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MediaQuery(
+      data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
+      child: ruleReplyHarness(const CheckInArmB(), NoLlmClient()),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    final bar = tester.widget<AppBar>(find.byType(AppBar));
+    expect(bar.leadingWidth, greaterThan(SessionCloseButton.leadingWidth));
+    final label = find.text(SessionCloseButton.label);
+    expect(label, findsOneWidget);
+    // The text box is as wide as the painted label: nothing faded/clipped.
+    final box = tester.getSize(label);
+    final painter = TextPainter(
+      text: const TextSpan(
+          text: SessionCloseButton.label,
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+      textDirection: TextDirection.ltr,
+      textScaler: const TextScaler.linear(1.3),
+    )..layout();
+    expect(box.width, greaterThanOrEqualTo(painter.width - 0.5));
+  });
+
   testWidgets('v2 off: back arrow instead of S9, title unchanged',
       (tester) async {
     PhaseBConfig.current = const PhaseBConfig();
