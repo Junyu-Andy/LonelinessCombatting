@@ -38,6 +38,29 @@ class IntakeRepository {
     }
   }
 
+  /// T47 rev. 10/16 — part B typed by the elder: important people and
+  /// people to reconnect with.  Merge, so the researcher's part A stays.
+  Future<void> savePeople(String uid,
+      {required List<PersonEntry> important,
+      required List<PersonEntry> reconnect}) async {
+    try {
+      await _doc(uid).set(
+        {
+          'importantPeople': [
+            for (final p in important) {...p.toMap(), 'share': true},
+          ],
+          'reconnectPeople': [for (final p in reconnect) p.toMap()],
+          'completedParts': FieldValue.arrayUnion([2]),
+          'peopleSource': 'elder',
+          'updatedAt': DateTime.now().toIso8601String(),
+        },
+        SetOptions(merge: true),
+      );
+    } catch (_) {
+      // Graceful degradation.
+    }
+  }
+
   /// Incremental save: marks a part as done and persists to Firestore.
   /// Used for progress resume without requiring a full response object.
   Future<void> markPartDone(String uid, int part) async {

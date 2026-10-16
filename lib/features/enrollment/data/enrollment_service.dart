@@ -186,36 +186,79 @@ class IntakePerson {
 
 /// The five answers (dev-tasks-1015-intake §1).
 class IntakeAnswers {
-  final List<String> mainGoals; // IntakeOptions.mainGoal* ids (no cap, 10/16)
-  final List<IntakePerson> importantPeople; // no cap (10/16)
-  final List<String> interests; // InterestLabels ids (no cap, 10/16)
+  // ---- A: asked out loud by the researcher (rev. 10/16, no caps) ----
+  final List<String> mainGoals; // IntakeOptions.mainGoal* ids
+  final String? mainGoalOther;
+  final List<String> lonelinessTimings; // IntakeOptions.timing* ids
+  final String? typicalMorning;
+  final String? typicalAfternoon;
+  final String? typicalEvening;
+  final String? onMind; // sensitive
+  final List<String> interests; // InterestLabels ids → profile.interests
   final String? interestsOther;
+  final List<String> topics; // IntakeOptions.topic* ids
+  final String? topicsOther;
+  final List<String> lifeChapters; // IntakeOptions.chapter* ids
   final String? avoidTopics;
   final String inputMode; // IntakeOptions.input* id
-
-  /// 10/16 — 研究員備註: the researcher's own observation (≤ 200 chars),
-  /// never shown to the elder; the server hands it to all three
-  /// companions verbatim as one memory line (「研究員觀察：…」).
+  final List<String> preferredTimes; // IntakeOptions.time* ids
+  // ---- C: new fields (rev. 10/16) ----
+  final String? formerOccupation;
+  final String? hometown;
+  final String? petName;
+  final String? encouragementStyle; // direct | gentle | either
+  // ---- researcher's own note (10/16) ----
   final String? researcherNote;
+  // ---- B: the elder's own part; kept for tests / older clients ----
+  final List<IntakePerson> importantPeople;
 
   const IntakeAnswers({
     this.mainGoals = const [],
-    this.importantPeople = const [],
+    this.mainGoalOther,
+    this.lonelinessTimings = const [],
+    this.typicalMorning,
+    this.typicalAfternoon,
+    this.typicalEvening,
+    this.onMind,
     this.interests = const [],
     this.interestsOther,
+    this.topics = const [],
+    this.topicsOther,
+    this.lifeChapters = const [],
     this.avoidTopics,
     this.inputMode = 'unsure',
+    this.preferredTimes = const [],
+    this.formerOccupation,
+    this.hometown,
+    this.petName,
+    this.encouragementStyle,
     this.researcherNote,
+    this.importantPeople = const [],
   });
 
   Map<String, dynamic> toMap() => {
         'mainGoals': mainGoals,
-        'importantPeople': importantPeople.map((p) => p.toMap()).toList(),
+        'mainGoalOther': mainGoalOther,
+        'lonelinessTimings': lonelinessTimings,
+        'typicalMorning': typicalMorning,
+        'typicalAfternoon': typicalAfternoon,
+        'typicalEvening': typicalEvening,
+        'onMind': onMind,
         'interests': interests,
         'interestsOther': interestsOther,
+        'topics': topics,
+        'topicsOther': topicsOther,
+        'lifeChapters': lifeChapters,
         'avoidTopics': avoidTopics,
         'inputMode': inputMode,
+        'preferredTimes': preferredTimes,
+        'formerOccupation': formerOccupation,
+        'hometown': hometown,
+        'petName': petName,
+        'encouragementStyle': encouragementStyle,
         'researcherNote': researcherNote,
+        if (importantPeople.isNotEmpty)
+          'importantPeople': importantPeople.map((p) => p.toMap()).toList(),
       };
 }
 
@@ -279,12 +322,20 @@ String intakeErrorText(String code) => switch (code) {
       'not_enrolled' => '呢個帳號仲未登記，請先登記再錄入。',
       'tester_account' => '測試員帳號唔可以錄入。',
       'own_account' => '唔可以錄入自己個研究員帳號。',
-      'too_many_goals' => '目標選項重複咗，請再試。',
       'too_many_people' => '重要嘅人最多錄 20 位。',
-      'too_many_interests' => '興趣選項重複咗，請再試。',
+      'invalid_goal' => '目標選項唔啱，請再試。',
+      'invalid_timing' => '「幾時孤單」選項唔啱，請再試。',
+      'invalid_interest' => '興趣選項唔啱，請再試。',
+      'invalid_topic' => '話題選項唔啱，請再試。',
+      'invalid_chapter' => '人生階段選項唔啱，請再試。',
+      'invalid_time' => '「幾時方便」選項唔啱，請再試。',
+      'invalid_input_mode' => '「打字定講」選項唔啱，請再試。',
+      'invalid_encouragement_style' => '「直接定溫和」選項唔啱，請再試。',
       'name_too_long' => '稱呼或關係太長（最多 20 字）。',
-      'other_too_long' => '「其他」太長（最多 40 字）。',
-      'avoid_too_long' => '第 4 題太長（最多 200 字）。',
+      'other_too_long' => '自由填寫嘅一格太長（最多 40 字）。',
+      'day_too_long' => '作息一格太長（最多 120 字）。',
+      'on_mind_too_long' => '心事太長（最多 300 字）。',
+      'avoid_too_long' => '「唔想提起」太長（最多 200 字）。',
       'note_too_long' => '研究員備註太長（最多 200 字）。',
       _ => '錄入失敗（$code）。請再試，或者聯絡負責人。',
     };

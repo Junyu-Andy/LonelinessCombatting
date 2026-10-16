@@ -4,6 +4,7 @@ import '../../../app/app_settings_scope.dart';
 import '../../../core/feature_flags/remote_feature_flags.dart';
 import '../../auth/data/user_profile.dart';
 import '../../onboarding/presentation/pages/agent_onboarding_page.dart';
+import '../../onboarding/presentation/pages/intake_people_page.dart';
 import '../../onboarding/presentation/pages/intake_short_page.dart';
 import 'pages/consent_page.dart';
 
@@ -88,12 +89,19 @@ class ConsentGate extends StatelessWidget {
     if (!profile.consent.functionalData) {
       return const ConsentPage();
     }
-    // T47: with the researcher recording the intake, the elder skips this
-    // step entirely (the companions treat a missing intake as "nothing
-    // seeded" until the researcher has recorded it).  Off: the short
-    // five-question page.
+    // T47 rev. 10/16: with the researcher recording part A, the elder only
+    // types part B — 重要嘅人 / 想重新聯絡嘅人 — once (intakePeopleDone).
+    // Off: the short five-question page (which also covers the people).
     final researcherIntake = researcherIntakeOn ??
         RemoteFeatureFlags.current.researcherIntakeEnabled;
+    if (researcherIntake && !profile.intakePeopleDone) {
+      return IntakePeoplePage(
+        onComplete: () async {
+          // Profile already updated inside the page; the rebuild is
+          // triggered by the settings.profile setter.
+        },
+      );
+    }
     if (!researcherIntake && !profile.hasCompletedIntake) {
       return IntakeShortPage(
         onComplete: () async {

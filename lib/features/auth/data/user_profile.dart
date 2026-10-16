@@ -270,6 +270,14 @@ class UserProfile {
   /// only while `researcherIntakeEnabled` is off).
   final bool hasCompletedIntake;
 
+  /// 10/16 (T47 rev.): the elder typed part B of the intake — 重要嘅人 /
+  /// 想重新聯絡嘅人 — in the App.  ConsentGate shows that page until set.
+  final bool intakePeopleDone;
+
+  /// 10/16 (T47 rev. C16): direct / gentle / either, recorded by the
+  /// researcher; the prompt tone slot reads it on the server.
+  final String? encouragementStyle;
+
   /// Preferred input mode from intake Part 6 (typing / voice / both / unsure).
   final String? inputMode;
 
@@ -324,6 +332,8 @@ class UserProfile {
     this.firstIntroSeen = const {},
     this.avoidTopics,
     this.hasCompletedIntake = false,
+    this.intakePeopleDone = false,
+    this.encouragementStyle,
     this.inputMode,
     this.preferredTimes,
     this.isTester = false,
@@ -364,6 +374,8 @@ class UserProfile {
     Map<String, DateTime>? firstIntroSeen,
     String? avoidTopics,
     bool? hasCompletedIntake,
+    bool? intakePeopleDone,
+    String? encouragementStyle,
     String? inputMode,
     List<String>? preferredTimes,
     bool? isTester,
@@ -400,6 +412,8 @@ class UserProfile {
       firstIntroSeen: firstIntroSeen ?? this.firstIntroSeen,
       avoidTopics: avoidTopics ?? this.avoidTopics,
       hasCompletedIntake: hasCompletedIntake ?? this.hasCompletedIntake,
+      intakePeopleDone: intakePeopleDone ?? this.intakePeopleDone,
+      encouragementStyle: encouragementStyle ?? this.encouragementStyle,
       inputMode: inputMode ?? this.inputMode,
       preferredTimes: preferredTimes ?? this.preferredTimes,
       isTester: isTester ?? this.isTester,
@@ -446,6 +460,8 @@ class UserProfile {
         },
         'avoidTopics': avoidTopics,
         'hasCompletedIntake': hasCompletedIntake,
+        'intakePeopleDone': intakePeopleDone,
+        'encouragementStyle': encouragementStyle,
         'inputMode': inputMode,
         'preferredTimes': preferredTimes,
         // 1014e §2.3 (backlog 96): `isTester` is admin-only — the rules
@@ -536,6 +552,8 @@ class UserProfile {
       firstIntroSeen: intro,
       avoidTopics: map['avoidTopics'] as String?,
       hasCompletedIntake: (map['hasCompletedIntake'] as bool?) ?? false,
+      intakePeopleDone: (map['intakePeopleDone'] as bool?) ?? false,
+      encouragementStyle: map['encouragementStyle'] as String?,
       inputMode: map['inputMode'] as String?,
       preferredTimes: (map['preferredTimes'] as List?)?.whereType<String>().toList(),
       isTester: (map['isTester'] as bool?) ?? false,
