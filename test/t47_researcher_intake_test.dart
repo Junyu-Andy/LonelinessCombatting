@@ -208,7 +208,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
       expect(find.byType(IntakeShortPage), findsOneWidget);
-      expect(find.text(IntakeShortCopy.q1), findsOneWidget);
+      expect(find.text(IntakeShortCopy.title), findsOneWidget);
+      expect(find.text(IntakeShortCopy.q5), findsOneWidget, reason: '第 1 題');
       // Fill it in through a page of our own with the memory repository.
       await tester.pumpWidget(AnalyticsScope(
         analytics: AnalyticsService(firebaseReady: false),
@@ -223,17 +224,47 @@ void main() {
         ),
       ));
       await tester.pumpAndSettle();
-      await tester.tap(
-          find.byKey(const Key('intake_short_goal_share_memories')));
+      // 10/16: one question per screen, concrete first, free text last.
+      Future<void> next() async {
+        await tester.tap(find.byKey(const Key('intake_short_next')));
+        await tester.pumpAndSettle();
+      }
+
+      // 1 打字定講
+      expect(find.text('第 1 題，共 5 題'), findsOneWidget);
+      expect(find.text(IntakeShortCopy.q5), findsOneWidget);
+      expect(find.text(IntakeShortCopy.q4), findsNothing);
+      expect(find.byKey(const Key('intake_short_back')), findsNothing);
+      await tester.tap(find.byKey(const Key('intake_short_input_both')));
+      await next();
+      // 2 鍾意做乜
+      expect(find.text('第 2 題，共 5 題'), findsOneWidget);
+      expect(find.text(IntakeShortCopy.q3), findsOneWidget);
+      await _scrollTo(
+          tester, find.byKey(const Key('intake_short_interest_mahjong')));
+      await tester.tap(find.byKey(const Key('intake_short_interest_mahjong')));
+      await next();
+      // 3 重要嘅人
+      expect(find.text(IntakeShortCopy.q2), findsOneWidget);
       await tester.enterText(
           find.byKey(const Key('intake_short_person_name_0')), '黃太');
       await tester.enterText(
           find.byKey(const Key('intake_short_person_rel_0')), '鄰居');
-      await _scrollTo(tester, find.byKey(const Key('intake_short_interest_mahjong')));
-      await tester.tap(find.byKey(const Key('intake_short_interest_mahjong')));
-      await _scrollTo(tester, find.byKey(const Key('intake_short_input_both')));
-      await tester.tap(find.byKey(const Key('intake_short_input_both')));
-      await _scrollTo(tester, find.byKey(const Key('intake_short_done')));
+      await next();
+      // 4 最想 app 幫到乜 — 上一題 keeps the answers.
+      expect(find.text(IntakeShortCopy.q1), findsOneWidget);
+      await tester.tap(find.byKey(const Key('intake_short_back')));
+      await tester.pumpAndSettle();
+      expect(find.text(IntakeShortCopy.q2), findsOneWidget);
+      expect(find.text('黃太'), findsOneWidget);
+      await next();
+      await tester.tap(
+          find.byKey(const Key('intake_short_goal_share_memories')));
+      await next();
+      // 5 唔想提起 (free text, last) → 完成
+      expect(find.text('第 5 題，共 5 題'), findsOneWidget);
+      expect(find.text(IntakeShortCopy.q4), findsOneWidget);
+      expect(find.byKey(const Key('intake_short_next')), findsNothing);
       await tester.tap(find.byKey(const Key('intake_short_done')));
       await tester.pumpAndSettle();
       final p = settings.profile!;

@@ -3,6 +3,11 @@
 /// visit; the elder's App shows no questionnaire while
 /// `researcherIntakeEnabled` is on.  Researcher-facing copy (not the
 /// elder's), so it is not in docs/spec/copy.
+///
+/// 10/16: one numbered block per question, in the same order as the
+/// elder's own page (`intake_short_page.dart`): concrete questions first,
+/// the personal / free-text ones last —
+///   1 打字定講 · 2 鍾意做乜 · 3 重要嘅人 · 4 最想 app 幫到乜 · 5 唔想提起
 library;
 
 import 'package:flutter/material.dart';
@@ -153,7 +158,7 @@ class _IntakeSectionState extends State<IntakeSection> {
           children: [
             Row(children: [
               Expanded(
-                  child: Text('入組資料（W0 面訪口頭問五題，由你錄入）',
+                  child: Text('入組資料（W0 面訪口頭問五題，由你錄入；由第 1 題問到第 5 題）',
                       style: theme.textTheme.titleMedium)),
               TextButton(
                 key: const Key('intake_toggle'),
@@ -184,111 +189,111 @@ class _IntakeSectionState extends State<IntakeSection> {
             labelText: '老人家登入電郵或研究編號', border: OutlineInputBorder()),
         onChanged: (_) => setState(() {}),
       ),
-      const SizedBox(height: 16),
-      Text('1. ${IntakeQuestions.q1}', style: theme.textTheme.titleSmall),
-      const SizedBox(height: 6),
-      Wrap(spacing: 8, runSpacing: 4, children: [
-        for (final (id, label) in IntakeQuestions.goals)
-          FilterChip(
-            key: Key('intake_goal_$id'),
-            label: Text(label),
-            selected: _goals.contains(id),
-            onSelected: (on) => setState(() {
-              if (on) {
-                if (_goals.length < IntakeQuestions.maxGoals) _goals.add(id);
-              } else {
-                _goals.remove(id);
-              }
-            }),
-          ),
+      const SizedBox(height: 8),
+      _block(theme, 1, IntakeQuestions.q5, [
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final (id, label) in IntakeQuestions.inputModes)
+            ChoiceChip(
+              key: Key('intake_input_$id'),
+              label: Text(label),
+              selected: _inputMode == id,
+              onSelected: (_) => setState(() => _inputMode = id),
+            ),
+        ]),
       ]),
-      const SizedBox(height: 16),
-      Text('2. ${IntakeQuestions.q2}', style: theme.textTheme.titleSmall),
-      const SizedBox(height: 6),
-      for (var i = 0; i < _people.length; i++)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Column(children: [
-            Row(children: [
-              Expanded(
-                child: TextField(
-                  key: Key('intake_person_name_$i'),
-                  controller: _people[i].name,
-                  decoration: const InputDecoration(
-                      labelText: '稱呼', border: OutlineInputBorder()),
+      _block(theme, 2, IntakeQuestions.q3, [
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final id in InterestLabels.ids)
+            FilterChip(
+              key: Key('intake_interest_$id'),
+              label: Text(InterestLabels.label(id, false)),
+              selected: _interests.contains(id),
+              onSelected: (on) => setState(() {
+                if (on) {
+                  if (_interests.length < IntakeQuestions.maxInterests) {
+                    _interests.add(id);
+                  }
+                } else {
+                  _interests.remove(id);
+                }
+              }),
+            ),
+        ]),
+        const SizedBox(height: 12),
+        TextField(
+          key: const Key('intake_interests_other'),
+          controller: _interestsOther,
+          decoration: const InputDecoration(
+              labelText: '其他（可以唔填）', border: OutlineInputBorder()),
+        ),
+      ]),
+      _block(theme, 3, IntakeQuestions.q2, [
+        for (var i = 0; i < _people.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(children: [
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    key: Key('intake_person_name_$i'),
+                    controller: _people[i].name,
+                    decoration: InputDecoration(
+                        labelText: '第 ${i + 1} 位：稱呼',
+                        border: const OutlineInputBorder()),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  key: Key('intake_person_rel_$i'),
-                  controller: _people[i].rel,
-                  decoration: const InputDecoration(
-                      labelText: '關係', border: OutlineInputBorder()),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    key: Key('intake_person_rel_$i'),
+                    controller: _people[i].rel,
+                    decoration: const InputDecoration(
+                        labelText: '關係', border: OutlineInputBorder()),
+                  ),
                 ),
+              ]),
+              // T48: ask the elder; unchecked = stored only, companions
+              // never hear of this person.
+              CheckboxListTile(
+                key: Key('intake_person_share_$i'),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: _share[i],
+                onChanged: (v) => setState(() => _share[i] = v == true),
+                title: const Text('老人家同意：可以畀夥伴知道呢位'),
               ),
             ]),
-            // T48: ask the elder; unchecked = stored only, companions never
-            // hear of this person.
-            CheckboxListTile(
-              key: Key('intake_person_share_$i'),
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              controlAffinity: ListTileControlAffinity.leading,
-              value: _share[i],
-              onChanged: (v) => setState(() => _share[i] = v == true),
-              title: const Text('老人家同意：可以畀夥伴知道呢位'),
-            ),
-          ]),
-        ),
-      const SizedBox(height: 8),
-      Text('3. ${IntakeQuestions.q3}', style: theme.textTheme.titleSmall),
-      const SizedBox(height: 6),
-      Wrap(spacing: 8, runSpacing: 4, children: [
-        for (final id in InterestLabels.ids)
-          FilterChip(
-            key: Key('intake_interest_$id'),
-            label: Text(InterestLabels.label(id, false)),
-            selected: _interests.contains(id),
-            onSelected: (on) => setState(() {
-              if (on) {
-                if (_interests.length < IntakeQuestions.maxInterests) {
-                  _interests.add(id);
-                }
-              } else {
-                _interests.remove(id);
-              }
-            }),
           ),
       ]),
-      const SizedBox(height: 8),
-      TextField(
-        key: const Key('intake_interests_other'),
-        controller: _interestsOther,
-        decoration: const InputDecoration(
-            labelText: '其他（可以唔填）', border: OutlineInputBorder()),
-      ),
-      const SizedBox(height: 16),
-      Text('4. ${IntakeQuestions.q4}', style: theme.textTheme.titleSmall),
-      const SizedBox(height: 6),
-      TextField(
-        key: const Key('intake_avoid'),
-        controller: _avoid,
-        maxLines: 2,
-        decoration: const InputDecoration(
-            labelText: '一句就得，可以留空', border: OutlineInputBorder()),
-      ),
-      const SizedBox(height: 16),
-      Text('5. ${IntakeQuestions.q5}', style: theme.textTheme.titleSmall),
-      const SizedBox(height: 6),
-      Wrap(spacing: 8, children: [
-        for (final (id, label) in IntakeQuestions.inputModes)
-          ChoiceChip(
-            key: Key('intake_input_$id'),
-            label: Text(label),
-            selected: _inputMode == id,
-            onSelected: (_) => setState(() => _inputMode = id),
-          ),
+      _block(theme, 4, IntakeQuestions.q1, [
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final (id, label) in IntakeQuestions.goals)
+            FilterChip(
+              key: Key('intake_goal_$id'),
+              label: Text(label),
+              selected: _goals.contains(id),
+              onSelected: (on) => setState(() {
+                if (on) {
+                  if (_goals.length < IntakeQuestions.maxGoals) {
+                    _goals.add(id);
+                  }
+                } else {
+                  _goals.remove(id);
+                }
+              }),
+            ),
+        ]),
+      ]),
+      _block(theme, 5, IntakeQuestions.q4, [
+        TextField(
+          key: const Key('intake_avoid'),
+          controller: _avoid,
+          minLines: 2,
+          maxLines: 4,
+          decoration: const InputDecoration(
+              labelText: '一句就得，可以留空', border: OutlineInputBorder()),
+        ),
       ]),
       if (_error != null) ...[
         const SizedBox(height: 8),
@@ -310,6 +315,39 @@ class _IntakeSectionState extends State<IntakeSection> {
           style: theme.textTheme.bodySmall),
     ];
   }
+}
+
+/// One question: a numbered badge, the question in bold, the input, and
+/// a rule underneath so the next question clearly starts afresh.
+Widget _block(ThemeData theme, int n, String question, List<Widget> body) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          CircleAvatar(
+            radius: 14,
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            child: Text('$n', style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onPrimary)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(question, style: theme.textTheme.titleMedium),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 12),
+        ...body,
+        const SizedBox(height: 16),
+        const Divider(height: 1),
+      ],
+    ),
+  );
 }
 
 class _DoneCard extends StatelessWidget {
