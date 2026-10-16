@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-10-16 FAQ 删英文条目；iPhone 更新改走 TestFlight（PR 草稿，分支 `fix/faq-english-testflight`）
+
+- Junyu 10/16 定 iPhone 以后走 TestFlight 外部测试公开链接，测试员可在 TestFlight「先前的版本」自己换版本。流程写在 `docs/release/ios-testflight.md`。
+- FAQ 里「我可唔可以用英文？」连同「我嘅資料」页的语言一行删干净（英文开关一直是关的）。
+
 ## 2026-10-16 注册页：密码输两次、电邮换行、显示密码（PR 草稿，分支 `fix/signup-email-password`，并入 `batch/1016-morning`）
 
 - 10/15 试跑一位老人注册后发现电邮打错，但格子只显示尾巴看不全。改：电邮格自动换行、去空格；建立帐号时密码输两次，不一样不让提交；密码格加眼睛按钮。文字见 S17，待产品窗口核。
