@@ -48,11 +48,6 @@ class FaqPage extends StatelessWidget {
               'Take a few slow deep breaths first, then check the support hotlines on the Home screen. '
                   'If you feel you cannot cope, please call 999 right away.',
             ),
-            (
-              'Can I use the app in English?',
-              'Yes. Go to Settings → Language and select English. '
-                  'You can switch between Chinese and English at any time.',
-            ),
           ]
         : const [
             (
@@ -90,12 +85,9 @@ class FaqPage extends StatelessWidget {
                   '或者即刻打畀你信任嘅人。'
                   '如果覺得撐唔住，請直接撥 999。',
             ),
-            (
-              '我可唔可以用英文？',
-              '可以。入「設定 > 語言」就可以揀 English。'
-                  '系統支援中英文隨時切換。',
-            ),
           ];
+    // 10/16: the 「我可唔可以用英文？」 entry was removed — English is off
+    // (AppSettings.englishEnabled) and the FAQ must not promise it.
     // T20: the "skip a check-in" answer talks about how often to come
     // back, so `app_config/usage_copy` may replace it (same in both arms).
     final items = [
