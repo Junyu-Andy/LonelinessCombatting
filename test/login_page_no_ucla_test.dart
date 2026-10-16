@@ -55,9 +55,82 @@ void main() {
     expect(text, isNot(contains('分層')));
     expect(text, isNot(contains('研究人員填寫')));
     expect(text, isNot(contains('量表')));
-    for (final label in ['電郵', '密碼', '你想我哋點樣叫你？', '年齡', '聯絡人稱呼', '聯絡電話']) {
+    for (final label in ['電郵', '密碼', '再輸入一次密碼', '你想我哋點樣叫你？', '年齡', '聯絡人稱呼', '聯絡電話']) {
       expect(find.text(label), findsOneWidget, reason: label);
     }
-    expect(find.byType(TextFormField), findsNWidgets(6));
+    // 10/16: + 再輸入一次密碼 (S17).
+    expect(find.byType(TextFormField), findsNWidgets(7));
+  });
+
+  // 10/16 (S17): the elder types the password twice; the address wraps so
+  // it can be read back in full; the eye button shows both password boxes.
+  testWidgets('sign-up: mismatched passwords are refused; the e-mail wraps '
+      'and drops spaces; the eye shows both passwords', (tester) async {
+    tester.view.physicalSize = const Size(900, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final auth = AuthService(available: false);
+    await tester.pumpWidget(AnalyticsScope(
+      analytics: AnalyticsService(firebaseReady: false),
+      child: AuthServiceScope(
+        authService: auth,
+        child: AppSettingsScope(
+          settings: AppSettings(),
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: LoginPage(authService: auth),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    final toggle = find.widgetWithText(TextButton, '未有帳號？建立一個');
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(find.text('建立帳號'), findsOneWidget);
+
+    // The e-mail box wraps (no sideways scrolling) and never keeps a space.
+    final emailField = tester.widget<EditableText>(find.descendant(
+        of: find.byKey(const Key('login_email')),
+        matching: find.byType(EditableText)));
+    expect(emailField.maxLines, isNull);
+    await tester.enterText(find.byKey(const Key('login_email')),
+        'wong tai 1950 @gmail.com\n');
+    expect(find.text('wongtai1950@gmail.com'), findsOneWidget);
+
+    await tester.enterText(
+        find.byKey(const Key('login_password')), 'abc123');
+    await tester.enterText(
+        find.byKey(const Key('login_password_again')), 'abc124');
+    await tester.enterText(
+        find.byKey(const Key('login_email')), 'wongtai1950@gmail.com');
+    await tester.tap(find.byKey(const Key('login_submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('兩次密碼唔一樣。'), findsOneWidget);
+    // Nothing was submitted: no sign-up error from the (offline) service.
+
+    // Both password boxes are hidden; the eye shows both.
+    bool obscured(String key) => tester
+        .widget<EditableText>(find.descendant(
+            of: find.byKey(Key(key)), matching: find.byType(EditableText)))
+        .obscureText;
+    expect(obscured('login_password'), isTrue);
+    expect(obscured('login_password_again'), isTrue);
+    await tester.tap(find.byKey(const Key('login_show_password')));
+    await tester.pumpAndSettle();
+    expect(obscured('login_password'), isFalse);
+    expect(obscured('login_password_again'), isFalse);
+
+    // Matching passwords pass the form (the offline service then refuses,
+    // which is shown as a message, not a crash).
+    await tester.enterText(
+        find.byKey(const Key('login_password_again')), 'abc123');
+    await tester.tap(find.byKey(const Key('login_submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('兩次密碼唔一樣。'), findsNothing);
   });
 }
