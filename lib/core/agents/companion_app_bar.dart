@@ -55,6 +55,27 @@ class CompanionTitle extends StatelessWidget {
   }
 }
 
+/// Width the S9 button needs so 「今日傾到呢度」 is never cut: measured
+/// with the page's real text scale (the fixed 168 clipped it at the larger
+/// font sizes).  The title (avatar + name) is short, so the bar has room.
+double sessionCloseLeadingWidth(BuildContext context) {
+  final painter = TextPainter(
+    text: TextSpan(
+      text: SessionCloseButton.label,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+    ),
+    textDirection: TextDirection.ltr,
+    textScaler: MediaQuery.textScalerOf(context),
+    maxLines: 1,
+  )..layout();
+  // left padding 4 + button padding 8 + icon 22 + gap 8 + text + padding 8
+  final needed = 4 + 8 + 22 + 8 + painter.width + 8 + 4;
+  painter.dispose();
+  return needed < SessionCloseButton.leadingWidth
+      ? SessionCloseButton.leadingWidth
+      : needed.ceilToDouble();
+}
+
 /// The AppBar every companion chat / form page uses.  [onClose] runs when
 /// S9 is tapped (v2 on); pages that only need to leave pass a `maybePop`.
 AppBar companionAppBar(BuildContext context,
@@ -62,7 +83,7 @@ AppBar companionAppBar(BuildContext context,
   final v2 = BriefPrV2.enabled;
   return AppBar(
     leading: v2 ? SessionCloseButton(onPressed: onClose) : null,
-    leadingWidth: v2 ? SessionCloseButton.leadingWidth : null,
+    leadingWidth: v2 ? sessionCloseLeadingWidth(context) : null,
     title: CompanionTitle(agentId: agentId),
   );
 }
