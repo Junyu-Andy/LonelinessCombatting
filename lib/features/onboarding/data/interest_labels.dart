@@ -31,6 +31,10 @@ class InterestLabels {
     'news':            (zh: '新聞時事',          en: 'News & current affairs'),
   };
 
+  /// Every id, in display order (T47: the researcher's intake form and the
+  /// short elder page use the same list as 通通's interest step).
+  static List<String> get ids => _labels.keys.toList(growable: false);
+
   static String label(String id, bool isEn) {
     final entry = _labels[id];
     if (entry == null) return id;

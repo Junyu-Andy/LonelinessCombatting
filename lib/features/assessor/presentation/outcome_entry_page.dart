@@ -78,6 +78,7 @@ class _OutcomeEntryPageState extends State<OutcomeEntryPage> {
 
   Widget _dateAndMode(BuildContext context) {
     return ListView(
+      key: ValueKey('outcome_entry_step_$_step'),
       children: [
         Text('施測日期', style: Theme.of(context).textTheme.titleMedium),
         OutlinedButton.icon(
@@ -117,6 +118,7 @@ class _OutcomeEntryPageState extends State<OutcomeEntryPage> {
     final n = _step;
     final current = _answers[item.id];
     return ListView(
+      key: ValueKey('outcome_entry_step_$_step'),
       children: [
         Text('第 $n 題，共 ${_items.length} 題',
             style: Theme.of(context).textTheme.bodyMedium),
@@ -159,6 +161,7 @@ class _OutcomeEntryPageState extends State<OutcomeEntryPage> {
     final modeLabel =
         assessmentModes.firstWhere((m) => m.$1 == _mode).$2;
     return ListView(
+      key: ValueKey('outcome_entry_step_$_step'),
       children: [
         Text('請核對後提交', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),

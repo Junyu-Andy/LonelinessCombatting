@@ -211,11 +211,14 @@ test("1. randomization switch on, both sequences uploaded, pointers noted",
 test("2. PILOT-01 / 02 Hybrid, PILOT-03 rule arm: cohort pilot, " +
     "studyPeriod PILOT, arm, w0Date = today, pilot_designated, no isTester",
 async () => {
-  for (const p of PILOTS) await account(p.uid);
+  // T47: the pairing is the elder's own choice from the App's onboarding;
+  // the registration records it and never writes it.
+  for (const p of PILOTS) await account(p.uid, {ahJanAhBakVariant: p.variant});
   for (const p of PILOTS) {
     const r = await R.enrol(db, JUNYU, {uid: p.uid, researchId: p.rid,
-      pilotArm: p.arm, companionVariant: p.variant, confirmed: true},
+      pilotArm: p.arm, confirmed: true},
     {now: NOW});
+    assert.strictEqual(r.companionVariant, p.variant, `${p.rid} recorded`);
     assert.notStrictEqual(r.alreadyEnrolled, true, `${p.rid} first time`);
     assert.strictEqual(r.researchId, p.rid);
     assert.strictEqual(r.studyPeriod, "PILOT");

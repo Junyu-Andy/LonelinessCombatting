@@ -20,6 +20,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agent_context/agent_context_service.dart';
 import '../../../../core/agent_context/rolling_summary_compiler.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/agents/companion_app_bar.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
 import '../../../../core/connectivity/offline_pending_banner.dart';
@@ -44,7 +45,6 @@ import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/negative_cognition_detector.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
-import '../../../brief_pr/presentation/widgets/session_close_button.dart';
 
 class ReflectiveDialoguePage extends StatefulWidget {
   const ReflectiveDialoguePage({super.key});
@@ -553,25 +553,24 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
           }
         },
         child: Scaffold(
-        appBar: AppBar(
-          // T25 — S9 close button (v2 only); back key / gesture still work.
-          leading: BriefPrV2.enabled
-              ? SessionCloseButton(onPressed: () {
-                  _closeReason = SessionEndReason.closeButton;
-                  Navigator.of(context).maybePop();
-                })
-              : null,
-          leadingWidth:
-              BriefPrV2.enabled ? SessionCloseButton.leadingWidth : null,
-          title: Text(isEn ? 'Reflective chat' : '反思傾偈'),
-        ),
+        // T25 S9 close button (v2 only); back key / gesture still work.
+        // 10/15: one bar for every companion page (companion_app_bar).
+        appBar: companionAppBar(context,
+            agentId: AgentRegistry.ahJanAhBakId,
+            onClose: () {
+              _closeReason = SessionEndReason.closeButton;
+              Navigator.of(context).maybePop();
+            }),
         body: SafeArea(
           child: Column(
             children: [
               Expanded(
                 child: ListView(
+                  // 10/15: newest message at the bottom edge; the list follows the
+                  // keyboard up instead of leaving the last turn under the composer.
+                  reverse: true,
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                  children: [
+                  children: <Widget>[
                     if (_turns.isEmpty)
                       Text(
                         _personalisedOpener ??
@@ -622,7 +621,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
                         onDismiss: () =>
                             setState(() => _pendingReferral = null),
                       ),
-                  ],
+                  ].reversed.toList(),
                 ),
               ),
               if (_pendingOffline != null)

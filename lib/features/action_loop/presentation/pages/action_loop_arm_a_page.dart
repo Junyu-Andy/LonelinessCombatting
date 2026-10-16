@@ -10,6 +10,7 @@ import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/app_loading_indicator.dart';
 import '../../../../shared/widgets/app_stepper.dart';
 import '../../../auth/data/auth_service.dart';
+import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/action_plan.dart';
 
@@ -66,6 +67,14 @@ try again in the afternoon." No extra encouragement or suggestions.
   String _whenText = '';
   String _whereText = '';
   String _whoWith = '';
+
+  /// T48: contacts the elder agreed to share (profile.closeContacts).
+  List<CloseContact> _sharedContacts(BuildContext context) => [
+        for (final c
+            in AppSettingsScope.read(context).profile?.closeContacts ??
+                const <CloseContact>[])
+          if (c.share) c,
+      ];
   String _fallback = '';
   String _summary = '';
   bool _busy = false;
@@ -281,7 +290,10 @@ try again in the afternoon." No extra encouragement or suggestions.
         title: Text(isEn ? 'Plan a small step' : '計劃一個小行動'),
       ),
       body: SafeArea(
-        child: Padding(
+        // 10/15: scrolling page (was a fixed column with Spacers), so the
+        // keyboard that opens with the autofocused field never hides the
+        // 下一步 button, at any font size.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -316,7 +328,7 @@ try again in the afternoon." No extra encouragement or suggestions.
                           ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 24),
                 FilledButton(
                   onPressed: _busy ? null : _savePlan,
                   child: Padding(
@@ -328,20 +340,33 @@ try again in the afternoon." No extra encouragement or suggestions.
                   ),
                 ),
               ] else if (_step == _Step.saved) ...[
-                const Spacer(),
+                const SizedBox(height: 24),
                 Center(
                   child: Text(
                     isEn ? 'Saved — see you back here.' : '收到。等你返嚟同我講件事點。',
                     style: theme.textTheme.titleMedium,
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 24),
               ] else ...[
                 Text(
                   isEn ? _promptEn() : _promptZh(),
                   style: theme.textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
+                // T48: the people the elder agreed to share, one tap each.
+                if (_step == _Step.who && _sharedContacts(context).isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Wrap(spacing: 8, runSpacing: 8, children: [
+                      for (final c in _sharedContacts(context))
+                        ActionChip(
+                          key: Key('plan_contact_${c.name}'),
+                          label: Text(c.label),
+                          onPressed: () => setState(() => _ctrl.text = c.name),
+                        ),
+                    ]),
+                  ),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -349,6 +374,7 @@ try again in the afternoon." No extra encouragement or suggestions.
                       child: TextField(
                         controller: _ctrl,
                         autofocus: true,
+                        scrollPadding: const EdgeInsets.only(bottom: 120),
                         style: theme.textTheme.bodyLarge,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
@@ -364,7 +390,7 @@ try again in the afternoon." No extra encouragement or suggestions.
                     ),
                   ],
                 ),
-                const Spacer(),
+                const SizedBox(height: 24),
                 FilledButton(
                   onPressed: _advance,
                   child: Padding(

@@ -67,6 +67,12 @@
 ///                               dashboard (per person per day, follow-up
 ///                               stage, CSV) for the `unblinded` role; the
 ///                               server callables check the same flag.
+///   - [researcherIntakeEnabled] — T47: the researcher records the five
+///                               intake answers at the W0 visit
+///                               (`recordResearcherIntake`); the elder's App
+///                               no longer shows an intake questionnaire.
+///                               Off = the elder answers the short five-
+///                               question page.  Both arms identical.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -90,6 +96,7 @@ class RemoteFeatureFlags {
     this.outcomeCompletionSummaryEnabled = false,
     this.usageEventsEnabled = false,
     this.opsDashboardEnabled = false,
+    this.researcherIntakeEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -104,6 +111,7 @@ class RemoteFeatureFlags {
   final bool outcomeCompletionSummaryEnabled;
   final bool usageEventsEnabled;
   final bool opsDashboardEnabled;
+  final bool researcherIntakeEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -150,6 +158,7 @@ class RemoteFeatureFlags {
             map['outcomeCompletionSummaryEnabled'] == true,
         usageEventsEnabled: map['usageEventsEnabled'] == true,
         opsDashboardEnabled: map['opsDashboardEnabled'] == true,
+        researcherIntakeEnabled: map['researcherIntakeEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

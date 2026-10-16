@@ -95,6 +95,11 @@ class PersonaResolver {
         agentId: agentId,
         intake: intake,
         interests: profile.interests,
+        // T48: only contacts the elder agreed to share.
+        sharedPeople: [
+          for (final c in profile.closeContacts)
+            if (c.share) c.label,
+        ],
       );
       if (seed != null && seed.trim().isNotEmpty) {
         summaryText = seed.trim();

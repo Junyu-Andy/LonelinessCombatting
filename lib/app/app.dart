@@ -246,11 +246,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               // overriding MediaQuery before anything paints text. This
               // affects every Text widget in the subtree without forcing
               // each widget to read settings.fontScale directly.
+              // 10/15 pilot: the phone's own "larger text" setting used to
+              // multiply with the App's 大字 setting (1.5 × 1.3 ≈ 2×), and
+              // the cards could not hold it.  The combined factor is now
+              // capped at the App's own largest size; the App setting
+              // still works on its own.
               final base = MediaQuery.of(context);
+              final combined = base.textScaler.scale(1.0) *
+                  widget.settings.fontScale.multiplier;
               final scaled = base.copyWith(
                 textScaler: TextScaler.linear(
-                  base.textScaler.scale(1.0) *
-                      widget.settings.fontScale.multiplier,
+                  combined.clamp(0.8, AppFontScale.xLarge.multiplier),
                 ),
               );
               return MediaQuery(

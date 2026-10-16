@@ -53,6 +53,7 @@ rules_version = '2';
 //   users/{uid}/weekly_pr|pgic|brief_pr          -> T24: studyWeek/studyDay/window/missed fields are server-only
 //   weekly_status/{uid}                          -> T24 weekly bundle status, research ID, push times (server only)
 //   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events (owner: create only; server stamps research ID, study day, uploadedLate)
+//   intake_audit_log/{id}                        -> T47 researcher-recorded intake log (server-only)
 //   ops_daily/{uid}/days/{dayKey}, ops_audit_log/{id} -> T39 operations dashboard: stored day rows + open log (server only)
 
 service cloud.firestore {
@@ -647,6 +648,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /analysis_export_log/{id} {
+      allow read, write: if false;
+    }
+    // T47: who recorded which elder's intake (no answer text).  Server only.
+    match /intake_audit_log/{id} {
       allow read, write: if false;
     }
     match /process_export_log/{id} {

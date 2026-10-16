@@ -6,6 +6,27 @@
 
 ---
 
+## 2026-10-15 T48 「重要的人」经同意给夥伴；入组答案写进服务器记忆（PR 草稿，分支 `feat/t48-contacts-and-seed`，接 T47）
+
+- Junyu 10/15 定「要给，确认之后再进入」：录入时每位单独勾同意；勾了的进小欣记忆（v0 播种加一句；v1 由服务器写条目）和行动计划快捷按钮（两组）。
+- 核对时发现 Phase B Hybrid 组走服务器记忆 v1，App 的入组播种从不运行，入组答案从未到过陪伴者。T48 起研究员录入时服务器直接写 `mem_facts`（每位陪伴者一份，再录覆盖）。报告 `docs/dev-reports/T48-shared-contacts-20261015.md`，决策记录草稿在第 5 节。
+
+## 2026-10-15 T47 入组问卷精简为五题、研究员后台录入（PR 草稿，分支 `feat/t47-researcher-intake`）
+
+- 10/15 第 10 条：老人答 6 页问卷太吃力。先按代码答了第 0 节四题（报告第 2 节）：原问卷 17 个字段只有 `mainGoals`、作息三句、`avoidTopics` 被首次记忆播种读过；`interests` 其实来自引导里通通那一步，`closeContacts` 从来没被写过也没人读；规则组一个字段都不读。
+- 做了：服务器 `recordResearcherIntake`（`functions/researcher_intake.js`，只有 `unblinded`，写 intake 文档 + 资料字段 + `intake_audit_log`）；登记页加「入組資料」区；开关 `researcherIntakeEnabled` 开着时 `ConsentGate` 跳过问卷；关着时老人答五题一页的 `IntakeShortPage`（原 6 页 `intake_flow_page.dart` 删掉）；登记页不再要研究员选配对，`enrollParticipant` 只记录老人自选的那位，不再写 `ahJanAhBakVariant`。
+- 没做：登记表（`feature-registry.md`）按规矩不改，第 2 节第 5 条的三处改动写在报告里给产品窗口。报告 `docs/dev-reports/T47-researcher-intake-20261015.md`。
+## 2026-10-15 选项按钮对比度（PR 草稿，分支 `fix/chip-contrast`）
+
+- Junyu 10/15 在安卓研究员页和老人的 iPhone 上都看到：表单选项未选时全是白的，点了才变黄。原因是主题里 chip 的边框色 #E7E0D8 和页面底色 #F7F5F1 几乎一样，字也用淡色。改主题一处：未选深色边框 1.5px 和深色字，选中底色用主色 22% 并打勾，高对比模式黑边 2px。加 `test/chip_contrast_test.dart`。
+## 2026-10-15 翻页回页顶、键盘遮挡、字号封顶（PR 草稿，分支 `ui/scroll-keyboard`）
+
+- Junyu 10/15 三条：问卷点下一页不回页顶（每週夥伴評估和简短评价共用一个 ListView，加 `ValueKey` 按页重建；评估员录入页同样）；输入法弹出页面不变长（三个固定 Column 的页改成可滚动，输入框 `minLines` 代替 `expands`；四个聊天页的消息列表改 `reverse: true`，最新一句贴着输入框并跟着键盘上移；签到备注框加 `scrollPadding`）；大字模式很多页面放不下（系统字号 × App 字号封顶在 1.3）。核对时发现 `onboarding_page.dart` 已无引用，留给瘦身批次。
+
+## 2026-10-15 陪伴者页面顶栏统一（PR 草稿，分支 `ui/companion-appbar`）
+
+- Junyu 10/15 看到三位陪伴者页面左上角、右上角不一样。盘点后：标题三种写法、右上角只有阿珍 A 页有第二个结束按钮、规则组两页没有 T25 的收尾按钮（和「两组相同」的规定相悖）。新建 `lib/core/agents/companion_app_bar.dart`，六个页面统一用它；阿珍／阿伯页的当周主题移到页内第一行。加 `test/companion_app_bar_test.dart` 钉住规则组两页和 Hybrid 组一样。
+
 ## 2026-10-15 iOS 最低版本 13.0 → 15.0（PR 草稿，分支 `fix/ios-deployment-target-15`）
 
 - Junyu 用新版 Xcode 打 TestFlight 包报错：Xcode 只支持 15.0 以上的部署目标。`Runner.xcodeproj` 三处 `IPHONEOS_DEPLOYMENT_TARGET` 改成 15.0；iOS 15 覆盖 iPhone 6s 及以后，老人的机不受影响。本机的 `ios/Podfile`（不在仓库里）也要改成 `platform :ios, '15.0'` 再 `pod install`。

@@ -23,9 +23,13 @@ import '../../../core/feature_flags/remote_feature_flags.dart';
 import '../../ops_dashboard/presentation/ops_dashboard_page.dart';
 import '../../researcher_dashboard/presentation/pages/researcher_dashboard_page.dart';
 import '../data/enrollment_service.dart';
+import 'intake_section.dart';
 
 class EnrollmentPage extends StatefulWidget {
   final EnrollmentBackend backend;
+
+  /// T47: the researcher-recorded intake (五題), injectable for tests.
+  final IntakeBackend intakeBackend;
 
   /// Today's date (Hong Kong), injectable for tests.
   final DateTime Function() today;
@@ -45,6 +49,7 @@ class EnrollmentPage extends StatefulWidget {
   const EnrollmentPage({
     super.key,
     this.backend = const CloudEnrollmentBackend(),
+    this.intakeBackend = const CloudIntakeBackend(),
     this.today = DateTime.now,
     this.onSignOut,
     this.opsDashboardOn,
@@ -69,7 +74,12 @@ String armLabel(String? arm) => switch (arm) {
 String stratumLabel(String stratum) =>
     stratum == 'low' ? '低層（0–1 分）' : '高層（2–3 分）';
 
-String variantLabel(String? v) => v == 'masculine' ? '阿伯' : '阿珍';
+/// T47: the elder's own pairing (null until they chose in the App).
+String variantLabel(String? v) => switch (v) {
+      'masculine' => '阿伯',
+      'feminine' => '阿珍',
+      _ => '未揀',
+    };
 
 /// T21: the study period shown to the researcher.
 String periodLabel(String? p) => switch (p) {
@@ -105,7 +115,6 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
   final _researchId = TextEditingController();
   int? _score;
   String? _pilotArm;
-  String? _variant;
   late DateTime _w0;
   bool _busy = false;
   String? _error;
@@ -130,21 +139,20 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
   bool get _complete =>
       _email.text.trim().isNotEmpty &&
       _period != null &&
-      (_period == 'PILOT' ? _pilotArm != null : _score != null) &&
-      _variant != null;
+      (_period == 'PILOT' ? _pilotArm != null : _score != null);
 
+  // T47: no pairing from the researcher; the server records the elder's
+  // own choice and the confirmation dialog shows it.
   EnrollmentInput _input() => _period == 'PILOT'
       ? EnrollmentInput(
           email: _email.text,
           researchId: _researchId.text,
-          companionVariant: _variant!,
           pilotArm: _pilotArm,
         )
       : EnrollmentInput(
           email: _email.text,
           researchId: _researchId.text,
           w0DjgEmotional: _score!,
-          companionVariant: _variant!,
           w0Date: _dateKey(_w0),
         );
 
@@ -189,7 +197,6 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
       _researchId.clear();
       _score = null;
       _pilotArm = null;
-      _variant = null;
       _w0 = widget.today();
       _result = null;
       _error = null;
@@ -304,17 +311,11 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
               ),
             ],
             const SizedBox(height: 16),
-            Text('配對', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, children: [
-              for (final v in const ['feminine', 'masculine'])
-                ChoiceChip(
-                  key: Key('enroll_variant_$v'),
-                  label: Text(variantLabel(v)),
-                  selected: _variant == v,
-                  onSelected: (_) => setState(() => _variant = v),
-                ),
-            ]),
+            // T47: the pairing (阿珍／阿伯) is the elder's own choice in
+            // the App's onboarding; the researcher only sees it (dialog).
+            Text('配對：老人家喺 App 引導入面自己揀，登記時只記錄，唔使你揀。',
+                key: const Key('enroll_variant_note'),
+                style: theme.textTheme.bodySmall),
             const SizedBox(height: 16),
             if (_period == 'PILOT')
               const ListTile(
@@ -348,6 +349,13 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
                   : const Text('檢查'),
             ),
           ],
+          const SizedBox(height: 28),
+          // T47: the five intake answers, asked out loud at the W0 visit;
+          // below the registration so the form stays where it was.
+          IntakeSection(
+              key: const Key('enroll_intake_section'),
+              backend: widget.intakeBackend,
+              defaultEmail: _result != null ? _email.text : null),
         ],
       ),
     );
@@ -440,7 +448,8 @@ class _ConfirmDialogState extends State<_ConfirmDialog> {
             Text('研究期：${periodLabel(i.studyPeriod)}'),
             if (pilot) ...[
               Text('版本：${armLabel(i.pilotArm)}（由你指定）'),
-              Text('配對：${variantLabel(i.companionVariant)}'),
+              Text('配對：${variantLabel(p.companionVariant)}（老人家自選）',
+                  key: const Key('enroll_dialog_variant')),
               const Text('研究日起點：登記當日'),
               const SizedBox(height: 12),
               const Text('請再揀一次版本：'),
@@ -452,7 +461,8 @@ class _ConfirmDialogState extends State<_ConfirmDialog> {
               ),
             ] else ...[
               Text('情感分：${i.w0DjgEmotional} 分 → ${stratumLabel(i.stratum)}'),
-              Text('配對：${variantLabel(i.companionVariant)}'),
+              Text('配對：${variantLabel(p.companionVariant)}（老人家自選）',
+                  key: const Key('enroll_dialog_variant')),
               Text('W0 日期：${i.w0Date}'),
               const SizedBox(height: 12),
               const Text('請再揀一次情感分：'),

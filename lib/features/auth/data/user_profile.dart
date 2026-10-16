@@ -148,22 +148,34 @@ class CloseContact {
   /// when the user plans a contact. Not displayed elsewhere.
   final String? phone;
 
+  /// T48: the elder agreed the companions may know this person (asked by
+  /// the researcher when recording the intake).  Only shared contacts go
+  /// into 小欣's memory and the action-plan quick picks.
+  final bool share;
+
   const CloseContact({
     required this.name,
     this.relation,
     this.phone,
+    this.share = false,
   });
+
+  /// "阿女（女）" / "黃太" — the label the companions and chips use.
+  String get label =>
+      relation == null || relation!.isEmpty ? name : '$name（$relation）';
 
   Map<String, dynamic> toMap() => {
         'name': name,
         'relation': relation,
         'phone': phone,
+        'share': share,
       };
 
   factory CloseContact.fromMap(Map<String, dynamic> map) => CloseContact(
         name: (map['name'] as String?) ?? '',
         relation: map['relation'] as String?,
         phone: map['phone'] as String?,
+        share: map['share'] == true,
       );
 }
 
@@ -254,7 +266,8 @@ class UserProfile {
   final String? avoidTopics;
 
   /// True once the 6-part intake questionnaire is completed.
-  /// Used by ConsentGate to decide whether to show IntakeFlowPage.
+  /// Used by ConsentGate to decide whether to show the intake page (T47:
+  /// only while `researcherIntakeEnabled` is off).
   final bool hasCompletedIntake;
 
   /// Preferred input mode from intake Part 6 (typing / voice / both / unsure).

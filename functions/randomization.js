@@ -57,6 +57,18 @@ const GENERATOR_VERSION = "permuted_block_v1";
 // functions/blinding.js and tool/check_blinded_export.js.
 const RESEARCH_ID_PATTERN = /^[A-Z0-9][A-Z0-9-]{1,11}$/;
 const VARIANTS = ["feminine", "masculine"];
+
+/**
+ * T47: the pairing the elder chose in the App's onboarding (null until
+ * they have).  Recorded on the enrolment; never overwritten by the
+ * researcher.
+ * @param {object} u users/{uid} data
+ * @return {?string} "feminine" | "masculine" | null
+ */
+function elderVariant(u) {
+  const v = u && u.ahJanAhBakVariant;
+  return VARIANTS.indexOf(v) >= 0 ? v : null;
+}
 const UNBLINDED_ROLE = "unblinded";
 
 /**
@@ -236,11 +248,11 @@ function enrolError(code, detail) {
  * @param {object} db admin.firestore()
  * @param {{uid: string, email: ?string, role: ?string}} caller
  * @param {{uid: string, researchId: *, w0DjgEmotional: *,
- *     companionVariant: *, w0Date: *, pilotArm: *, confirmed: *,
- *     dryRun: *}} input
+ *     w0Date: *, pilotArm: *, confirmed: *, dryRun: *}} input
  *     `uid` is the participant's account (resolved from the email by the
  *     callable wrapper).  `pilotArm` ("A" | "B") only for a PILOT- ID,
- *     which needs no score or W0 date (T21)
+ *     which needs no score or W0 date (T21).  T47: a `companionVariant`
+ *     in the input is ignored; the elder's own choice is recorded
  * @param {{now: (Date|undefined)}=} opts
  * @return {Promise<object>}
  */
@@ -266,8 +278,9 @@ async function enrol(db, caller, input, opts) {
   const score = input.w0DjgEmotional;
   const stratum = stratumFor(score);
   if (!stratum) throw enrolError("invalid_score");
-  const variant = input.companionVariant;
-  if (VARIANTS.indexOf(variant) < 0) throw enrolError("invalid_variant");
+  // T47: the pairing is the elder's own choice (users/{uid}.ahJanAhBakVariant
+  // from the App's onboarding); the researcher only records it.  A variant
+  // in the input is ignored.
   const w0Date = input.w0Date == null ? hkDateKey(now) :
     validW0Date(input.w0Date, now);
   if (!w0Date) throw enrolError("invalid_w0_date");
@@ -295,11 +308,11 @@ async function enrol(db, caller, input, opts) {
       displayName: u.displayName || null,
       createdAt: toIso(u.createdAt),
     };
+    const variant = elderVariant(u);
 
     if (existing.exists) {
       const same = existing.get("researchId") === researchId &&
-        existing.get("w0DjgEmotional") === score &&
-        existing.get("companionVariant") === variant;
+        existing.get("w0DjgEmotional") === score;
       return resubmission(tx, db, caller, uid, existing, same, account,
           dryRun, now);
     }
@@ -337,7 +350,6 @@ async function enrol(db, caller, input, opts) {
       armAssignedBy: "server",
       armAssignedAt: now,
       w0Date,
-      ahJanAhBakVariant: variant,
       // T21: the study period, from the PB- prefix (decision 0011 label).
       cohort: period.cohort,
     }, {merge: true});
@@ -427,8 +439,6 @@ function resubmission(tx, db, caller, uid, existing, same, account, dryRun,
 async function enrolPilot(db, caller, uid, researchId, input, now) {
   const arm = input.pilotArm;
   if (arm !== "A" && arm !== "B") throw enrolError("invalid_pilot_arm");
-  const variant = input.companionVariant;
-  if (VARIANTS.indexOf(variant) < 0) throw enrolError("invalid_variant");
   const dryRun = input.dryRun === true;
   if (!dryRun && input.confirmed !== true) {
     throw enrolError("not_confirmed");
@@ -451,10 +461,10 @@ async function enrolPilot(db, caller, uid, researchId, input, now) {
       displayName: u.displayName || null,
       createdAt: toIso(u.createdAt),
     };
+    const variant = elderVariant(u);
     if (existing.exists) {
       const same = existing.get("researchId") === researchId &&
-        existing.get("arm") === arm &&
-        existing.get("companionVariant") === variant;
+        existing.get("arm") === arm;
       return resubmission(tx, db, caller, uid, existing, same, account,
           dryRun, now);
     }
@@ -479,7 +489,6 @@ async function enrolPilot(db, caller, uid, researchId, input, now) {
       armAssignedBy: "researcher",
       armAssignedAt: now,
       w0Date,
-      ahJanAhBakVariant: variant,
       cohort: period.cohort,
     }, {merge: true});
     tx.create(enrolRef, {

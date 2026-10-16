@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/agents/companion_app_bar.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/safety/safety_check.dart';
@@ -72,7 +73,11 @@ class _CheckInArmBState extends State<CheckInArmB> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(isEn ? 'Siu Yan' : '小欣')),
+      // 10/15: same bar as Arm A (S9 close button when v2 is on; here
+      // finishing is simply leaving the form).
+      appBar: companionAppBar(context,
+          agentId: AgentRegistry.siuYanId,
+          onClose: () => Navigator.of(context).maybePop()),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
@@ -130,6 +135,7 @@ class _CheckInArmBState extends State<CheckInArmB> {
             TextField(
               controller: _noteCtrl,
               maxLines: 4,
+              scrollPadding: const EdgeInsets.only(bottom: 140),
               style: theme.textTheme.bodyLarge,
               decoration: InputDecoration(
                 hintText: isEn

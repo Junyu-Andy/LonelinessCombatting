@@ -26,7 +26,7 @@ void main() {
 
   const interests = ['yum_cha', 'gardening'];
 
-  test('siu_yan seed carries goals + typical day + interests + avoid-tone',
+  test('siu_yan seed carries goals + interests + avoid-tone (no typical day)',
       () {
     final seed = IntakeMemorySeeder.seedFor(
       agentId: AgentRegistry.siuYanId,
@@ -34,9 +34,33 @@ void main() {
       interests: interests,
     )!;
     expect(seed, contains('想有人陪下傾偈'));
-    expect(seed, contains('飲茶')); // typical day
+    expect(seed, isNot(contains('日常'))); // T47: typical day retired
     expect(seed, contains('飲茶／一盅兩件')); // interest label
     expect(seed, contains('唔好主動講')); // avoidTopics → tone only
+  });
+
+  test('T48: shared people reach 小欣 only, and only when passed', () {
+    final siu = IntakeMemorySeeder.seedFor(
+      agentId: AgentRegistry.siuYanId,
+      intake: buildIntake(),
+      interests: interests,
+      sharedPeople: const ['阿女（女）'],
+    )!;
+    expect(siu, contains('佢身邊重要嘅人：阿女（女）。'));
+    expect(siu, isNot(contains('阿明'))); // intake importantPeople still HOLD
+    final tung = IntakeMemorySeeder.seedFor(
+      agentId: AgentRegistry.tungTungId,
+      intake: buildIntake(),
+      interests: interests,
+      sharedPeople: const ['阿女（女）'],
+    )!;
+    expect(tung, isNot(contains('阿女')));
+    final none = IntakeMemorySeeder.seedFor(
+      agentId: AgentRegistry.siuYanId,
+      intake: buildIntake(),
+      interests: interests,
+    )!;
+    expect(none, isNot(contains('重要嘅人')));
   });
 
   test('tung_tung seed carries interests + goals, not typical day', () {

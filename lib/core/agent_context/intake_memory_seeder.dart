@@ -9,14 +9,19 @@
 /// the user opens a room with an empty summary.
 ///
 /// Field routing follows Appendix C:
-///   • 小欣 (siu_yan)      = goals + typicalDay + interests + avoidTopics(tone)
+///   • 小欣 (siu_yan)      = goals + interests + avoidTopics(tone)
+///     (T47: the typical-day fields are no longer collected, so the
+///     day line is gone; older six-part answers simply lose that line)
 ///   • 通通 (tung_tung)    = interests/topics + goals
 ///   • 阿珍/阿伯 (ah_jan)  = goals only (lifeChapters HOLD → Phase B)
 ///
 /// HARD RULES honoured here (Sprint Plan §0):
 ///   • `onMind` is NEVER read or seeded.
-///   • `importantPeople` / `reconnectPeople` / `closeContacts` are HOLD —
-///     never seeded (no third-party names pushed to the endpoint).
+///   • `importantPeople` / `reconnectPeople` are never seeded from the
+///     intake document.  T48: contacts the elder agreed to share
+///     (`profile.closeContacts` with `share`) go to 小欣 only, as the
+///     [sharedPeople] labels the caller passes; unshared ones never leave
+///     the device.
 ///   • `avoidTopics` is referenced only as a tone instruction, never echoed
 ///     as a topic to raise.
 library;
@@ -47,12 +52,15 @@ class IntakeMemorySeeder {
     required String agentId,
     required IntakeResponse? intake,
     required List<String> interests,
+    List<String> sharedPeople = const [],
   }) {
     if (intake == null) return null;
 
     final goals = _goalsLine(intake);
+    final peopleLine = sharedPeople.isEmpty
+        ? null
+        : '佢身邊重要嘅人：${sharedPeople.join('、')}。';
     final interestLine = _interestsLine(interests, intake);
-    final dayLine = _typicalDayLine(intake);
     final avoidLine = (intake.avoidTopics?.trim().isNotEmpty ?? false)
         ? '有啲話題用戶唔想提起，系統已記低，唔好主動講。'
         : null;
@@ -61,7 +69,7 @@ class IntakeMemorySeeder {
     switch (agentId) {
       case AgentRegistry.siuYanId:
         if (goals != null) parts.add(goals);
-        if (dayLine != null) parts.add(dayLine);
+        if (peopleLine != null) parts.add(peopleLine);
         if (interestLine != null) parts.add(interestLine);
         if (avoidLine != null) parts.add(avoidLine);
         break;
@@ -102,22 +110,5 @@ class IntakeMemorySeeder {
     }
     if (names.isEmpty) return null;
     return '佢平時鍾意：${names.join('、')}。';
-  }
-
-  static String? _typicalDayLine(IntakeResponse intake) {
-    final segs = <String>[];
-    void add(String? raw) {
-      final t = raw?.trim();
-      if (t != null && t.isNotEmpty) segs.add(t);
-    }
-
-    add(intake.typicalMorning);
-    add(intake.typicalAfternoon);
-    add(intake.typicalEvening);
-    if (segs.isEmpty) return null;
-    // Keep it short — a one-line gist, not a transcript.
-    final joined = segs.join('；');
-    final gist = joined.length > 80 ? '${joined.substring(0, 80)}…' : joined;
-    return '佢嘅日常大致係：$gist。';
   }
 }

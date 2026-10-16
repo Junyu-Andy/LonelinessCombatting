@@ -5,6 +5,7 @@ import '../../../../core/reminders/reminder_service.dart';
 import '../../../../core/safety/safety_check.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../auth/data/auth_service.dart';
+import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/action_plan.dart';
 
@@ -124,9 +125,20 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
     final places = isEn
         ? const ['At home', 'Outdoors', 'Somewhere else']
         : const ['屋企', '出街', '其他地方'];
-    final contacts = isEn
-        ? const ['Family', 'A friend', 'Alone']
-        : const ['屋企人', '朋友', '一個人'];
+    // T48: the people the elder agreed to share come first, then the
+    // generic options.  Rule arm: no LLM anywhere; this is a list.
+    final shared = [
+      for (final c
+          in AppSettingsScope.read(context).profile?.closeContacts ??
+              const <CloseContact>[])
+        if (c.share) c.name,
+    ];
+    final contacts = [
+      ...shared,
+      ...(isEn
+          ? const ['Family', 'A friend', 'Alone']
+          : const ['屋企人', '朋友', '一個人']),
+    ];
     final fallbacks = isEn
         ? const [
             'Try again later in the day',

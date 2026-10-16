@@ -8,7 +8,7 @@
 
 1. 打包按 `docs/release/w0-install-script.md` 第二节：iPhone 今天 Xcode 直接装，带 `PHASE_B=true` 和 `RULE_TEMPLATE_REPLIES=true`，并且要含第 2 节第 14 条的 Push 能力；Android 10/19 前用 GitHub Actions `phase_b_templates` 从 main 打。
 2. 部署一次 Firebase（规则加 Functions）。
-3. 开关（10/15 第 8 条，Junyu 定：装机前一次设成正式状态）。先在 emulator 跑完 claude/通知与问卷排查-1015.md 的 A2、A3、A12、A13、A15 五条，再在控制台设：`app_config/feature_flags`：`onboardingAfterEnrollmentFix = true`、`voiceInputEnabled = true`（A11 不出【占位】才开）、`usageEventsEnabled = true`（位置以 T40 报告为准）、`enrollmentGateEnabled = false`（10/19 第一位 PB 登记前开，开前团队和评估员账号设 `isTester: true`）、`assessorViewEnabled = false`（11/9 前开）；`app_config/phase_b`：`sessionBriefPrV2Enabled = true`、`weeklyScheduleV2Enabled = true`、`socialContactProbeEnabled = true`。每开一个在 STUDY_CHANGELOG 补一行生效日期。10/14 第 11 条 (1) 和 10/15 第 1 条 (6) 里“Brief PR V2 先关”的说法由本条取代。
+3. 开关（10/15 第 8 条，Junyu 定：装机前一次设成正式状态）。先在 emulator 跑完 claude/通知与问卷排查-1015.md 的 A2、A3、A12、A13、A15 五条，再在控制台设：`app_config/feature_flags`：`onboardingAfterEnrollmentFix = true`、`voiceInputEnabled = true`（A11 不出【占位】才开）、`usageEventsEnabled = true`（位置以 T40 报告为准）、`enrollmentGateEnabled = false`（10/19 第一位 PB 登记前开，开前团队和评估员账号设 `isTester: true`）、`assessorViewEnabled = false`（11/9 前开）；`app_config/phase_b`：`sessionBriefPrV2Enabled = true`、`weeklyScheduleV2Enabled = true`、`socialContactProbeEnabled = true`；`app_config/feature_flags.opsDashboardEnabled = true`（T39 已合，入口在登记页右上角「營運看板」）。每开一个在 STUDY_CHANGELOG 补一行生效日期。10/14 第 11 条 (1) 和 10/15 第 1 条 (6) 里“Brief PR V2 先关”的说法由本条取代。
 4. `PI_EMAIL` 密钥设为 Junyu 的地址，保留。
 5. 建 `meta/alert_config`：`enabled: true`、`primaryEmail` 为 Junyu、不设 `backupEmail`、`escalateAfterHours` 留默认。不设后备是 Junyu 10/14 第 11 条 (7) 定的。注意 #73 把“首发失败即转后备”也合进了 main：没有后备时首发失败就没有第二条路，开发窗口请确认失败会写进 `alert_audit_log` 并在后台告警列表标出。建好后用 `isTester: true` 的测试账号触发一次急性级事件，Junyu 收到邮件后才算配置完成。说明：现在 `meta` 里没有这份文档是正常的，T34 要手工建；文档不存在时代码按 enabled 为假走 T19 老路，急性级只发到 `PI_EMAIL`。
 6. 1014c 第 1 节第 1、2 题（PILOT 账号发不发告警；T21 版本选择的操作步骤）仍要在 10/15 早上前答。
@@ -37,6 +37,8 @@
 
 18. **App 图标和名称**（10/15 第 7 条）。按 claude/app-icon-prompt-1015.md 第 4 节：Junyu 给 1024 PNG 后用 flutter_launcher_icons 生成全部尺寸；同一 PR 把 Android `android:label` 从 `app_demo` 改为「陪住」，iOS `CFBundleName` 改为 WithYou（`CFBundleDisplayName` 已是「陪住」）。老人看得到，STUDY_CHANGELOG 记一行。10/19 构建前合；今天 iPhone 包来不及就先用现图标，10/22 重装时换。
 19. **通知与问卷排查**（10/15 第 7 条）。按 claude/通知与问卷排查-1015.md 第 4 节 A 部分在 emulator 跑 A1–A15，把 [待核] 逐条按代码答掉，写进 docs/dev-reports/。今天装机前完成 A2、A3、A12、A13、A15，其余 10/17 前。
+
+20. **W8 问卷加 LSNS-6**（10/15 第 9 条，写进 T35）。W8 第 56 天推送的必答部分改为：DJG-ES 6 题、UCLA-3 3 题、PGIC 1 题、继续使用意向 CI1–CI3、LSNS-6 6 题，共 19 题；AIMHS 5 题照旧可整份跳过。LSNS-6 每题 6 档（0 = 冇 … 5 = 九個或以上），总分 0–30，服务器算分。研究侧补 `docs/spec/instruments/lsns6.md`（题目中文版出处待核）。W0、W4 是纸本，不进 App。两组相同。T35 截止 12/10 不变。
 
 ## 3. 要先答的问题（按现在的代码答，写进 docs/dev-reports/）
 

@@ -25,8 +25,8 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agent_context/agent_context_service.dart';
 import '../../../../core/agent_context/rolling_summary_compiler.dart';
-import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/agents/companion_app_bar.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
@@ -54,7 +54,6 @@ import '../../data/tung_tung_rule_pool.dart';
 import '../../data/tung_tung_rule_responder.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
-import '../../../brief_pr/presentation/widgets/session_close_button.dart';
 
 class TungTungPage extends StatefulWidget {
   /// Optional article body / title injected by M8's "問下呢篇" entry.
@@ -775,10 +774,8 @@ class _TungTungPageState extends State<TungTungPage> {
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final theme = Theme.of(context);
     final profile = AppSettingsScope.of(context).profile;
     final agent = AgentRegistry.byId(AgentRegistry.tungTungId);
-    final variant = agent.resolveVariant(null);
 
     return FirstIntroOverlay(
       agentId: AgentRegistry.tungTungId,
@@ -791,28 +788,14 @@ class _TungTungPageState extends State<TungTungPage> {
           }
         },
         child: Scaffold(
-        appBar: AppBar(
-          // T25 — S9 close button (v2 only); back key / gesture still work.
-          leading: BriefPrV2.enabled
-              ? SessionCloseButton(onPressed: () {
-                  _closeReason = SessionEndReason.closeButton;
-                  Navigator.of(context).maybePop();
-                })
-              : null,
-          leadingWidth:
-              BriefPrV2.enabled ? SessionCloseButton.leadingWidth : null,
-          title: Row(
-            children: [
-              AgentAvatar(
-                agent: agent,
-                size: 32,
-                openProfileOnTap: true,
-              ),
-              const SizedBox(width: 10),
-              Text(isEn ? variant.displayNameEn : variant.displayNameZh),
-            ],
-          ),
-        ),
+        // T25 S9 close button (v2 only); back key / gesture still work.
+        // 10/15: one bar for every companion page (companion_app_bar).
+        appBar: companionAppBar(context,
+            agentId: AgentRegistry.tungTungId,
+            onClose: () {
+              _closeReason = SessionEndReason.closeButton;
+              Navigator.of(context).maybePop();
+            }),
         body: SafeArea(
           child: Column(
             children: [
@@ -820,8 +803,11 @@ class _TungTungPageState extends State<TungTungPage> {
                 _ArticleContextBanner(title: widget.articleTitle!),
               Expanded(
                 child: ListView(
+                  // 10/15: newest message at the bottom edge; the list follows the
+                  // keyboard up instead of leaving the last turn under the composer.
+                  reverse: true,
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                  children: [
+                  children: <Widget>[
                     for (int i = 0; i < _turns.length; i++) ...[
                       _TurnBubble(turn: _turns[i]),
                       if (!_turns[i].fromUser && !_turns[i].isSystem)
@@ -872,7 +858,7 @@ class _TungTungPageState extends State<TungTungPage> {
                         _searches.last.unavailable)
                       _SearchUnavailableHint(
                           reason: _searches.last.reason),
-                  ],
+                  ].reversed.toList(),
                 ),
               ),
               if (_pendingOffline != null)
