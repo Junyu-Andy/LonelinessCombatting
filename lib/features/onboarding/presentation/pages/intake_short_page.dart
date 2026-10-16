@@ -148,6 +148,7 @@ class _IntakeShortPageState extends State<IntakeShortPage> {
       final settings = AppSettingsScope.read(context);
       final updated = profile.copyWith(
         hasCompletedIntake: true,
+        intakePeopleDone: true, // the people were asked on this page
         interests: _interests.toList(),
         closeContacts: [
           for (final p in people)
