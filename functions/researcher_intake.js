@@ -51,6 +51,9 @@ const MAX_OTHER = 40;
 const MAX_AVOID = 200;
 /** Q5 — IntakeOptions.input* ids. */
 const INPUT_MODES = ["typing", "voice", "both", "unsure"];
+/** 10/16 — 研究員備註: free text the elder never sees, handed to all three
+ *  companions as one memory line (「研究員觀察：…」).  May be empty. */
+const MAX_NOTE = 200;
 
 /**
  * @param {string} code
@@ -70,7 +73,7 @@ const str = (v) => (typeof v === "string" ? v.trim() : "");
  * @return {{mainGoals: string[], people: Array<{name: string,
  *     relationship: string, share: boolean}>, interests: string[],
  *     interestsOther: ?string,
- *     avoidTopics: ?string, inputMode: string}}
+ *     avoidTopics: ?string, inputMode: string, researcherNote: ?string}}
  */
 function normaliseAnswers(raw) {
   const d = raw || {};
@@ -102,9 +105,11 @@ function normaliseAnswers(raw) {
   if (avoid.length > MAX_AVOID) throw intakeError("avoid_too_long");
   const mode = str(d.inputMode) || "unsure";
   if (INPUT_MODES.indexOf(mode) < 0) throw intakeError("invalid_input_mode");
+  const note = str(d.researcherNote);
+  if (note.length > MAX_NOTE) throw intakeError("note_too_long");
   return {mainGoals: goals, people, interests,
     interestsOther: other || null, avoidTopics: avoid || null,
-    inputMode: mode};
+    inputMode: mode, researcherNote: note || null};
 }
 
 /**
@@ -161,6 +166,7 @@ async function recordIntake(db, caller, input, opts) {
     activitiesOther: a.interestsOther,
     avoidTopics: a.avoidTopics,
     inputMode: a.inputMode,
+    researcherNote: a.researcherNote,
     updatedAt: iso,
     completedParts: [1, 2, 3, 4, 5, 6],
     allCompleted: true,
@@ -190,7 +196,8 @@ async function recordIntake(db, caller, input, opts) {
     at: now, by: caller.uid, byEmail: caller.email || null,
     uid, researchId,
     fields: {goals: a.mainGoals.length, people: a.people.length,
-      interests: a.interests.length, avoidTopics: a.avoidTopics !== null},
+      interests: a.interests.length, avoidTopics: a.avoidTopics !== null,
+      researcherNote: a.researcherNote !== null},
     replaced: existing.exists,
   });
   await batch.commit();
@@ -259,6 +266,10 @@ function intakeFactsFor(a) {
   if (a.avoidTopics) {
     push(AGENTS, "preference", "唔想主動提起",
         `${a.avoidTopics}（用戶一開始就講明，唔好主動提）`);
+  }
+  // 10/16 — the researcher's own observation, verbatim, to all three.
+  if (a.researcherNote) {
+    push(AGENTS, "preference", "研究員觀察", a.researcherNote);
   }
   return out;
 }

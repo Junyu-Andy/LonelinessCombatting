@@ -806,7 +806,7 @@ class _TungTungPageState extends State<TungTungPage> {
                   // 10/15: newest message at the bottom edge; the list follows the
                   // keyboard up instead of leaving the last turn under the composer.
                   reverse: true,
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
                   children: <Widget>[
                     for (int i = 0; i < _turns.length; i++) ...[
                       _TurnBubble(turn: _turns[i]),
@@ -831,7 +831,7 @@ class _TungTungPageState extends State<TungTungPage> {
                         profile != null &&
                         profile.interests.isNotEmpty)
                       _InterestChips(
-                        interests: profile.interests.take(6).toList(),
+                        interests: profile.interests.toList(),
                         onTap: (label) {
                           _inputCtrl.text = isEn
                               ? 'Let\'s talk about $label'
@@ -991,24 +991,47 @@ class _Welcome extends StatelessWidget {
   }
 }
 
-class _InterestChips extends StatelessWidget {
+/// 10/16 — two interests at a time plus 「換一換」 (S18) that rotates
+/// through the rest; a long list used to spill over several lines.
+class _InterestChips extends StatefulWidget {
   final List<String> interests;
   final ValueChanged<String> onTap;
 
   const _InterestChips({required this.interests, required this.onTap});
 
+  static const shown = 2;
+
+  @override
+  State<_InterestChips> createState() => _InterestChipsState();
+}
+
+class _InterestChipsState extends State<_InterestChips> {
+  int _offset = 0;
+
+  List<String> get _visible {
+    final all = widget.interests;
+    if (all.length <= _InterestChips.shown) return all;
+    return [
+      for (var i = 0; i < _InterestChips.shown; i++)
+        all[(_offset + i) % all.length],
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
+    final more = widget.interests.length > _InterestChips.shown;
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          for (final i in interests)
+          for (final i in _visible)
             ActionChip(
+              key: Key('tung_interest_chip_$i'),
               label: Text(
                 InterestLabels.label(i, isEn),
                 style: TextStyle(
@@ -1017,12 +1040,23 @@ class _InterestChips extends StatelessWidget {
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              onPressed: () => onTap(i),
+              // The label, not the id: the draft used to read 「我想傾下
+              // yum_cha」 (fixed 10/16).
+              onPressed: () => widget.onTap(InterestLabels.label(i, isEn)),
               backgroundColor: theme.colorScheme.surface,
               side: BorderSide(
                 color: theme.colorScheme.outline,
                 width: 1,
               ),
+            ),
+          if (more)
+            TextButton.icon(
+              key: const Key('tung_interest_shuffle'),
+              onPressed: () => setState(() =>
+                  _offset = (_offset + _InterestChips.shown) %
+                      widget.interests.length),
+              icon: const Icon(Icons.refresh, size: 20),
+              label: Text(isEn ? 'More' : '換一換'),
             ),
         ],
       ),
@@ -1054,7 +1088,7 @@ class _TurnBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.78),
+            maxWidth: MediaQuery.of(context).size.width * 0.88),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(18),

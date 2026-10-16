@@ -127,6 +127,10 @@ void main() {
           find.byKey(const Key('intake_avoid')), '唔好提我先生');
       await _scrollTo(tester, find.byKey(const Key('intake_input_voice')));
       await tester.tap(find.byKey(const Key('intake_input_voice')));
+      // 10/16: the researcher's own note, not a question.
+      await _scrollTo(tester, find.byKey(const Key('intake_note')));
+      await tester.enterText(
+          find.byKey(const Key('intake_note')), '老人家健談，咩都想講');
       await tester.pump();
       await _scrollTo(tester, find.byKey(const Key('intake_submit')));
       await tester.tap(find.byKey(const Key('intake_submit')));
@@ -143,6 +147,8 @@ void main() {
       expect(c.answers.interests, ['yum_cha']);
       expect(c.answers.avoidTopics, '唔好提我先生');
       expect(c.answers.inputMode, IntakeOptions.inputVoice);
+      expect(c.answers.researcherNote, '老人家健談，咩都想講');
+      expect(c.answers.toMap()['researcherNote'], '老人家健談，咩都想講');
       expect(find.byKey(const Key('intake_done')), findsOneWidget);
       expect(find.textContaining('PILOT-01'), findsWidgets);
     });

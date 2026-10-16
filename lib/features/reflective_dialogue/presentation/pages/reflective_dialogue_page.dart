@@ -569,7 +569,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
                   // 10/15: newest message at the bottom edge; the list follows the
                   // keyboard up instead of leaving the last turn under the composer.
                   reverse: true,
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
                   children: <Widget>[
                     if (_turns.isEmpty)
                       Text(
@@ -799,7 +799,7 @@ class _TurnBubble extends StatelessWidget {
             margin: const EdgeInsets.symmetric(vertical: 6),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.78),
+                maxWidth: MediaQuery.of(context).size.width * 0.88),
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(18),

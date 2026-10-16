@@ -29,6 +29,7 @@ const ANSWERS = {
   interestsOther: "聽粵曲",
   avoidTopics: "唔好提我先生",
   inputMode: "voice",
+  researcherNote: "老人家健談，咩都想講", // 10/16 研究員備註
 };
 
 /**
@@ -79,7 +80,8 @@ test("normaliseAnswers: caps, ids, empty rows", () => {
   assert.strictEqual(a.inputMode, "voice");
   const empty = ri.normaliseAnswers({});
   assert.deepStrictEqual(empty, {mainGoals: [], people: [], interests: [],
-    interestsOther: null, avoidTopics: null, inputMode: "unsure"});
+    interestsOther: null, avoidTopics: null, inputMode: "unsure",
+    researcherNote: null});
   const bad = (x) => {
     try {
       ri.normaliseAnswers(x);
@@ -96,6 +98,7 @@ test("normaliseAnswers: caps, ids, empty rows", () => {
   assert.strictEqual(bad({interests: ["yum_cha", "radio", "news", "tv_drama"]}),
       "too_many_interests");
   assert.strictEqual(bad({avoidTopics: "x".repeat(201)}), "avoid_too_long");
+  assert.strictEqual(bad({researcherNote: "x".repeat(201)}), "note_too_long");
   assert.strictEqual(bad({inputMode: "shout"}), "invalid_input_mode");
 });
 
@@ -122,6 +125,7 @@ test("recordIntake: writes the intake doc, the profile fields and an audit " +
   assert.strictEqual(d.recordedBy, "keran");
   assert.deepStrictEqual(d.activities, ["yum_cha", "mahjong"]);
   assert.strictEqual(d.activitiesOther, "聽粵曲");
+  assert.strictEqual(d.researcherNote, "老人家健談，咩都想講");
   assert.deepStrictEqual(d.importantPeople[0],
       {name: "阿女", relationship: "女", extra: null, share: true});
   const u = (await db.doc("users/u1").get()).data();
@@ -133,6 +137,7 @@ test("recordIntake: writes the intake doc, the profile fields and an audit " +
   assert.strictEqual(u.avoidTopics, "唔好提我先生");
   assert.strictEqual(u.inputMode, "voice");
   assert.strictEqual(u.arm, "B"); // untouched
+  assert.strictEqual(u.researcherNote, undefined); // intake doc only
   const audit = await db.collection(ri.AUDIT_COLLECTION).get();
   assert.strictEqual(audit.size, 1);
   const row = audit.docs[0].data();
@@ -141,7 +146,7 @@ test("recordIntake: writes the intake doc, the profile fields and an audit " +
   assert.strictEqual(row.by, "keran");
   assert.strictEqual(row.replaced, true);
   assert.deepStrictEqual(row.fields, {goals: 2, people: 2, interests: 2,
-    avoidTopics: true});
+    avoidTopics: true, researcherNote: true});
   assert.strictEqual(JSON.stringify(row).indexOf("阿女"), -1); // no text
   // Second recording: a fresh audit row, profile replaced not appended.
   await ri.recordIntake(db, K1, {uid: "u1",
@@ -183,11 +188,15 @@ test("T48 intakeFactsFor: routing per companion, only shared people, " +
   const by = (agent) => facts.filter((f) => f.agent_id === agent)
       .map((f) => `${f.category}:${f.key}`);
   assert.deepStrictEqual(by("siu_yan"), ["preference:嚟呢度主要想",
-    "hobby:平時鍾意", "family:重要嘅人", "preference:唔想主動提起"]);
+    "hobby:平時鍾意", "family:重要嘅人", "preference:唔想主動提起",
+    "preference:研究員觀察"]);
   assert.deepStrictEqual(by("tung_tung"), ["preference:嚟呢度主要想",
-    "hobby:平時鍾意", "preference:唔想主動提起"]);
+    "hobby:平時鍾意", "preference:唔想主動提起", "preference:研究員觀察"]);
   assert.deepStrictEqual(by("ah_jan_ah_bak"), ["preference:嚟呢度主要想",
-    "preference:唔想主動提起"]);
+    "preference:唔想主動提起", "preference:研究員觀察"]);
+  const note = facts.filter((f) => f.key === "研究員觀察");
+  assert.strictEqual(note.length, 3);
+  assert.strictEqual(note[0].value, "老人家健談，咩都想講"); // verbatim
   const people = facts.find((f) => f.key === "重要嘅人");
   assert.strictEqual(people.value, "阿女（女）"); // 黃太 not shared
   const hobby = facts.find((f) => f.key === "平時鍾意");
@@ -205,12 +214,12 @@ async () => {
     value: "陳太", status: "active", source_session_id: "sess-1"});
   const r = await ri.recordIntake(db, K1, {uid: "u1", answers: ANSWERS},
       {now: NOW});
-  assert.strictEqual(r.memoryFacts, 9);
+  assert.strictEqual(r.memoryFacts, 12);
   const active = (await col.where("status", "==", "active").get()).docs
       .map((d) => d.data());
-  assert.strictEqual(active.length, 10); // 9 intake + the conversation one
+  assert.strictEqual(active.length, 13); // 12 intake + the conversation one
   const intake = active.filter((f) => f.source_session_id === "intake");
-  assert.strictEqual(intake.length, 9);
+  assert.strictEqual(intake.length, 12);
   for (const f of intake) {
     assert.strictEqual(f.visibility, "agent");
     assert.strictEqual(f.layer, "private");
@@ -224,7 +233,7 @@ async () => {
   const after = (await col.get()).docs.map((d) => d.data());
   assert.strictEqual(after.filter((f) => f.status === "active").length, 4);
   assert.strictEqual(after.filter((f) => f.status === "superseded").length,
-      9);
+      12);
   assert.strictEqual(after.find((f) => f.source_session_id === "sess-1")
       .status, "active");
   // Rule arm: nothing.

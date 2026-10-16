@@ -193,6 +193,11 @@ class IntakeAnswers {
   final String? avoidTopics;
   final String inputMode; // IntakeOptions.input* id
 
+  /// 10/16 — 研究員備註: the researcher's own observation (≤ 200 chars),
+  /// never shown to the elder; the server hands it to all three
+  /// companions verbatim as one memory line (「研究員觀察：…」).
+  final String? researcherNote;
+
   const IntakeAnswers({
     this.mainGoals = const [],
     this.importantPeople = const [],
@@ -200,6 +205,7 @@ class IntakeAnswers {
     this.interestsOther,
     this.avoidTopics,
     this.inputMode = 'unsure',
+    this.researcherNote,
   });
 
   Map<String, dynamic> toMap() => {
@@ -209,6 +215,7 @@ class IntakeAnswers {
         'interestsOther': interestsOther,
         'avoidTopics': avoidTopics,
         'inputMode': inputMode,
+        'researcherNote': researcherNote,
       };
 }
 
@@ -278,5 +285,6 @@ String intakeErrorText(String code) => switch (code) {
       'name_too_long' => '稱呼或關係太長（最多 20 字）。',
       'other_too_long' => '「其他」太長（最多 40 字）。',
       'avoid_too_long' => '第 4 題太長（最多 200 字）。',
+      'note_too_long' => '研究員備註太長（最多 200 字）。',
       _ => '錄入失敗（$code）。請再試，或者聯絡負責人。',
     };

@@ -65,6 +65,7 @@ class _IntakeSectionState extends State<IntakeSection> {
   final _interests = <String>{};
   final _interestsOther = TextEditingController();
   final _avoid = TextEditingController();
+  final _note = TextEditingController();
   String? _inputMode;
   bool _open = false;
   bool _busy = false;
@@ -89,6 +90,7 @@ class _IntakeSectionState extends State<IntakeSection> {
     }
     _interestsOther.dispose();
     _avoid.dispose();
+    _note.dispose();
     super.dispose();
   }
 
@@ -108,6 +110,7 @@ class _IntakeSectionState extends State<IntakeSection> {
             : _interestsOther.text.trim(),
         avoidTopics: _avoid.text.trim().isEmpty ? null : _avoid.text.trim(),
         inputMode: _inputMode ?? IntakeOptions.inputUnsure,
+        researcherNote: _note.text.trim().isEmpty ? null : _note.text.trim(),
       );
 
   Future<void> _submit() async {
@@ -144,6 +147,7 @@ class _IntakeSectionState extends State<IntakeSection> {
       _share.fillRange(0, _share.length, false);
       _interestsOther.clear();
       _avoid.clear();
+      _note.clear();
     });
   }
 
@@ -295,6 +299,29 @@ class _IntakeSectionState extends State<IntakeSection> {
               labelText: '一句就得，可以留空', border: OutlineInputBorder()),
         ),
       ]),
+      // 10/16 — the researcher's own note (not a question; the elder never
+      // sees it).  Goes verbatim to all three companions as 「研究員觀察」.
+      Padding(
+        padding: const EdgeInsets.only(top: 16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('研究員備註（唔使問老人家；可以留空）',
+              style: theme.textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text('你自己嘅觀察，原句畀三位夥伴做記憶，例如「老人家健談，咩都想講」。'
+              '老人家睇唔到。最多 200 字。',
+              style: theme.textTheme.bodySmall),
+          const SizedBox(height: 10),
+          TextField(
+            key: const Key('intake_note'),
+            controller: _note,
+            minLines: 2,
+            maxLines: 4,
+            maxLength: 200,
+            decoration: const InputDecoration(
+                labelText: '研究員觀察', border: OutlineInputBorder()),
+          ),
+        ]),
+      ),
       if (_error != null) ...[
         const SizedBox(height: 8),
         Text(_error!,
