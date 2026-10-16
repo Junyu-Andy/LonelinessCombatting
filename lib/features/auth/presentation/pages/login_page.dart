@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
@@ -24,6 +25,11 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  // 10/16: the elder types the password twice when creating an account
+  // (one PILOT elder found the e-mail wrong afterwards and could not
+  // check it; same risk for the password).  S17.
+  final _passwordAgainCtrl = TextEditingController();
+  bool _showPassword = false;
   final _nameCtrl = TextEditingController();
   final _contactNameCtrl = TextEditingController();
   final _contactPhoneCtrl = TextEditingController();
@@ -36,6 +42,7 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _passwordAgainCtrl.dispose();
     _nameCtrl.dispose();
     _contactNameCtrl.dispose();
     _contactPhoneCtrl.dispose();
@@ -90,6 +97,17 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  /// 眼睛按钮：按一下显示密码（两格一起），再按一下遮住。
+  Widget _showPasswordToggle(bool isEn) => IconButton(
+        key: const Key('login_show_password'),
+        tooltip: _showPassword
+            ? (isEn ? 'Hide password' : '遮住密碼')
+            : (isEn ? 'Show password' : '顯示密碼'),
+        icon: Icon(
+            _showPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+        onPressed: () => setState(() => _showPassword = !_showPassword),
+      );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -113,9 +131,18 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox.shrink(),
                 if (!widget.authService.available) const SizedBox(height: 16),
                 TextFormField(
+                  key: const Key('login_email'),
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
+                  // 10/16: wraps onto a second line instead of scrolling
+                  // sideways, so a long address can be read back in full
+                  // (a PILOT elder could only see the "…gmail.com" tail).
+                  // Spaces and line breaks are dropped as typed.
+                  maxLines: null,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                  ],
                   decoration: InputDecoration(
                     labelText: isEn ? 'Email' : '電郵',
                     prefixIcon: const Icon(Icons.mail_outline),
@@ -129,20 +156,43 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
+                  key: const Key('login_password'),
                   controller: _passwordCtrl,
-                  obscureText: true,
+                  obscureText: !_showPassword,
                   textInputAction: _isSignUp
                       ? TextInputAction.next
                       : TextInputAction.done,
                   decoration: InputDecoration(
                     labelText: isEn ? 'Password' : '密碼',
                     prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: _showPasswordToggle(isEn),
                   ),
                   validator: (v) {
                     if ((v ?? '').length < 6) return isEn ? 'Password must be at least 6 characters.' : '密碼最少 6 個字。';
                     return null;
                   },
                 ),
+                if (_isSignUp) ...[
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    key: const Key('login_password_again'),
+                    controller: _passwordAgainCtrl,
+                    obscureText: !_showPassword,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'Password again' : '再輸入一次密碼',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                    ),
+                    validator: (v) {
+                      if ((v ?? '') != _passwordCtrl.text) {
+                        return isEn
+                            ? 'The two passwords do not match.'
+                            : '兩次密碼唔一樣。';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
                 if (_isSignUp) ...[
                   const SizedBox(height: 20),
                   _SectionLabel(
@@ -227,6 +277,7 @@ class _LoginPageState extends State<LoginPage> {
                 ],
                 const SizedBox(height: 24),
                 FilledButton.icon(
+                  key: const Key('login_submit'),
                   onPressed: _busy ? null : _submit,
                   icon: _busy
                       ? const SizedBox(
