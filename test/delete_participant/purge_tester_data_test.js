@@ -185,6 +185,13 @@ test('classify: each kind, enrolment and role win over isTester', () => {
       'enrolled');
   assert.strictEqual(c({user: {isTester: true}, enrollment: true}),
       'enrolled');
+  // Tester arm switch: cohort "pilot" on the doc, no enrollments record.
+  const switched = {isTester: true, cohort: 'pilot',
+    armAssignedBy: 'tester_switch', arm: 'A'};
+  assert.strictEqual(c({user: switched}), 'tester');
+  assert.strictEqual(c({user: switched, enrollment: true}), 'enrolled');
+  assert.strictEqual(c({user: Object.assign({}, switched,
+      {isTester: false})}), 'enrolled');
   for (const role of ['unblinded', 'blinded', 'pi', 'researcher']) {
     assert.strictEqual(c({user: {isTester: true}, role}), 'staff', role);
   }

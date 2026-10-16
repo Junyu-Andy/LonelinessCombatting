@@ -4,7 +4,8 @@
 ///   off     — memory v0 (per-agent rolling summary), or none for Arm B
 ///   phaseB  — memory v1, mandatory for Phase B Arm A (assigned while the
 ///             server was randomising, or — T21 — a pilot-run account the
-///             researcher set to Arm A); no opt-out toggle
+///             researcher set to Arm A; or a tester account in Arm A —
+///             the tester arm switch); no opt-out toggle
 ///   optIn   — memory v1 for a tester who switched it on in a MEMORY_V1
 ///             build
 ///
@@ -36,6 +37,13 @@ class MemoryModes {
     if (FeatureFlags.phaseB &&
         profile.arm == ArmAssignment.a &&
         phaseBAssignmentModes.contains(profile.armAssignmentMode)) {
+      return MemoryMode.phaseB;
+    }
+    // Tester arm switch (functions/tester_arm.js): a tester account in
+    // Arm A takes the same path as a pilot-run Hybrid elder.
+    if (FeatureFlags.phaseB &&
+        profile.arm == ArmAssignment.a &&
+        profile.isTester) {
       return MemoryMode.phaseB;
     }
     if (FeatureFlags.memoryV1 && profile.memoryEnabled) {

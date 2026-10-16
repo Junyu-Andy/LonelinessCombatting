@@ -33,6 +33,7 @@ const weeklySchedule = require("./weekly_schedule");
 const usageEvents = require("./usage_events");
 const opsDashboard = require("./ops_dashboard");
 const researcherIntake = require("./researcher_intake");
+const testerArm = require("./tester_arm");
 
 admin.initializeApp();
 
@@ -281,6 +282,9 @@ function temperatureFor(agentId) {
 // ---------------------------------------------------------------------------
 // T19: entries expire after 10 minutes, so an arm changed by
 // tool/correct_arm_assignment.js reaches every instance within that time.
+// Tester accounts (isTester true) are never cached: they may switch their
+// own arm (setTesterArm, functions/tester_arm.js), and the next call must
+// see it on every instance.  Participants are unchanged.
 const _armCache = new Map();
 const _ARM_CACHE_MS = 10 * 60 * 1000;
 
@@ -294,7 +298,8 @@ async function armFor(uid) {
   if (hit && Date.now() - hit.at < _ARM_CACHE_MS) return hit.arm;
   const snap = await admin.firestore().collection("users").doc(uid).get();
   const arm = snap.exists ? (snap.get("arm") || null) : null;
-  if (arm) _armCache.set(uid, {arm, at: Date.now()});
+  const tester = snap.exists && snap.get("isTester") === true;
+  if (arm && !tester) _armCache.set(uid, {arm, at: Date.now()});
   return arm;
 }
 
@@ -1851,6 +1856,10 @@ exports.memorySweep = onSchedule(
       queries.push(db.collection("users")
           .where("arm", "==", "A")
           .where("armAssignmentMode", "in", studyPeriod.PHASE_B_MODES).get());
+      // Tester accounts in Arm A (memory.js inScope; tester arm switch).
+      queries.push(db.collection("users")
+          .where("arm", "==", "A")
+          .where("isTester", "==", true).get());
     }
     const byId = new Map();
     for (const snap of await Promise.all(queries)) {
@@ -2651,6 +2660,42 @@ exports.dispatchReminders = onSchedule(
   },
   async (_event) => {
     await reminders.dispatchDueReminders(admin.firestore(), admin.messaging());
+  },
+);
+
+// ---------------------------------------------------------------------------
+// setTesterArm — a tester switches their OWN account between the Hybrid arm
+// (A) and the rule arm (B) from 測試員工具 (functions/tester_arm.js).
+// Guard as sendTestPush: signed in AND users/{uid}.isTester == true; plus
+// the switch app_config/feature_flags.testerArmSwitchEnabled (default
+// off).  Participants are refused and nothing is written for them.
+// ---------------------------------------------------------------------------
+const _TESTER_ARM_ERRORS = {
+  not_tester: ["permission-denied", "tester accounts only"],
+  disabled: ["failed-precondition", "feature disabled: " + testerArm.FLAG],
+  invalid_arm: ["invalid-argument", "arm must be A or B"],
+};
+
+exports.setTesterArm = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 3},
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+    const uid = request.auth.uid;
+    const data = request.data || {};
+    try {
+      const out = await testerArm.switchArm(admin.firestore(), uid, data.arm);
+      // This instance forgets the uid at once (testers are not cached
+      // anyway; this covers a participant flagged tester since).
+      _armCache.delete(uid);
+      return out;
+    } catch (err) {
+      const mapped = err && _TESTER_ARM_ERRORS[err.testerArmCode];
+      if (mapped) throw new HttpsError(mapped[0], mapped[1]);
+      console.error("setTesterArm failed", {err: String(err)});
+      throw new HttpsError("internal", "tester_arm_switch_failed");
+    }
   },
 );
 

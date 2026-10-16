@@ -158,6 +158,21 @@ class AuthService {
     );
   }
 
+  /// Re-read the signed-in user's profile from the server, e.g. after a
+  /// Cloud Function changed a server-only field (the tester arm switch).
+  /// Null when nobody is signed in or the profile doc is missing.
+  Future<UserProfile?> reloadProfile() async {
+    _ensureAvailable();
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    final doc = await _db
+        .collection('users')
+        .doc(user.uid)
+        .get(const GetOptions(source: Source.server));
+    if (!doc.exists) return null;
+    return UserProfile.fromMap(user.uid, doc.data() ?? {});
+  }
+
   /// B.10 — activate 今日休息 for [uid].  Idempotent: if already activated
   /// today, this is a no-op (returns false).  Returns true when newly set.
   Future<bool> activateQuietToday(UserProfile profile) async {
