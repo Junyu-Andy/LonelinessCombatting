@@ -50,6 +50,7 @@
 
 const studyWeek = require("./study_week");
 const quietHours = require("./quiet_hours");
+const testerArm = require("./tester_arm");
 
 const CONFIG_DOC = "app_config/phase_b";
 const STATUS_COLLECTION = "weekly_status";
@@ -586,7 +587,9 @@ async function dispatchWeeklyBundles(db, messaging, opts) {
   const users = await db.collection("users").get();
   for (const userDoc of users.docs) {
     const u = userDoc.data() || {};
-    if (u.isTester === true) continue;
+    // A tester is skipped, unless it switched its own arm in 測試員工具
+    // (functions/tester_arm.js): then it runs like a pilot participant.
+    if (u.isTester === true && !testerArm.isSwitchedTester(u)) continue;
     const mode = scheduleModeFor(u);
     if (!mode) continue;
     const w0Key = studyWeek.w0DateKey(u);

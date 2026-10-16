@@ -838,6 +838,8 @@ function effectivePolicy(cfg, user) {
  *     mandatory, no opt-out; T21: so is a pilot-run account the
  *     researcher set to Arm A (mode pilot_designated); accounts assigned
  *     in force_a mode keep memory v0;
+ *   - a tester account (isTester true) in Arm A, like Phase B Arm A —
+ *     the tester arm switch (functions/tester_arm.js); Arm B never;
  *   - anyone else who opted in (testers on a MEMORY_V1 build).
  * The kill switch (cfg.enabled) overrides everything. With
  * cfg.honourMemoryWithdrawal (T10, default on), a user whose memory was
@@ -856,6 +858,11 @@ function inScope(cfg, user) {
   }
   if (cfg.phaseBArmA && user.arm === "A" &&
       studyPeriod.PHASE_B_MODES.indexOf(user.armAssignmentMode) >= 0) {
+    return true;
+  }
+  // Tester self-switch (functions/tester_arm.js): a tester account in
+  // Arm A gets memory exactly like Phase B Arm A, whatever its mode.
+  if (cfg.phaseBArmA && user.arm === "A" && user.isTester === true) {
     return true;
   }
   return user.memory_enabled === true;

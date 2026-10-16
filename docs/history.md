@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-10-16 测试员自切组别（PR 草稿，分支 `claude/gifted-bardeen-yhizmk`）
+
+- 要做的：测试员在同一部手机上把 Hybrid 组和规则组都完整走一遍，包括记忆。做了：服务器 `setTesterArm`（只认 `isTester`，开关 `testerArmSwitchEnabled` 默认关），测试员不吃分组缓存，Arm A 测试员有记忆 v1，切过组的测试员收每周问卷推送；App 测試員工具加「切換組別」。参与者一律不变。
+- 查到的缺口和处理见报告 `docs/dev-reports/tester-arm-switch-20261016.md`；决策草稿 `docs/decisions/NNNN-tester-arm-self-switch.md`，编号待 Junyu 给。
+
 ## 2026-10-16 注册页：密码输两次、电邮换行、显示密码（PR 草稿，分支 `fix/signup-email-password`，并入 `batch/1016-morning`）
 
 - 10/15 试跑一位老人注册后发现电邮打错，但格子只显示尾巴看不全。改：电邮格自动换行、去空格；建立帐号时密码输两次，不一样不让提交；密码格加眼睛按钮。文字见 S17，待产品窗口核。
