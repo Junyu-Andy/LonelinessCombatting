@@ -490,7 +490,7 @@ class _GuestBanner extends StatelessWidget {
             child: Text(
               isEn
                   ? 'Firebase is not configured. Sign-in is unavailable, but language and high-contrast settings still work.'
-                  : 'Firebase 未設定。登入功能暫時唔可用，但語言同高對比模式仍然正常。',
+                  : 'Firebase 未設定。登入功能暫時唔可用，但高對比模式仍然正常。',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.brown.shade800,
               ),

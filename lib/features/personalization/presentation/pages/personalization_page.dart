@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/app_settings.dart';
+
 import '../../../../app/app_settings_scope.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/data/user_profile.dart';
@@ -232,12 +234,17 @@ class _ProfileCard extends StatelessWidget {
               label: isEn ? 'Emergency contact' : '緊急聯絡',
               value: emergencyText,
             ),
-            const SizedBox(height: 8),
-            _InfoRow(
-              icon: Icons.translate_rounded,
-              label: isEn ? 'Language' : '預設語言',
-              value: profile.preferredLanguage == 'en' ? 'English' : '中文',
-            ),
+            // 10/16: the language row only while English exists
+            // (AppSettings.englishEnabled); otherwise it promised a switch
+            // the App no longer has.
+            if (AppSettings.englishEnabled) ...[
+              const SizedBox(height: 8),
+              _InfoRow(
+                icon: Icons.translate_rounded,
+                label: isEn ? 'Language' : '預設語言',
+                value: profile.preferredLanguage == 'en' ? 'English' : '中文',
+              ),
+            ],
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
