@@ -56,6 +56,11 @@
 - 回忆页是 Hybrid 组唯一没把「唔想提起的话题」告诉陪伴者的聊天页，补上，和签到页同一句。
 - 服务器：提示词登记表搬到 `functions/prompt_registry.js`，好做不连 Firestore 的测试；语气从服务器读的资料来，App 改不了；规则组第一步就被拒绝。
 - `encouragementStyle` 要等 PR #111 合并才有人写。10/19 冻结后合并算偏离，STUDY_CHANGELOG 已记。决策记录草稿 `docs/decisions/NNNN-companion-prompts-v2-tone-slot.md`。Junyu 要看三份最终文本再合。
+## 2026-10-18 T49e-3 小欣签到页、回忆页每种结束都马上交记忆（PR 草稿，分支 `fix/t49e3-memory-handover`）
+
+- 10/18 记忆机制报告（PR #113 第 2.2 节）发现：小欣签到页在切换陪伴者、30 分钟超时时不叫服务器整理记忆；回忆页只在按「儲存」时叫。Junyu 10/18 晚定按 bug 修（任务单 §E3）。
+- 做了：两页各加 `_handOverMemory()`，四种结束都调，每次会话一次；小欣页不再要求「至少讲过一句」才交（那个条件只管签到完成和 Brief PR）；回忆页从小结页按返回也交。`switch_agent` 可能在页面关闭后才到，交接用页面活着时存下的资料，不碰 context。没改服务器、`compileAtSessionEnd`、`MemoryV1Service`。
+- 测试 `test/memory_handover_pages_test.dart` 12 项，三种构建都过；改动前的代码在 Phase B 下 8 项不过，正好是报告列的几种情况。报告 `docs/dev-reports/T49e3-memory-handover-20261018.md`。
 
 ## 2026-10-16 注册页：密码输两次、电邮换行、显示密码（PR 草稿，分支 `fix/signup-email-password`，并入 `batch/1016-morning`）
 
