@@ -73,6 +73,13 @@
 ///                               no longer shows an intake questionnaire.
 ///                               Off = the elder answers the short five-
 ///                               question page.  Both arms identical.
+///   - [s1aEventLogEnabled]    — T49c: each time Tung Tung shows the fixed
+///                               search-off line S1a ([TungTungSearchIntent])
+///                               one `users/{uid}/events` row
+///                               `s1a_fixed_reply` (agentId, sessionId, arm,
+///                               matchedVersion, clientTime — never the
+///                               elder's words or the matched keyword).
+///                               Both arms identical, nothing visible.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -97,6 +104,7 @@ class RemoteFeatureFlags {
     this.usageEventsEnabled = false,
     this.opsDashboardEnabled = false,
     this.researcherIntakeEnabled = false,
+    this.s1aEventLogEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -112,6 +120,7 @@ class RemoteFeatureFlags {
   final bool usageEventsEnabled;
   final bool opsDashboardEnabled;
   final bool researcherIntakeEnabled;
+  final bool s1aEventLogEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -159,6 +168,7 @@ class RemoteFeatureFlags {
         usageEventsEnabled: map['usageEventsEnabled'] == true,
         opsDashboardEnabled: map['opsDashboardEnabled'] == true,
         researcherIntakeEnabled: map['researcherIntakeEnabled'] == true,
+        s1aEventLogEnabled: map['s1aEventLogEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

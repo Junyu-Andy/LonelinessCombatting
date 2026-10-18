@@ -6,6 +6,7 @@
 > 2026-10-15 翻页回页顶（分页 ListView 加 `ValueKey`）、键盘遮挡（固定列改可滚动、聊天列表 `reverse: true`）、字号合并封顶 1.3（`app.dart`）；PR 草稿。
 > 2026-10-15 陪伴者页面顶栏统一（`lib/core/agents/companion_app_bar.dart`：左上收尾按钮、头像加名字标题、右上空；六个页面两组相同；PR 草稿）。
 > 2026-10-16 `login_page.dart`：电邮 `maxLines: null` 加去空白的 formatter；建立帐号多一格 `login_password_again`（验证与第一格相同）；`login_show_password` 眼睛按钮控制两格的 `obscureText`。
+> 2026-10-18 T49c：通通显示 S1a 时写 `events` 的 `s1a_fixed_reply`（两组相同；开关 `s1aEventLogEnabled` 默认关）；过程数据导出加 `event_counts`（第 8、9 节；PR 草稿）。Hybrid 组 S1a 逐字显示，不调用 LLM。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 补 T34 安全告警邮件（开关 `meta/alert_config.enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）；2026-10-14 T30 角色含义、评估员视图、Calvin 上传序列、过程/结局数据分开、锁库导出（第 4 节「角色」、第 8、9、12 节；PR 草稿，七个开关默认关）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T27 语音改走服务器 STT v2（`transcribeAudio`，只用 asia-southeast1 / chirp_2，重试 1 次，失败显示 S6 并记 `voice_transcription_failed`；开关 `voiceInputEnabled` 仍默认关；PR 草稿）。
@@ -260,6 +261,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | 用户文档本身 | 资料、年龄段、~~UCLA 基线~~（10/15 1014e 第 2 节第 9 条：注册页不再收，`baselineUclaScore` 字段保留但 App 不再写）、`arm`、`strataCell`、分组时间和方式、同意设定、`memory_enabled` | App；分组字段由服务器写 |
 | `sessions` / `turns` | 每次会话、每一轮对话（含模型、`promptVersion`、延迟、安全等级；`safetyTurnId` = 这一轮安全记录的编号，两组都写，T26） | App |
 | `events` | 行为事件（打开页面、推送、按钮等）。T27：`voice_transcription_failed`（语音转写失败：`sessionId`、`agentId`、`category`、`at`；不存录音、不存文字；两组相同） | App |
+| `events` 的 `s1a_fixed_reply` | T49c：通通显示固定回复 S1a 时一条，两组相同，只在开关 `s1aEventLogEnabled` 开时写。`params`：`agentId`、`sessionId`、`arm`、`matchedVersion`（`TungTungSearchIntent.version`）、`clientTime`；不含原话、不含匹配到的词。写在 S1a 放上屏幕之后（`tung_tung_page.dart` 的 `_logS1aShown`），一次 S1a 一条 | App |
 | `usage_events` | T40（登记表 C23）：App 进入前台 / 退到后台各一条，只在开关 `usageEventsEnabled` 开且账号已登记时写。App 写 `type`（foreground / background）、`clientAt`（手机时钟）、`receivedAt`（服务器时间戳，离线补传时是补传那一刻）、`appVersion`、`buildNumber`、`platform`、`schemaVersion`；服务器触发器补 `researchId`（从 `research_id_map`）、`dayKey`（香港日期）、`studyDay`、`uploadedLate`（收到比手机时间晚 >5 分钟）、`lateByMs`、`clockSkew`、`stampedAt`。本人只能新建，不能读、改、删（研究编号不进老人能读的文档，决策 0021）；规则要求 `cohort` 是 `phase_b` / `pilot`。只作过程数据，盲法导出列入“揭盲前不导出” | App 写；服务器补字段 |
 | `brief_pr`、`weekly_pr`、`daily_mood`、`djg_es`、`pgic`、`ppr_responses`、`loneliness_probes`、`check_in_responses` | 问卷和量表。`brief_pr` 第二版（T25）文档编号 = 会话编号，`schemaVersion: 3`，字段见第 6.0 节 | App |
 | `djg_responses/{W1\|W2\|W3}` | Phase B 第 2 周 DJG（6 题，决策 0027）；T24 的每周问卷把 W1–W3 也存这里（多 `bundle`、`studyWeek` 等服务器字段）：原始答案（q1–q6 → yes / mostly / no / skipped）、状态、开始和提交时间；服务器补 `scores`（情感、社交、总分，跳题的分量表为空）、`outsideWindow`、窗口日期、`pushSentAt`、`reminderSentAt`、缺失标记。开关打开后取代 Phase B 的 `djg_es`（旧集合保留） | App 写答案；分数等由服务器写，App 不能改；提交或缺失后 App 不能再改 |
@@ -343,6 +345,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `onThoughtExerciseCreated` | 新思维练习 | 写入研究员审计队列 `te_audit_queue` |
 | `weeklyLonelinessProbe` | 每周日 9:00（香港时间，下同） | 生成周度孤独感问卷队列（App 端默认不显示） |
 | `blindedDataExport` | 每周日 2:00 | 盲法数据导出。`meta/blinding_config.enabled` 开：新版（`functions/blinding.js`，研究编号、结局量表白名单，含 W2 DJG `djg_responses`，不含旧 `agent_diff`），写到 `exports_v2/{日期}/`，可用 `tool/check_blinded_export.js` 检查；关：旧版 `exports/{日期}/`。T30：`processExportEnabled` 开时同一次运行先写过程数据导出 `exports_process/{日期}/`（`functions/process_export.js`）；`outcomeExportPaused` 开时不写 `exports_v2` / `exports` |
+| `blindedDataExport`（过程导出，T49c） | 同上 | 过程数据导出多 `event_counts.ndjson`：每位参与者每个 `COUNTED_EVENTS` 事件名一行（`researchId`、`arm`、`name`、`count`，现在只有 `s1a_fixed_reply`），只数不读内容；manifest 的 `eventCountsByArm` 按组合计 |
 | `dailyMoodReminder` | 周一至六 19:00 | 每日情绪提醒 |
 | `weeklySurveyReminder` | 周日 20:00 | 周问卷提醒。T24：`weeklyScheduleV2Enabled` 开时不再广播，按人发给不在研究周排程里的账号（第 6.2 节）；关时照旧广播 |
 | `week2Push` | 每天 10:00 | 第二周推送（Phase A 的 DJG + 陪伴者比较）。`djgW2InAppEnabled` 开时跳过 Phase B 参与者，由 `djgW2Dispatch` 推 |

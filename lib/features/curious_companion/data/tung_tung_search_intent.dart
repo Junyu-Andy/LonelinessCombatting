@@ -27,6 +27,12 @@ class TungTungSearchIntent {
   /// Stable template id for telemetry.
   static const String replyId = 'search_off_fixed';
 
+  /// T49c — `users/{uid}/events` name written each time S1a is shown
+  /// (switch `s1aEventLogEnabled`, default off).  Params: agentId,
+  /// sessionId, arm, matchedVersion ([version]), clientTime — never the
+  /// elder's words or the matched keyword.
+  static const String fixedReplyEvent = 's1a_fixed_reply';
+
   static const List<String> _keywords = [
     // Explicit "look it up" requests.
     // (No bare 查下 / 搵下 / 上網 / 點去 / 邊度有: they also appear in

@@ -7,6 +7,7 @@
 > 2026-10-15 决策 0041、0042 落盘；W4 含 S12、提醒口径、W4 完成率分母不含试跑三项已定；「AI」改「夥伴」PR 草稿；Firestore 配置核对表 `docs/release/firestore-config-checklist-1015.md`（`phase_a` 测试值要删；`memory_config`、`randomization_config` 10/19 前确认）。
 > 2026-10-15 通知与问卷排查 A1–A15 做完（PR 草稿 `docs/notifications-audit-1015`）；待研究侧定：W4 要不要 S12、提醒时间口径。
 > 2026-10-16 注册页密码输两次、电邮换行、眼睛按钮 PR 草稿（S17 三句待产品窗口核）。
+> 2026-10-18 T49c S1a 固定回复记事件 PR 草稿（开关 `s1aEventLogEnabled` 默认关）；待定：何时开开关、旧事件 `tung_tung_search_off_reply` 要不要停。
 
 ## 1. 已决定、待开发
 

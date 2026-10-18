@@ -3,6 +3,8 @@
 // Arm.of only reads the randomised arm in a Phase B build, so run with:
 //   flutter test --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
 //     test/tung_tung_arm_b_test.dart
+// T49c: the `s1a_fixed_reply` event has one case for that build (rule
+// arm) and one for the default build (Hybrid page, `flutter test` alone).
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
 import 'package:app_demo/core/agent_context/agent_context_service.dart';
@@ -58,9 +60,11 @@ const _armB = String.fromEnvironment('FORCE_ARM') == 'B';
 
 void main() {
   late _CountingClient client;
+  late AnalyticsService analytics;
 
   Widget harness() {
     client = _CountingClient();
+    analytics = AnalyticsService(firebaseReady: false);
     final llm = LlmGateway(client: client);
     final agentContext = AgentContextService(available: false);
     final sharedContext = SharedContextService(available: false);
@@ -71,7 +75,7 @@ void main() {
       child: AuthServiceScope(
         authService: AuthService(available: false),
         child: AnalyticsScope(
-          analytics: AnalyticsService(firebaseReady: false),
+          analytics: analytics,
           child: CoreServicesScope(
             llm: llm,
             memory: memory,
@@ -203,4 +207,81 @@ void main() {
     expect(find.textContaining(fixed, findRichText: true), findsOneWidget);
     expect(client.calls, 0, reason: 'Arm B must never call the LLM');
   }, skip: !(FeatureFlags.phaseB && _armB));
+
+  // T49c — one `s1a_fixed_reply` row per S1a actually shown, ids only.
+  List<Map<String, dynamic>> s1aEvents() => analytics.bufferedEvents
+      .where((e) => e['name'] == TungTungSearchIntent.fixedReplyEvent)
+      .toList();
+
+  Future<void> sendText(WidgetTester tester, String text) async {
+    await tester.enterText(find.byType(TextField).first, text);
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded).first);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+  }
+
+  void expectS1aEvent(Map<String, dynamic> event, {required String arm}) {
+    final params = Map<String, dynamic>.from(event['params'] as Map);
+    expect(params.keys.toSet(),
+        {'agentId', 'sessionId', 'arm', 'matchedVersion', 'clientTime'});
+    expect(params['agentId'], 'tung_tung');
+    expect(params['sessionId'], isA<String>());
+    expect(params['arm'], arm);
+    expect(params['matchedVersion'], TungTungSearchIntent.version);
+    expect(DateTime.tryParse(params['clientTime'] as String), isNotNull);
+    final json = event.toString();
+    expect(json.contains('天氣'), isFalse,
+        reason: 'neither the words nor the matched keyword');
+    expect(json.contains('今日'), isFalse);
+  }
+
+  Future<void> s1aEventCase(WidgetTester tester, {required String arm}) async {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('dev.fluttercommunity.plus/connectivity'),
+      (call) async => ['wifi'],
+    );
+    addTearDown(() => RemoteFeatureFlags.current = const RemoteFeatureFlags());
+    final fixed = TungTungSearchIntent.reply(isEn: false);
+
+    // Event switch off: S1a is shown, nothing is logged.
+    RemoteFeatureFlags.current =
+        const RemoteFeatureFlags(searchOffReplyEnabled: true);
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+    await sendText(tester, '今日天氣點呀？');
+    expect(find.textContaining(fixed, findRichText: true), findsOneWidget);
+    expect(s1aEvents(), isEmpty, reason: 'switch off writes nothing');
+
+    // Event switch on: exactly one row per S1a shown.
+    RemoteFeatureFlags.current = const RemoteFeatureFlags(
+        searchOffReplyEnabled: true, s1aEventLogEnabled: true);
+    await sendText(tester, '今日天氣點呀？');
+    expect(find.textContaining(fixed, findRichText: true), findsWidgets);
+    expect(s1aEvents(), hasLength(1));
+    expectS1aEvent(s1aEvents().single, arm: arm);
+
+    // An ordinary turn shows no S1a and logs no row.
+    await sendText(tester, '我今日去咗飲茶');
+    expect(s1aEvents(), hasLength(1));
+
+    // Fixed line itself off: no S1a, so no row even with the event on.
+    RemoteFeatureFlags.current =
+        const RemoteFeatureFlags(s1aEventLogEnabled: true);
+    await sendText(tester, '今日天氣點呀？');
+    expect(s1aEvents(), hasLength(1));
+  }
+
+  testWidgets('T49c: rule arm logs s1a_fixed_reply once per S1a shown, only '
+      'with the switch on, ids only', (tester) async {
+    await s1aEventCase(tester, arm: 'B');
+    expect(client.calls, 0, reason: 'Arm B must never call the LLM');
+  }, skip: !(FeatureFlags.phaseB && _armB));
+
+  testWidgets('T49c: Hybrid page logs s1a_fixed_reply once per S1a shown, '
+      'only with the switch on, ids only', (tester) async {
+    await s1aEventCase(tester, arm: 'A');
+    expect(client.calls, 2,
+        reason: 'S1a turns never reach the LLM; the chat turn and the '
+            'switch-off weather turn do');
+  }, skip: FeatureFlags.phaseB);
 }
