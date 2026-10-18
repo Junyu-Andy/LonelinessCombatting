@@ -6,6 +6,10 @@
 
 ---
 
+## 2026-10-18 10/19 前配置只读核对脚本（PR 草稿，分支 `tool/check-prelaunch-values`）
+
+- dev-tasks-1018 §G4：`tool/check_prelaunch_values.js` 只读，把 `app_config/feature_flags`、`phase_b`、`phase_a` 残留、`meta/memory_config`、`randomization_config`、`alert_config`、分配序列长度和已用位置、`isTester` 帐号数、已登记人数逐项和核对表的期望值并排打出来，✓／✗ 一目了然。不打印组别、序列和完整电邮。Junyu 跑一次贴结果。
+
 ## 2026-10-16 注册页：密码输两次、电邮换行、显示密码（PR 草稿，分支 `fix/signup-email-password`，并入 `batch/1016-morning`）
 
 - 10/15 试跑一位老人注册后发现电邮打错，但格子只显示尾巴看不全。改：电邮格自动换行、去空格；建立帐号时密码输两次，不一样不让提交；密码格加眼睛按钮。文字见 S17，待产品窗口核。

@@ -1,0 +1,155 @@
+#!/usr/bin/env node
+/**
+ * tool/check_prelaunch_values.js — READ-ONLY.  Prints the current value of
+ * every switch and config document the 10/19 launch depends on, next to
+ * the value the checklist expects, so Junyu can run it once and paste the
+ * result (dev-tasks-1018 §G4).  Writes nothing.  Never prints an arm, a
+ * sequence or a full e-mail address.
+ *
+ * Emulator (default):
+ *   NODE_PATH=functions/node_modules node tool/check_prelaunch_values.js
+ * Real project (needs a service account in GOOGLE_APPLICATION_CREDENTIALS):
+ *   NODE_PATH=functions/node_modules node tool/check_prelaunch_values.js \
+ *     --project=loneliness-pilot-dev --production-confirm=loneliness-pilot-dev
+ *
+ * Expected values: docs/release/firestore-config-checklist-1015.md and
+ * dev-tasks-1018 §G / §E1.  "—" = no expectation, shown for information.
+ */
+'use strict';
+
+const {parseArgs, checkTarget} = require('./firestore_target');
+
+/** [doc, key, expected, note].  expected: true/false/number/string/null. */
+const CHECKS = [
+  ['app_config/feature_flags', 'onboardingAfterEnrollmentFix', true,
+    'T37 登记后先走引导'],
+  ['app_config/feature_flags', 'voiceInputEnabled', true, 'T27 语音'],
+  ['app_config/feature_flags', 'usageEventsEnabled', true, 'T40 使用事件'],
+  ['app_config/feature_flags', 'opsDashboardEnabled', true, 'T39 运营看板'],
+  ['app_config/feature_flags', 'enrollmentGateEnabled', true,
+    'T21 登记门（10/19 登记前开）'],
+  ['app_config/feature_flags', 'researcherIntakeEnabled', true,
+    'T47 研究员录入（合并部署后开）'],
+  ['app_config/feature_flags', 'memoryLayersNoticeEnabled', true,
+    'T31 S7 说明，和 layersEnabled 一起开（10/19）'],
+  ['app_config/feature_flags', 'testerArmSwitchEnabled', null,
+    '测试员切组（PR #112，合了才有）'],
+  ['app_config/feature_flags', 'sessionBriefPrV2Enabled', 'absent',
+    '放错位置的键，应删掉（正确位置在 phase_b）'],
+  ['app_config/phase_b', 'sessionBriefPrV2Enabled', true, 'T25 收尾按钮'],
+  ['app_config/phase_b', 'weeklyScheduleV2Enabled', true, 'T24 每周问卷'],
+  ['app_config/phase_b', 'socialContactProbeEnabled', true, '社会接触探针'],
+  ['app_config/phase_b', 'weeklyPushHour', 20, '每周推送 20:00'],
+  ['app_config/phase_a', 'sessionIdleTimeoutMin', 'absent',
+    '测试残留，应删（正式 30 分钟来自 phase_b）'],
+  ['app_config/phase_a', 'w2DayOffset', 'absent', '测试残留，应删'],
+  ['app_config/phase_a', 'week1NudgeDays', 'absent', '测试残留，应删'],
+  ['meta/memory_config', 'enabled', true, '记忆总开关'],
+  ['meta/memory_config', 'phaseBArmA', true, 'Hybrid 组强制开记忆'],
+  ['meta/memory_config', 'policy', 'C', '共享策略'],
+  ['meta/memory_config', 'layersEnabled', true,
+    '两层记忆（10/19 开，E1）'],
+  ['meta/memory_config', 'extractionPrompt', 'absent',
+    '不设 = v2（E2：维持 v2）'],
+  ['meta/randomization_config', 'enabled', true, '登记 PB 靠它'],
+  ['meta/randomization_config', 'sequenceUploadEnabled', false,
+    '序列上传完要关（G1）'],
+  ['meta/alert_config', 'enabled', true, 'T34 告警邮件'],
+  ['meta/alert_config', 'primaryEmail', 'set', 'Junyu（只显示遮蔽后）'],
+  ['meta/alert_config', 'backupEmail', 'absent', '决策 0041：不设备用'],
+];
+
+/** @param {*} v */
+function show(key, v) {
+  if (v === undefined) return '（没有）';
+  if (/mail/i.test(key) && typeof v === 'string') {
+    const [a, b] = v.split('@');
+    return `${(a || '').slice(0, 2)}***@${b || '?'}`;
+  }
+  return JSON.stringify(v);
+}
+
+/** @return {string} ✓ / ✗ / — */
+function verdict(expected, v) {
+  if (expected === null) return '—';
+  if (expected === 'absent') return v === undefined ? '✓' : '✗';
+  if (expected === 'set') return (typeof v === 'string' && v) ? '✓' : '✗';
+  return v === expected ? '✓' : '✗';
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  const t = checkTarget(process.env, args);
+  if (!t.ok) {
+    console.error(t.reason);
+    process.exit(2);
+  }
+  console.log(`目标：${t.reason}（只读）\n`);
+  const admin = require('firebase-admin');
+  admin.initializeApp({projectId: t.projectId});
+  const db = admin.firestore();
+
+  const docs = {};
+  for (const path of [...new Set(CHECKS.map((c) => c[0]))]) {
+    const snap = await db.doc(path).get();
+    docs[path] = snap.exists ? (snap.data() || {}) : null;
+  }
+  let bad = 0;
+  let lastDoc = '';
+  for (const [doc, key, expected, note] of CHECKS) {
+    if (doc !== lastDoc) {
+      console.log(`\n${doc}${docs[doc] === null ? '  ← 文档不存在' : ''}`);
+      lastDoc = doc;
+    }
+    const v = docs[doc] === null ? undefined : docs[doc][key];
+    const ok = verdict(expected, v);
+    if (ok === '✗') bad++;
+    const exp = expected === null ? '' : `（期望 ${expected === 'absent' ?
+      '没有' : expected === 'set' ? '已填' : JSON.stringify(expected)}）`;
+    console.log(`  ${ok} ${key} = ${show(key, v)} ${exp} ${note}`);
+  }
+  // Keys in these documents the checklist does not list (information).
+  for (const [doc, data] of Object.entries(docs)) {
+    if (!data) continue;
+    const listed = new Set(CHECKS.filter((c) => c[0] === doc).map((c) => c[1]));
+    const extra = Object.keys(data).filter((k) => !listed.has(k));
+    if (extra.length) {
+      console.log(`  ·  ${doc} 另有：` +
+        extra.map((k) => `${k}=${show(k, data[k])}`).join('，'));
+    }
+  }
+
+  // Allocation sequences: existence, length and the next unused position
+  // only — never the arms (functions/randomization.js: arms[] on
+  // randomization_sequences/{low|high}, next on randomization_state).
+  console.log('\nrandomization_sequences');
+  for (const s of ['low', 'high']) {
+    const snap = await db.doc(`randomization_sequences/${s}`).get();
+    if (!snap.exists) {
+      console.log(`  ✗ ${s}：没有`);
+      bad++;
+      continue;
+    }
+    const arms = snap.get('arms') || [];
+    const state = await db.doc(`randomization_state/${s}`).get();
+    const next = state.exists ? Number(state.get('next')) || 0 : 0;
+    console.log(`  ✓ ${s}：${arms.length} 个位置，已用 ${next}`);
+  }
+
+  // Tester accounts: count and masked ids only (G2).
+  const testers = await db.collection('users').where('isTester', '==', true)
+      .get();
+  console.log(`\nisTester 帐号：${testers.size} 个` +
+    (testers.size ? '（uid 前 6 位：' +
+      testers.docs.map((d) => d.id.slice(0, 6)).join(', ') + '）' : ''));
+  const enrolled = await db.collection('enrollments').get();
+  console.log(`已登记（enrollments）：${enrolled.size} 人`);
+
+  console.log(`\n${bad ? `${bad} 项和期望不同` : '全部符合期望'}`);
+  process.exit(bad ? 1 : 0);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
