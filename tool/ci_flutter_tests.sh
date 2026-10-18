@@ -40,11 +40,13 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/weekly_schedule_test.dart test/weekly_bundle_flow_test.dart \
   test/tester_arm_switch_test.dart \
   test/reminiscence_avoid_topics_test.dart \
-  test/memory_handover_pages_test.dart
+  test/memory_handover_pages_test.dart \
+  test_manual/ui_text_scale_sweep_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
   test/tung_tung_arm_b_test.dart test/my_story_arm_test.dart \
-  test/memory_handover_pages_test.dart
+  test/memory_handover_pages_test.dart \
+  test_manual/ui_text_scale_sweep_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \
   --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
 run "rule template replies (switch only)" \
