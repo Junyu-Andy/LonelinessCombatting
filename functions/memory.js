@@ -581,6 +581,37 @@ function visibleTo(item, agentId, policy) {
 }
 
 /**
+ * T49a: the researcher's intake (source_session_id "intake") writes one
+ * copy of a fact per companion.  When another companion's copy is visible
+ * too (shared visibility, or the shared layer once layersEnabled is on),
+ * the same line would show two or three times; keep one, preferring the
+ * companion's own copy.  Facts from conversations are left as they are.
+ * @param {Array<object>} facts sorted, visible facts
+ * @param {string} agentId
+ * @param {boolean} layers
+ * @return {Array<object>}
+ */
+function onceEachIntakeFact(facts, agentId, layers) {
+  const own = (f) => (layers ? itemSource(f) : f.agent_id) === agentId;
+  const at = new Map();
+  const out = [];
+  for (const f of facts) {
+    if (f.source_session_id !== "intake") {
+      out.push(f);
+      continue;
+    }
+    const k = [f.category, f.key, f.value].join("\u0000");
+    if (!at.has(k)) {
+      at.set(k, out.length);
+      out.push(f);
+    } else if (own(f) && !own(out[at.get(k)])) {
+      out[at.get(k)] = f;
+    }
+  }
+  return out;
+}
+
+/**
  * Pick what goes into the block, in priority order, within LIMITS.
  * @param {{facts: Array<object>, summaries: Array<object>,
  *   followups: Array<object>}} mem loaded docs (with id)
@@ -608,7 +639,7 @@ function selectForInjection(mem, opts) {
       .sort((a, b) => b.due_date.localeCompare(a.due_date))
       .slice(0, LIMITS.followups);
 
-  const usable = mem.facts
+  const usable = onceEachIntakeFact(mem.facts
       .filter((f) => f.status === "active" && !f.needs_review)
       .filter((f) => (layers ? visibleInLayers(f, "fact", agentId, policy) :
         visibleTo(f, agentId, policy)))
@@ -617,7 +648,7 @@ function selectForInjection(mem, opts) {
         const pb = CATEGORY_PRIORITY.indexOf(b.category);
         if (pa !== pb) return pa - pb;
         return (b.updated_ms || 0) - (a.updated_ms || 0);
-      });
+      }), agentId, layers);
   const facts = usable.filter((f) => f.sensitivity === "normal")
       .slice(0, LIMITS.facts);
   const sensitivePlaces = Math.max(0, LIMITS.facts - facts.length,

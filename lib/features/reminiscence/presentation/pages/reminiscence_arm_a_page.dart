@@ -882,7 +882,7 @@ clay-pot rice stand..."
                 // 10/15: newest message at the bottom edge; the list follows the
                 // keyboard up instead of leaving the last turn under the composer.
                 reverse: true,
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                 children: <Widget>[
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -986,7 +986,7 @@ class _Bubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.78),
+            maxWidth: MediaQuery.of(context).size.width * 0.88),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(18),
@@ -1013,7 +1013,7 @@ class _OpenerLoadingBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         constraints:
-            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.88),
         decoration: BoxDecoration(
           color: theme.colorScheme.secondaryContainer,
           borderRadius: BorderRadius.circular(18),
