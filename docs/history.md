@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-10-18 T49 任务单落盘；两层开关 emulator 六步核对全过（PR 草稿，分支 `test/layers-sixstep-1018`）
+
+- 研究侧 10/18 晚的 `dev-tasks-1018.md` 进仓库，编号 T49（A 入组后续、B 提示词语气槽位、C S1a 日志、E 两层开关和两处修 bug）。
+- E1 (a)：`layersEnabled: true` 下六步加规则组全过，脚本 `functions/test/memory_layers_sixstep_emulator_test.js`，报告 `docs/dev-reports/memory-layers-sixstep-20261018.md`。按 E1 (b) 交 Junyu 10/19 早上开开关。
+
 ## 2026-10-16 注册页：密码输两次、电邮换行、显示密码（PR 草稿，分支 `fix/signup-email-password`，并入 `batch/1016-morning`）
 
 - 10/15 试跑一位老人注册后发现电邮打错，但格子只显示尾巴看不全。改：电邮格自动换行、去空格；建立帐号时密码输两次，不一样不让提交；密码格加眼睛按钮。文字见 S17，待产品窗口核。
