@@ -34,6 +34,7 @@ const usageEvents = require("./usage_events");
 const opsDashboard = require("./ops_dashboard");
 const researcherIntake = require("./researcher_intake");
 const testerArm = require("./tester_arm");
+const promptRegistry = require("./prompt_registry");
 
 admin.initializeApp();
 
@@ -56,37 +57,13 @@ const DEEPSEEK_THINKING = {type: "disabled"};
 // Prompt resolution (Dev Req §3.2, §8 – prompts live server-side so the
 // client cannot tamper with them).
 //
-// Files under functions/prompts/{key}.txt are loaded once at cold-start
-// and cached in-memory. The Ah Jan / Ah Bak prompt contains a
-// `{{VARIANT_NAME}}` placeholder which we substitute per request.
+// The registry (PROMPT_FILES: key the app sends → versioned file), the
+// file cache and the version label live in prompt_registry.js (T49b).
+// Per request we fill {{VARIANT_NAME}} (Ah Jan / Ah Bak) and {{TONE_RULE}}
+// (users/{uid}.encouragementStyle, T49b).
 // ---------------------------------------------------------------------------
 
-const PROMPT_DIR = path.join(__dirname, "prompts");
-const _promptCache = {};
-
-// Prompt registry (memory-and-entry-spec 3.10): the key the app sends →
-// the versioned file the server loads.  Installed apps keep sending the
-// old key, so the swap happens here.  Old files are never overwritten.
-//   tung_tung_v1 → tung_tung.v2: no "幫你查" invitation (decision 0019).
-const PROMPT_FILES = {
-  tung_tung_v1: "tung_tung.v2",
-};
-
-function promptFileFor(key) {
-  return Object.prototype.hasOwnProperty.call(PROMPT_FILES, key) ?
-    PROMPT_FILES[key] : key;
-}
-
-function loadPrompt(key) {
-  if (_promptCache[key] !== undefined) return _promptCache[key];
-  try {
-    const file = path.join(PROMPT_DIR, `${promptFileFor(key)}.txt`);
-    _promptCache[key] = fs.readFileSync(file, "utf8");
-  } catch (err) {
-    _promptCache[key] = null;
-  }
-  return _promptCache[key];
-}
+const {PROMPT_DIR, loadPrompt, promptVersionFor} = promptRegistry;
 
 let _safetyCache = null;
 function loadSafetyAcks() {
@@ -98,23 +75,6 @@ function loadSafetyAcks() {
     _safetyCache = {};
   }
   return _safetyCache;
-}
-
-// L-2 — prompt version label derived from the prompt file header, e.g.
-// "## 小欣 — … · v1 (rev 2026-06)" → "siu_yan_v1@2026-06".  Cached with the
-// prompt text; null for raw systemPrompt callers (no server-side file).
-const _promptVersionCache = {};
-function promptVersionFor(key) {
-  if (!key) return null;
-  if (_promptVersionCache[key] !== undefined) return _promptVersionCache[key];
-  const text = loadPrompt(key);
-  let label = null;
-  if (text) {
-    const m = text.split("\n")[0].match(/v(\d+)\s*\(rev\s*([0-9-]+)\)/);
-    if (m) label = `${key.replace(/[._]v\d+$/, "")}_v${m[1]}@${m[2]}`;
-  }
-  _promptVersionCache[key] = label;
-  return label;
 }
 
 // S-4 — crisis resources (hotline names / numbers) are a single JSON that
@@ -144,20 +104,29 @@ function fillHotline(text, locale) {
       .split("{{HOTLINE_NUMBER}}").join(res.number || "");
 }
 
-function resolvePrompt(payload) {
+/**
+ * Persona prompt for a request: the server-side file for payload.promptKey
+ * with its slots filled and the client's context suffix appended (or the
+ * legacy raw payload.systemPrompt).
+ * @param {!Object} payload Callable payload.
+ * @param {*=} encouragementStyle users/{uid}.encouragementStyle as read
+ *     by the server; omitted → the default tone line.
+ * @return {?string} System prompt, or null.
+ */
+function resolvePrompt(payload, encouragementStyle) {
   const promptKey = payload.promptKey;
   const rawPrompt = payload.systemPrompt;
   if (!promptKey && rawPrompt) return rawPrompt;
   if (!promptKey) return null;
   const template = loadPrompt(promptKey);
   if (!template) return rawPrompt || null;
-  let out = template;
-  // Default variant: feminine (阿珍).  An earlier auto-formatter
-  // mangled this to "阿Jan" — do not regress.  The two real variants
-  // are 阿珍 (feminine, sage green) and 阿伯 (masculine, teal-blue);
-  // both are AI-disclosed peer-aged listeners.
-  const variantName = payload.variantName || "阿珍／阿伯";
-  out = out.split("{{VARIANT_NAME}}").join(variantName);
+  // {{VARIANT_NAME}} (default 阿珍／阿伯) and {{TONE_RULE}}.  The tone
+  // comes from the server-read profile (`encouragementStyle`, set by the
+  // caller after assertLlmAllowed), never from the client payload.
+  let out = promptRegistry.fillSlots(template, {
+    variantName: payload.variantName,
+    encouragementStyle: encouragementStyle,
+  });
   const contextSuffix = payload.contextSuffix;
   if (contextSuffix && typeof contextSuffix === "string") {
     // P-2 (2026-09): the suffix carries the rolling summary + named
@@ -304,6 +273,25 @@ async function armFor(uid) {
 }
 
 /**
+ * T49b — `users/{uid}.encouragementStyle` (direct / gentle / either, set
+ * by researcher_intake.js), read fresh per call so a new intake applies at
+ * once.  Only called after assertLlmAllowed, i.e. never for the rule arm.
+ * A failed read falls back to the default tone (null), logged.
+ * @param {string} uid Firebase auth uid.
+ * @return {Promise<?string>} The stored value, or null.
+ */
+async function encouragementStyleFor(uid) {
+  try {
+    const snap = await admin.firestore().collection("users").doc(uid).get();
+    const v = snap.exists ? snap.get("encouragementStyle") : null;
+    return typeof v === "string" ? v : null;
+  } catch (err) {
+    console.error("encouragementStyle read failed:", err.message);
+    return null;
+  }
+}
+
+/**
  * Throws permission-denied for Arm B participants, and (T19) logs the
  * refusal in `llm_denied_log` (no text, no arm field; clients cannot read).
  * T21: with the enrolment gate on, an account that is neither enrolled
@@ -406,7 +394,11 @@ exports.proxyDeepSeek = onCall(
       throw new HttpsError("invalid-argument", "bad payload: messages");
     }
 
-    let systemPrompt = resolvePrompt(payload);
+      // T49b — tone slot; Arm B was refused by assertLlmAllowed above.
+      // Raw systemPrompt callers have no slot, so no read for them.
+      const encouragementStyle = payload.promptKey ?
+        await encouragementStyleFor(request.auth.uid) : null;
+    let systemPrompt = resolvePrompt(payload, encouragementStyle);
     if (!systemPrompt) {
       throw new HttpsError(
         "invalid-argument",
@@ -662,10 +654,12 @@ exports.referralJudgement = onCall(
       );
     }
 
-    const sourcePrompt = resolvePrompt({
-      promptKey: `${sourceAgentId}_v1`,
-      variantName: payload.variantName,
-    });
+      // T49b — same tone slot as the chat call, so the suggestion is
+      // phrased in the voice the participant gets.
+      const sourcePrompt = resolvePrompt({
+        promptKey: `${sourceAgentId}_v1`,
+        variantName: payload.variantName,
+      }, await encouragementStyleFor(request.auth.uid));
     if (!sourcePrompt) {
       throw new HttpsError("internal", "source persona prompt missing");
     }

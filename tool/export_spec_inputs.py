@@ -50,6 +50,10 @@ FUNCTIONS_INDEX = "functions/index.js"
 # (functions/index.js PROMPT_FILES, spec 3.10).
 PROMPTS_V2 = [
     "functions/prompts/tung_tung.v2.txt",
+    # T49b (2026-10-18): 小欣 v2, 阿珍／阿伯 v2, 通通 v3 + {{TONE_RULE}}.
+    "functions/prompts/siu_yan.v2.txt",
+    "functions/prompts/ah_jan_ah_bak.v2.txt",
+    "functions/prompts/tung_tung.v3.txt",
 ]
 
 BUNDLE_ORDER = PROMPTS + PROMPTS_V2 + [SUFFIX_TEMPLATE, ACKS, CRISIS, FALLBACK]

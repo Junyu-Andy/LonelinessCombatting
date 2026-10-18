@@ -38,7 +38,8 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/djg_w2_test.dart test/phase_b_hidden_surfaces_test.dart \
   test/ada_test.dart test/safety_classifier_test.dart \
   test/weekly_schedule_test.dart test/weekly_bundle_flow_test.dart \
-  test/tester_arm_switch_test.dart
+  test/tester_arm_switch_test.dart \
+  test/reminiscence_avoid_topics_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
   test/tung_tung_arm_b_test.dart test/my_story_arm_test.dart

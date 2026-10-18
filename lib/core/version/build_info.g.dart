@@ -5,8 +5,8 @@
 const String kAppVersion = '1.0.0';
 const String kBuildNumber = '3';
 const String kLexiconVersion = 'v5-2026-09';
-const String kPromptBundleHash = '478b6237d5296ced153474e5d23079f6aa76a65f70421050b1f3d06849b5bf59';
-const String kGeneratedAt = '2026-10-07';
+const String kPromptBundleHash = '611bee4d51c30fe29bb0bac0c06904f6fba25a794163c91bbb061bf77d12b1b6';
+const String kGeneratedAt = '2026-10-18';
 
 /// Per-artefact SHA-256 (path → hex) for the About page / audit.
 const Map<String, String> kArtefactHashes = {
@@ -14,6 +14,9 @@ const Map<String, String> kArtefactHashes = {
   'functions/prompts/ah_jan_ah_bak_v1.txt': '8efcae4cd46ba28f219bb0e49c6f533d5877950ffb21da5e29c8a73e148d6347',
   'functions/prompts/tung_tung_v1.txt': '251584dc7f1e503d63dc81e78b823e541342a75b9f7ed8b88d4457053bc08ecc',
   'functions/prompts/tung_tung.v2.txt': '4febae49f2e8777ba18e66bd88166ab8a8e1e3f69712acd295ec50ad1ba3881b',
+  'functions/prompts/siu_yan.v2.txt': 'e8dd1172b91a10affe6f24db65c0672c58fa7ba8d4a508b5582daefd4ad7a827',
+  'functions/prompts/ah_jan_ah_bak.v2.txt': '3e93815b7f6174e8dd34369756b57877586cd5ab87e50ad988a91e2d5c06eb74',
+  'functions/prompts/tung_tung.v3.txt': 'ba5e39c6090a96b6b13d60d55ec2dd150b9c970e6d7526a11efbf67b04918f26',
   'docs/prompts/context_suffix_template.txt': 'a068c471634e6577a47eec379578334318d100df228ca1fed4e416c0702b2a22',
   'functions/prompts/safety_acknowledgements.json': '96fd03c84e3ece63216420de7e8ae60600daf2d798fde45865fe4075ab2db218',
   'functions/prompts/crisis_resources.json': 'b8b0d47c5739f82e58986d6a420f8d02089f96e35044f045f5b56225f2d88786',

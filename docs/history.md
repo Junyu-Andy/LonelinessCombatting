@@ -49,6 +49,13 @@
 
 - 10/18 §C：搜一搜维持关闭，只加记录。通通显示 S1a 时写 `users/{uid}/events` 的 `s1a_fixed_reply`（`agentId`、`sessionId`、`arm`、`matchedVersion`、`clientTime`，不含原话和关键词），两组相同，开关 `s1aEventLogEnabled` 默认关。每周过程数据导出加 `event_counts`（按人、按组次数）；锁库分析导出本来按事件名通用导出，不用改。
 - 待核答了：代码里 Hybrid 组 S1a 是逐字显示，命中后 `return`，不调用 LLM；prompt 模式 B 第 5 条只在没出 S1a 时起作用。报告 `docs/dev-reports/T49c-s1a-event-20261018.md`。
+## 2026-10-18 三位陪伴者提示词 v2/v2/v3 + 语气槽位 + 回忆页禁区行（T49b，PR 草稿，分支 `feat/t49b-prompts-tone-slot`）
+
+- 结论：小欣、阿珍／阿伯、通通的提示词各开一个新版本文件，旧文件不动。服务器按老人入组时的「鍾意人直接啲定溫和啲講」在提示词里加一句语气；没录入的人只看到默认句，行为不变。只有 Hybrid 组。
+- 文字改动（任务单 1018 §B）：自称「電腦程式夥伴」，被问起老实说是电脑程式；不用「AI」「模型」「機械人」，不说版本；删通通「幫佢搵資料」和「+ 搜尋」，小欣改说「過去同通通傾下」；删末尾从来没填过的「Context injection 格式」。
+- 回忆页是 Hybrid 组唯一没把「唔想提起的话题」告诉陪伴者的聊天页，补上，和签到页同一句。
+- 服务器：提示词登记表搬到 `functions/prompt_registry.js`，好做不连 Firestore 的测试；语气从服务器读的资料来，App 改不了；规则组第一步就被拒绝。
+- `encouragementStyle` 要等 PR #111 合并才有人写。10/19 冻结后合并算偏离，STUDY_CHANGELOG 已记。决策记录草稿 `docs/decisions/NNNN-companion-prompts-v2-tone-slot.md`。Junyu 要看三份最终文本再合。
 
 ## 2026-10-16 注册页：密码输两次、电邮换行、显示密码（PR 草稿，分支 `fix/signup-email-password`，并入 `batch/1016-morning`）
 

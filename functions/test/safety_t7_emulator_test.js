@@ -145,7 +145,7 @@ test("prompt rule appended last; promptVersion names it", async () => {
   assert.ok(sys.includes("hotline_rule · v1"), "rule in system prompt");
   assert.ok(sys.trim().endsWith("其他時候唔使提熱線。"), "rule is last");
   assert.strictEqual(out.hotlineRuleVersion, "hotline_rule.v1");
-  assert.ok(/^siu_yan_v1@.+\+hotline_rule\.v1$/.test(out.promptVersion),
+  assert.ok(/^siu_yan_v2@.+\+hotline_rule\.v1$/.test(out.promptVersion),
       out.promptVersion);
 });
 
