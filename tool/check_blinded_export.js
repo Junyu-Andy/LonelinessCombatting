@@ -56,7 +56,7 @@ const DENY_KEYS = [
   // identity
   "uid", "uidHash", "participantId", "email", "displayName",
   "emergencyContactName", "emergencyContactPhone", "closeContacts",
-  "importantPeople", "reconnectPeople", "phone",
+  "importantPeople", "reconnectPeople", "reconnectContacts", "phone",
   // arm and arm bookkeeping
   "arm", "armAssignmentMode", "armAssignedBy", "armAssignedAt",
   "cohort",

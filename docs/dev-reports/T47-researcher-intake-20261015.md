@@ -98,3 +98,78 @@ Junyu 10/16 看了五题一页的版本：五题挤在一起，可读性差；�
 2. **怎么进提示词**（只 Hybrid 组）：录入后服务器把答案写成固定格式的记忆句，每位夥伴各一份——目标→三位「嚟呢度主要想：…」；兴趣加「其他」→小欣、通通「平時鍾意：…」；勾了同意的人→小欣「重要嘅人：…」；唔想提起→三位「唔想主動提起：…（用戶一開始就講明，唔好主動提）」。每次聊天接在人设提示词后的 `<memory>` 块里，带「记忆使用规则」。通通另外在闲聊模式把 `profile.interests` 列表接在提示词后面（只能在老人主动闲聊时引用）。打字定讲不进提示词。
 3. **自由栏照字面进固定句子**：在「唔想提起」写「老人家什麼都想說」会变成「唔想主動提起：老人家什麼都想說……」，没有意义甚至让夥伴小心翼翼。观察类的话用新加的「研究員備註」：原句变成三位夥伴的一条「研究員觀察：……」。
 4. **通通一页**：`researcherIntakeEnabled` 开着时（第 2 题由研究员录），或老人刚在精简问卷答过兴趣，引导里通通一页只介绍不问；「完成」保留已有兴趣，不再互相覆盖。之前的顺序是老人引导先揀、研究员后录覆盖，老人要「完全关闭再打开 App」才看到新的——Junyu 说「我選完了通通進去沒這個 option」多半是这个原因。
+
+## 9. 10/16 任务单修订版：做了什么，第 0 节第 5、6 题的答案
+
+研究侧 10/16 把任务单改成「字段全部保留、不限选项数；甲部研究员口头问并录入，乙部重要嘅人由老人自填；新加四题」。按此重做，第 1–8 节里和它冲突的描述以本节为准。
+
+1. **甲部（研究员录入页，14 块）**：目标（加其他）、幾時孤單、作息三格、心事、鍾意做乜（通通那 23 项加其他）加鍾意傾乜（原 topics 10 项加其他）、人生階段、唔想提起、打字定講、幾時方便；C 部四题：以前做邊行、喺邊度長大、寵物、直接定溫和；最后研究员备注。全部可空，多选不限。服务器只留技术上限（列表最多全选，人 20 位，字数 40／120／200／300）。
+2. **乙部（老人 App 一页，S19）**：重要嘅人、想重新聯絡嘅人，先显示三行、一行，按钮加行，不限人数。写 intake 文档（merge，`completedParts` 加 2）、profile.closeContacts（share=true）和新标记 `intakePeopleDone`。开关开着时老人只见这一页；关着时仍是五题一屏（含重要嘅人）。
+3. **记忆（只 Hybrid 组）**从合并后的整份 intake 文档生成，所以谁先录都一样：目标、唔想提起、职业、家乡、语气偏好、研究员备注→三位；幾時孤單、作息、心事（`sensitivity: sensitive`、`feeling`，只有老人自己提起才用）、重要嘅人（勾了同意的）、想重新聯絡嘅人→小欣；兴趣、话题、宠物→小欣和通通；人生阶段→阿珍／阿伯；打字定讲、幾時方便不进记忆。老人若在研究员录入**之后**才填乙部，研究员再按一次「錄入」即可刷新（服务器从合并文档重算）。
+4. **语气（第 2 节第 7 条）**先弱版：写成记忆一条「鍾意人點樣講嘢：直接啲／溫和啲」（「冇所謂」不写）。提示词槽位版的三份草稿已交 Junyu（`companion-prompts-tone-slot-20261016.md`），PI 审后切版本号。
+5. **第 0 节第 5 题（生效时间）**：研究员录入后——夥伴记忆：下一次聊天就带上（服务器每轮读）；通通的兴趣清单和开场白、行动计划的「同邊個」快捷按钮、小欣人设里的重要嘅人：老人**完全关闭再打开 App**后生效（App 启动时读一次资料）；唔想提起：目前是记忆一条，下一次聊天生效。建议 B20 第 7 节写一句：「研究員錄入後，請老人家完全關閉 App 再打開一次。」
+6. **第 0 节第 6 题（内地／海外网络）**：内地无 VPN——登录（Firebase Auth）、资料（Firestore）、聊天（Cloud Functions，香港节点）、推送（FCM 走 Google 服务）**全部不通**，等于不能用；DeepSeek 虽在内地可达，但我们是经 Functions 调用，一样不通；语音输入开关关着，不涉及。海外（日本等）全部正常，推送也正常。所以 W0 值得问一句「呢 8 個星期會唔會離開香港超過幾日？」，去内地的那几天算缺勤，不是故障；长期在内地的老人不适合入组。
+7. **第 2 节第 5 条登记表**改动（照旧由产品窗口改）：C19 加研究员录入；个人化问卷条目改为「甲部研究员口头问并录入，乙部老人自填，字段不删，选项不限数量，两组相同（规则组不读）」；配对条目改为「老人在引导里自选，研究员只记录」；新加「研究员备注」一条（进 Hybrid 组夥伴记忆，老人看不到）。
+
+## 10. 10/18 §A 收尾（T49a，同一分支 `feat/t47-intake-v2`）
+
+**结论**：按 `dev-tasks-1018.md` §A 收尾。人数上限改成每组 10 位；Hybrid 组的入组记忆按 §A3 表重新分类，「唔想提起」和「直接定溫和」不再写成记忆；想重新聯絡嘅人接进行动计划快捷按钮（两组）；旧 6 页数据再录一次不报错。开关仍是 `researcherIntakeEnabled`，没有加新开关。
+
+**1. 改了什么**
+
+- **人数上限 10**：老人乙部页两组各最多 10 行，到 10 行「加一位」按钮消失；服务器 `MAX_PEOPLE` 20 → 10（第 11 位报 `too_many_people`）；研究员看到的错误字改「重要嘅人最多錄 10 位。」。开关关着时的五题页（`intake_short_page.dart`）没有改，仍不限（任务单没提，见下面第 6 条待定）。
+- **记忆路由（只改服务器 `intakeFactsFor`）**：
+  - 「通常覺得孤單嘅時候」类目 routine → **feeling**（私有）。
+  - 「想傾嘅人生階段」类目 preference → **story**（私有）。
+  - 删掉「唔想主動提起」：唔想提起改靠 App 提示词末尾那行「⛔ 用戶要求唔好提起呢啲話題」。
+  - 删掉「鍾意人點樣講嘢」：`users/{uid}.encouragementStyle` 照写，等 Prompt 2 的语气槽位读。
+  - 其余照旧（目标、作息、心事、兴趣、话题、重要嘅人、想重新聯絡嘅人、职业、家乡、宠物、研究员备注）。
+  - 每条的 `layer` 和 `visibility` 改由 `memory.layerFor` / `memory.visibilityFor` 算，和聊天抽出来的一样（原来一律 private / agent）。`layersEnabled` 关着时 layer 不起作用；开了以后 family、living、routine、hobby、preference 共享，feeling、story 和敏感的私有。
+  - **配套（任务单没写，我加的）**：入组每位陪伴者各写一份。visibility 改了以后，`以前做邊行`、`喺邊度長大`（living）和 `寵物`（family）在现在的默认策略 C 下会被其他陪伴者也看到，同一句会在记忆块里出现两三次；`layersEnabled` 开了以后目标、兴趣也会重复。所以 `memory.js` `selectForInjection` 加了一步：**入组来源**（`source_session_id: "intake"`）的同一类目、同一标题、同一内容只留一条，优先自己那份。聊天抽出来的不动。
+- **想重新聯絡嘅人接行动计划**：profile 新字段 `reconnectContacts`（结构同 `closeContacts`，share 一律 true）。乙部页保存时一起写。行动计划「同邊個」一步的按钮改读 `profile.planContacts`：先 `closeContacts`（勾了同意的），再 `reconnectContacts`，同名只出一个。两组都改，规则组仍只是列表。导出：旧版盲法导出 `blindRow` 和 `tool/check_blinded_export.js` 都把 `reconnectContacts` 当个人信息去掉（里面是人名）。
+- **`completedParts` 修正（我加的）**：研究员录入原来把 `completedParts` 直接写成 `[1,3,4,5,6]`，会抹掉老人乙部的 2，也会把旧 6 页的 `[1..6]` 改短。改为在原有的上面加（`arrayUnion`）。
+- **W0 SOP**：`docs/release/w0-install-script.md` 第 5、6 步后面加了定稿一句，第 5 步注明各最多 10 位。
+
+**2. §A4 配对「第一次选择」现在怎么拿**
+
+- 登记那一刻老人资料里的 `ahJanAhBakVariant` 写进 `enrollments/{uid}.companionVariant`（`functions/randomization.js` `elderVariant`），客户端不能改。之后老人再改：App 写 `events` 一行 `ah_jan_ah_bak_changed`（`from`、`to`、`where`）；服务器开关 `pairingChangeServerLogEnabled` 开着时还会写 `pairing_change_log`（含 `registeredVariant`）。
+- **边界**：老人登记前就改过（引导里先选阿珍，登记前在夥伴资料页改成阿伯），`companionVariant` 记的是阿伯，不是第一次的选择。第一次选择要从最早一条 `ah_jan_ah_bak_changed` 的 `from` 取。另外：服务器开关当时开着的话，`pairing_change_log` 也有（第一次从空到阿珍那一行，`registeredVariant` 为空）；开关默认关，所以一般只有 App 事件。App 事件只在“已经有配对再改”时写，从空到第一次选择不写。
+- 代码没改。分析时要用哪个值，见第 6 条待定。
+
+**3. §A5 规则组用到哪些字段**（读代码，两组同一个 App）
+
+| 字段 | 规则组 | Hybrid 组 |
+|---|---|---|
+| `interests`（研究员录的鍾意做乜） | **读**：通通页开头的兴趣按钮两组都有（`tung_tung_page.dart`，一次两个、換一換），按了只是把「我想傾下 X」填进输入框，回应仍是模板。规则组开场白是固定池，不看兴趣 | 兴趣按钮 + 通通提示词 + 开场白 + 记忆 |
+| `closeContacts`、`reconnectContacts` | **读**：行动计划 B 页「同邊個」的选项（只是列表） | 行动计划 A 页快捷按钮；小欣记忆（服务器写） |
+| `avoidTopics` | 不读 | 小欣签到、通通、阿珍／阿伯自由对话和开场白的提示词「⛔」一行（App） |
+| `inputMode` | 不读 | **也不读**：§A3 写「语音按钮提示（现有）」，但代码里没有任何地方读 `profile.inputMode`，只存着 |
+| `encouragementStyle` | 不读 | 现在没人读（等 Prompt 2 语气槽位） |
+| `preferredTimes` | 不读 | 不读（只记录） |
+| 其余（目标、孤單时段、作息、心事、话题、人生阶段、职业、家乡、宠物、研究员备注、intake 文档里的人） | 不读 | 只经服务器 `mem_facts` |
+| `hasCompletedIntake`、`intakePeopleDone` | 两组一样决定显示哪一页（`ConsentGate`） | 同左 |
+
+emulator 测试保留「规则组录入后 `mem_facts` 为 0」，并加了「intake 文档照写」。服务器的规则组防线没有动。
+
+**4. §A6 旧数据**
+
+emulator 新用例：三位 PILOT 式旧 6 页文档（作息、心事、人生阶段、旧结构的人——`extra` 是联系频率、没有 `share`——`completedParts` 1–6、`itemTimestamps`），研究员再录一次后：读取不报错；新字段（职业、宠物、语气、备注）为空；旧的人、`allCompleted`、`itemTimestamps`、`createdAt` 原样；`completedParts` 仍是 1–6；`factsInputFromDoc` 直接吃旧文档。App 端 `IntakeResponse.fromFirestore` 读同样的合并文档也不报错（Flutter 测试）。
+
+注意两点：①研究员再录会把甲部所有字段按新录的覆盖（没录的变空），旧的作息、心事、人生阶段不会留下来——这是 merge 的本来行为，第 9 节已是如此。②旧 6 页的人没有 `share`，所以不会进小欣记忆和行动计划按钮；开关打开后这三位老人 `intakePeopleDone` 是 false，会看到一次乙部页，重新填就有。
+
+**5. 测试**（结果见 PR #111 评论）
+
+- `firebase emulators:exec --only firestore --project loneliness-pilot-dev "cd functions && node test/researcher_intake_emulator_test.js"`：7 条。
+- `cd functions && node test/memory_test.js`：新加「入组每位一份只显示一次」。
+- `flutter test test/t47_researcher_intake_test.dart test/onboarding_order_test.dart test/enrollment_page_test.dart test/action_plan_test.dart test/safety_check_test.dart`：新加 10 行上限、`reconnectContacts` 往返、行动计划两页、旧文档读取。
+- `flutter analyze` 0 error；ESLint 新改的文件干净。
+
+**6. 要 Junyu 定的**
+
+1. 分析用的配对：`enrollments.companionVariant`（登记那一刻）还是“第一次选择”（登记前改过的要从 App 事件取）。要服务器也留第一次选择，就在 W0 前把 `pairingChangeServerLogEnabled` 打开。
+2. `inputMode` 没有读取方。要做语音按钮提示，还是只记录。
+3. 规则组通通页显示研究员录入的兴趣按钮（两组相同的界面）。确认可以接受，还是规则组不显示。
+4. 开关关着时的五题页要不要也限 10 位。
+5. 三位 PILOT 老人开关打开后会看到一次乙部页：照常让他们填，还是控制台把 `intakePeopleDone` 设 true 跳过（跳过的话旧的人不进小欣记忆）。
+6. Prompt 2 合并之前，「直接定溫和」没有任何陪伴者用到，阿珍／阿伯回忆页也还没有「⛔」一行（本 PR 去掉了原来写进记忆的那条）。要不要等 Prompt 2 一起部署。
+7. §A3 路由改动按 CLAUDE.md 要有决策记录，编号待分配（第 6 节的草稿可以并进去）。
