@@ -17,6 +17,7 @@
 > 2026-10-18 T49（`dev-tasks-1018.md`）：E1 六步核对已过，等 Junyu 10/19 开 `layersEnabled`；接下来 G 只读核对脚本、F 第 6 题（T47 报告第 9 节已答）、B 提示词 PR（10/22）、A 的 2/3/4/7（10/22、10/26）、C、E3、E4（10/26）。
 > 2026-10-18 §G4 只读核对脚本 `tool/check_prelaunch_values.js`（PR 草稿）；Junyu 10/19 前跑一次（需服务帐号），✗ 的按核对表改。
 > 2026-10-18 T49e-4 删记忆时清服务器模型原文 `raw_output` PR 草稿（1018 §E4，开关 `clearRawOutputOnDelete` 默认开）；待定：部署前已删条目的原文要不要一次清掉、决策编号。
+> 2026-10-18 T49c S1a 固定回复记事件 PR 草稿（开关 `s1aEventLogEnabled` 默认关）；待定：何时开开关、旧事件 `tung_tung_search_off_reply` 要不要停。
 
 ## 1. 已决定、待开发
 

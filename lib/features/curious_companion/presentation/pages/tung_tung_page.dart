@@ -125,6 +125,21 @@ class _TungTungPageState extends State<TungTungPage> {
         TungTungSearchIntent.matches(text);
   }
 
+  /// T49c — one `users/{uid}/events` row each time S1a is actually shown
+  /// (called right after the bubble is added, once per shown line, both
+  /// arms).  Switch `s1aEventLogEnabled`, default off: off writes nothing.
+  /// Only ids, the arm, the keyword-set version and the phone time —
+  /// never the elder's words or the matched keyword.  The recorder adds
+  /// `agentId` and `sessionId`.
+  void _logS1aShown({required String arm}) {
+    if (!RemoteFeatureFlags.current.s1aEventLogEnabled) return;
+    _recorder?.logEvent(TungTungSearchIntent.fixedReplyEvent, {
+      'arm': arm,
+      'matchedVersion': TungTungSearchIntent.version,
+      'clientTime': DateTime.now().toIso8601String(),
+    });
+  }
+
   /// Map of search query → result snippets, accumulated this session.
   /// Tung Tung's next LLM call appends a `[SEARCH_RESULTS]` block
   /// composed from the most recent successful query.
@@ -587,6 +602,7 @@ class _TungTungPageState extends State<TungTungPage> {
       _busy = false;
       _turns.add(_Turn.bot(replyText));
     });
+    _logS1aShown(arm: 'A');
     await _recorder?.logTurn(TurnRecord(
       agentId: AgentRegistry.tungTungId,
       moduleId: 'tung_tung_chat',
@@ -740,6 +756,7 @@ class _TungTungPageState extends State<TungTungPage> {
       _turns.add(_Turn.bot(replyText));
       if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
     });
+    if (searchOff) _logS1aShown(arm: 'B');
     final turnDocId = await _recorder
         ?.logTurn(record(replyText, acute: false, ack: moderateAck != null));
     unawaited(analytics.logEvent('tung_tung_rule_reply', {

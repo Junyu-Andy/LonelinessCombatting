@@ -45,6 +45,10 @@
 
 - 要做的：测试员在同一部手机上把 Hybrid 组和规则组都完整走一遍，包括记忆。做了：服务器 `setTesterArm`（只认 `isTester`，开关 `testerArmSwitchEnabled` 默认关），测试员不吃分组缓存，Arm A 测试员有记忆 v1，切过组的测试员收每周问卷推送；App 测試員工具加「切換組別」。参与者一律不变。
 - 查到的缺口和处理见报告 `docs/dev-reports/tester-arm-switch-20261016.md`；决策草稿 `docs/decisions/NNNN-tester-arm-self-switch.md`，编号待 Junyu 给。
+## 2026-10-18 T49c 通通 S1a 固定回复记一条事件（PR 草稿，分支 `feat/t49c-s1a-event`）
+
+- 10/18 §C：搜一搜维持关闭，只加记录。通通显示 S1a 时写 `users/{uid}/events` 的 `s1a_fixed_reply`（`agentId`、`sessionId`、`arm`、`matchedVersion`、`clientTime`，不含原话和关键词），两组相同，开关 `s1aEventLogEnabled` 默认关。每周过程数据导出加 `event_counts`（按人、按组次数）；锁库分析导出本来按事件名通用导出，不用改。
+- 待核答了：代码里 Hybrid 组 S1a 是逐字显示，命中后 `return`，不调用 LLM；prompt 模式 B 第 5 条只在没出 S1a 时起作用。报告 `docs/dev-reports/T49c-s1a-event-20261018.md`。
 
 ## 2026-10-16 注册页：密码输两次、电邮换行、显示密码（PR 草稿，分支 `fix/signup-email-password`，并入 `batch/1016-morning`）
 

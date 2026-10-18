@@ -136,6 +136,7 @@ void main() {
       expect(f.webSearchEnabled, isFalse);
       expect(f.voiceInputEnabled, isFalse);
       expect(f.searchOffReplyEnabled, isFalse);
+      expect(f.s1aEventLogEnabled, isFalse);
       expect(RemoteFeatureFlags.current.voiceInputEnabled, isFalse);
     });
 
@@ -145,16 +146,20 @@ void main() {
         'webSearchEnabled': 'true',
         'voiceInputEnabled': 1,
         'searchOffReplyEnabled': null,
+        's1aEventLogEnabled': 'yes',
       });
       expect(odd.webSearchEnabled, isFalse);
       expect(odd.voiceInputEnabled, isFalse);
       expect(odd.searchOffReplyEnabled, isFalse);
+      expect(odd.s1aEventLogEnabled, isFalse);
       final on = RemoteFeatureFlags.fromMap({
         'webSearchEnabled': true,
         'voiceInputEnabled': true,
         'searchOffReplyEnabled': true,
+        's1aEventLogEnabled': true,
       });
       expect(on.webSearchEnabled, isTrue);
+      expect(on.s1aEventLogEnabled, isTrue);
       expect(on.voiceInputEnabled, isTrue);
       expect(on.searchOffReplyEnabled, isTrue);
     });

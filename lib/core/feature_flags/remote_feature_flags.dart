@@ -77,6 +77,13 @@
 ///                               its own arm in 測試員工具 (`setTesterArm`,
 ///                               functions/tester_arm.js; the server checks
 ///                               the same flag).  Participants unaffected.
+///   - [s1aEventLogEnabled]    — T49c: each time Tung Tung shows the fixed
+///                               search-off line S1a ([TungTungSearchIntent])
+///                               one `users/{uid}/events` row
+///                               `s1a_fixed_reply` (agentId, sessionId, arm,
+///                               matchedVersion, clientTime — never the
+///                               elder's words or the matched keyword).
+///                               Both arms identical, nothing visible.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -102,6 +109,7 @@ class RemoteFeatureFlags {
     this.opsDashboardEnabled = false,
     this.researcherIntakeEnabled = false,
     this.testerArmSwitchEnabled = false,
+    this.s1aEventLogEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -118,6 +126,7 @@ class RemoteFeatureFlags {
   final bool opsDashboardEnabled;
   final bool researcherIntakeEnabled;
   final bool testerArmSwitchEnabled;
+  final bool s1aEventLogEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -166,6 +175,7 @@ class RemoteFeatureFlags {
         opsDashboardEnabled: map['opsDashboardEnabled'] == true,
         researcherIntakeEnabled: map['researcherIntakeEnabled'] == true,
         testerArmSwitchEnabled: map['testerArmSwitchEnabled'] == true,
+        s1aEventLogEnabled: map['s1aEventLogEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

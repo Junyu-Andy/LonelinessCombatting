@@ -22,6 +22,13 @@
  * Fields follow the allowlists below; a field not listed is not exported
  * (same principle as functions/blinding.js).  T25 (PR #67) Brief PR v3
  * fields and sessions.isValid / usage_weekly.validSessionCount are in.
+ *
+ * T49c: `event_counts` — per participant, how many `users/{uid}/events`
+ * rows carry each name in COUNTED_EVENTS (only counts, never the event's
+ * params), and the manifest's `eventCountsByArm` sums them per arm.  The
+ * App writes `s1a_fixed_reply` only while
+ * `app_config/feature_flags.s1aEventLogEnabled` is on, so a 0 before the
+ * switch was turned on means "not recorded", not "never shown".
  */
 
 "use strict";
@@ -76,6 +83,9 @@ const SOURCE_GROUP = {
   assessor_entry: "assessor_entry",
 };
 
+// T49c — users/{uid}/events names counted per participant (count only).
+const COUNTED_EVENTS = ["s1a_fixed_reply"];
+
 /** Outcome collections that must never appear in this export. */
 const OUTCOME_COLLECTIONS = [
   "outcome_entries", "djg_responses", "djg_es", "pgic", "loneliness_probes",
@@ -102,8 +112,11 @@ function switchesFromSnap(snap) {
  * @return {Promise<{files: Object<string, Array<object>>, manifest: object}>}
  */
 async function buildProcessExport(db, opts) {
-  const files = {participants: [], usage_weekly: [], safety_events: []};
+  const files = {participants: [], usage_weekly: [], safety_events: [],
+    event_counts: []};
   for (const name of Object.keys(PROCESS_COLLECTIONS)) files[name] = [];
+  const eventCountsByArm = {};
+  for (const name of COUNTED_EVENTS) eventCountsByArm[name] = {A: 0, B: 0};
   const ridByUid = {};
   const armByUid = {};
   const excluded = {notPhaseB: 0, tester: 0};
@@ -131,6 +144,16 @@ async function buildProcessExport(db, opts) {
       for (const d of sub.docs) {
         files[name].push(Object.assign({researchId, arm: u.arm},
             blinding.pick(d.data(), PROCESS_COLLECTIONS[name])));
+      }
+    }
+    // T49c — event counts by name; the rows' params are never read.
+    for (const name of COUNTED_EVENTS) {
+      const agg = await userDoc.ref.collection("events")
+          .where("name", "==", name).count().get();
+      const count = agg.data().count;
+      files.event_counts.push({researchId, arm: u.arm, name, count});
+      if (eventCountsByArm[name][u.arm] !== undefined) {
+        eventCountsByArm[name][u.arm] += count;
       }
     }
     // Usage per ISO week: sessions, valid sessions (T25), active days.
@@ -171,7 +194,7 @@ async function buildProcessExport(db, opts) {
   for (const name of Object.keys(files)) rowCounts[name] = files[name].length;
   return {files, manifest: {
     exportVersion: EXPORT_VERSION, kind: "process", dateKey: opts.dateKey,
-    rowCounts, excludedParticipants: excluded,
+    rowCounts, excludedParticipants: excluded, eventCountsByArm,
     neverHere: OUTCOME_COLLECTIONS.concat(["turns", "conversation text"]),
     note: "Process data for the unblinded researcher: research ID and " +
       "real arm; no outcome values before the data lock.",
@@ -226,6 +249,7 @@ function leakCheck(built) {
 
 module.exports = {
   EXPORT_PREFIX, EXPORT_VERSION, LOG_COLLECTION, PROCESS_COLLECTIONS,
-  SAFETY_FIELDS, SOURCE_GROUP, OUTCOME_COLLECTIONS, switchesFromSnap,
+  SAFETY_FIELDS, SOURCE_GROUP, COUNTED_EVENTS, OUTCOME_COLLECTIONS,
+  switchesFromSnap,
   buildProcessExport, writeProcessExport, leakCheck,
 };
