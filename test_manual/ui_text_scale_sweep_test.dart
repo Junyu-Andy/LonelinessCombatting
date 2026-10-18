@@ -5,11 +5,16 @@
 //
 // 任何 RenderFlex 溢出、断言或异常都会让那个用例失败（错误收集后一次列出）。
 // 带 --dart-define=SWEEP_SHOTS=true --update-goldens 运行时，每个画面另存一张
-// PNG 到 test/_sweep_shots/（本机看，不入库），并尽量用一套 CJK 字体渲染。
+// PNG 到 test_manual/_sweep_shots/（本机看，不入库），并尽量用一套 CJK 字体渲染。
 //
-//   flutter test --dart-define=PHASE_B=true test/ui_text_scale_sweep_test.dart
+// 放在 test_manual/ 而不是 test/：发版前手动跑，不进 CI（`flutter test` 不带
+// 路径只跑 test/；这份每种构建约 15 分钟，CI 的 30 分钟放不下）。研究用的是
+// Phase B 构建，所以按下面两条跑；Phase A 构建的行动计划页在 320 / 360 宽 ×
+// 1.3 过场时有一处右侧溢出，研究版没有。
+//
+//   flutter test --dart-define=PHASE_B=true test_manual/ui_text_scale_sweep_test.dart
 //   flutter test --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
-//     test/ui_text_scale_sweep_test.dart
+//     test_manual/ui_text_scale_sweep_test.dart
 //
 // 只用合成数据：所有服务 available false，LLM 是假的。
 import 'dart:io';
@@ -158,7 +163,7 @@ Future<void> _loadCjkFont() async {
   final f = File('/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc');
   if (!f.existsSync()) return;
   final bytes = f.readAsBytesSync();
-  for (final family in ['WQY', 'NotoSerifHK']) {
+  for (final family in ['WQY', 'NotoSerifHK', 'NotoSansHK']) {
     final loader = FontLoader(family)
       ..addFont(Future.value(ByteData.sublistView(bytes)));
     await loader.load();

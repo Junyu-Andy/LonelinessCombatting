@@ -57,4 +57,4 @@ randomization_sequence_*.json
 # npm (functions/, test/rules/, tool/): never commit installed packages or a symlink to them
 node_modules
 node_modules/
-test/_sweep_shots/
+**/_sweep_shots/
