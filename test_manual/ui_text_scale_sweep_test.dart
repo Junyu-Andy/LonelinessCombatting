@@ -17,6 +17,10 @@
 //     test_manual/ui_text_scale_sweep_test.dart
 //
 // 只用合成数据：所有服务 available false，LLM 是假的。
+// 不在 test/ 下，分析器会把 @visibleForTesting 的调用当成误用；这份就是测试。
+// ignore_for_file: invalid_use_of_visible_for_testing_member
+// ignore_for_file: invalid_use_of_protected_member
+
 import 'dart:io';
 
 import 'package:app_demo/app/app_settings.dart';
