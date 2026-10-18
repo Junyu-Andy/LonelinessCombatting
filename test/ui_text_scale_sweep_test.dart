@@ -71,6 +71,9 @@ import 'package:flutter_test/flutter_test.dart';
 const _armB = String.fromEnvironment('FORCE_ARM') == 'B';
 const _shots = bool.fromEnvironment('SWEEP_SHOTS');
 
+/// Debug aid: leave the framework's own error reporting on (full details).
+const _raw = bool.fromEnvironment('SWEEP_RAW');
+
 /// Logical widths and the matching heights of common phones.
 const _sizes = <Size>[
   Size(320, 568), // iPhone with Display Zoom / iPhone SE (1st)
@@ -398,7 +401,9 @@ final _flows = <String, _Flow>{
         c, _armB ? const ActionLoopArmBPage() : const ActionLoopArmAPage());
     await c.shot('action_0');
     if (_armB) {
-      // One page with every picker; the names are plain list entries.
+      // One page with every picker; the names are plain list entries
+      // (lazy list: scroll the 同邊個 picker into view first).
+      await _scrollTap(c, find.textContaining('芳姐'));
       expect(find.textContaining('芳姐'), findsWidgets,
           reason: '想重新聯絡嘅人 shows among the quick picks');
     } else {
@@ -486,12 +491,18 @@ void main() {
             // Collect every framework error (overflow included) and list
             // them together instead of stopping at the first.
             final old = FlutterError.onError;
-            FlutterError.onError = (d) {
+            void collect(FlutterErrorDetails d) {
               final line = d.exceptionAsString().split('\n').first;
               // Plugin stubs (connectivity stream etc.) are not UI problems.
               if (line.contains('MissingPluginException')) return;
-              c.errors.add(line);
-            };
+              // Keep the widget location so the report says which Row.
+              final m = RegExp(r'file:///\S+?\.dart:\d+:\d+')
+                  .firstMatch(d.toString());
+              final where = m == null ? '' : m.group(0)!.split('/lib/').last;
+              c.errors.add(where.isEmpty ? line : '$line  (lib/$where)');
+            }
+
+            if (!_raw) FlutterError.onError = collect;
             try {
               await entry.value(c);
             } finally {

@@ -155,26 +155,25 @@ class _IntakePeoplePageState extends State<IntakePeoplePage> {
   List<Widget> _rows(String keyPrefix, List<_Row> rows) => [
         for (var i = 0; i < rows.length; i++)
           Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: Row(children: [
-              Expanded(
-                child: TextField(
-                  key: Key('${keyPrefix}_name_$i'),
-                  controller: rows[i].name,
-                  scrollPadding: const EdgeInsets.only(bottom: 160),
-                  decoration: const InputDecoration(
-                      labelText: IntakePeopleCopy.nameLabel),
-                ),
+            padding: const EdgeInsets.only(bottom: 18),
+            // 10/18 sweep: one field per line.  Side by side, the label
+            // 「關係（例如：女兒、舊朋友）」 was cut to 「關係（例如···」 at
+            // every phone width, and 「姓名 / 稱呼」 too at 320 × 1.3.
+            child: Column(children: [
+              TextField(
+                key: Key('${keyPrefix}_name_$i'),
+                controller: rows[i].name,
+                scrollPadding: const EdgeInsets.only(bottom: 160),
+                decoration: const InputDecoration(
+                    labelText: IntakePeopleCopy.nameLabel),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  key: Key('${keyPrefix}_rel_$i'),
-                  controller: rows[i].rel,
-                  scrollPadding: const EdgeInsets.only(bottom: 160),
-                  decoration: const InputDecoration(
-                      labelText: IntakePeopleCopy.relationLabel),
-                ),
+              const SizedBox(height: 8),
+              TextField(
+                key: Key('${keyPrefix}_rel_$i'),
+                controller: rows[i].rel,
+                scrollPadding: const EdgeInsets.only(bottom: 160),
+                decoration: const InputDecoration(
+                    labelText: IntakePeopleCopy.relationLabel),
               ),
             ]),
           ),

@@ -256,7 +256,9 @@ class _TungTungPageState extends State<TungTungPage> {
     }
 
     final interests = profile?.interests ?? const <String>[];
-    final highlight = interests.isNotEmpty ? interests.first : null;
+    // 10/18 sweep: the stored value is an id (yum_cha); show its label.
+    final highlight =
+        interests.isNotEmpty ? InterestLabels.label(interests.first, isEn) : null;
     final opener = highlight != null
         ? (isEn
             ? 'Hi — you mentioned $highlight when we first met. '
@@ -412,7 +414,8 @@ class _TungTungPageState extends State<TungTungPage> {
               'user opens a chitchat thread; do NOT push them]'
           : '[onboarding 時話過嘅興趣 — 只有用戶主動講開閒聊先可以引用，唔好硬推]');
       for (final i in profile.interests.take(10)) {
-        suffix.writeln('- $i');
+        // 10/18 sweep: labels, not ids (yum_cha), or the model echoes them.
+        suffix.writeln('- ${InterestLabels.label(i, isEn)}');
       }
       suffix.writeln();
     }
