@@ -1,5 +1,5 @@
 /**
- * T47 (rev. 10/16) — researcher-recorded intake
+ * T47 (rev. 10/16, T49a 10/18) — researcher-recorded intake
  * (functions/researcher_intake.js).  Run from functions/:
  *   firebase emulators:exec --only firestore --project loneliness-pilot-dev \
  *     "node test/researcher_intake_emulator_test.js"
@@ -9,6 +9,7 @@
 const assert = require("assert");
 const admin = require("firebase-admin");
 const ri = require("../researcher_intake");
+const memory = require("../memory");
 
 if (!process.env.FIRESTORE_EMULATOR_HOST) {
   console.error("FIRESTORE_EMULATOR_HOST not set — run inside the emulator.");
@@ -140,7 +141,13 @@ test("normaliseAnswers: every field, no selection caps, ids checked, " +
   assert.strictEqual(bad({inputMode: "x"}), "invalid_input_mode");
   assert.strictEqual(bad({encouragementStyle: "loud"}),
       "invalid_encouragement_style");
-  assert.strictEqual(bad({importantPeople: new Array(21).fill({name: "a"})}),
+  // T49a (§A2): 10 people per list, the 11th refused.
+  assert.strictEqual(ri.MAX_PEOPLE, 10);
+  assert.strictEqual(bad({importantPeople: new Array(10).fill({name: "a"})}),
+      "no error");
+  assert.strictEqual(bad({importantPeople: new Array(11).fill({name: "a"})}),
+      "too_many_people");
+  assert.strictEqual(bad({reconnectPeople: new Array(11).fill({name: "a"})}),
       "too_many_people");
   assert.strictEqual(bad({importantPeople: [{name: "x".repeat(21)}]}),
       "name_too_long");
@@ -171,7 +178,8 @@ test("recordIntake: writes the intake doc (merge over the elder's part B " +
   assert.deepStrictEqual(d.importantPeople, PART_B.importantPeople); // B kept
   assert.deepStrictEqual(d.reconnectPeople, PART_B.reconnectPeople);
   assert.strictEqual(d.peopleSource, "elder");
-  assert.deepStrictEqual(d.completedParts, [1, 3, 4, 5, 6]);
+  // T49a: added to the elder's 2, not replacing it.
+  assert.deepStrictEqual(d.completedParts, [2, 1, 3, 4, 5, 6]);
   assert.strictEqual(d.source, "researcher");
   assert.strictEqual(d.recordedBy, "keran");
   assert.deepStrictEqual(d.activities, ["yum_cha", "mahjong", "hiking",
@@ -248,8 +256,9 @@ test("recordIntake: refused for blinded / participant callers, unknown, " +
       false);
 });
 
-test("intakeFactsFor: routing per companion (rev. 10/16), only shared " +
-    "people, 心事 sensitive, nothing for empty answers", () => {
+test("intakeFactsFor: routing per companion (§A3, 10/18), only shared " +
+    "people, 心事 sensitive, no 唔想提起 / 鼓勵方式, nothing for empty " +
+    "answers", () => {
   const a = ri.factsInputFromDoc(Object.assign({
     activities: ANSWERS.interests, activitiesOther: ANSWERS.interestsOther,
   }, ANSWERS, PART_B, {importantPeople: [
@@ -260,14 +269,29 @@ test("intakeFactsFor: routing per companion (rev. 10/16), only shared " +
       .map((f) => f.key);
   assert.deepStrictEqual(by("siu_yan"), ["嚟呢度主要想", "通常覺得孤單嘅時候",
     "平時作息", "入組時講過嘅心事", "平時鍾意", "鍾意傾嘅話題", "重要嘅人",
-    "想重新聯絡嘅人", "以前做邊行", "喺邊度長大", "鍾意人點樣講嘢",
-    "唔想主動提起", "研究員觀察"]);
+    "想重新聯絡嘅人", "以前做邊行", "喺邊度長大", "研究員觀察"]);
   assert.deepStrictEqual(by("tung_tung"), ["嚟呢度主要想", "平時鍾意",
-    "鍾意傾嘅話題", "以前做邊行", "喺邊度長大", "鍾意人點樣講嘢",
-    "唔想主動提起", "研究員觀察"]);
+    "鍾意傾嘅話題", "以前做邊行", "喺邊度長大", "研究員觀察"]);
   assert.deepStrictEqual(by("ah_jan_ah_bak"), ["嚟呢度主要想",
-    "想傾嘅人生階段", "以前做邊行", "喺邊度長大", "鍾意人點樣講嘢",
-    "唔想主動提起", "研究員觀察"]);
+    "想傾嘅人生階段", "以前做邊行", "喺邊度長大", "研究員觀察"]);
+  // §A3: avoidTopics is the prompts' ⛔ line, encouragementStyle the tone
+  // slot — neither is a fact, under any key.
+  for (const f of facts) {
+    assert.ok(["唔想主動提起", "鍾意人點樣講嘢"].indexOf(f.key) < 0, f.key);
+    assert.strictEqual(f.value.indexOf("唔好提我先生"), -1, f.key);
+    assert.strictEqual(f.value.indexOf("溫和"), -1, f.key);
+  }
+  // §A3 categories (→ layer via memory.layerFor).
+  const cat = {};
+  for (const f of facts) cat[f.key] = f.category;
+  assert.deepStrictEqual(cat, {
+    "嚟呢度主要想": "preference", "通常覺得孤單嘅時候": "feeling",
+    "平時作息": "routine", "入組時講過嘅心事": "feeling",
+    "平時鍾意": "hobby", "鍾意傾嘅話題": "hobby", "重要嘅人": "family",
+    "想重新聯絡嘅人": "family", "想傾嘅人生階段": "story",
+    "以前做邊行": "living", "喺邊度長大": "living",
+    "研究員觀察": "preference",
+  });
   const v = (key) => facts.find((f) => f.key === key);
   assert.strictEqual(v("嚟呢度主要想").value,
       "想有人陪下傾偈、想分享下人生回憶、想學下新嘢、想有人提我食藥");
@@ -281,14 +305,15 @@ test("intakeFactsFor: routing per companion (rev. 10/16), only shared " +
   assert.strictEqual(v("重要嘅人").value, "阿女（女）"); // 黃太 not shared
   assert.strictEqual(v("想重新聯絡嘅人").value, "舊同事阿強（舊同事）");
   assert.strictEqual(v("想傾嘅人生階段").value, "細個嘅時候、出嚟做嘢返工嘅日子");
-  assert.strictEqual(v("鍾意人點樣講嘢").value, "溫和啲（用戶入組時自己揀）");
   assert.strictEqual(v("研究員觀察").value, "老人家健談，咩都想講");
   assert.strictEqual(v("平時作息").sensitivity, "normal");
-  // 「冇所謂」 and unset tone → no fact; pet only when named.
-  const b = ri.intakeFactsFor(ri.normaliseAnswers({encouragementStyle: "either",
-    petName: "波波"}));
-  assert.deepStrictEqual(b.map((f) => `${f.agent_id}:${f.key}`),
-      ["siu_yan:寵物", "tung_tung:寵物"]);
+  // No tone fact for any style; pet (family) to 小欣 and 通通 when named.
+  for (const style of ["direct", "gentle", "either"]) {
+    const b = ri.intakeFactsFor(ri.normaliseAnswers({
+      encouragementStyle: style, petName: "波波", avoidTopics: "唔好提錢"}));
+    assert.deepStrictEqual(b.map((f) => `${f.agent_id}:${f.key}:${f.category}`),
+        ["siu_yan:寵物:family", "tung_tung:寵物:family"]);
+  }
   assert.deepStrictEqual(ri.intakeFactsFor(ri.normaliseAnswers({})), []);
 });
 
@@ -303,18 +328,44 @@ test("recordIntake: Hybrid arm gets the facts from the MERGED document " +
     value: "陳太", status: "active", source_session_id: "sess-1"});
   const r = await ri.recordIntake(db, K1, {uid: "u1", answers: ANSWERS},
       {now: NOW});
-  // 13 (小欣) + 8 (通通) + 7 (阿珍／阿伯) — see the routing test.
-  assert.strictEqual(r.memoryFacts, 28);
+  // 11 (小欣) + 6 (通通) + 5 (阿珍／阿伯) — see the routing test.
+  assert.strictEqual(r.memoryFacts, 22);
   const active = (await col.where("status", "==", "active").get()).docs
       .map((d) => d.data());
-  assert.strictEqual(active.length, 29); // 28 intake + the conversation one
+  assert.strictEqual(active.length, 23); // 22 intake + the conversation one
   const intake = active.filter((f) => f.source_session_id === "intake");
-  assert.strictEqual(intake.length, 28);
-  for (const f of intake) {
-    assert.strictEqual(f.visibility, "agent");
-    assert.strictEqual(f.layer, "private");
-    assert.strictEqual(f.sourceAgent, f.agent_id);
+  assert.strictEqual(intake.length, 22);
+  // T49a: layer / visibility as for conversation facts (memory.layerFor /
+  // visibilityFor): family / living / routine / hobby / preference shared,
+  // feeling / story private; sensitive always private.
+  const SHARED = ["family", "living", "routine", "hobby", "preference"];
+  const PRIVATE = ["feeling", "story", "health"];
+  for (const c of PRIVATE) {
+    assert.strictEqual(memory.layerFor(c, "normal"), "private", c);
   }
+  for (const f of intake) {
+    assert.strictEqual(f.sourceAgent, f.agent_id);
+    assert.strictEqual(f.layer, memory.layerFor(f.category, f.sensitivity));
+    assert.strictEqual(f.visibility,
+        memory.visibilityFor(f.category, f.sensitivity));
+    if (f.sensitivity !== "normal" || PRIVATE.indexOf(f.category) >= 0) {
+      assert.strictEqual(f.layer, "private", f.key);
+    } else {
+      assert.ok(SHARED.indexOf(f.category) >= 0, f.key);
+      assert.strictEqual(f.layer, "shared", f.key);
+    }
+  }
+  const layerOf = (key) => intake.find((f) => f.key === key).layer;
+  assert.strictEqual(layerOf("通常覺得孤單嘅時候"), "private");
+  assert.strictEqual(layerOf("想傾嘅人生階段"), "private");
+  assert.strictEqual(layerOf("入組時講過嘅心事"), "private");
+  assert.strictEqual(layerOf("平時作息"), "shared");
+  assert.strictEqual(layerOf("重要嘅人"), "shared");
+  assert.strictEqual(layerOf("以前做邊行"), "shared");
+  assert.strictEqual(intake.find((f) => f.key === "以前做邊行").visibility,
+      "shared");
+  assert.strictEqual(intake.find((f) => f.key === "平時鍾意").visibility,
+      "agent");
   const people = intake.find((f) => f.key === "重要嘅人");
   assert.strictEqual(people.value, "阿女（女）、黃太（鄰居）"); // the elder's
   assert.strictEqual(intake.find((f) => f.key === "入組時講過嘅心事")
@@ -327,10 +378,10 @@ test("recordIntake: Hybrid arm gets the facts from the MERGED document " +
   const after = (await col.get()).docs.map((d) => d.data());
   assert.strictEqual(after.filter((f) => f.status === "active").length, 6);
   assert.strictEqual(after.filter((f) => f.status === "superseded").length,
-      28);
+      22);
   assert.strictEqual(after.find((f) => f.source_session_id === "sess-1")
       .status, "active");
-  // Rule arm: nothing.
+  // Rule arm (§A5): recorded the same, but no memory facts at all.
   await enrolled("u9", {arm: "B"});
   await db.doc("research_id_map/u9").set({researchId: "PILOT-02"});
   const rb = await ri.recordIntake(db, K1, {uid: "u9", answers: ANSWERS},
@@ -338,6 +389,82 @@ test("recordIntake: Hybrid arm gets the facts from the MERGED document " +
   assert.strictEqual(rb.memoryFacts, 0);
   assert.strictEqual((await db.collection("users/u9/mem_facts").get()).size,
       0);
+  assert.strictEqual((await db.doc(ri.intakeDocPath("u9")).get())
+      .get("source"), "researcher");
+});
+
+test("§A6 old data: a PILOT-style six-part intake re-recorded by the " +
+    "researcher reads without error, new fields empty, old people kept",
+async () => {
+  await reset();
+  // The retired six-part page's document: no schemaVersion, no source, old
+  // people rows (extra = how often / what stops them, no `share`),
+  // completedParts 1–6, item timestamps.
+  const OLD = {
+    mainGoals: ["companionship"], mainGoalOther: null,
+    lonelinessTimings: ["evenings"],
+    importantPeople: [
+      {name: "阿女", relationship: "女兒", extra: "每星期"},
+      {name: "", relationship: "", extra: null},
+    ],
+    reconnectPeople: [{name: "舊鄰居", relationship: "朋友",
+      extra: "冇電話"}],
+    typicalMorning: "飲茶", typicalAfternoon: null, typicalEvening: "睇電視",
+    onMind: "膝頭痛", activities: ["yum_cha"], activitiesOther: null,
+    topics: ["food"], topicsOther: null,
+    lifeChapters: ["childhood", "raising_kids"],
+    avoidTopics: null, inputMode: "typing", preferredTimes: ["morning"],
+    createdAt: "2026-09-20T02:00:00Z", updatedAt: "2026-09-20T02:20:00Z",
+    completedParts: [1, 2, 3, 4, 5, 6], allCompleted: true,
+    itemTimestamps: {"1.1": {renderedAt: "2026-09-20T02:00:00Z",
+      submittedAt: "2026-09-20T02:01:00Z", skipped: false,
+      timeOnItemMs: 60000}},
+  };
+  for (const [uid, rid] of [["p1", "PILOT-01"], ["p2", "PILOT-02"],
+    ["p3", "PILOT-03"]]) {
+    await enrolled(uid, {arm: "A"});
+    await db.doc(`research_id_map/${uid}`).set({researchId: rid});
+    await db.doc(ri.intakeDocPath(uid)).set(OLD);
+    // factsInputFromDoc takes the old document as it is.
+    const before = ri.factsInputFromDoc(OLD);
+    assert.deepStrictEqual(before.people.map((p) => p.name), ["阿女"]);
+    assert.strictEqual(before.people[0].share, false); // old rows: no share
+    assert.strictEqual(before.formerOccupation, null);
+    assert.strictEqual(before.encouragementStyle, null);
+    assert.strictEqual(before.researcherNote, null);
+    // Re-recorded with only part of the new fields.
+    const r = await ri.recordIntake(db, K1, {uid, answers: {
+      mainGoals: ["companionship"], hometown: "順德"}}, {now: NOW});
+    const d = (await db.doc(ri.intakeDocPath(uid)).get()).data();
+    const a = ri.factsInputFromDoc(d);
+    // New fields: empty / null, not missing errors.
+    assert.strictEqual(a.formerOccupation, null);
+    assert.strictEqual(a.petName, null);
+    assert.strictEqual(a.encouragementStyle, null);
+    assert.strictEqual(a.researcherNote, null);
+    assert.strictEqual(a.hometown, "順德");
+    // Researcher fields replaced (merge writes every part-A key); the old
+    // people and the old bookkeeping stay.
+    assert.strictEqual(d.typicalMorning, null);
+    assert.deepStrictEqual(d.importantPeople, OLD.importantPeople);
+    assert.deepStrictEqual(d.reconnectPeople, OLD.reconnectPeople);
+    assert.deepStrictEqual(d.completedParts, [1, 2, 3, 4, 5, 6]);
+    assert.strictEqual(d.allCompleted, true);
+    assert.deepStrictEqual(d.itemTimestamps, OLD.itemTimestamps);
+    assert.strictEqual(d.createdAt, OLD.createdAt);
+    assert.strictEqual(d.schemaVersion, 3);
+    // Facts: old people not shared → no 重要嘅人; reconnect kept.
+    const facts = (await db.collection(`users/${uid}/mem_facts`)
+        .where("status", "==", "active").get()).docs.map((x) => x.data());
+    assert.strictEqual(r.memoryFacts, facts.length);
+    const keys = facts.map((f) => `${f.agent_id}:${f.key}`).sort();
+    assert.deepStrictEqual(keys, [
+      "ah_jan_ah_bak:喺邊度長大", "ah_jan_ah_bak:嚟呢度主要想",
+      "siu_yan:喺邊度長大", "siu_yan:嚟呢度主要想", "siu_yan:想重新聯絡嘅人",
+      "tung_tung:喺邊度長大", "tung_tung:嚟呢度主要想",
+    ].sort());
+    assert.strictEqual(r.people, 1); // the empty old row is not counted
+  }
 });
 
 test("uidForResearchId: case-insensitive, unknown → empty", async () => {

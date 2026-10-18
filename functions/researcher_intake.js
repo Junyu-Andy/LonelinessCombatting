@@ -23,6 +23,12 @@
  * Re-recording supersedes the previous intake facts.  Arm B never gets
  * facts (no LLM).
  *
+ * T49a (dev-tasks-1018 §A): people capped at 10 per list; routing per the
+ * §A3 table (孤單時段 → feeling, 人生階段 → story, 唔想提起 and 鼓勵方式 no
+ * longer facts — the first is the prompts' ⛔ line, the second the tone
+ * slot); each fact's layer / visibility from memory.layerFor /
+ * visibilityFor, like the facts extracted from conversations.
+ *
  * Only the caller's role is checked (`unblinded`); the App-side switch
  * `app_config/feature_flags.researcherIntakeEnabled` decides what the
  * elder still sees, not whether the researcher may record.
@@ -30,6 +36,9 @@
  */
 
 "use strict";
+
+const {FieldValue} = require("firebase-admin").firestore;
+const memory = require("./memory");
 
 const intakeDocPath = (uid) => `users/${uid}/onboarding/intake`;
 const AUDIT_COLLECTION = "intake_audit_log";
@@ -94,7 +103,8 @@ const MAIN_GOALS = Object.keys(GOAL_LABELS);
 const INTERESTS = Object.keys(INTEREST_LABELS);
 
 // Technical ceilings only (10/16 Junyu: no selection caps).  Lists are
-// capped at "every option"; free text at a sane length; people at 20.
+// capped at "every option"; free text at a sane length.  People: 10 per
+// list (dev-tasks-1018 §A2, 10/18).
 const MAX_SHORT = 40; // mainGoalOther, interestsOther, topicsOther,
 //                       formerOccupation, hometown, petName
 const MAX_DAY = 120; // typicalMorning / Afternoon / Evening
@@ -102,7 +112,7 @@ const MAX_LONG = 300; // onMind
 const MAX_AVOID = 200;
 const MAX_NOTE = 200;
 const MAX_NAME = 20;
-const MAX_PEOPLE = 20;
+const MAX_PEOPLE = 10;
 
 /**
  * @param {string} code
@@ -289,7 +299,9 @@ async function recordIntake(db, caller, input, opts) {
     researcherNote: a.researcherNote,
     updatedAt: iso,
     // Researcher parts done; the elder's part B (2) is marked by the App.
-    completedParts: [1, 3, 4, 5, 6],
+    // T49a: added to what is there, so the elder's 2 (and an old six-part
+    // answer set's 1–6) stay.
+    completedParts: FieldValue.arrayUnion(1, 3, 4, 5, 6),
     // T47 provenance
     source: "researcher",
     recordedBy: caller.uid,
@@ -402,14 +414,16 @@ function factsInputFromDoc(doc) {
 const label = (labels) => (id) => labels[id] || id;
 
 /**
- * The facts each companion gets (routing per dev-tasks-1015-intake rev.
- * 10/16 §1; the retired App seeder's routing where it had one):
- *   goals / avoid / note / encouragement / occupation / hometown → all three
- *   loneliness timings, typical day, onMind (sensitive)        → 小欣
- *   interests, topics, pet                                      → 小欣, 通通
- *   people the elder shared                                     → 小欣
- *   life chapters                                               → 阿珍／阿伯
- *   inputMode, preferredTimes                                   → nobody
+ * The facts each companion gets (routing per dev-tasks-1018 §A3; the
+ * category decides the layer, memory.layerFor):
+ *   goals (preference), occupation / hometown (living), note → all three
+ *   loneliness timings (feeling, private), typical day (routine),
+ *     onMind (feeling, sensitive)                              → 小欣
+ *   interests, topics (hobby), pet (family)                     → 小欣, 通通
+ *   people the elder shared, people to reconnect (family)       → 小欣
+ *   life chapters (story, private)                              → 阿珍／阿伯
+ *   avoidTopics (the prompts' ⛔ line), encouragementStyle (the
+ *     tone slot), inputMode, preferredTimes                     → nobody
  * Pure; used by the tests.
  * @param {object} a normaliseAnswers() / factsInputFromDoc() result
  * @return {Array<{agent_id: string, category: string, key: string,
@@ -431,7 +445,8 @@ function intakeFactsFor(a) {
   };
   push(AGENTS, "preference", "嚟呢度主要想",
       join(a.mainGoals, GOAL_LABELS, a.mainGoalOther));
-  push(["siu_yan"], "routine", "通常覺得孤單嘅時候",
+  // §A3: private — a feeling, not a routine.
+  push(["siu_yan"], "feeling", "通常覺得孤單嘅時候",
       join(a.lonelinessTimings, TIMING_LABELS, null));
   const day = [
     a.typicalMorning ? `朝早${a.typicalMorning}` : null,
@@ -451,19 +466,15 @@ function intakeFactsFor(a) {
   const reconnect = a.reconnectPeople.map((p) =>
     p.relationship ? `${p.name}（${p.relationship}）` : p.name);
   push(["siu_yan"], "family", "想重新聯絡嘅人", reconnect.join("、"));
-  push(["ah_jan_ah_bak"], "preference", "想傾嘅人生階段",
+  // §A3: private — 阿珍／阿伯's own.
+  push(["ah_jan_ah_bak"], "story", "想傾嘅人生階段",
       join(a.lifeChapters, CHAPTER_LABELS, null));
   push(AGENTS, "living", "以前做邊行", a.formerOccupation);
   push(AGENTS, "living", "喺邊度長大", a.hometown);
   push(["siu_yan", "tung_tung"], "family", "寵物", a.petName);
-  if (a.encouragementStyle && a.encouragementStyle !== "either") {
-    push(AGENTS, "preference", "鍾意人點樣講嘢",
-        `${ENCOURAGEMENT[a.encouragementStyle]}（用戶入組時自己揀）`);
-  }
-  if (a.avoidTopics) {
-    push(AGENTS, "preference", "唔想主動提起",
-        `${a.avoidTopics}（用戶一開始就講明，唔好主動提）`);
-  }
+  // §A3: avoidTopics and encouragementStyle are not facts.  avoidTopics
+  // reaches the prompts as the App's 「⛔ 用戶要求唔好提起呢啲話題」 line;
+  // encouragementStyle stays on the profile for the tone slot.
   // 10/16 — the researcher's own observation, verbatim, to all three.
   push(AGENTS, "preference", "研究員觀察", a.researcherNote);
   return out;
@@ -495,7 +506,10 @@ async function seedMemoryFacts(db, uid, a, now) {
       key: f.key,
       value: f.value,
       quote: "",
-      visibility: "agent",
+      // T49a: like the facts extracted from conversations.  Each companion
+      // still gets its own copy (policy B and layersEnabled off need it);
+      // selectForInjection shows identical copies once.
+      visibility: memory.visibilityFor(f.category, f.sensitivity),
       sensitivity: f.sensitivity,
       status: "active",
       user_corrected: false,
@@ -506,7 +520,7 @@ async function seedMemoryFacts(db, uid, a, now) {
       source_session_id: INTAKE_SOURCE,
       created_at: now,
       updated_at: now,
-      layer: "private",
+      layer: memory.layerFor(f.category, f.sensitivity),
       sourceAgent: f.agent_id,
     });
   }

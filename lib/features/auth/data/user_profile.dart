@@ -203,6 +203,12 @@ class UserProfile {
   /// behaviour and Action Loop's named-contact picker.
   final List<CloseContact> closeContacts;
 
+  /// T49a (dev-tasks-1018 §A3): 想重新聯絡嘅人 the elder typed on intake
+  /// part B (share always true — typed for the companions).  The action
+  /// plan's 「同邊個」 quick picks show closeContacts and these together
+  /// (both arms).  Not used anywhere else on the App side.
+  final List<CloseContact> reconnectContacts;
+
   /// Interest tags captured at onboarding + extended by Tung Tung over
   /// time (Dev Req §6.2). Free-text, lower-cased, deduplicated.
   final List<String> interests;
@@ -320,6 +326,7 @@ class UserProfile {
     this.consent = const ConsentFlags(),
     this.ahJanAhBakVariant,
     this.closeContacts = const [],
+    this.reconnectContacts = const [],
     this.interests = const [],
     this.strataCell,
     this.firstPprSeenByAgent = const {},
@@ -349,6 +356,17 @@ class UserProfile {
     return t.year == now.year && t.month == now.month && t.day == now.day;
   }
 
+  /// T49a (dev-tasks-1018 §A3): the action plan's 「同邊個」 quick picks —
+  /// the shared closeContacts, then reconnectContacts, one per name (both
+  /// arms; the rule arm only shows them as a list).
+  List<CloseContact> get planContacts {
+    final seen = <String>{};
+    return [
+      for (final c in [...closeContacts, ...reconnectContacts])
+        if (c.share && c.name.trim().isNotEmpty && seen.add(c.name.trim())) c,
+    ];
+  }
+
   UserProfile copyWith({
     String? displayName,
     String? ageGroup,
@@ -361,6 +379,7 @@ class UserProfile {
     ConsentFlags? consent,
     AgentGenderVariant? ahJanAhBakVariant,
     List<CloseContact>? closeContacts,
+    List<CloseContact>? reconnectContacts,
     List<String>? interests,
     int? strataCell,
     Map<String, DateTime>? firstPprSeenByAgent,
@@ -398,6 +417,7 @@ class UserProfile {
       consent: consent ?? this.consent,
       ahJanAhBakVariant: ahJanAhBakVariant ?? this.ahJanAhBakVariant,
       closeContacts: closeContacts ?? this.closeContacts,
+      reconnectContacts: reconnectContacts ?? this.reconnectContacts,
       interests: interests ?? this.interests,
       strataCell: strataCell ?? this.strataCell,
       firstPprSeenByAgent: firstPprSeenByAgent ?? this.firstPprSeenByAgent,
@@ -443,6 +463,7 @@ class UserProfile {
             consent.toMap(includeSharedContextUse: includeSharedContextUse),
         'ahJanAhBakVariant': ahJanAhBakVariant?.code,
         'closeContacts': closeContacts.map((c) => c.toMap()).toList(),
+        'reconnectContacts': reconnectContacts.map((c) => c.toMap()).toList(),
         'interests': interests,
         // Server-assigned with the arm; omitted when null so a stale
         // profile write can't erase it.
@@ -489,13 +510,13 @@ class UserProfile {
       return null;
     }
 
-    final contactsRaw = map['closeContacts'];
-    final contacts = <CloseContact>[];
-    if (contactsRaw is List) {
-      for (final c in contactsRaw) {
-        if (c is Map<String, dynamic>) contacts.add(CloseContact.fromMap(c));
-      }
-    }
+    List<CloseContact> contactList(Object? raw) => [
+          if (raw is List)
+            for (final c in raw)
+              if (c is Map<String, dynamic>) CloseContact.fromMap(c),
+        ];
+    final contacts = contactList(map['closeContacts']);
+    final reconnect = contactList(map['reconnectContacts']);
     final interestsRaw = map['interests'];
     final interests = <String>[];
     if (interestsRaw is List) {
@@ -540,6 +561,7 @@ class UserProfile {
       ahJanAhBakVariant:
           AgentGenderVariant.tryParse(map['ahJanAhBakVariant'] as String?),
       closeContacts: contacts,
+      reconnectContacts: reconnect,
       interests: interests,
       strataCell: (map['strataCell'] as num?)?.toInt(),
       firstPprSeenByAgent: firstPpr,

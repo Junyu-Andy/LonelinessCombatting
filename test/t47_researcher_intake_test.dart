@@ -6,6 +6,8 @@
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
 import 'package:app_demo/core/agents/agent_registry.dart';
+import 'package:app_demo/features/action_loop/presentation/pages/action_loop_arm_a_page.dart';
+import 'package:app_demo/features/action_loop/presentation/pages/action_loop_arm_b_page.dart';
 import 'package:app_demo/features/analytics/data/analytics_service.dart';
 import 'package:app_demo/features/analytics/presentation/analytics_scope.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
@@ -261,7 +263,7 @@ void main() {
           find.byKey(const Key('intake_people_important_name_0')), '阿女');
       await tester.enterText(
           find.byKey(const Key('intake_people_important_rel_0')), '女');
-      // No cap: a fourth row.
+      // A fourth row (up to 10, T49a).
       await tester.ensureVisible(
           find.byKey(const Key('intake_people_add_important')));
       await tester.pumpAndSettle();
@@ -288,6 +290,11 @@ void main() {
       expect(repo.important!.map((e) => e.name), ['阿女', '黃太']);
       expect(repo.reconnect!.single.name, '阿強');
       expect(repo.reconnect!.single.relationship, '舊同事');
+      // T49a: 想重新聯絡嘅人 on the profile too, for the action plan.
+      expect(p.reconnectContacts.single.name, '阿強');
+      expect(p.reconnectContacts.single.relation, '舊同事');
+      expect(p.reconnectContacts.single.share, isTrue);
+      expect(p.planContacts.map((c) => c.name), ['阿女', '黃太', '阿強']);
       // Done once → straight home afterwards.
       await tester.pumpWidget(_gate(settings, researcherIntakeOn: true));
       await tester.pumpAndSettle();
@@ -398,6 +405,157 @@ void main() {
       expect(repo.saved!.mainGoals, ['share_memories']);
       expect(repo.saved!.allCompleted, isTrue);
       expect(repo.saved!.importantPeople!.single.name, '黃太');
+    });
+  });
+
+  group('T49a (dev-tasks-1018 §A2, §A3)', () {
+    Widget page(AppSettings settings, Widget child) => AnalyticsScope(
+          analytics: AnalyticsService(firebaseReady: false),
+          child: AuthServiceScope(
+            authService: AuthService(available: false),
+            child: AppSettingsScope(
+              settings: settings,
+              child: MaterialApp(
+                locale: const Locale('zh'),
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates:
+                    AppLocalizations.localizationsDelegates,
+                home: child,
+              ),
+            ),
+          ),
+        );
+
+    testWidgets('part B: at most 10 rows per list — no add button at 10',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final settings = AppSettings(profile: _p());
+      await tester.pumpWidget(page(settings,
+          IntakePeoplePage(onComplete: () {}, repository: _MemRepo())));
+      await tester.pumpAndSettle();
+      for (final list in ['important', 'reconnect']) {
+        final add = find.byKey(Key('intake_people_add_$list'));
+        var rows = list == 'important' ? IntakePeopleCopy.initialRows : 1;
+        while (rows < IntakePeopleCopy.maxRows) {
+          await _scrollTo(tester, add);
+          await tester.tap(add);
+          await tester.pumpAndSettle();
+          rows++;
+        }
+        expect(add, findsNothing, reason: '$list: no 11th row');
+        expect(find.byKey(Key('intake_people_${list}_name_9')),
+            findsOneWidget);
+        expect(find.byKey(Key('intake_people_${list}_name_10')),
+            findsNothing);
+      }
+      expect(IntakePeopleCopy.maxRows, 10);
+    });
+
+    test('profile: reconnectContacts round-trips; plan picks merge both '
+        'lists, shared only, one per name', () {
+      const p = UserProfile(
+        uid: 'u',
+        email: 'e',
+        displayName: 'd',
+        closeContacts: [
+          CloseContact(name: '阿女', relation: '女', share: true),
+          CloseContact(name: '黃太', share: false),
+        ],
+        reconnectContacts: [
+          CloseContact(name: '阿強', relation: '舊同事', share: true),
+          CloseContact(name: '阿女', share: true),
+        ],
+      );
+      final back = UserProfile.fromMap('u', p.toMap());
+      expect(back.reconnectContacts.map((c) => c.label), ['阿強（舊同事）', '阿女']);
+      expect(back.planContacts.map((c) => c.name), ['阿女', '阿強']);
+      expect(UserProfile.fromMap('u', const {}).reconnectContacts,
+          isEmpty, reason: 'old profiles have no field');
+      expect(p.copyWith(reconnectContacts: const []).planContacts.single.name,
+          '阿女');
+    });
+
+    test('§A6: an old six-part document after the researcher re-records '
+        'reads in the App without error', () {
+      final r = IntakeResponse.fromFirestore({
+        // old six-part fields
+        'importantPeople': [
+          {'name': '阿女', 'relationship': '女兒', 'extra': '每星期'},
+        ],
+        'reconnectPeople': [
+          {'name': '舊鄰居', 'relationship': '朋友', 'extra': '冇電話'},
+        ],
+        'onMind': '膝頭痛',
+        'completedParts': [1, 2, 3, 4, 5, 6],
+        'allCompleted': true,
+        'createdAt': '2026-09-20T02:00:00Z',
+        'itemTimestamps': {
+          '1.1': {
+            'renderedAt': '2026-09-20T02:00:00Z',
+            'submittedAt': '2026-09-20T02:01:00Z',
+            'skipped': false,
+            'timeOnItemMs': 60000,
+          },
+        },
+        // what the researcher's recording adds (schemaVersion 3)
+        'mainGoals': ['companionship'],
+        'typicalMorning': null,
+        'lonelinessTimings': <String>[],
+        'hometown': '順德',
+        'formerOccupation': null,
+        'encouragementStyle': null,
+        'researcherNote': null,
+        'source': 'researcher',
+        'schemaVersion': 3,
+        'updatedAt': '2026-10-18T06:00:00Z',
+      });
+      expect(r.mainGoals, ['companionship']);
+      expect(r.importantPeople!.single.name, '阿女');
+      expect(r.reconnectPeople!.single.extra, '冇電話');
+      expect(r.typicalMorning, isNull);
+      expect(r.completedParts, {1, 2, 3, 4, 5, 6});
+    });
+
+    const planProfile = UserProfile(
+      uid: 'u',
+      email: 'e',
+      displayName: 'd',
+      closeContacts: [CloseContact(name: '阿女', relation: '女', share: true)],
+      reconnectContacts: [
+        CloseContact(name: '阿強', relation: '舊同事', share: true),
+      ],
+    );
+
+    testWidgets('action plan, rule arm: 同邊個 lists both lists, then the '
+        'generic options', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(page(AppSettings(profile: planProfile),
+          const ActionLoopArmBPage(seedAction: '打電話')));
+      await tester.pumpAndSettle();
+      for (final t in ['阿女', '阿強', '屋企人', '朋友', '一個人']) {
+        expect(find.text(t), findsOneWidget, reason: t);
+      }
+    });
+
+    testWidgets('action plan, Hybrid arm: 同邊個 quick picks show both lists',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(page(AppSettings(profile: planProfile),
+          const ActionLoopArmAPage(seedAction: '打電話')));
+      await tester.pumpAndSettle();
+      for (final answer in ['聽朝', '屋企']) {
+        await tester.enterText(find.byType(TextField), answer);
+        await tester.tap(find.text('下一步'));
+        await tester.pumpAndSettle();
+      }
+      expect(find.byKey(const Key('plan_contact_阿女')), findsOneWidget);
+      expect(find.byKey(const Key('plan_contact_阿強')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('plan_contact_阿強')));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, '阿強'), findsOneWidget);
     });
   });
 }

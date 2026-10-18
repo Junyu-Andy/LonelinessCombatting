@@ -2,13 +2,15 @@
 /// sees while the researcher records the rest (`researcherIntakeEnabled`
 /// on; dev-tasks-1015-intake rev. 10/16 §1 B, §2.2): 重要嘅人 and
 /// 想重新聯絡嘅人, typed by the elder (the researcher helps, never types for
-/// them).  No cap on rows (「加多一位」).  Wording is the retired six-part
-/// page's Part 2 (minus the old caps), see docs/spec/copy S19.
+/// them).  At most 10 rows per list (dev-tasks-1018 §A2): at 10 the add
+/// button goes away.  Wording is the retired six-part page's Part 2 (minus
+/// the old caps), see docs/spec/copy S19.
 ///
 /// Writes `users/{uid}/onboarding/intake` (importantPeople, reconnectPeople,
 /// completedParts += 2; merge, so the researcher's part A stays) and the
-/// profile's closeContacts (share: true — the elder typed them for the
-/// companions, T48) + intakePeopleDone.  Names go through the shared safety
+/// profile's closeContacts and reconnectContacts (share: true — the elder
+/// typed them for the companions, T48 / T49a; the action plan's quick
+/// picks read both) + intakePeopleDone.  Names go through the shared safety
 /// check (T7).  The Hybrid-arm memory facts for these people are written by
 /// the server when the researcher records (from the merged document); if
 /// the elder fills this page after that, the researcher records once more.
@@ -38,6 +40,10 @@ class IntakePeopleCopy {
   static const addReconnect = '+ 加一位想聯絡嘅人';
   static const done = '完成';
   static const initialRows = 3;
+
+  /// dev-tasks-1018 §A2: each list at most 10 people (the server checks the
+  /// same, functions/researcher_intake.js MAX_PEOPLE).
+  static const maxRows = 10;
 }
 
 class IntakePeoplePage extends StatefulWidget {
@@ -82,6 +88,14 @@ class _IntakePeoplePageState extends State<IntakePeoplePage> {
                 name: r.name.text.trim(), relationship: r.rel.text.trim()),
       ];
 
+  static List<CloseContact> _contacts(List<PersonEntry> people) => [
+        for (final p in people)
+          CloseContact(
+              name: p.name,
+              relation: p.relationship.isEmpty ? null : p.relationship,
+              share: true),
+      ];
+
   Future<void> _complete() async {
     setState(() => _saving = true);
     final profile = AppSettingsScope.read(context).profile;
@@ -92,13 +106,8 @@ class _IntakePeoplePageState extends State<IntakePeoplePage> {
       final settings = AppSettingsScope.read(context);
       final updated = profile.copyWith(
         intakePeopleDone: true,
-        closeContacts: [
-          for (final p in important)
-            CloseContact(
-                name: p.name,
-                relation: p.relationship.isEmpty ? null : p.relationship,
-                share: true),
-        ],
+        closeContacts: _contacts(important),
+        reconnectContacts: _contacts(reconnect),
       );
       // In-memory first so the gate moves on at once; the Firestore writes
       // go fire-and-forget (the SDK queues them offline).
@@ -197,26 +206,30 @@ class _IntakePeoplePageState extends State<IntakePeoplePage> {
                 children: [
                   heading(IntakePeopleCopy.title, IntakePeopleCopy.intro),
                   ..._rows('intake_people_important', _important),
-                  OutlinedButton.icon(
-                    key: const Key('intake_people_add_important'),
-                    onPressed: () => setState(() => _important.add(_newRow())),
-                    icon: const Icon(Icons.person_add_alt),
-                    style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 52)),
-                    label: const Text(IntakePeopleCopy.addImportant),
-                  ),
+                  if (_important.length < IntakePeopleCopy.maxRows)
+                    OutlinedButton.icon(
+                      key: const Key('intake_people_add_important'),
+                      onPressed: () =>
+                          setState(() => _important.add(_newRow())),
+                      icon: const Icon(Icons.person_add_alt),
+                      style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 52)),
+                      label: const Text(IntakePeopleCopy.addImportant),
+                    ),
                   const SizedBox(height: 32),
                   heading(IntakePeopleCopy.reconnectTitle,
                       IntakePeopleCopy.reconnectIntro),
                   ..._rows('intake_people_reconnect', _reconnect),
-                  OutlinedButton.icon(
-                    key: const Key('intake_people_add_reconnect'),
-                    onPressed: () => setState(() => _reconnect.add(_newRow())),
-                    icon: const Icon(Icons.person_add_alt),
-                    style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 52)),
-                    label: const Text(IntakePeopleCopy.addReconnect),
-                  ),
+                  if (_reconnect.length < IntakePeopleCopy.maxRows)
+                    OutlinedButton.icon(
+                      key: const Key('intake_people_add_reconnect'),
+                      onPressed: () =>
+                          setState(() => _reconnect.add(_newRow())),
+                      icon: const Icon(Icons.person_add_alt),
+                      style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 52)),
+                      label: const Text(IntakePeopleCopy.addReconnect),
+                    ),
                 ],
               ),
             ),

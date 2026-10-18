@@ -1551,7 +1551,8 @@ function blindRow(row, {armMapping, salt, includeUid}) {
         k === "displayName" ||
         k === "emergencyContactName" ||
         k === "emergencyContactPhone" ||
-        k === "closeContacts") {
+        k === "closeContacts" ||
+        k === "reconnectContacts") { // T49a: names too
       continue; // strip PII
     }
     if (k === "uid") {

@@ -127,11 +127,12 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
         : const ['屋企', '出街', '其他地方'];
     // T48: the people the elder agreed to share come first, then the
     // generic options.  Rule arm: no LLM anywhere; this is a list.
+    // T49a: 想重新聯絡嘅人 (reconnectContacts) too, one per name — same as
+    // the Hybrid arm's page.
     final shared = [
-      for (final c
-          in AppSettingsScope.read(context).profile?.closeContacts ??
-              const <CloseContact>[])
-        if (c.share) c.name,
+      for (final c in AppSettingsScope.read(context).profile?.planContacts ??
+          const <CloseContact>[])
+        c.name,
     ];
     final contacts = [
       ...shared,
