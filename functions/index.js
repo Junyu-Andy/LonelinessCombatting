@@ -389,10 +389,10 @@ exports.proxyDeepSeek = onCall(
       throw new HttpsError("invalid-argument", "bad payload: messages");
     }
 
-    // T49b — tone slot; Arm B was refused by assertLlmAllowed above.
-    // Raw systemPrompt callers have no slot, so no read for them.
-    const encouragementStyle = payload.promptKey ?
-      await encouragementStyleFor(request.auth.uid) : null;
+      // T49b — tone slot; Arm B was refused by assertLlmAllowed above.
+      // Raw systemPrompt callers have no slot, so no read for them.
+      const encouragementStyle = payload.promptKey ?
+        await encouragementStyleFor(request.auth.uid) : null;
     let systemPrompt = resolvePrompt(payload, encouragementStyle);
     if (!systemPrompt) {
       throw new HttpsError(
@@ -649,12 +649,12 @@ exports.referralJudgement = onCall(
       );
     }
 
-    // T49b — same tone slot as the chat call, so the suggestion is
-    // phrased in the voice the participant gets.
-    const sourcePrompt = resolvePrompt({
-      promptKey: `${sourceAgentId}_v1`,
-      variantName: payload.variantName,
-    }, await encouragementStyleFor(request.auth.uid));
+      // T49b — same tone slot as the chat call, so the suggestion is
+      // phrased in the voice the participant gets.
+      const sourcePrompt = resolvePrompt({
+        promptKey: `${sourceAgentId}_v1`,
+        variantName: payload.variantName,
+      }, await encouragementStyleFor(request.auth.uid));
     if (!sourcePrompt) {
       throw new HttpsError("internal", "source persona prompt missing");
     }
