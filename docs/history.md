@@ -29,6 +29,10 @@
 
 - 按 main @ d6c38d9 把 Hybrid 组跨会话记忆从写入、抽取提示词、注入、「唔好記住」、删除、首次记忆到隐私记录逐条对照代码写成 `docs/dev-reports/memory-mechanism-20261018.md`，给 PI 读。主要发现：两层开关 `layersEnabled` 没开，所以分层过滤和 S6 分层剂量现在都没有；抽取仍是 v2；小欣签到页和回忆页在切换／超时／返回时不叫 `memoryEndSession`，只靠 30 分钟扫描；`mem_extractions.raw_output` 删条目后仍保留；陪伴者提示词末尾的 rolling_summary／named_entities 槽位服务器从不填。十项要 Junyu 定的列在报告第 10 节。
 - 订正：10/16 对话里说「`avoidTopics` 没有进提示词」不对——小欣签到、通通、阿珍／阿伯自由对话三页和开场白都由 App 在提示词末尾加一行「⛔ 用戶要求唔好提起呢啲話題」；只有回忆页没有。
+## 2026-10-18 T49 任务单落盘；两层开关 emulator 六步核对全过（PR 草稿，分支 `test/layers-sixstep-1018`）
+
+- 研究侧 10/18 晚的 `dev-tasks-1018.md` 进仓库，编号 T49（A 入组后续、B 提示词语气槽位、C S1a 日志、E 两层开关和两处修 bug）。
+- E1 (a)：`layersEnabled: true` 下六步加规则组全过，脚本 `functions/test/memory_layers_sixstep_emulator_test.js`，报告 `docs/dev-reports/memory-layers-sixstep-20261018.md`。按 E1 (b) 交 Junyu 10/19 早上开开关。
 
 ## 2026-10-16 注册页：密码输两次、电邮换行、显示密码（PR 草稿，分支 `fix/signup-email-password`，并入 `batch/1016-morning`）
 
