@@ -37,10 +37,12 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/arm_gate_test.dart test/parity/ test/memory_v1_client_test.dart \
   test/djg_w2_test.dart test/phase_b_hidden_surfaces_test.dart \
   test/ada_test.dart test/safety_classifier_test.dart \
-  test/weekly_schedule_test.dart test/weekly_bundle_flow_test.dart
+  test/weekly_schedule_test.dart test/weekly_bundle_flow_test.dart \
+  test/memory_handover_pages_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
-  test/tung_tung_arm_b_test.dart test/my_story_arm_test.dart
+  test/tung_tung_arm_b_test.dart test/my_story_arm_test.dart \
+  test/memory_handover_pages_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \
   --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
 run "rule template replies (switch only)" \

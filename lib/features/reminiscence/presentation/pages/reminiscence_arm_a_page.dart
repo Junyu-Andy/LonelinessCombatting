@@ -7,6 +7,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agent_context/agent_context_service.dart';
 import '../../../../core/agent_context/rolling_summary_compiler.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/agents/companion_app_bar.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
@@ -22,6 +23,7 @@ import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
@@ -180,6 +182,18 @@ clay-pot rice stand..."
   ChatSessionRecorder? _recorder;
   bool _briefPrSurfaced = false;
 
+  /// T49e-3 — this session was already handed to memory.  Every session
+  /// end hands it over once; the next message starts a new session and
+  /// clears the flag.
+  bool _memoryHandedOver = false;
+  bool _disposed = false;
+
+  /// T49e-3 — what the hand-over needs, captured while the element is
+  /// live: `switch_agent` can close this session after the page is gone.
+  CoreServicesScope? _memCore;
+  UserProfile? _memProfile;
+  bool _memRuleArm = true;
+
   /// T25 — `close_button` once the participant finished via S9 / 儲存;
   /// otherwise the pop is a back key / gesture.
   String? _closeReason;
@@ -206,7 +220,10 @@ clay-pot rice stand..."
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _captureMemoryDeps();
     if (_recorder == null) {
+      // Fixed for the page's life, like Tung Tung's `_ruleBased`.
+      _memRuleArm = !Arm.isA(context);
       final profile = AppSettingsScope.read(context).profile;
       _recorder = ChatSessionRecorder(
         uid: profile?.uid,
@@ -346,6 +363,11 @@ clay-pot rice stand..."
 
   @override
   void dispose() {
+    // T49e-3 — leaving by a route with no PopScope (back from the summary
+    // screen) still hands the session over; a no-op when an end already
+    // did.  Uses the captured services only: no context lookups here.
+    _disposed = true;
+    _handOverMemory();
     _connSub?.cancel();
     _recorder?.dispose();
     _inputCtrl.dispose();
@@ -353,7 +375,41 @@ clay-pot rice stand..."
     super.dispose();
   }
 
+  void _captureMemoryDeps() {
+    if (!mounted || _disposed) return;
+    _memCore = CoreServicesScope.of(context);
+    _memProfile = AppSettingsScope.read(context).profile;
+  }
+
+  /// T49e-3 — hand this session to memory right away (Phase B Hybrid: the
+  /// server's `memoryEndSession`), once per session, at every end: 儲存 on
+  /// the summary, back, the idle timeout and `switch_agent`.  The same
+  /// call Tung Tung makes.  The server answers "empty" when the buffer is.
+  /// Arm B has no memory.
+  void _handOverMemory() {
+    _captureMemoryDeps();
+    if (_memoryHandedOver) return;
+    final core = _memCore;
+    final profile = _memProfile;
+    if (core == null || profile == null || _memRuleArm) return;
+    _memoryHandedOver = true;
+    // §1C — fold / hand over Ah Jan / Ah Bak's buffer.  Fire-and-forget
+    // (context-free).
+    unawaited(RollingSummaryCompiler(
+      agentContext: core.agentContext,
+      llm: core.llm,
+      memoryV1Service: core.memoryV1,
+    ).compileAtSessionEnd(
+      uid: profile.uid,
+      agentId: AgentRegistry.ahJanAhBakId,
+      retentionOn:
+          profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
+      memoryV1: MemoryModes.of(profile).isV1,
+    ));
+  }
+
   /// M-7 — idle clock closed the session in place; run the Brief PR flow.
+  /// Not while the summary screen is up: 儲存 (or leaving) ends it there.
   void _onIdleTimeout() {
     if (!mounted || _showingSummary) return;
     _briefPrSurfaced = false;
@@ -362,6 +418,9 @@ clay-pot rice stand..."
 
   /// T25 v2 — another companion's session closed this one (`switch_agent`).
   void _onSwitchedAway() {
+    // Before the mounted check: this can arrive after dispose (a session
+    // left open when the page closed), and the hand-over is context-free.
+    _handOverMemory();
     if (!mounted) return;
     _briefPrSurfaced = false;
     unawaited(_maybeSurfaceBriefPr(Navigator.of(context), closeSession: false));
@@ -416,6 +475,9 @@ clay-pot rice stand..."
     final store = M3SessionStore(available: auth.available);
     await _ensureSessionStarted();
     await _recorder?.ensureStarted();
+    // T49e-3 — a new session (or the same one, still open): its turns are
+    // not handed over yet.
+    _memoryHandedOver = false;
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final history = _turns
         .take(_turns.length - 1)
@@ -690,18 +752,9 @@ clay-pot rice stand..."
       _recorder?.markSummarySaved();
       _closeReason = SessionEndReason.closeButton;
 
-      // §1C — fold this reminiscence session into Ah Jan / Ah Bak's rolling
-      // summary and clear the verbatim buffer. Fire-and-forget.
-      unawaited(RollingSummaryCompiler(
-        agentContext: core.agentContext,
-        llm: core.llm,
-      ).compileAtSessionEnd(
-        uid: profile.uid,
-        agentId: AgentRegistry.ahJanAhBakId,
-        retentionOn:
-            profile.consent.transcriptRetentionFor(AgentRegistry.ahJanAhBakId),
-        memoryV1: MemoryModes.of(profile).isV1,
-      ));
+      // §1C — hand this reminiscence session to memory (T49e-3: the
+      // other ends do too, via _maybeSurfaceBriefPr).
+      _handOverMemory();
     }
     if (!mounted) return;
     setState(() => _saved = true);
@@ -734,6 +787,10 @@ clay-pot rice stand..."
   /// first await (page may be popped).
   Future<void> _maybeSurfaceBriefPr(NavigatorState nav,
       {bool closeSession = true}) async {
+    // T49e-3 — back, idle timeout and switch all end here: hand the
+    // session to memory first (once per session, even when the Brief PR
+    // below already ran for an earlier session on this page).
+    _handOverMemory();
     if (_briefPrSurfaced) return;
     _briefPrSurfaced = true;
     final profile = AppSettingsScope.read(context).profile;

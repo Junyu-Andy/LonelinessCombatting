@@ -7,6 +7,7 @@
 > 2026-10-15 决策 0041、0042 落盘；W4 含 S12、提醒口径、W4 完成率分母不含试跑三项已定；「AI」改「夥伴」PR 草稿；Firestore 配置核对表 `docs/release/firestore-config-checklist-1015.md`（`phase_a` 测试值要删；`memory_config`、`randomization_config` 10/19 前确认）。
 > 2026-10-15 通知与问卷排查 A1–A15 做完（PR 草稿 `docs/notifications-audit-1015`）；待研究侧定：W4 要不要 S12、提醒时间口径。
 > 2026-10-16 注册页密码输两次、电邮换行、眼睛按钮 PR 草稿（S17 三句待产品窗口核）。
+> 2026-10-18 T49e-3 记忆交接时机统一（dev-tasks-1018 §E3）PR 草稿，排 10/26；10/19 后合并要记偏离日志。新发现、未修：四个 Hybrid 聊天页超时后老人接着再讲、再离开，这第二次会话不记结束、不走 Brief PR（`_briefPrSurfaced` 已是 true，整段跳过）；通通和自由对话页连记忆交接也跳过（只靠扫描）。小欣页、回忆页的记忆交接本 PR 已不受影响。要另开一项定。
 
 ## 1. 已决定、待开发
 
