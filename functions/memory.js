@@ -34,6 +34,14 @@
  * summary; tool/delete_memory.js sets memoryWithdrawnAt, which stops
  * memory for good, Phase B Arm A included.
  *
+ * T49e-4 (clearRawOutputOnDelete, a fix: on unless false): whenever a
+ * fact, follow-up or summary is deleted (the page, 「唔好記住」), the
+ * model's verbatim output kept in mem_extractions/{session}.raw_output
+ * for the session it came from is replaced by RAW_OUTPUT_CLEARED. The
+ * audit fields (status, attempts, prompt_version, counts, dropped,
+ * finished_at, excluded_safety_turns) stay. raw_output is still saved
+ * at extraction time for debugging failures.
+ *
  * T31 (decision 0035, meta/memory_config.layersEnabled, default off):
  * every item belongs to the shared layer (all three companions) or the
  * private layer (only the companion who heard it). Facts in
@@ -783,6 +791,8 @@ function t10Flags(d) {
     honourForgetRequests: d.honourForgetRequests !== false,
     forgetAckReply: d.forgetAckReply === true,
     deleteSummaryWithItem: d.deleteSummaryWithItem !== false,
+    // T49e-4: deleting an item also clears its session's raw_output.
+    clearRawOutputOnDelete: d.clearRawOutputOnDelete !== false,
     honourMemoryWithdrawal: d.honourMemoryWithdrawal !== false,
     sensitiveFactQuota: d.sensitiveFactQuota !== false,
     strictFactValidation: d.strictFactValidation !== false,
@@ -1123,7 +1133,7 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
       (data.screened_safety_turns || 0);
     if (screened.forget) {
       const deleted = await forgetRelated(db, uid, turns, screened.forget,
-          cfg.deleteSummaryWithItem);
+          cfg.deleteSummaryWithItem, cfg.clearRawOutputOnDelete);
       await extRef.update({
         status: "done",
         outcome: "forget_request",
@@ -1299,14 +1309,19 @@ async function processExtraction(db, uid, extractionId, callModel, now) {
  * earlier session, that look like what the request is about (shared
  * two-character pieces, memory_forget.relatedTo). With
  * deleteSummaryWithItem, the summary of a deleted item's session goes too.
+ * T49e-4: with clearRaw, the raw_output of every session a deleted item
+ * came from is cleared (clearRawOutputs). The current session never
+ * called the model, so it has no raw_output to clear.
  * @param {object} db
  * @param {string} uid
  * @param {Array<{fromUser: boolean, text: string}>} turns screened turns
  * @param {{index: number, phrase: string}} hit from screenTurns
  * @param {boolean} withSummary
- * @return {Promise<{facts: number, followups: number, summaries: number}>}
+ * @param {boolean=} clearRaw clearRawOutputOnDelete
+ * @return {Promise<{facts: number, followups: number, summaries: number,
+ *   raw_outputs: number}>}
  */
-async function forgetRelated(db, uid, turns, hit, withSummary) {
+async function forgetRelated(db, uid, turns, hit, withSummary, clearRaw) {
   const u = db.collection("users").doc(uid);
   const subject = forget.subjectBigrams(turns, hit.index, hit.phrase);
   const [facts, followups, summaries] = await Promise.all([
@@ -1334,12 +1349,15 @@ async function forgetRelated(db, uid, turns, hit, withSummary) {
       if (x.source_session_id) sessions.add(x.source_session_id);
     }
   }
+  const summarySessions = [];
   for (const d of summaries.docs) {
     const x = d.data();
     if (forget.relatedTo(x.summary, subject) ||
         (withSummary && (sessions.has(d.id) ||
           sessions.has(x.source_session_id)))) {
       refs.set(d.ref.path, d.ref);
+      // A summary's id is its extraction's id.
+      summarySessions.push(d.id, x.source_session_id);
     }
   }
   const all = [...refs.values()];
@@ -1348,8 +1366,68 @@ async function forgetRelated(db, uid, turns, hit, withSummary) {
     for (const r of all.slice(i, i + 400)) batch.delete(r);
     await batch.commit();
   }
+  const rawOutputs = clearRaw ?
+    await clearRawOutputs(db, uid, [...sessions, ...summarySessions]) : 0;
   return {facts: nFacts, followups: nFollowups,
-    summaries: all.length - nFacts - nFollowups};
+    summaries: all.length - nFacts - nFollowups, raw_outputs: rawOutputs};
+}
+
+/** T49e-4: what raw_output becomes once an item of its session is gone. */
+const RAW_OUTPUT_CLEARED = "[cleared after deletion 2026-10-18]";
+
+/**
+ * T49e-4: replace the model's verbatim output kept in
+ * mem_extractions/{id}.raw_output with RAW_OUTPUT_CLEARED and stamp
+ * raw_output_cleared_at. Only that field changes; every audit field stays.
+ * Skips sessions with no extraction doc (e.g. "intake", or already wiped
+ * by tool/delete_memory.js), with no raw_output, or already cleared.
+ * Never creates a doc. The caller checks clearRawOutputOnDelete.
+ * @param {object} db
+ * @param {string} uid
+ * @param {Array<string>} sessionIds extraction ids (duplicates are fine)
+ * @param {Date=} now
+ * @return {Promise<number>} how many extraction docs were cleared
+ */
+async function clearRawOutputs(db, uid, sessionIds, now) {
+  const ids = [...new Set(sessionIds)].filter((id) =>
+    typeof id === "string" && id && !id.includes("/"));
+  if (!ids.length) return 0;
+  const col = db.collection("users").doc(uid).collection("mem_extractions");
+  const snaps = await Promise.all(ids.map((id) => col.doc(id).get()));
+  const todo = snaps.filter((s) => {
+    const raw = s.exists ? s.get("raw_output") : null;
+    return typeof raw === "string" && raw !== "" &&
+      raw !== RAW_OUTPUT_CLEARED;
+  });
+  const stamp = now || new Date();
+  const done = await Promise.all(todo.map((s) => s.ref.update({
+    raw_output: RAW_OUTPUT_CLEARED,
+    raw_output_cleared_at: stamp,
+  }).then(() => 1, (err) => {
+    // Deleted meanwhile (e.g. tool/delete_memory.js): nothing to clear.
+    if (err && err.code === 5) return 0;
+    throw err;
+  })));
+  return done.reduce((a, b) => a + b, 0);
+}
+
+/**
+ * T49e-4: a summary was deleted on the 「我記得嘅嘢」 page (or by any
+ * other path). Clear the raw_output of its extraction (same id). Nothing
+ * else is deleted: decision 0024 deletes only that summary.
+ * Called by the memorySummaryDeleted trigger in index.js.
+ * @param {object} db
+ * @param {string} uid
+ * @param {string} summaryId the deleted summary's doc id
+ * @param {object=} summary the deleted doc's data
+ * @param {Date=} now
+ * @return {Promise<number>} how many extraction docs were cleared
+ */
+async function clearRawOutputForSummary(db, uid, summaryId, summary, now) {
+  const cfg = await loadConfig(db);
+  if (!cfg.clearRawOutputOnDelete) return 0;
+  return clearRawOutputs(db, uid,
+      [summaryId, summary ? summary.source_session_id : null], now);
 }
 
 /** T31: shortest deleted wording that also deletes summaries quoting it. */
@@ -1392,58 +1470,74 @@ function sameThing(item) {
  *   - summaries containing the deleted wording (at least
  *     LAYER_DELETE_MIN_CHARS characters, so a bare name does not wipe
  *     every summary that mentions it).
+ * T49e-4 (clearRawOutputOnDelete, independent of deleteSummaryWithItem):
+ * the raw_output of the item's session, and of the session of every doc
+ * deleted with it, is cleared (clearRawOutputs).
  * Called by the onDocumentDeleted triggers in index.js.
  * @param {object} db
  * @param {string} uid
  * @param {object} item the deleted doc's data
+ * @param {Date=} now
  * @return {Promise<number>} how many docs were deleted
  */
-async function deleteSummaryForItem(db, uid, item) {
+async function deleteSummaryForItem(db, uid, item, now) {
   if (!item) return 0;
   const cfg = await loadConfig(db);
-  if (!cfg.deleteSummaryWithItem) return 0;
+  if (!cfg.deleteSummaryWithItem && !cfg.clearRawOutputOnDelete) return 0;
   const u = db.collection("users").doc(uid);
   const reads = [];
   const sessionId = item.source_session_id;
-  if (sessionId) {
-    reads.push(u.collection("mem_summaries").doc(sessionId).get()
-        .then((d) => (d.exists ? [d.ref] : [])));
-    reads.push(u.collection("mem_summaries")
-        .where("source_session_id", "==", sessionId).get()
-        .then((q) => q.docs.map((d) => d.ref)));
+  const docsOf = (q) => q.docs;
+  if (cfg.deleteSummaryWithItem) {
+    if (sessionId) {
+      reads.push(u.collection("mem_summaries").doc(sessionId).get()
+          .then((d) => (d.exists ? [d] : [])));
+      reads.push(u.collection("mem_summaries")
+          .where("source_session_id", "==", sessionId).get().then(docsOf));
+    }
+    if (typeof item.value === "string" && item.value) {
+      reads.push(u.collection("mem_facts").where("value", "==", item.value)
+          .get().then(docsOf));
+    }
+    if (typeof item.description === "string" && item.description) {
+      reads.push(u.collection("mem_followups")
+          .where("description", "==", item.description).get().then(docsOf));
+    }
+    if (cfg.layersEnabled) {
+      reads.push(Promise.all([
+        u.collection("mem_facts").get(),
+        u.collection("mem_followups").get(),
+        u.collection("mem_summaries").get(),
+      ]).then(([facts, followups, summaries]) => {
+        const match = sameThing(item);
+        return [
+          ...facts.docs.filter((d) => match.fact(d.data())),
+          ...followups.docs.filter((d) => match.followup(d.data())),
+          ...summaries.docs.filter((d) => match.summary(d.data())),
+        ];
+      }));
+    }
   }
-  if (typeof item.value === "string" && item.value) {
-    reads.push(u.collection("mem_facts").where("value", "==", item.value)
-        .get().then((q) => q.docs.map((d) => d.ref)));
-  }
-  if (typeof item.description === "string" && item.description) {
-    reads.push(u.collection("mem_followups")
-        .where("description", "==", item.description).get()
-        .then((q) => q.docs.map((d) => d.ref)));
-  }
-  if (cfg.layersEnabled) {
-    reads.push(Promise.all([
-      u.collection("mem_facts").get(),
-      u.collection("mem_followups").get(),
-      u.collection("mem_summaries").get(),
-    ]).then(([facts, followups, summaries]) => {
-      const match = sameThing(item);
-      return [
-        ...facts.docs.filter((d) => match.fact(d.data())),
-        ...followups.docs.filter((d) => match.followup(d.data())),
-        ...summaries.docs.filter((d) => match.summary(d.data())),
-      ].map((d) => d.ref);
-    }));
-  }
-  const refs = new Map();
+  const docs = new Map();
   for (const list of await Promise.all(reads)) {
-    for (const r of list) refs.set(r.path, r);
+    for (const d of list) docs.set(d.ref.path, d);
   }
-  if (refs.size === 0) return 0;
-  const batch = db.batch();
-  for (const r of refs.values()) batch.delete(r);
-  await batch.commit();
-  return refs.size;
+  if (docs.size) {
+    const batch = db.batch();
+    for (const d of docs.values()) batch.delete(d.ref);
+    await batch.commit();
+  }
+  if (cfg.clearRawOutputOnDelete) {
+    // T49e-4: the item's own session, and the session of everything that
+    // went with it (a summary's id is its extraction's id).
+    const sessions = [sessionId];
+    for (const d of docs.values()) {
+      sessions.push(d.get("source_session_id"));
+      if (d.ref.parent.id === "mem_summaries") sessions.push(d.id);
+    }
+    await clearRawOutputs(db, uid, sessions, now);
+  }
+  return docs.size;
 }
 
 module.exports = {
@@ -1484,6 +1578,9 @@ module.exports = {
   FORGET_ACK_PROMPT,
   forgetRelated,
   deleteSummaryForItem,
+  clearRawOutputs,
+  clearRawOutputForSummary,
+  RAW_OUTPUT_CLEARED,
   t10Flags,
   COMPANION_NAMES,
 };

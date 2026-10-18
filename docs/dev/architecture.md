@@ -6,6 +6,7 @@
 > 2026-10-15 翻页回页顶（分页 ListView 加 `ValueKey`）、键盘遮挡（固定列改可滚动、聊天列表 `reverse: true`）、字号合并封顶 1.3（`app.dart`）；PR 草稿。
 > 2026-10-15 陪伴者页面顶栏统一（`lib/core/agents/companion_app_bar.dart`：左上收尾按钮、头像加名字标题、右上空；六个页面两组相同；PR 草稿）。
 > 2026-10-16 `login_page.dart`：电邮 `maxLines: null` 加去空白的 formatter；建立帐号多一格 `login_password_again`（验证与第一格相同）；`login_show_password` 眼睛按钮控制两格的 `obscureText`。
+> 2026-10-18 T49e-4：删一条记忆（事实、待跟进、摘要）或「唔好記住」删旧条目时，服务器把来源那次整理的 `mem_extractions.raw_output` 改为「已清除」，审计字段保留；新触发器 `memorySummaryDeleted`（第 7、9 节；开关 `clearRawOutputOnDelete` 默认开；PR 草稿）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 补 T34 安全告警邮件（开关 `meta/alert_config.enabled` 默认关；PR 草稿）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）；2026-10-14 T30 角色含义、评估员视图、Calvin 上传序列、过程/结局数据分开、锁库导出（第 4 节「角色」、第 8、9、12 节；PR 草稿，七个开关默认关）。代码改了，这份跟着改（同一个 PR）。
 > 最后核对：2026-10-04，`main` @ fa62c81 + 决策 0015 的改动；2026-10-07 补 T7 安全检测（决策 0018）、决策 0019（搜一搜、语音开关）、同意与删除（决策 0020）；T17 Phase A 的 ADA 和第 7 日开放题（决策 0026）；T17b ADA v1.0、第 7 日流程和电话补做（决策 0030）；2026-10-14 T21 研究期和登记门（第 4 节）；2026-10-14 第二次：决策 0037 六项过渡默认（`PHASE_B` 保留、`pilot` 指试跑）；2026-10-14 T37 登记后的入组引导顺序和“引导已完成”标记、显示设定本机保存（第 4 节末、第 12 节）。代码改了，这份跟着改（同一个 PR）。 2026-10-14 T27 语音改走服务器 STT v2（`transcribeAudio`，只用 asia-southeast1 / chirp_2，重试 1 次，失败显示 S6 并记 `voice_transcription_failed`；开关 `voiceInputEnabled` 仍默认关；PR 草稿）。
@@ -247,6 +248,8 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 
 **记忆安全、「唔好記住」、删除（T10，决策 0024）**：服务器整理记忆前，用 App 同一份安全词库（`functions/safety_lexicon.json`，从 `lib/core/safety/distress_detector.dart` 生成，`test/safety_lexicon_export_test.dart` 保证一致）查老人原话，命中的轮次不进任何一层，那次会话不写摘要；摘要不写敏感内容；老人说「唔好記住」等（`functions/memory_forget.js`），整段不记并删除相关旧条目；页面删一条，触发器连带删摘要和同样措辞的条目；`tool/delete_memory.js` 写 `memoryWithdrawnAt` 后不再记录（Phase B A 组也一样）。抽取 prompt 改为文件 `functions/prompts/memory_extraction.v2.txt`（v1 保留）。开关都在 `meta/memory_config`，修复默认开，陪伴者确认句 `forgetAckReply` 默认关。改了 App 词库要重新生成 JSON（`UPDATE_SAFETY_LEXICON=1 flutter test test/safety_lexicon_export_test.dart`）。
 
+**删除也清模型原文（T49e-4，补充决策 0024 第 4 条）**：上面三种删除（页面删事实或待跟进、页面删摘要、「唔好記住」），服务器都把被删条目来源那次整理的 `mem_extractions/{会话编号}.raw_output` 改成 `[cleared after deletion 2026-10-18]`，写 `raw_output_cleared_at`；`status`、`counts`、`prompt_version` 等审计字段不动（`functions/memory.js` `clearRawOutputs`）。整理时仍存原文供排查。开关 `meta/memory_config.clearRawOutputOnDelete` 默认开。
+
 **记忆分层（T31，决策 0035）**：开关 `meta/memory_config.layersEnabled` 默认关。打开后，服务器写每条记忆的 `layer`（`shared` / `private`）和 `sourceAgent`：称呼、家人、居住、作息、兴趣、喜好归共享层，三位陪伴者都能用；健康、重要事件、心事、回忆、哀伤，以及所有摘要和待跟进归私有层，只给听到的那位；判为敏感的一律私有（`functions/memory.js` `layerFor`、`itemLayer`、`visibleInLayers`）。没有 `layer` 的旧条目读取时按同样规则推算。老人关了共享同意时仍什么都不共享。`mem_injections` 多记 `layer_counts`（共享、私有各几条）、`source_agents`（各来自哪位）、`session_id`（App 在 `proxyDeepSeek` 里传 `sessionId` 时）。设置里删一条时（`deleteSummaryForItem`），另删措辞去掉标点后相同的条目、同类目同标题的事实、原文含这条内容（≥4 字）的摘要。抽取 prompt v3（`memory_extraction.v3.txt`，多 `feeling`、`story`、`grief` 三类）可用 `extractionPrompt` 选，默认仍是 v2。App「我記得嘅嘢」顶部的 S7 说明由 `app_config/feature_flags.memoryLayersNoticeEnabled` 控制，默认关。
 
 **v1 生效需要服务器开关**：Firestore `meta/memory_config` = `{enabled: true, policy: "C", phaseBArmA: true}`。没有这个文档时 v1 不工作；而 App 对 Phase B A 组已经不再做 v0 摘要，所以**这时 A 组两套记忆都没有**。上线时这个文档必须写。
@@ -332,6 +335,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `memoryEndSession` | App 调用（离开聊天页） | v1：整理这次对话的记忆 |
 | `memorySweep` | 每 15 分钟 | v1：补整理 30 分钟没有新消息的对话 |
 | `memoryFactDeleted`、`memoryFollowupDeleted` | 删除一条记忆事实或跟进时 | v1：连带删除来源会话的摘要和同样措辞的条目（T10） |
+| `memorySummaryDeleted` | 删除一条记忆摘要时 | v1：清同编号那次整理的模型原文 `raw_output`，不连带删别的（T49e-4；`memoryFactDeleted` 等两个触发器也清来源会话的 `raw_output`；开关 `clearRawOutputOnDelete` 默认开） |
 | `referralJudgement` | App 调用 | 跨陪伴者转介的第二层判断（只 A 组） |
 | `webSearch` | App 调用 | 通通的网络搜索（只 A 组）。`webSearchEnabled` 不是 `true` 时直接拒绝 |
 | `transcribeAudio` | App 调用（T27 起，开关开着时） | 语音转文字（两组），`functions/stt.js`：Google STT v2 `chirp_2`、只用 `asia-southeast1`，请求只带 `recognizer`、`config.autoDecodingConfig`、`config.languageCodes=[yue-Hant-HK]`、`config.model`、`config.features.enableAutomaticPunctuation`、`content`（没有任何数据记录参数，`functions/test/stt_test.js` 检查）；失败自动重试 1 次，再失败返回类别 `timeout` / `server_error` / `no_speech` / `too_long` / `unavailable`。录音不存、不进日志；转写文字只返回给 App。`voiceInputEnabled` 不是 `true` 时直接拒绝。使用统计写 `stt_usage`（只有字节数、耗时、次数、是否成功、失败类别，不进导出） |

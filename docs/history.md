@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-18 T49e-4 删一条记忆时清服务器审计里的模型原文（PR 草稿，分支 `fix/t49e4-raw-output`）
+
+- #113 核对报告第 6 节发现：老人删了条目，`mem_extractions.raw_output` 里还有模型当时的原文。Junyu 10/18 晚定修（1018 §E4）。
+- 做了：页面删事实／待跟进（`deleteSummaryForItem`）、页面删摘要（新触发器 `memorySummaryDeleted`）、「唔好記住」（`forgetRelated`）三处，都把来源那次整理的 `raw_output` 改成「已清除」，审计字段保留。开关 `clearRawOutputOnDelete` 默认开。`tool/delete_memory.js` 本来就整个删，不用改。
+- 报告 `docs/dev-reports/T49e4-raw-output-20261018.md`；决策草稿 `docs/decisions/NNNN-clear-raw-output-on-delete.md`（补充 0024 第 4 条）。待定：部署前已删条目的原文。
+
 ## 2026-10-16 注册页：密码输两次、电邮换行、显示密码（PR 草稿，分支 `fix/signup-email-password`，并入 `batch/1016-morning`）
 
 - 10/15 试跑一位老人注册后发现电邮打错，但格子只显示尾巴看不全。改：电邮格自动换行、去空格；建立帐号时密码输两次，不一样不让提交；密码格加眼睛按钮。文字见 S17，待产品窗口核。
