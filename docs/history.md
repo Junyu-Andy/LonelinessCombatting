@@ -25,6 +25,10 @@
 
 - Junyu 10/16 定 iPhone 以后走 TestFlight 外部测试公开链接，测试员可在 TestFlight「先前的版本」自己换版本。流程写在 `docs/release/ios-testflight.md`。
 - FAQ 里「我可唔可以用英文？」连同「我嘅資料」页的语言一行删干净（英文开关一直是关的）。
+## 2026-10-18 记忆机制核对报告（只读，不改代码；分支 `docs/memory-mechanism-1018`）
+
+- 按 main @ d6c38d9 把 Hybrid 组跨会话记忆从写入、抽取提示词、注入、「唔好記住」、删除、首次记忆到隐私记录逐条对照代码写成 `docs/dev-reports/memory-mechanism-20261018.md`，给 PI 读。主要发现：两层开关 `layersEnabled` 没开，所以分层过滤和 S6 分层剂量现在都没有；抽取仍是 v2；小欣签到页和回忆页在切换／超时／返回时不叫 `memoryEndSession`，只靠 30 分钟扫描；`mem_extractions.raw_output` 删条目后仍保留；陪伴者提示词末尾的 rolling_summary／named_entities 槽位服务器从不填。十项要 Junyu 定的列在报告第 10 节。
+- 订正：10/16 对话里说「`avoidTopics` 没有进提示词」不对——小欣签到、通通、阿珍／阿伯自由对话三页和开场白都由 App 在提示词末尾加一行「⛔ 用戶要求唔好提起呢啲話題」；只有回忆页没有。
 
 ## 2026-10-16 注册页：密码输两次、电邮换行、显示密码（PR 草稿，分支 `fix/signup-email-password`，并入 `batch/1016-morning`）
 
