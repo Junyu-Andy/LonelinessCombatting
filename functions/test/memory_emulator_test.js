@@ -398,8 +398,9 @@ test("T10: 「唔好記住」 → no model call, nothing stored, related items g
       assert.strictEqual(r.prompts.length, 0, "no model call");
       assert.strictEqual(r.ext.outcome, "forget_request");
       assert.deepStrictEqual(r.ext.turns, []);
+      // No mem_extractions/old1 here, so no raw_output to clear (T49e-4).
       assert.deepStrictEqual(r.ext.forget.deleted,
-          {facts: 1, followups: 0, summaries: 1});
+          {facts: 1, followups: 0, summaries: 1, raw_outputs: 0});
       const facts = await docsOf("mem_facts");
       assert.deepStrictEqual(facts.map((f) => f.id), ["tea"]);
       assert.strictEqual((await docsOf("mem_summaries")).length, 0);
@@ -444,6 +445,152 @@ test("T10: deleting a fact deletes its session's summary and its twin",
           {source_session_id: "s1"}), 0);
       assert.strictEqual((await docsOf("mem_summaries")).length, 1);
     });
+
+// ------------------------------------------ T49e-4 (clearRawOutputOnDelete)
+const TEA = {summary: "陳太講起飲早茶。", facts: [
+  {op: "add", category: "hobby", key: "飲早茶", value: "鍾意飲早茶",
+    quote: "我鍾意飲早茶"}], followups: []};
+const NAME = {summary: "", facts: [
+  {op: "add", category: "name", key: "稱呼", value: "陳太",
+    quote: "叫我陳太"}], followups: []};
+
+async function rawOff() {
+  await db.doc("meta/memory_config").set({clearRawOutputOnDelete: false},
+      {merge: true});
+}
+
+const extOf = async (id) =>
+  (await user().collection("mem_extractions").doc(id).get()).data();
+
+// Everything but raw_output is still there after clearing.
+function assertAuditKept(ext, counts) {
+  assert.strictEqual(ext.status, "done");
+  assert.strictEqual(ext.attempts, 1);
+  assert.strictEqual(ext.prompt_version, "memory_extraction.v2");
+  assert.deepStrictEqual(ext.counts, counts);
+  assert.ok(Array.isArray(ext.dropped), "dropped kept");
+  assert.ok(ext.finished_at, "finished_at kept");
+  assert.strictEqual(ext.excluded_safety_turns, 0);
+}
+
+test("T49e-4 (a): deleting a fact on the page clears its session's " +
+    "raw_output, and its twin's, audit fields kept; off → kept", async () => {
+  for (const on of [true, false]) {
+    await reset();
+    if (!on) await rawOff();
+    const s1 = await extractWith("siu_yan", [[true, "我鍾意飲早茶。"]], TEA);
+    // The same sentence, heard by another companion in another session.
+    const s2 = await extractWith("ah_jan_ah_bak", [[true, "我鍾意飲早茶。"]],
+        TEA);
+    const s3 = await extractWith("siu_yan", [[true, "叫我陳太"]], NAME);
+    for (const r of [s1, s2]) {
+      assert.ok(r.ext.raw_output.includes("鍾意飲早茶"), "raw has the fact");
+    }
+    const facts = await docsOf("mem_facts");
+    const tea = facts.find((f) => f.source_session_id === s1.id);
+    assert.ok(facts.some((f) => f.source_session_id === s2.id), "twin");
+    // What the App does, then what the memoryFactDeleted trigger runs.
+    await user().collection("mem_facts").doc(tea.id).delete();
+    await m.deleteSummaryForItem(db, UID, tea, NOW);
+    assert.deepStrictEqual((await docsOf("mem_facts")).map((f) => f.value),
+        ["陳太"], "fact and twin gone either way");
+    for (const r of [s1, s2]) {
+      const ext = await extOf(r.id);
+      if (on) {
+        assert.strictEqual(ext.raw_output, m.RAW_OUTPUT_CLEARED, r.id);
+        assert.ok(ext.raw_output_cleared_at, "cleared_at written");
+        assertAuditKept(ext, {facts: 1, followups: 0, summary: 1});
+      } else {
+        assert.ok(ext.raw_output.includes("鍾意飲早茶"), "off: kept");
+        assert.strictEqual(ext.raw_output_cleared_at, undefined);
+      }
+    }
+    // An unrelated session is never touched.
+    assert.ok((await extOf(s3.id)).raw_output.includes("陳太"));
+  }
+});
+
+test("T49e-4 (a): with deleteSummaryWithItem off, only the item's own " +
+    "session is cleared", async () => {
+  await reset();
+  await db.doc("meta/memory_config").set({deleteSummaryWithItem: false},
+      {merge: true});
+  const r = await extractWith("siu_yan", [[true, "我鍾意飲早茶。"]], TEA);
+  const [tea] = await docsOf("mem_facts");
+  await user().collection("mem_facts").doc(tea.id).delete();
+  assert.strictEqual(await m.deleteSummaryForItem(db, UID, tea, NOW), 0);
+  assert.strictEqual((await docsOf("mem_summaries")).length, 1,
+      "summary stays");
+  assert.strictEqual((await extOf(r.id)).raw_output, m.RAW_OUTPUT_CLEARED);
+  // Intake facts (source "intake") have no extraction doc: nothing breaks.
+  assert.strictEqual(await m.deleteSummaryForItem(db, UID,
+      {source_session_id: "intake", value: "x"}, NOW), 0);
+  assert.strictEqual((await docsOf("mem_extractions")).length, 1,
+      "no extraction doc created");
+});
+
+test("T49e-4 (b): deleting a summary clears the raw_output of the same " +
+    "id and deletes nothing else; off → kept", async () => {
+  for (const on of [true, false]) {
+    await reset();
+    if (!on) await rawOff();
+    const r = await extractWith("siu_yan", [[true, "我鍾意飲早茶。"]], TEA);
+    assert.ok(r.ext.raw_output.includes("飲早茶"));
+    const sum = await user().collection("mem_summaries").doc(r.id).get();
+    assert.ok(sum.exists, "summary id = extraction id");
+    await sum.ref.delete();
+    // What the memorySummaryDeleted trigger runs.
+    assert.strictEqual(await m.clearRawOutputForSummary(db, UID, r.id,
+        sum.data(), NOW), on ? 1 : 0);
+    const ext = await extOf(r.id);
+    if (on) {
+      assert.strictEqual(ext.raw_output, m.RAW_OUTPUT_CLEARED);
+      assert.ok(ext.raw_output_cleared_at);
+      assertAuditKept(ext, {facts: 1, followups: 0, summary: 1});
+    } else {
+      assert.ok(ext.raw_output.includes("飲早茶"), "off: kept");
+    }
+    assert.strictEqual((await docsOf("mem_facts")).length, 1, "fact stays");
+    // A second trigger run (e.g. retry) changes nothing.
+    assert.strictEqual(await m.clearRawOutputForSummary(db, UID, r.id,
+        sum.data(), NOW), 0);
+  }
+});
+
+test("T49e-4 (c): 「唔好記住」 clears the raw_output of the sessions its " +
+    "deleted items came from; off → kept", async () => {
+  for (const on of [true, false]) {
+    await reset();
+    if (!on) await rawOff();
+    const loan = await extractWith("ah_jan_ah_bak",
+        [[true, "我借咗五萬蚊俾個仔做生意。"]],
+        {summary: "", facts: [{op: "add", category: "event", key: "借錢",
+          value: "借咗五萬蚊俾個仔做生意", quote: "借咗五萬蚊俾個仔做生意"}],
+        followups: []});
+    assert.ok(loan.ext.raw_output.includes("五萬蚊"));
+    assert.strictEqual((await docsOf("mem_facts")).length, 1);
+    const tea = await extractWith("siu_yan", [[true, "我鍾意飲早茶。"]], TEA);
+    const r = await extractWith("siu_yan", [
+      [true, "我借咗五萬蚊俾個仔，到而家都未還。"],
+      [false, "噢，咁你點諗？"],
+      [true, "你唔好記住呢件事呀，當我冇講過。"],
+    ], {summary: "借錢", facts: [], followups: []});
+    assert.strictEqual(r.ext.outcome, "forget_request");
+    assert.strictEqual(r.ext.forget.deleted.facts, 1);
+    assert.strictEqual(r.ext.forget.deleted.raw_outputs, on ? 1 : 0);
+    assert.strictEqual(r.ext.raw_output, undefined, "no model call");
+    const ext = await extOf(loan.id);
+    if (on) {
+      assert.strictEqual(ext.raw_output, m.RAW_OUTPUT_CLEARED);
+      assert.ok(ext.raw_output_cleared_at);
+      assertAuditKept(ext, {facts: 1, followups: 0, summary: 0});
+    } else {
+      assert.ok(ext.raw_output.includes("五萬蚊"), "off: kept");
+    }
+    assert.ok((await extOf(tea.id)).raw_output.includes("飲早茶"),
+        "unrelated session kept");
+  }
+});
 
 test("T10: withdrawal (tool/delete_memory.js) stops Phase B Arm A memory",
     async () => {

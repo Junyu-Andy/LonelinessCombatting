@@ -138,6 +138,8 @@ flutter test --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
 
 **单条删除也连带**（T10）：页面上删一条事实或跟进，服务器触发器 `memoryFactDeleted` / `memoryFollowupDeleted` 同时删掉它来源那次会话的摘要，以及措辞完全相同的其他事实或跟进（开关 `deleteSummaryWithItem`）。
 
+**删除也清模型原文**（T49e-4）：删一条事实、待跟进或摘要（新触发器 `memorySummaryDeleted`），或「唔好記住」删旧条目，来源那次整理的 `mem_extractions.raw_output` 改成 `[cleared after deletion 2026-10-18]`，加 `raw_output_cleared_at`；其他审计字段不动（开关 `clearRawOutputOnDelete`，默认开）。
+
 ```bash
 cd functions && npm ci && cd ..
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json

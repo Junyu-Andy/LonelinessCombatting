@@ -387,7 +387,7 @@ test("T10 flags: fixes on unless false, confirmation reply off", () => {
   for (const k of ["excludeSafetyTurns", "omitSensitiveSummary",
     "honourForgetRequests", "deleteSummaryWithItem",
     "honourMemoryWithdrawal", "sensitiveFactQuota",
-    "strictFactValidation"]) {
+    "strictFactValidation", "clearRawOutputOnDelete"]) {
     assert.strictEqual(d[k], true, k);
     assert.strictEqual(m.t10Flags({[k]: false})[k], false, k);
   }

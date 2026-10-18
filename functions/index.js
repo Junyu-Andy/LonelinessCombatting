@@ -1919,6 +1919,22 @@ for (const [name, col] of [["memoryFactDeleted", "mem_facts"],
       });
 }
 
+// T49e-4 (clearRawOutputOnDelete): deleting a summary clears the model's
+// verbatim output kept for that session (mem_extractions, same id).
+// Nothing else is deleted with it (decision 0024).
+exports.memorySummaryDeleted = onDocumentDeleted(
+    {document: "users/{uid}/mem_summaries/{summaryId}", region: "asia-east2"},
+    async (event) => {
+      const summary = event.data ? event.data.data() : null;
+      try {
+        await memory.clearRawOutputForSummary(admin.firestore(),
+            event.params.uid, event.params.summaryId, summary);
+      } catch (err) {
+        console.error("raw output clear after summary delete failed",
+            {uid: event.params.uid, err: String(err)});
+      }
+    });
+
 exports.dailyMoodReminder = onSchedule(
   {
     schedule: "0 19 * * 1-6", // Mon–Sat 19:00 (Sunday handled by weekly)

@@ -36,6 +36,11 @@
 ## 2026-10-18 10/19 前配置只读核对脚本（PR 草稿，分支 `tool/check-prelaunch-values`）
 
 - dev-tasks-1018 §G4：`tool/check_prelaunch_values.js` 只读，把 `app_config/feature_flags`、`phase_b`、`phase_a` 残留、`meta/memory_config`、`randomization_config`、`alert_config`、分配序列长度和已用位置、`isTester` 帐号数、已登记人数逐项和核对表的期望值并排打出来，✓／✗ 一目了然。不打印组别、序列和完整电邮。Junyu 跑一次贴结果。
+## 2026-10-18 T49e-4 删一条记忆时清服务器审计里的模型原文（PR 草稿，分支 `fix/t49e4-raw-output`）
+
+- #113 核对报告第 6 节发现：老人删了条目，`mem_extractions.raw_output` 里还有模型当时的原文。Junyu 10/18 晚定修（1018 §E4）。
+- 做了：页面删事实／待跟进（`deleteSummaryForItem`）、页面删摘要（新触发器 `memorySummaryDeleted`）、「唔好記住」（`forgetRelated`）三处，都把来源那次整理的 `raw_output` 改成「已清除」，审计字段保留。开关 `clearRawOutputOnDelete` 默认开。`tool/delete_memory.js` 本来就整个删，不用改。
+- 报告 `docs/dev-reports/T49e4-raw-output-20261018.md`；决策草稿 `docs/decisions/NNNN-clear-raw-output-on-delete.md`（补充 0024 第 4 条）。待定：部署前已删条目的原文。
 
 ## 2026-10-16 注册页：密码输两次、电邮换行、显示密码（PR 草稿，分支 `fix/signup-email-password`，并入 `batch/1016-morning`）
 

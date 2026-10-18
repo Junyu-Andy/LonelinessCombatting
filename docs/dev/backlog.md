@@ -15,6 +15,7 @@
 > 2026-10-18 记忆机制核对报告 PR 草稿（`docs/dev-reports/memory-mechanism-20261018.md`）；待 Junyu 定第 10 节十项：开不开两层、切不切 v3、`raw_output` 保留、四页记忆交接时机、`forgetAckReply`、断网补写、20 轮上限、提示词末尾槽位一段、`cross_session_memory` 标志、（无需决定）老人无开关一致。
 > 2026-10-18 T49（`dev-tasks-1018.md`）：E1 六步核对已过，等 Junyu 10/19 开 `layersEnabled`；接下来 G 只读核对脚本、F 第 6 题（T47 报告第 9 节已答）、B 提示词 PR（10/22）、A 的 2/3/4/7（10/22、10/26）、C、E3、E4（10/26）。
 > 2026-10-18 §G4 只读核对脚本 `tool/check_prelaunch_values.js`（PR 草稿）；Junyu 10/19 前跑一次（需服务帐号），✗ 的按核对表改。
+> 2026-10-18 T49e-4 删记忆时清服务器模型原文 `raw_output` PR 草稿（1018 §E4，开关 `clearRawOutputOnDelete` 默认开）；待定：部署前已删条目的原文要不要一次清掉、决策编号。
 
 ## 1. 已决定、待开发
 
