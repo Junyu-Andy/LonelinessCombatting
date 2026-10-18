@@ -439,6 +439,11 @@ clay-pot rice stand..."
       themeLock,
       if (persona?.contextSuffix != null) persona!.contextSuffix!,
       if (priorWeeksSnippet.trim().isNotEmpty) priorWeeksSnippet.trim(),
+      // T49b (§B7 b) — same avoid-topics line as the other three Hybrid
+      // chat pages (check_in_arm_a.dart); this page was the only one
+      // without it.
+      if (profile?.avoidTopics?.isNotEmpty == true)
+        '⛔ 用戶要求唔好提起呢啲話題（就算唔小心都唔好）：${profile!.avoidTopics}',
     ].join('\n\n').trim();
 
     final response = await core.llm.send(
