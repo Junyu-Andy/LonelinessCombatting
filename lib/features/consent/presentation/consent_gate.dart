@@ -105,7 +105,7 @@ class ConsentGate extends StatelessWidget {
     final fixOn = onboardingFixOn ??
         RemoteFeatureFlags.current.onboardingAfterEnrollmentFix;
     if (needsAgentOnboarding(profile, fixOn: fixOn)) {
-      return const AgentOnboardingPage();
+      return AgentOnboardingPage(researcherIntakeOn: researcherIntake);
     }
     return child;
   }

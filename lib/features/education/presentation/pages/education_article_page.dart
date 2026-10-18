@@ -140,7 +140,7 @@ Here is the article:
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
                 children: [
                   Text(
                     body,
@@ -257,7 +257,7 @@ class _Bubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.78),
+            maxWidth: MediaQuery.of(context).size.width * 0.88),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(18),

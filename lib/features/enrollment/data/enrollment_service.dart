@@ -186,12 +186,17 @@ class IntakePerson {
 
 /// The five answers (dev-tasks-1015-intake §1).
 class IntakeAnswers {
-  final List<String> mainGoals; // ≤ 2 IntakeOptions.mainGoal* ids
-  final List<IntakePerson> importantPeople; // ≤ 3
-  final List<String> interests; // ≤ 3 InterestLabels ids
+  final List<String> mainGoals; // IntakeOptions.mainGoal* ids (no cap, 10/16)
+  final List<IntakePerson> importantPeople; // no cap (10/16)
+  final List<String> interests; // InterestLabels ids (no cap, 10/16)
   final String? interestsOther;
   final String? avoidTopics;
   final String inputMode; // IntakeOptions.input* id
+
+  /// 10/16 — 研究員備註: the researcher's own observation (≤ 200 chars),
+  /// never shown to the elder; the server hands it to all three
+  /// companions verbatim as one memory line (「研究員觀察：…」).
+  final String? researcherNote;
 
   const IntakeAnswers({
     this.mainGoals = const [],
@@ -200,6 +205,7 @@ class IntakeAnswers {
     this.interestsOther,
     this.avoidTopics,
     this.inputMode = 'unsure',
+    this.researcherNote,
   });
 
   Map<String, dynamic> toMap() => {
@@ -209,6 +215,7 @@ class IntakeAnswers {
         'interestsOther': interestsOther,
         'avoidTopics': avoidTopics,
         'inputMode': inputMode,
+        'researcherNote': researcherNote,
       };
 }
 
@@ -272,11 +279,12 @@ String intakeErrorText(String code) => switch (code) {
       'not_enrolled' => '呢個帳號仲未登記，請先登記再錄入。',
       'tester_account' => '測試員帳號唔可以錄入。',
       'own_account' => '唔可以錄入自己個研究員帳號。',
-      'too_many_goals' => '第 1 題最多揀兩項。',
-      'too_many_people' => '第 2 題最多三個人。',
-      'too_many_interests' => '第 3 題最多揀三項。',
+      'too_many_goals' => '目標選項重複咗，請再試。',
+      'too_many_people' => '重要嘅人最多錄 20 位。',
+      'too_many_interests' => '興趣選項重複咗，請再試。',
       'name_too_long' => '稱呼或關係太長（最多 20 字）。',
       'other_too_long' => '「其他」太長（最多 40 字）。',
       'avoid_too_long' => '第 4 題太長（最多 200 字）。',
+      'note_too_long' => '研究員備註太長（最多 200 字）。',
       _ => '錄入失敗（$code）。請再試，或者聯絡負責人。',
     };
