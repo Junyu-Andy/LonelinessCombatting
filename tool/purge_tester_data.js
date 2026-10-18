@@ -141,6 +141,12 @@ function classify(a) {
     return {kind: KINDS.STAFF, reason: `Auth role claim "${a.role}"`};
   }
   const u = a.user || {};
+  // Tester arm switch (functions/tester_arm.js) writes cohort "pilot" onto
+  // the tester's own doc but never an enrollments record: still a tester.
+  if (u.isTester === true && u.armAssignedBy === 'tester_switch' &&
+      !a.enrollment) {
+    return {kind: KINDS.TESTER, reason: 'isTester (tester arm switch)'};
+  }
   if (studyPeriod.isEnrolled(u)) {
     return {kind: KINDS.ENROLLED, reason: `cohort "${u.cohort}"`};
   }
