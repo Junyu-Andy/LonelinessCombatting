@@ -61,6 +61,7 @@ import 'package:app_demo/features/context/presentation/pages/check_in_shared.dar
 import 'package:app_demo/features/curious_companion/presentation/pages/tung_tung_page.dart';
 import 'package:app_demo/features/education/data/education_library.dart';
 import 'package:app_demo/features/education/presentation/pages/education_article_page.dart';
+import 'package:app_demo/features/memory/presentation/pages/remembered_page.dart';
 import 'package:app_demo/features/onboarding/data/intake_repository.dart';
 import 'package:app_demo/features/onboarding/data/intake_response.dart';
 import 'package:app_demo/features/onboarding/presentation/pages/agent_onboarding_page.dart';
@@ -136,6 +137,58 @@ class _NoMoodYet extends MoodRecorder {
 
   @override
   Future<MoodEntry?> mostRecent({required String uid}) async => null;
+}
+
+/// Synthetic memory for the 「我記得嘅嘢」 page: eight facts over four
+/// categories and three past chats over two days.
+class _SyntheticMemory extends MemoryV1Service {
+  const _SyntheticMemory();
+
+  @override
+  Stream<List<MemoryItem>> watch(String uid, MemoryLayer layer) {
+    final today = DateTime.now();
+    String key(DateTime t) =>
+        '${t.year.toString().padLeft(4, '0')}-'
+        '${t.month.toString().padLeft(2, '0')}-'
+        '${t.day.toString().padLeft(2, '0')}';
+    switch (layer) {
+      case MemoryLayer.fact:
+        return Stream.value([
+          for (var i = 0; i < 4; i++)
+            MemoryItem(
+                id: 'f$i', layer: layer, agentId: 'siu_yan',
+                title: '家人 $i', body: '阿明係你個仔，住喺沙田',
+                category: 'family'),
+          const MemoryItem(
+              id: 'h1', layer: MemoryLayer.fact, agentId: 'tung_tung',
+              title: '鍾意', body: '飲早茶', category: 'hobby'),
+          const MemoryItem(
+              id: 'l1', layer: MemoryLayer.fact, agentId: 'siu_yan',
+              title: '住', body: '深水埗', category: 'living'),
+          const MemoryItem(
+              id: 'x1', layer: MemoryLayer.fact, agentId: 'ah_jan_ah_bak',
+              title: '細個', body: '喺唐樓長大', category: 'story'),
+          const MemoryItem(
+              id: 'u1', layer: MemoryLayer.fact, agentId: 'siu_yan',
+              title: '未知', body: '類目冇寫'),
+        ]);
+      case MemoryLayer.followup:
+        return Stream.value(const []);
+      case MemoryLayer.summary:
+        return Stream.value([
+          MemoryItem(
+              id: 's1', layer: layer, agentId: 'siu_yan',
+              title: key(today), body: '今日講咗去公園行咗一陣，心情幾好。'),
+          MemoryItem(
+              id: 's2', layer: layer, agentId: 'tung_tung',
+              title: key(today), body: '同通通傾咗飲茶同打牌。'),
+          MemoryItem(
+              id: 's3', layer: layer, agentId: 'ah_jan_ah_bak',
+              title: key(today.subtract(const Duration(days: 1))),
+              body: '講返細個喺唐樓嘅日子。'),
+        ]);
+    }
+  }
 }
 
 class _TesterBackend implements TesterArmBackend {
@@ -293,6 +346,22 @@ Future<bool> _tap(_Ctx c, Finder f) async {
   await t.tap(f.first, warnIfMissed: false);
   await t.pumpAndSettle();
   return true;
+}
+
+/// Scroll a lazy list until [f] is built, forwards first, then back up.
+Future<void> _scrollInto(_Ctx c, Finder f) async {
+  if (f.evaluate().isNotEmpty) {
+    await c.tester.ensureVisible(f.first);
+    await c.tester.pumpAndSettle();
+    return;
+  }
+  final list = find.byType(Scrollable).first;
+  try {
+    await c.tester.scrollUntilVisible(f, 150, scrollable: list);
+  } catch (_) {
+    await c.tester.scrollUntilVisible(f, -150, scrollable: list);
+  }
+  await c.tester.pumpAndSettle();
 }
 
 /// Like [_tap] but for a widget that may not be built yet (lazy lists).
@@ -487,6 +556,29 @@ final _flows = <String, _Flow>{
     await c.shot('settings_top');
     await _scrollTap(c, find.byType(TesterArmSwitchCard));
     await c.shot('settings_tester_card');
+  },
+  '我記得嘅嘢（分組）': (c) async {
+    // 10/19 (Junyu): facts by category, past chats by day, a count line.
+    if (_armB) return;
+    await _pumpHome(c, const RememberedPage(service: _SyntheticMemory()));
+    expect(find.textContaining('記住咗 8 件關於你嘅嘢、3 次傾偈'), findsOneWidget);
+    await c.shot('remembered_grouped');
+    // Lazy list: scroll each group header into view before looking.
+    for (final label in ['家人（4）', '興趣（1）', '其他（1）', '今日（2）', '昨日（1）']) {
+      await _scrollInto(c, find.text(label));
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+    // The long 家人 group is folded; open it (tap the tile, not the text,
+    // so a header sitting half under the app bar still registers).
+    final header = find.text('家人（4）');
+    await _scrollInto(c, header);
+    await c.tester.tap(find.ancestor(
+        of: header, matching: find.byType(ExpansionTile)));
+    await c.tester.pumpAndSettle();
+    final child = find.textContaining('阿明係你個仔');
+    await _scrollInto(c, child);
+    expect(child, findsWidgets);
+    await c.shot('remembered_family_open');
   },
   '健康資訊文章页': (c) async {
     await _pushPage(

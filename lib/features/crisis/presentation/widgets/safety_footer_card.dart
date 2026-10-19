@@ -41,12 +41,13 @@ class SafetyFooterCard extends StatelessWidget {
               _dial('18111');
             },
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+              // 10/19 (Junyu): tighter card, same three lines, same numbers.
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(Icons.support_agent_rounded,
-                      size: 30, color: theme.colorScheme.primary),
+                      size: 24, color: theme.colorScheme.primary),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -56,27 +57,27 @@ class SafetyFooterCard extends StatelessWidget {
                           isEn
                               ? 'Want to talk to someone? "Mind Space" 18111'
                               : '想搵人傾吓？　「情緒通」18111',
-                          style: theme.textTheme.titleMedium?.copyWith(
+                          style: theme.textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w800,
-                            height: 1.35,
+                            height: 1.3,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
                           isEn
                               ? '24-hour · Cantonese · government hotline · '
                                   'a real person listens'
                               : '24 小時・廣東話・政府熱線・有真人聽你講',
-                          style: theme.textTheme.bodyMedium?.copyWith(
+                          style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
-                            height: 1.35,
+                            height: 1.3,
                           ),
                         ),
                       ],
                     ),
                   ),
                   Icon(Icons.phone_rounded,
-                      size: 24, color: theme.colorScheme.primary),
+                      size: 22, color: theme.colorScheme.primary),
                 ],
               ),
             ),
@@ -91,11 +92,11 @@ class SafetyFooterCard extends StatelessWidget {
             },
             child: Container(
               color: theme.colorScheme.errorContainer.withValues(alpha: 0.45),
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
               child: Row(
                 children: [
                   Icon(Icons.emergency_outlined,
-                      size: 22, color: theme.colorScheme.error),
+                      size: 20, color: theme.colorScheme.error),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -103,7 +104,7 @@ class SafetyFooterCard extends StatelessWidget {
                           ? 'Immediate danger to you or someone else — '
                               'call 999'
                           : '如果你或身邊嘅人有即時生命危險　撥 999',
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.error,
                         fontWeight: FontWeight.w700,
                         height: 1.3,
@@ -126,20 +127,20 @@ class SafetyFooterCard extends StatelessWidget {
               );
             },
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
                       isEn ? 'More support hotlines' : '更多支援熱線',
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                   Icon(Icons.chevron_right_rounded,
-                      size: 24, color: theme.colorScheme.primary),
+                      size: 22, color: theme.colorScheme.primary),
                 ],
               ),
             ),

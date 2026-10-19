@@ -96,6 +96,15 @@
 ///                               interests and 唔想提起, and asks the server
 ///                               for Siu Yan's memory block.  Rule arm
 ///                               unchanged (static pool).
+///   - [appFontScaleOnlyEnabled] — 10/19 (Junyu): the App's own 字號 (標準 /
+///                               大 / 特大) is the only text scale; the
+///                               phone's system font size is ignored, so
+///                               every page scales the same way.  Off: the
+///                               two multiply, capped at 特大 (app.dart).
+///   - [briefPrHomeBannerEnabled] — 10/19 (Junyu): the Brief PR invitation
+///                               card also sits at the top of 睇今日, under
+///                               the greeting, not only on the companion
+///                               list page.  Same card, same scheduler.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -124,6 +133,8 @@ class RemoteFeatureFlags {
     this.s1aEventLogEnabled = false,
     this.homeMoodOpensCheckInEnabled = false,
     this.suggestionsUseProfileEnabled = false,
+    this.appFontScaleOnlyEnabled = false,
+    this.briefPrHomeBannerEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -143,6 +154,8 @@ class RemoteFeatureFlags {
   final bool s1aEventLogEnabled;
   final bool homeMoodOpensCheckInEnabled;
   final bool suggestionsUseProfileEnabled;
+  final bool appFontScaleOnlyEnabled;
+  final bool briefPrHomeBannerEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -196,6 +209,8 @@ class RemoteFeatureFlags {
             map['homeMoodOpensCheckInEnabled'] == true,
         suggestionsUseProfileEnabled:
             map['suggestionsUseProfileEnabled'] == true,
+        appFontScaleOnlyEnabled: map['appFontScaleOnlyEnabled'] == true,
+        briefPrHomeBannerEnabled: map['briefPrHomeBannerEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply
