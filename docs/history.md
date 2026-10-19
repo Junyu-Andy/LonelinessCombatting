@@ -6,7 +6,7 @@
 
 ---
 
-## 2026-10-19 1020 第 2 批（A、F (1)–(4)、(6)）：小欣页一个聊天窗口，check-in 对话化，规则组小欣聊天（分支 `claude/zealous-fermat-8rgqtg-batch2`，未推、未开 PR）
+## 2026-10-19 1020 第 2 批（A、F (1)–(4)、(6)）：小欣页一个聊天窗口，check-in 对话化，规则组小欣聊天（分支 `claude/zealous-fermat-8rgqtg-batch2`，PR #128 草稿）
 
 - 结论：开关 `checkInChatV2Enabled` 开时，两组撳小欣都进同一个聊天窗口；当天未做 check-in 就自动按 Q0–Q6 一问一答，问题和按钮两组一样，不由 LLM 写；规则组回应全部来自模板（零 LLM 调用），Hybrid 组两句回应由 LLM 写。开关关时旧页面一字不变。
 - 新页 `siu_yan_chat_page.dart`；文字 `check_in_chat_copy.dart`（照 `docs/spec/copy/check-in-chat.md`）；规则组聊天池 `siu_yan_rule_chat_pool.dart`；记录 `check_in_response_store.dart`。`CheckInPage` 按开关选新页或旧 `ArmGate`。
