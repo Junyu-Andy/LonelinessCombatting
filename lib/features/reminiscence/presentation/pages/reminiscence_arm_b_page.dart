@@ -284,8 +284,8 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
                 decoration: InputDecoration(
                   border: const OutlineInputBorder(),
                   hintText: isEn
-                      ? 'Write whatever you remember, or tap the mic to speak.'
-                      : '記得幾多寫幾多，或者撳咪用講嘅。',
+                      ? 'Write whatever you remember.'
+                      : '記得幾多寫幾多。',
                   alignLabelWithHint: true,
                 ),
                 textAlignVertical: TextAlignVertical.top,

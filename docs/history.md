@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-20 dev-tasks-1020d 第一节：两个 bug（回忆页提示、App 端提示词「AI 機械人」）
+
+- 1020d 第三版存进 `docs/dev-tasks/dev-tasks-1020d.md`。第一节两个 bug 不设开关，单独一个小 PR，从 main 开。
+- 回忆页两组的输入框提示改为「記得幾多寫幾多。」，英文提示同步去掉讲话的半句。
+- App 端 8 处中文提示词「AI 機械人」改为「電腦程式夥伴」，每处加一条「唔好用「AI」「模型」「機械人」呢啲字」，和 #118 的服务器提示词、#126 的建议页新版一致。
+- 回忆 v2（第二节起）另由两个分支做（App、服务器），合在一个 PR。
+
 ## 2026-10-19 W0 现场第三批（Junyu 定）：只认 App 字號、Brief PR 卡上首页、记忆页分组、资料卡和热线卡缩小（PR 草稿，分支 `feat/1019-ui-round3`，接 #122）
 
 - 两个开关默认关：`appFontScaleOnlyEnabled`（`app.dart` 只用 `settings.fontScale`，不乘系统 textScaler）、`briefPrHomeBannerEnabled`（`today_page.dart` 问候语下面放同一个 `BriefPrCardHost`，调度规则不变）。

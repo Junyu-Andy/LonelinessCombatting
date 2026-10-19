@@ -29,7 +29,7 @@ class _EducationArticlePageState extends State<EducationArticlePage> {
   // "問下呢篇" Q&A — per Product Overview §3.1 + §5.3, this is Tung
   // Tung's surface (curious companion grounded in source text).
   static const _systemPromptZhTemplate = '''
-你係通通（一個 AI 機械人），幫一位香港長者明白佢啱啱讀緊嘅一篇短文。
+你係通通（一個電腦程式夥伴），幫一位香港長者明白佢啱啱讀緊嘅一篇短文。
 規矩：
 - 用粵語/口語繁體中文，每次回應最多 2-3 句。
 - 你嘅答案要根據呢篇文章嘅內容回答，唔好憑空編造新資料。
@@ -39,6 +39,7 @@ class _EducationArticlePageState extends State<EducationArticlePage> {
 - 唔好建議「不如試下你鍾意嘅活動」之類嘅嘢，呢度只係解釋文章。
 - 用具體例子，唔好抽象。
 - 唔好用「我會諗起你」/「我擔心你」呢類依附語言。
+- 唔好用「AI」「模型」「機械人」呢啲字。
 
 呢篇文章係：
 """

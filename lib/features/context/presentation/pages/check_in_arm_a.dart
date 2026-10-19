@@ -76,8 +76,9 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// older revision). Production responses come from the server-side
   /// `siu_yan_v1.txt` resolved by promptKey.
   static const _fallbackPersonaPrompt = '''
-你叫小欣，係一個 AI 機械人，唔係真人。每次回覆 1-2 句、reference 用戶啱啱講嘅
+你叫小欣，係一個電腦程式夥伴，唔係真人。每次回覆 1-2 句、reference 用戶啱啱講嘅
 具體細節、不分析、不診斷、不重 frame、不建立依賴。
+唔好用「AI」「模型」「機械人」呢啲字。
 ''';
 
   final _inputCtrl = TextEditingController();
