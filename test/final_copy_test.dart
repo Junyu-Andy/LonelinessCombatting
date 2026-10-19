@@ -249,9 +249,22 @@ void main() {
       expect(HomeV2Copy.goTalk, rows['D4']![2]);
       expect(HomeV2Copy.w4Template, rows['W4']![2]);
       expect(HomeV2Copy.w5Template, rows['W5']![2]);
+      expect(HomeV2Copy.w5Asap, rows['W5a']![2]);
+      expect(HomeV2Copy.w5Tomorrow, rows['W5b']![2]);
+      expect(HomeV2Copy.w5Tonight, rows['W5c']![2]);
+      expect(HomeV2Copy.w5BeforeVisit, rows['W5d']![2]);
       expect(HomeV2Copy.w4(DateTime(2026, 10, 25)),
           '下次問卷：10月25日（星期日）開，開咗之後三日內答都得。');
-      expect(HomeV2Copy.w5(2), '問卷開咗，仲有 2 日。');
+      expect(HomeV2Copy.w5(HomeV2Copy.w5Tomorrow), '問卷開咗，聽日截止。');
+    });
+
+    test('1020e 二.12: the five face words F1–F5 = check-in Q1 words', () {
+      for (var m = 1; m <= 5; m++) {
+        expect(MoodRowCopy.faceLabel(m), rows['F$m']![2], reason: 'F$m');
+        expect(rows['F$m']![1], startsWith('$m '));
+      }
+      expect([for (var m = 5; m >= 1; m--) MoodRowCopy.faceLabel(m)],
+          [for (final o in CheckInChatCopy.q1Options.take(5)) o.label]);
     });
   });
 }

@@ -19,7 +19,9 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../../core/feature_flags/remote_feature_flags.dart';
+import '../../../../core/session/session_entry_surface.dart';
 import '../../../brief_pr/presentation/widgets/brief_pr_card_host.dart';
+import '../../../today/presentation/home_v2_scope.dart';
 import '../../../today/presentation/widgets/agent_tile_row.dart';
 import '../../../today/presentation/widgets/continue_chat_card.dart';
 import '../../../today/presentation/widgets/week1_nudge_banner.dart';
@@ -32,7 +34,7 @@ class TalkPage extends StatelessWidget {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     final v2 = RemoteFeatureFlags.current.homeLayoutV2Enabled;
-    return SafeArea(
+    final page = SafeArea(
       child: ListView(
         key: v2 ? const ValueKey('talk_v2') : null,
         padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
@@ -60,5 +62,9 @@ class TalkPage extends StatelessWidget {
         ],
       ),
     );
+    // 1020e 一.(9): sessions opened from here record entrySurface `page2`.
+    return v2
+        ? HomeSurfaceScope(surface: SessionEntrySurface.page2, child: page)
+        : page;
   }
 }

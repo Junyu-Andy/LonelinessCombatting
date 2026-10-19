@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 
+import '../../../core/session/session_entry_surface.dart';
 import '../../context/presentation/pages/check_in_page.dart';
 import '../../context/presentation/pages/siu_yan_chat_page.dart';
 import '../../weekly_bundle/data/weekly_bundle.dart';
@@ -73,4 +74,33 @@ class HomeV2Refresh {
 
 class _Notifier extends ChangeNotifier {
   void bump() => notifyListeners();
+}
+
+/// 1020e 一.(9) — marks which home page a widget sits on (page 1 「睇今日」
+/// or page 2 「搵人傾」 of the two-page layout).  [push] opens a page from
+/// there with [SessionEntrySurface] set, so a session started in it
+/// records `entrySurface`.  Absent (old layout, other pages): plain push,
+/// nothing recorded.
+class HomeSurfaceScope extends InheritedWidget {
+  const HomeSurfaceScope({
+    super.key,
+    required this.surface,
+    required super.child,
+  });
+
+  /// [SessionEntrySurface.page1] or [SessionEntrySurface.page2].
+  final String surface;
+
+  static String? of(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<HomeSurfaceScope>()?.surface;
+
+  /// `Navigator.push` from a home page, with the page recorded.
+  static Future<T?> push<T>(BuildContext context, Route<T> route) {
+    final nav = Navigator.of(context);
+    return SessionEntrySurface.during<T>(of(context), () => nav.push(route));
+  }
+
+  @override
+  bool updateShouldNotify(HomeSurfaceScope oldWidget) =>
+      surface != oldWidget.surface;
 }

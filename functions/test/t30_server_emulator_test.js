@@ -153,7 +153,8 @@ async function seedProcessParticipants() {
       sessionId: "s1", agentId: "siu_yan", moduleId: "check_in",
       startedAt: new Date("2026-11-03T02:00:00Z"),
       endedAt: new Date("2026-11-03T02:10:00Z"), isValid: true,
-      scheduleVersion: 2, userMessageCount: 4, replyCount: 4});
+      scheduleVersion: 2, userMessageCount: 4, replyCount: 4,
+      entrySurface: "page1"});
     await u.collection("sessions").doc("s2").set({participantId: uid,
       sessionId: "s2", agentId: "tung_tung", moduleId: "free_chat",
       startedAt: new Date("2026-11-04T02:00:00Z"), isValid: false});
@@ -212,6 +213,10 @@ test("process export: research ID + real arm, T25 fields, sources; no " +
     validSessionCount: 1, activeDays: 2});
   assert.strictEqual(f.sessions.length, 4);
   assert.strictEqual(f.sessions[0].participantId, undefined);
+  // 1020e 一.(9): entrySurface is exported (page1 / page2 / missing).
+  assert.deepStrictEqual(
+      f.sessions.filter((r) => r.sessionId === "s1")
+          .map((r) => r.entrySurface), ["page1", "page1"]);
   const se = f.safety_events;
   assert.strictEqual(se.length, 2);
   const hy = se.find((r) => r.researchId === "PB-101");

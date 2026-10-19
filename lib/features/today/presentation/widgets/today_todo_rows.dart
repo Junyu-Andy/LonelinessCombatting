@@ -2,11 +2,13 @@
 /// 「去搵人傾」 button (`homeLayoutV2Enabled`).  Both arms identical.
 ///
 ///   (a) [CheckInTodoRow]   — every day; opens 小欣 and starts today's
-///       check-in; a tick when done; after 3 days without one the old
-///       「幾日冇見你」 banner's words sit under it (no separate banner).
+///       check-in; a tick when done (still opens 小欣's chat, 1020e 一.(6));
+///       after 3 days without one the old 「幾日冇見你」 banner's words sit
+///       under it (no separate banner).
 ///   (b) Brief PR invitation — the existing BriefPrCardHost (TodayPage).
 ///   (c) [QuestionnaireTodoRow] — W5 while a weekly questionnaire is open
-///       (days left), else W4 (the next opening day by study week).
+///       (請盡快回答 / 聽日截止 / 今晚截止; week 4 記得喺見面之前答埋佢 —
+///       1020e), else W4 (the next opening day by study week).
 ///   (d) the action-plan follow-up — the existing ActivePlanBanner.
 library;
 
@@ -213,9 +215,11 @@ class _CheckInTodoRowState extends State<CheckInTodoRow>
   }
 
   Future<void> _open() async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (ctx) => HomeV2Scope.buildCheckIn(ctx),
-    ));
+    await HomeSurfaceScope.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (ctx) => HomeV2Scope.buildCheckIn(ctx),
+        ));
     HomeV2Refresh.bump();
   }
 
@@ -232,7 +236,9 @@ class _CheckInTodoRowState extends State<CheckInTodoRow>
       title: HomeV2Copy.checkInRow,
       subtitle: missed ? HomeV2Copy.checkInMissed : null,
       done: _done,
-      onTap: _done ? null : _open,
+      // 1020e 一.(6): still tappable when done — 小欣's chat then opens
+      // with SY0 (rule arm) or the LLM opener (batch 2's done-today path).
+      onTap: _open,
     );
   }
 }
@@ -241,30 +247,65 @@ class _CheckInTodoRowState extends State<CheckInTodoRow>
 // (c) weekly questionnaire — G (2)
 // ---------------------------------------------------------------------------
 
+/// How an open questionnaire is worded (1020e 二.1 (5), 二.2 (4)).
+enum QuestionnaireOpenState {
+  /// W5a 請盡快回答 — the window's first day (and any day before the day
+  /// before the last).
+  asap,
+
+  /// W5b 聽日截止 — the day before the window's last day.
+  tomorrow,
+
+  /// W5c 今晚截止 — the window's last day.
+  tonight,
+
+  /// W5d 記得喺見面之前答埋佢 — week 4 (closes after the W4 visit).
+  beforeVisit,
+}
+
 /// What the questionnaire row shows: W5 for an open bundle not yet done
 /// ([due] set), else W4 for the next opening ([opensOn]).
 class QuestionnaireRowInfo {
-  const QuestionnaireRowInfo.open(WeeklyBundleDue this.due, int this.daysLeft)
+  const QuestionnaireRowInfo.open(
+      WeeklyBundleDue this.due, QuestionnaireOpenState this.state)
       : opensOn = null;
   const QuestionnaireRowInfo.upcoming(DateTime this.opensOn)
       : due = null,
-        daysLeft = null;
+        state = null;
 
   final WeeklyBundleDue? due;
-  final int? daysLeft;
+  final QuestionnaireOpenState? state;
   final DateTime? opensOn;
 
   bool get isOpen => due != null;
 
-  String get text => isOpen ? HomeV2Copy.w5(daysLeft!) : HomeV2Copy.w4(opensOn!);
+  String get text => switch (state) {
+        null => HomeV2Copy.w4(opensOn!),
+        QuestionnaireOpenState.asap => HomeV2Copy.w5(HomeV2Copy.w5Asap),
+        QuestionnaireOpenState.tomorrow =>
+          HomeV2Copy.w5(HomeV2Copy.w5Tomorrow),
+        QuestionnaireOpenState.tonight => HomeV2Copy.w5(HomeV2Copy.w5Tonight),
+        QuestionnaireOpenState.beforeVisit =>
+          HomeV2Copy.w5(HomeV2Copy.w5BeforeVisit),
+      };
 
-  /// Whole days (24 h) still left in [window] at [now], at least 1 while
-  /// open: 20:00 on the opening day → 3 for a 3-day window, the last
-  /// morning → 1.
-  static int daysLeftIn(WeeklyWindow window, DateTime now) {
-    final minutes = window.close.difference(now).inMinutes;
-    final days = (minutes / (24 * 60)).ceil();
-    return days < 1 ? 1 : days;
+  /// From the window the App's schedule gives (no day numbers here, so a
+  /// moved window — batch 4's day 7 00:00 – day 9 23:59, the week-4 close
+  /// at the W4 visit — words itself): week 4 → [beforeVisit]; else by the
+  /// calendar day of the window's last instant: that day → [tonight], the
+  /// day before → [tomorrow], earlier → [asap].
+  static QuestionnaireOpenState openState(
+      WeeklyBundle bundle, WeeklyWindow window, DateTime now) {
+    if (bundle.closeRule == WeeklyCloseRule.week4) {
+      return QuestionnaireOpenState.beforeVisit;
+    }
+    final last = window.close.subtract(const Duration(microseconds: 1));
+    final lastDay = DateTime.utc(last.year, last.month, last.day);
+    final today = DateTime.utc(now.year, now.month, now.day);
+    final daysToLast = lastDay.difference(today).inDays;
+    if (daysToLast <= 0) return QuestionnaireOpenState.tonight;
+    if (daysToLast == 1) return QuestionnaireOpenState.tomorrow;
+    return QuestionnaireOpenState.asap;
   }
 
   /// The first bundle whose window opens after [now], or null (after W7).
@@ -298,7 +339,8 @@ class QuestionnaireRowInfo {
       final due = WeeklyBundleDue(
           bundle: open.bundle, window: open.window, status: status);
       if (!due.allDone) {
-        return QuestionnaireRowInfo.open(due, daysLeftIn(open.window, now));
+        return QuestionnaireRowInfo.open(
+            due, openState(open.bundle, open.window, now));
       }
     }
     final next = nextBundle(cfg, mode, w0, now);

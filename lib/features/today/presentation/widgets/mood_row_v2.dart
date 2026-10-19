@@ -280,9 +280,11 @@ class _MoodRowV2State extends State<MoodRowV2> with WidgetsBindingObserver {
       'opener_id': entry.openerId,
       'copy_version': MoodRowCopy.version,
     }));
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (ctx) => HomeV2Scope.buildMoodChat(ctx, entry),
-    ));
+    await HomeSurfaceScope.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (ctx) => HomeV2Scope.buildMoodChat(ctx, entry),
+        ));
     HomeV2Refresh.bump();
   }
 
@@ -433,7 +435,7 @@ class _MoodRowV2State extends State<MoodRowV2> with WidgetsBindingObserver {
   }
 }
 
-/// The five faces, 1 好差 … 5 好好 left to right (as the old pad).
+/// The five faces, 1 好唔開心 … 5 好開心 left to right (1020e 二.12).
 class _Faces extends StatelessWidget {
   const _Faces({required this.selected, required this.onPick});
   final int? selected;
@@ -465,7 +467,7 @@ class _Face extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final face = MoodRowCopy.faceFor(rank);
-    final label = face.label(false);
+    final label = MoodRowCopy.faceLabel(rank);
     return Semantics(
       button: true,
       selected: selected,

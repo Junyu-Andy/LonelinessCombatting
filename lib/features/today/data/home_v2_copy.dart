@@ -1,7 +1,7 @@
 /// 1020 D / G (2) — the fixed words of page 1 「睇今日」 in the two-page
 /// layout (`app_config/feature_flags.homeLayoutV2Enabled`): the
 /// 「今日要做嘅事」 rows, the 「去搵人傾」 button and the questionnaire row
-/// (W4 / W5, 1020b §4 5.5).
+/// (W4, 1020b §4 5.5; W5 by day, 1020e 二.1 (5), 二.2 (4)).
 ///
 /// Drafts (1020b common rule 4), verbatim from `docs/spec/copy/home-v2.md`
 /// (test/final_copy_test.dart).  D1–D4 are the development window's
@@ -12,7 +12,7 @@ library;
 class HomeV2Copy {
   HomeV2Copy._();
 
-  static const String version = '1020-D-1020b-5.5-20261020-draft';
+  static const String version = '1020-D-1020b-5.5-1020e-20261020-draft';
 
   /// D1 — the heading over the to-do rows (1020 D (3)).
   static const String todoTitle = '今日要做嘅事';
@@ -30,8 +30,21 @@ class HomeV2Copy {
   /// W4 — not open: `下次問卷：{10月26日（星期日）}開，開咗之後三日內答都得。`
   static const String w4Template = '下次問卷：{10月26日（星期日）}開，開咗之後三日內答都得。';
 
-  /// W5 — open: `問卷開咗，仲有 {N} 日。`
-  static const String w5Template = '問卷開咗，仲有 {N} 日。';
+  /// W5 — open: `問卷開咗，{狀態}。` (1020e: no 「仲有 N 日」 any more).
+  static const String w5Template = '問卷開咗，{狀態}。';
+
+  /// W5a — open, weeks 1–3 / 5–7, before the day before the last day
+  /// (the window's first day).
+  static const String w5Asap = '請盡快回答';
+
+  /// W5b — open, the day before the window's last day.
+  static const String w5Tomorrow = '聽日截止';
+
+  /// W5c — open, the window's last day.
+  static const String w5Tonight = '今晚截止';
+
+  /// W5d — open, week 4 (closes after the W4 visit): no deadline.
+  static const String w5BeforeVisit = '記得喺見面之前答埋佢';
 
   static const _weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 
@@ -42,6 +55,5 @@ class HomeV2Copy {
   static String w4(DateTime opensOn) =>
       w4Template.replaceFirst('{10月26日（星期日）}', dateLabel(opensOn));
 
-  static String w5(int daysLeft) =>
-      w5Template.replaceFirst('{N}', '$daysLeft');
+  static String w5(String state) => w5Template.replaceFirst('{狀態}', state);
 }

@@ -102,6 +102,8 @@ import 'package:app_demo/features/today/presentation/pages/today_page.dart';
 import 'package:app_demo/features/today/presentation/widgets/mood_row_v2.dart';
 import 'package:app_demo/features/talk/presentation/pages/talk_page.dart';
 import 'package:app_demo/features/me/presentation/pages/me_page.dart';
+import 'package:app_demo/features/progress/data/progress_data.dart';
+import 'package:app_demo/features/progress/presentation/pages/progress_page.dart';
 import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
 import 'package:app_demo/features/today/presentation/widgets/agent_tile_row.dart';
 import 'package:app_demo/features/today/presentation/widgets/facts_recap_row.dart';
@@ -636,8 +638,8 @@ final _flows = <String, _Flow>{
         await c.tester.pumpAndSettle();
         expect(find.text(MoodRowCopy.m8), findsOneWidget);
         await c.shot('home_v2_page1_m8');
-        await _scrollInto(c, find.text('問卷開咗，仲有 3 日。'));
-        expect(find.text('問卷開咗，仲有 3 日。'), findsOneWidget);
+        await _scrollInto(c, find.text('問卷開咗，請盡快回答。'));
+        expect(find.text('問卷開咗，請盡快回答。'), findsOneWidget);
         await c.shot('home_v2_page1_todo');
         await _scrollTap(c, find.byKey(const Key('safety_footer_call_18111')));
         await c.shot('home_v2_page1_bottom');
@@ -656,6 +658,30 @@ final _flows = <String, _Flow>{
         await _pumpHome(c, const Scaffold(body: TalkPage()));
         expect(find.byKey(const ValueKey('talk_v2')), findsOneWidget);
         await c.shot('home_v2_page2');
+      }),
+  '你嘅一個禮拜（1020e 二.11 每日心情图）': (c) => _withHomeV2(() async {
+        await _pushPage(
+            c,
+            ProgressPage(
+              preset: WeeklyProgress(
+                moodScores: const [4, 2],
+                contactDays: 1,
+                plansAuthored: 1,
+                plansFollowedUp: 0,
+                reminiscenceSessions: 0,
+                moodFromDailyMood: true,
+                dailyMoods: const [null, 2, 4, null, 5, 1, 3],
+                dailyMoodDays:
+                    ProgressRepository.lastSevenDays(DateTime(2026, 10, 20)),
+                checkInCount: 2,
+              ),
+            ));
+        await c.tester.pump(const Duration(seconds: 1));
+        await c.tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('progress_daily_mood_chart')),
+            findsOneWidget);
+        await c.shot('home_v2_progress_chart');
+        await _back(c);
       }),
   '做啲嘢（工具图，1020 batch 3）': (c) => _withHomeV2(() async {
         await _pumpHome(c, const Scaffold(body: MePage()));

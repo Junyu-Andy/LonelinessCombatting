@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-20 1020 第 3 批跟进 1020e：check-in 一行做完可撳、问卷一行按日子写、表情字统一、心情图读 daily_mood、会话记 entrySurface（同一分支，PR #133 草稿）
+
+- 结论：Junyu 10/20 对第 3 批的回复（1020e 一.(6)(9)、二.1 (5)、2 (4)、11、12）全部做完，都在原来两个开关后面。第 6 项（第 2 批改 v3 后重做 v4）等协调窗口通知。
+- `entrySurface`：新文件 `lib/core/session/session_entry_surface.dart`；`HomeSurfaceScope`（`home_v2_scope.dart`）包住第一、二页，从那里打开的页面里开始的会话（聊天和工具）写 `sessions.entrySurface`；只在 `homeLayoutV2Enabled` 开时写；`functions/process_export.js` 导出。
+- 问卷一行：`QuestionnaireOpenState` 从排程给的窗口算（最后一天／前一天／更早；第 4 周按 `WeeklyCloseRule.week4`），不写死第几天。
+- 心情图：`ProgressRepository.lastMoodPerDay`、`progress_page.dart` 的七格图；`facts_recap_row.dart` 在两页版面下进「你嘅一個禮拜」。
+- 测试、截图、报告第 0 节已更新；Flutter 六套、相关 Functions 测试通过。
+
 ## 2026-10-20 1020 第 3 批（D、E、G (2)）：首页分两页、心情一行不弹窗、M7／M8 进小欣聊天、问卷一行、做啲嘢工具图（分支 `claude/zealous-fermat-8rgqtg-batch3`，PR 草稿）
 
 - 结论：两个新开关 `homeLayoutV2Enabled`、`moodRowV2Enabled` 默认关，关时一切照旧。开时第一页「睇今日」只放今天的事（问候、心情一行、「今日要做嘅事」、「去搵人傾」、本周小结、危机卡），第二页「搵人傾」放邀请卡、继续聊天卡、第一周提示和三位伙伴；心情一行没有任何弹窗；M7／M8 进小欣聊天，规则组用 O／C 模板开场（零 LLM），Hybrid 组 LLM 开场（新提示词 `siu_yan.v4`）。

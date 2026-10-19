@@ -27,6 +27,7 @@
 > 2026-10-19 测试员免打包解锁、每週問卷測試页、Brief PR 横排、注册跳错处、人生回顧去锁、隐藏保留对话开关 PR 草稿；待定：两份决策编号；「保留對話紀錄」不开放要 Junyu 确认并改 ICF（若写了 App 内可关）；要用测试员工具时在控制台开 `testerToolsEnabled`。
 > 2026-10-19 1020 第 2 批（A、F (1)–(4)、(6)）小欣页 check-in 对话化 + 规则组小欣聊天，分支 `claude/zealous-fermat-8rgqtg-batch2`（开关 `checkInChatV2Enabled` 默认关）；待定：决策编号；1020b 第四节全部文字和 `siu_yan.v3` 提示词措辞（Junyu 看截图定）；Hybrid 唔講住用 R4b 固定句、acute 后 check-in 停止、规则组聊天命中 moderate_review 时没有任何回应句，三点要 Junyu 确认；首页周小结图的心情改由 Q1 分数顶上（以后改读 `daily_mood`）；过程数据导出加 `sessions.checkInCompleted`；`homeMoodOpensCheckInEnabled` 仍直开旧页面（第 3 批处理）；开开关前先部署 Functions。
 > 2026-10-20 1020 第 3 批（D、E、G (2)）首页两页、心情一行、M7／M8 开场、问卷一行、做啲嘢工具图，分支 `claude/zealous-fermat-8rgqtg-batch3`（开关 `homeLayoutV2Enabled`、`moodRowV2Enabled` 默认关）；待定：决策编号；5.1、5.2、5.5 和 D1–D4 文字、`siu_yan.v4` 新一节措辞（Junyu 看截图定）；表情下的字（好好…好差）要不要改成 Q1 说法；W5 天数算法；M8 出现后当天不再出 M7；`homeMoodOpensCheckInEnabled`、`briefPrHomeBannerEnabled` 是否永久关（1020b 第二节建议）；以后：会话记录从第一页还是第二页开始（1020 第 1 节 (4) 只能按现有数据推算），开 PR 前再定要不要加字段。
+> 2026-10-20 1020 第 3 批跟进 1020e（同一分支）：check-in 一行做完可撳、问卷一行按日子写、表情字统一、心情图读 `daily_mood`、`sessions.entrySurface` 已做；待定：问卷一行外面「問卷開咗，……。」半句、「今個星期」一行作为「你嘅一個禮拜」的新入口、决策编号统一编；待做：第 2 批改 v3 后重做 `siu_yan.v4`（等通知）、`tool/analysis_export.js` 要不要加 `entrySurface`。
 
 ## 1. 已决定、待开发
 

@@ -63,6 +63,9 @@ const PROCESS_COLLECTIONS = {
     "isRuleSubmission", "ruleSubmissionCompleted",
     "briefPrInvitedTodayAlready", "briefPrSkippedByCap", "briefPrInvited",
     "briefPrStatus",
+    // 1020e 一.(9): the home page the session was started from (page1 /
+    // page2 / null), for expired invitations by start page (1020 §1 (4)).
+    "entrySurface",
   ],
 };
 

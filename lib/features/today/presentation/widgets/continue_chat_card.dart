@@ -7,6 +7,7 @@ import '../../../context/presentation/pages/check_in_page.dart';
 import '../../../curious_companion/presentation/pages/tung_tung_page.dart';
 import '../../../my_story/data/my_story_progress.dart';
 import '../../../reminiscence/presentation/pages/reminiscence_landing.dart';
+import '../home_v2_scope.dart';
 
 /// Home Layout Spec §3 — single "continue chatting" suggestion bar.
 ///
@@ -134,7 +135,9 @@ class _ContinueChatCardState extends State<ContinueChatCard> {
       default:
         destination = const CheckInPage();
     }
-    Navigator.of(context).push(
+    // 1020e 一.(9): on page 2 the session records entrySurface `page2`.
+    HomeSurfaceScope.push(
+      context,
       MaterialPageRoute<void>(builder: (_) => destination),
     );
   }

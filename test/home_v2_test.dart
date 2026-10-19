@@ -23,6 +23,10 @@ import 'package:app_demo/core/feature_flags/feature_flags.dart';
 import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
 import 'package:app_demo/core/scheduling/weekly_schedule.dart';
 import 'package:app_demo/core/session/chat_session_recorder.dart';
+import 'package:app_demo/core/session/session_entry_surface.dart';
+import 'package:app_demo/features/analytics/data/analytics_service.dart';
+import 'package:app_demo/features/progress/data/progress_data.dart';
+import 'package:app_demo/features/progress/presentation/pages/progress_page.dart';
 import 'package:app_demo/features/adherence/presentation/widgets/missed_checkin_banner.dart';
 import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:app_demo/features/brief_pr/data/brief_pr_store.dart';
@@ -109,6 +113,7 @@ void main() {
     MoodRowV2.resetForTest();
     DailyMoodPrompt.resetForTest();
     ChatSessionRecorder.resetProcessStateForTest();
+    SessionEntrySurface.resetForTest();
   });
 
   tearDown(() {
@@ -176,15 +181,46 @@ void main() {
       expect((await at(DateTime(2026, 10, 21, 19, 59)))!.isOpen, isFalse);
     });
 
-    test('open: W5 with whole days left (3 → 1), never 0', () async {
+    test('1020e: open, by day from the window (today\'s T24 window '
+        '10/21 20:00 – 10/24 20:00): 請盡快回答 → 聽日截止 → 今晚截止; '
+        'never a day count', () async {
       expect((await at(DateTime(2026, 10, 21, 20, 30)))!.text,
-          '問卷開咗，仲有 3 日。');
+          '問卷開咗，請盡快回答。');
       expect((await at(DateTime(2026, 10, 22, 21, 0)))!.text,
-          '問卷開咗，仲有 2 日。');
+          '問卷開咗，請盡快回答。');
+      expect((await at(DateTime(2026, 10, 23, 9, 0)))!.text,
+          '問卷開咗，聽日截止。');
       expect((await at(DateTime(2026, 10, 24, 8, 0)))!.text,
-          '問卷開咗，仲有 1 日。');
+          '問卷開咗，今晚截止。');
       expect((await at(DateTime(2026, 10, 24, 19, 59)))!.text,
-          '問卷開咗，仲有 1 日。');
+          '問卷開咗，今晚截止。');
+      for (final d in [21, 22, 23, 24]) {
+        expect((await at(DateTime(2026, 10, d, 21)))?.text ?? '',
+            isNot(contains('仲有')));
+      }
+    });
+
+    test('1020e: a moved window (batch 4: day 7 00:00 – day 9 23:59) words '
+        'itself from its dates — no day numbers in the row', () {
+      final w1 = WeeklySchedule.bundlesFor(cfg, WeeklyScheduleMode.standard)
+          .first;
+      final window = WeeklyWindow(
+          DateTime(2026, 10, 21), DateTime(2026, 10, 24)); // [d7, d10)
+      QuestionnaireOpenState at(int day, int hour) =>
+          QuestionnaireRowInfo.openState(
+              w1, window, DateTime(2026, 10, day, hour));
+      expect(at(21, 0), QuestionnaireOpenState.asap);
+      expect(at(21, 23), QuestionnaireOpenState.asap);
+      expect(at(22, 10), QuestionnaireOpenState.tomorrow);
+      expect(at(23, 10), QuestionnaireOpenState.tonight);
+      expect(at(23, 23), QuestionnaireOpenState.tonight);
+      // A two-day window: the first day is already 聽日截止.
+      expect(
+          QuestionnaireRowInfo.openState(
+              w1,
+              WeeklyWindow(DateTime(2026, 10, 21), DateTime(2026, 10, 23)),
+              DateTime(2026, 10, 21, 9)),
+          QuestionnaireOpenState.tomorrow);
     });
 
     test('open but all done: W4 for the next one', () async {
@@ -192,10 +228,24 @@ void main() {
           '下次問卷：10月28日（星期三）開，開咗之後三日內答都得。');
     });
 
-    test('W4 week (day 26 → end of day 29): 4 days, then 1', () async {
-      expect((await at(DateTime(2026, 11, 9, 20, 30)))!.text,
-          '問卷開咗，仲有 4 日。');
-      expect((await at(DateTime(2026, 11, 12, 9)))!.text, '問卷開咗，仲有 1 日。');
+    test('1020e: week 4 says 記得喺見面之前答埋佢 every open day (closes '
+        'after the visit), whatever its window', () async {
+      for (final d in [
+        DateTime(2026, 11, 9, 20, 30),
+        DateTime(2026, 11, 11, 9),
+        DateTime(2026, 11, 12, 22),
+      ]) {
+        expect((await at(d))!.text, '問卷開咗，記得喺見面之前答埋佢。', reason: '$d');
+      }
+      final w4 = WeeklySchedule.bundlesFor(cfg, WeeklyScheduleMode.standard)
+          .firstWhere((b) => b.closeRule == WeeklyCloseRule.week4);
+      expect(
+          QuestionnaireRowInfo.openState(
+              w4,
+              WeeklyWindow(DateTime(2026, 11, 9), DateTime(2026, 11, 26)),
+              DateTime(2026, 11, 25, 9)),
+          QuestionnaireOpenState.beforeVisit,
+          reason: 'batch 4: closes at the W4 record or day 42');
     });
 
     test('after the last one (W7): nothing', () async {
@@ -343,17 +393,30 @@ void main() {
       }
     });
 
-    testWidgets('done: a tick, not tappable; no 3-day line', (tester) async {
-      final run = HomeRun(testableArms.first)
-        ..checkedIn = true
-        ..daysSince = 0;
-      await pumpHome(tester, run, const MainShell());
-      final row = find.byKey(const ValueKey('today_todo_check_in'));
-      expect(find.descendant(
-              of: row, matching: find.byIcon(Icons.check_circle_rounded)),
-          findsOneWidget);
-      expect(tester.widget<TodoRowTile>(row).onTap, isNull);
-      expect(find.text(HomeV2Copy.checkInMissed), findsNothing);
+    testWidgets('1020e 一.(6): done: a tick, still tappable → 小欣 chat '
+        '(rule arm SY0, Hybrid LLM opener), no check-in; no 3-day line',
+        (tester) async {
+      for (final arm in testableArms) {
+        ChatSessionRecorder.resetProcessStateForTest();
+        final run = HomeRun(arm)
+          ..checkedIn = true
+          ..daysSince = 0;
+        await pumpHome(tester, run, const MainShell());
+        final row = find.byKey(const ValueKey('today_todo_check_in'));
+        expect(find.descendant(
+                of: row, matching: find.byIcon(Icons.check_circle_rounded)),
+            findsOneWidget);
+        expect(tester.widget<TodoRowTile>(row).onTap, isNotNull);
+        expect(find.text(HomeV2Copy.checkInMissed), findsNothing);
+        await tester.tap(row);
+        await settle(tester);
+        expect(find.byType(SiuYanChatPage), findsOneWidget);
+        expect(says(CheckInChatCopy.q1), findsNothing);
+        expect(says(run.rule ? CheckInChatCopy.sy0 : FakeLlm.opener),
+            findsOneWidget);
+        if (run.rule) expect(run.llm.calls, isEmpty);
+        await tester.pumpWidget(const SizedBox());
+      }
     });
 
     testWidgets('3 days without a check-in: the reminder is in the row, no '
@@ -470,6 +533,149 @@ void main() {
       expect(_inPage(TodayPage, find.byType(BriefPrCardHost)), findsOneWidget);
       expect(_inPage(TodayPage, find.byType(BriefPrInviteCard)),
           findsOneWidget);
+    });
+  });
+
+  group('1020e 一.(9): sessions record entrySurface (page1 / page2)', () {
+    List<Map<String, dynamic>> starts(HomeRun run) =>
+        run.analytics.named(PhaseAEvents.sessionStart);
+
+    test('the recorder copies the mark at start; the sessions row has the '
+        'field only with the two-page layout on', () async {
+      ChatSessionRecorder rec() => ChatSessionRecorder(
+            uid: 'u1',
+            agentId: 'tung_tung',
+            moduleId: 'tung_tung_chat',
+            analytics: AnalyticsService(firebaseReady: false),
+            available: false,
+          );
+      final outside = rec();
+      await outside.ensureStarted();
+      expect(outside.entrySurface, isNull);
+      expect(outside.debugStartDoc().containsKey('entrySurface'), isTrue);
+      expect(outside.debugStartDoc()['entrySurface'], isNull);
+      late ChatSessionRecorder inside;
+      await SessionEntrySurface.during<void>(SessionEntrySurface.page2,
+          () async {
+        inside = rec();
+        await inside.ensureStarted();
+      });
+      expect(inside.entrySurface, 'page2');
+      expect(inside.debugStartDoc()['entrySurface'], 'page2');
+      expect(SessionEntrySurface.current, isNull, reason: 'restored');
+      RemoteFeatureFlags.current = const RemoteFeatureFlags();
+      expect(inside.debugStartDoc().containsKey('entrySurface'), isFalse,
+          reason: 'switch off: rows as before');
+      outside.dispose();
+      inside.dispose();
+    });
+
+    for (final arm in testableArms) {
+      final tag = arm == ArmAssignment.a ? 'Hybrid' : 'rule arm';
+
+      testWidgets('$tag: page-1 check-in row → session page1; page-2 小欣 '
+          'tile → page2; nothing marked after leaving', (tester) async {
+        final run = HomeRun(arm);
+        await pumpHome(tester, run, const MainShell());
+        await tester.tap(find.byKey(const ValueKey('today_todo_check_in')));
+        await settle(tester);
+        expect(SessionEntrySurface.current, 'page1');
+        await _answer(tester, 'Q1', 'good');
+        expect(starts(run).single['entrySurface'], 'page1');
+        await tester.tap(find.text('今日傾到呢度'));
+        await settle(tester);
+        expect(SessionEntrySurface.current, isNull);
+
+        await tester.tap(find.byKey(const ValueKey('today_go_talk')));
+        await settle(tester);
+        await tester.tap(find.text('小欣').last);
+        await settle(tester);
+        expect(find.byType(SiuYanChatPage), findsOneWidget);
+        expect(SessionEntrySurface.current, 'page2');
+        await _answer(tester, 'Q1', 'so_so');
+        expect(starts(run).last['entrySurface'], 'page2');
+        if (run.rule) expect(run.llm.calls, isEmpty);
+      });
+    }
+
+    testWidgets('M7 chat from page 1 → page1', (tester) async {
+      final run = HomeRun(testableArms.last);
+      await pumpHome(tester, run, const MainShell());
+      await tester.tap(find.byKey(const ValueKey('mood_row_face_4')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('mood_row_m7')));
+      await settle(tester);
+      await _type(tester, '今朝去咗公園');
+      expect(starts(run).single['entrySurface'], 'page1');
+    });
+
+    testWidgets('layout off: no mark (old page 1 has no HomeSurfaceScope)',
+        (tester) async {
+      RemoteFeatureFlags.current =
+          const RemoteFeatureFlags(checkInChatV2Enabled: true);
+      final run = HomeRun(testableArms.first);
+      await pumpHome(tester, run, const Scaffold(body: TalkPage()));
+      await tester.tap(find.text('小欣').last);
+      await settle(tester);
+      expect(find.byType(SiuYanChatPage), findsOneWidget);
+      expect(SessionEntrySurface.current, isNull);
+    });
+  });
+
+  group('1020e 二.11: 本周小結 opens 你嘅一個禮拜', () {
+    testWidgets('the chart: one column per day, blank days have no bar and '
+        'no number', (tester) async {
+      final days = ProgressRepository.lastSevenDays(DateTime(2026, 10, 20));
+      final run = HomeRun(testableArms.first);
+      await pumpHome(
+          tester,
+          run,
+          ProgressPage(
+            preset: WeeklyProgress(
+              moodScores: const [3],
+              contactDays: 0,
+              plansAuthored: 0,
+              plansFollowedUp: 0,
+              reminiscenceSessions: 0,
+              moodFromDailyMood: true,
+              dailyMoods: const [null, 2, null, 5, null, null, 1],
+              dailyMoodDays: days,
+              checkInCount: 1,
+            ),
+          ));
+      expect(find.byKey(const ValueKey('progress_daily_mood_chart')),
+          findsOneWidget);
+      Finder inDay(int i, Finder f) =>
+          find.descendant(of: find.byKey(ValueKey('progress_day_$i')),
+              matching: f);
+      for (final i in [0, 2, 4, 5]) {
+        expect(inDay(i, find.byType(FractionallySizedBox)), findsNothing,
+            reason: 'day $i blank');
+        expect(inDay(i, find.text('3')), findsNothing, reason: 'never 3');
+        expect(inDay(i, find.text('${days[i].month}/${days[i].day}')),
+            findsOneWidget);
+      }
+      expect(inDay(1, find.text('2')), findsOneWidget);
+      expect(inDay(3, find.text('5')), findsOneWidget);
+      expect(inDay(6, find.text('1')), findsOneWidget);
+      expect(inDay(6, find.byType(FractionallySizedBox)), findsOneWidget);
+    });
+
+    testWidgets('layout on: tap the recap line → the week page (tool session '
+        'page1)', (tester) async {
+      final run = HomeRun(testableArms.first);
+      await pumpHome(tester, run, const MainShell());
+      await tester.ensureVisible(
+          find.byKey(const ValueKey('facts_recap_open_week')));
+      await tester.tap(find.byKey(const ValueKey('facts_recap_open_week')));
+      await settle(tester);
+      expect(find.byType(ProgressPage), findsOneWidget);
+      expect(
+          run.analytics
+              .named(PhaseAEvents.sessionStart)
+              .where((e) => e['toolId'] == 'progress')
+              .single['entrySurface'],
+          'page1');
     });
   });
 

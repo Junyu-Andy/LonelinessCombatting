@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/feature_flags/remote_feature_flags.dart';
+import '../../today/data/mood_recorder.dart';
+
 /// One week of dashboard inputs for M9. Read by [ProgressRepository] in
 /// a single fan-out, then handed to the view.
 class WeeklyProgress {
@@ -24,6 +27,17 @@ class WeeklyProgress {
   /// Reminiscence weekly summaries written in the last 7 days.
   final int reminiscenceSessions;
 
+  /// 1020e 二.11 (`moodRowV2Enabled`): the chart reads `daily_mood` — the
+  /// last entry of each of the last 7 days ([dailyMoodDays], oldest
+  /// first); a day without one is null and stays blank (never 3).
+  final bool moodFromDailyMood;
+  final List<int?> dailyMoods;
+  final List<DateTime> dailyMoodDays;
+
+  /// Check-ins in the last 7 days when the chart no longer counts them
+  /// ([moodFromDailyMood]); null = [moodScores] is the check-in list.
+  final int? checkInCount;
+
   const WeeklyProgress({
     required this.moodScores,
     this.moodTimes = const [],
@@ -31,7 +45,18 @@ class WeeklyProgress {
     required this.plansAuthored,
     required this.plansFollowedUp,
     required this.reminiscenceSessions,
+    this.moodFromDailyMood = false,
+    this.dailyMoods = const [],
+    this.dailyMoodDays = const [],
+    this.checkInCount,
   });
+
+  /// How many check-ins (the count tile, the weekly summary).
+  int get checkIns => checkInCount ?? moodScores.length;
+
+  /// The mood readings the weekly summary averages.
+  List<int> get moodsForSummary =>
+      moodFromDailyMood ? dailyMoods.whereType<int>().toList() : moodScores;
 
   static const empty = WeeklyProgress(
     moodScores: [],
@@ -47,6 +72,45 @@ class ProgressRepository {
   final bool available;
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
+
+  /// 1020e 二.11 — the last `daily_mood` of each day in [dayIsos]
+  /// (YYYY-MM-DD, oldest first); null for a day without one.  "Last" =
+  /// highest `entry_seq_today`, then latest `responded_at`.
+  static List<int?> lastMoodPerDay(
+      Iterable<Map<String, dynamic>> rows, List<String> dayIsos) {
+    final best = <String, Map<String, dynamic>>{};
+    int seq(Map<String, dynamic> r) =>
+        (r['entry_seq_today'] as num?)?.toInt() ?? 0;
+    DateTime at(Map<String, dynamic> r) {
+      final v = r['responded_at'];
+      if (v is Timestamp) return v.toDate();
+      if (v is DateTime) return v;
+      return DateTime(2000);
+    }
+
+    for (final r in rows) {
+      final day = r['date_iso'];
+      final mood = r['mood'];
+      if (day is! String || mood is! num) continue;
+      final m = mood.toInt();
+      if (m < 1 || m > 5) continue;
+      final cur = best[day];
+      if (cur == null ||
+          seq(r) > seq(cur) ||
+          (seq(r) == seq(cur) && at(r).isAfter(at(cur)))) {
+        best[day] = r;
+      }
+    }
+    return [
+      for (final d in dayIsos) (best[d]?['mood'] as num?)?.toInt(),
+    ];
+  }
+
+  /// The last 7 local days ending [now], oldest first.
+  static List<DateTime> lastSevenDays(DateTime now) => [
+        for (var i = 6; i >= 0; i--)
+          DateTime(now.year, now.month, now.day - i),
+      ];
 
   Future<WeeklyProgress> load(String uid) async {
     if (!available) return WeeklyProgress.empty;
@@ -107,6 +171,35 @@ class ProgressRepository {
       final data = snap.data() ?? const {};
       if (data['status'] != 'completed') continue;
       if (_ts(data['completed_at']).isAfter(since)) reminiscence += 1;
+    }
+
+    // 1020e 二.11 — with the mood row on, the chart is the elder's own
+    // mood (daily_mood), one per day; check-ins are only counted.
+    if (RemoteFeatureFlags.current.moodRowV2Enabled) {
+      final days = lastSevenDays(DateTime.now());
+      final isos = [for (final d in days) MoodRecorder.dateIsoFor(d)];
+      var daily = List<int?>.filled(days.length, null);
+      try {
+        final snap = await _db
+            .collection('users')
+            .doc(uid)
+            .collection('daily_mood')
+            .where('date_iso', isGreaterThanOrEqualTo: isos.first)
+            .get();
+        daily = lastMoodPerDay(snap.docs.map((d) => d.data()), isos);
+      } catch (_) {}
+      return WeeklyProgress(
+        moodScores: moods,
+        moodTimes: moodTimes,
+        contactDays: contactDays,
+        plansAuthored: plans.length,
+        plansFollowedUp: followed,
+        reminiscenceSessions: reminiscence,
+        moodFromDailyMood: true,
+        dailyMoods: daily,
+        dailyMoodDays: days,
+        checkInCount: moods.length,
+      );
     }
 
     return WeeklyProgress(

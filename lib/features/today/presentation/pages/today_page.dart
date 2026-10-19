@@ -23,6 +23,8 @@ import '../widgets/daily_mood_prompt.dart';
 import '../widgets/simulated_clock_strip.dart';
 import '../widgets/pending_prompts_banner.dart';
 import '../widgets/today_todo_rows.dart';
+import '../home_v2_scope.dart';
+import '../../../../core/session/session_entry_surface.dart';
 import '../widgets/week1_nudge_banner.dart';
 
 /// Home tab (屋企) — final layout per Home Layout Spec §1:
@@ -166,40 +168,44 @@ class _TodayPageState extends State<TodayPage> {
     );
   }
 
-  /// 1020 D — page 1 of the two-page layout.
+  /// 1020 D — page 1 of the two-page layout.  1020e 一.(9): sessions
+  /// opened from here record entrySurface `page1` ([HomeSurfaceScope]).
   Widget _buildV2(BuildContext context) {
     final profile = AppSettingsScope.of(context).profile;
     final questionnaireRow = QuestionnaireTodoRow.activeFor(profile);
     final firebase = AuthServiceScope.of(context).available;
-    return SafeArea(
-      child: ListView(
-        key: const ValueKey('today_v2'),
-        padding: EdgeInsets.zero,
-        children: [
-          const SimulatedClockStrip(),
-          // (1) greeting and (2) the mood row.
-          const GreetingHero(),
-          // (3) 今日要做嘅事 — each row only when there is something.
-          const TodoSectionTitle(),
-          const CheckInTodoRow(),
-          const BriefPrCardHost(),
-          if (questionnaireRow) const QuestionnaireTodoRow(),
-          // Whatever else the study still asks for here (Phase A items, the
-          // pre-T24 weekly card): the old banner, minus the weekly card the
-          // row above already shows.  Needs Firebase to read.
-          if (firebase)
-            PendingPromptsBanner(hideWeeklyBundle: questionnaireRow),
-          const ActivePlanBanner(),
-          // (4) → page 2.
-          const GoTalkButton(),
-          // (5) this week's recap.
-          const FactsRecapRow(),
-          // (6) crisis card, unchanged.
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, 72),
-            child: SafetyFooterCard(analyticsTag: 'today_safety_footer'),
-          ),
-        ],
+    return HomeSurfaceScope(
+      surface: SessionEntrySurface.page1,
+      child: SafeArea(
+        child: ListView(
+          key: const ValueKey('today_v2'),
+          padding: EdgeInsets.zero,
+          children: [
+            const SimulatedClockStrip(),
+            // (1) greeting and (2) the mood row.
+            const GreetingHero(),
+            // (3) 今日要做嘅事 — each row only when there is something.
+            const TodoSectionTitle(),
+            const CheckInTodoRow(),
+            const BriefPrCardHost(),
+            if (questionnaireRow) const QuestionnaireTodoRow(),
+            // Whatever else the study still asks for here (Phase A items,
+            // the pre-T24 weekly card): the old banner, minus the weekly
+            // card the row above already shows.  Needs Firebase to read.
+            if (firebase)
+              PendingPromptsBanner(hideWeeklyBundle: questionnaireRow),
+            const ActivePlanBanner(),
+            // (4) → page 2.
+            const GoTalkButton(),
+            // (5) this week's recap (tap: 你嘅一個禮拜, 1020e 二.11).
+            const FactsRecapRow(),
+            // (6) crisis card, unchanged.
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 8, 20, 72),
+              child: SafetyFooterCard(analyticsTag: 'today_safety_footer'),
+            ),
+          ],
+        ),
       ),
     );
   }

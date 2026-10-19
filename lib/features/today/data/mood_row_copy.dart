@@ -41,7 +41,7 @@ class MoodRowCopy {
     final mm = at.minute.toString().padLeft(2, '0');
     return m5Template
         .replaceFirst('{表情}', face.emoji())
-        .replaceFirst('{幾好}', face.label(false))
+        .replaceFirst('{幾好}', faceLabel(mood))
         .replaceFirst('{09:12}', '$hh:$mm');
   }
 
@@ -54,9 +54,14 @@ class MoodRowCopy {
   /// M8 — a later answer that differs from the one before; replaces M7.
   static const String m8 = '心情好似唔同咗，想同小欣講下發生咩事？';
 
-  /// 1..5 → the face (5 = 好好 … 1 = 好差, as the home pad).
+  /// 1..5 → the face (the emoji of the old home pad).
   static MoodFace faceFor(int mood) =>
       MoodFace.values[mood.clamp(1, 5) - 1];
+
+  /// 1020e 二.12 — the word under each face (and in M5): the check-in Q1
+  /// words, 1 好唔開心 … 5 好開心 (scores unchanged).  The old pad's
+  /// 好差／差／麻麻地／幾好／好好 stay only on the switch-off pad.
+  static String faceLabel(int mood) => moodWords[mood.clamp(1, 5)]!;
 
   // ---------------------------------------------------------------------
   // 5.2 — 小欣's opener from M7 / M8 (rule arm; Hybrid falls back to it)
@@ -76,8 +81,8 @@ class MoodRowCopy {
   /// The openers after which the rule arm answers from SN1–SN4 (5.2b).
   static const Set<String> lowOpeners = {'O4', 'O5', 'C2'};
 
-  /// How 5.2 names each mood (O1 好開心 … O5 好唔開心), for the Hybrid
-  /// opener's context block — the same five words as check-in Q1.
+  /// The five mood words (5.2 O1 好開心 … O5 好唔開心; check-in Q1; the
+  /// face labels, 1020e 二.12), also in the Hybrid opener's context block.
   static const Map<int, String> moodWords = {
     5: '好開心',
     4: '幾好',

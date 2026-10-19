@@ -96,7 +96,9 @@ void main() {
       expect(MoodRowCopy.m5(4, DateTime(2026, 10, 20, 9, 12)),
           '今日心情：🙂 幾好（09:12）');
       expect(MoodRowCopy.m5(1, DateTime(2026, 10, 20, 21, 5)),
-          '今日心情：😔 好差（21:05）');
+          '今日心情：😔 好唔開心（21:05）');
+      expect(MoodRowCopy.m5(5, DateTime(2026, 10, 20, 7, 0)),
+          '今日心情：😊 好開心（07:00）');
     });
 
     test('M7 openers by mood: 5 → O1 … 1 → O5; low ones are O4, O5', () {
@@ -157,6 +159,13 @@ void main() {
         expect(find.text(MoodRowCopy.m2), findsOneWidget);
         for (var r = 1; r <= 5; r++) {
           expect(find.byKey(ValueKey('mood_row_face_$r')), findsOneWidget);
+        }
+        // 1020e 二.12: the check-in Q1 words under the faces.
+        for (final w in ['好唔開心', '唔係幾好', '一般般', '幾好', '好開心']) {
+          expect(find.text(w), findsOneWidget, reason: w);
+        }
+        for (final old in ['好差', '麻麻地', '好好']) {
+          expect(find.text(old), findsNothing, reason: old);
         }
         expect(find.text(MoodRowCopy.m7), findsNothing);
         // The old pad's line is gone.
@@ -285,7 +294,7 @@ void main() {
         final run = HomeRun(arm);
         run.seedMood(5, DateTime(2026, 10, 20, 8, 7));
         await pumpHome(tester, run, _hero);
-        expect(find.text('今日心情：😊 好好（08:07）'), findsOneWidget);
+        expect(find.text('今日心情：😊 好開心（08:07）'), findsOneWidget);
         expect(find.text(MoodRowCopy.m7), findsOneWidget);
         expect(find.text(MoodRowCopy.m1), findsNothing);
       });
