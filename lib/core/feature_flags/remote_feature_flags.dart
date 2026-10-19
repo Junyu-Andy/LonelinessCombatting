@@ -84,6 +84,14 @@
 ///                               matchedVersion, clientTime — never the
 ///                               elder's words or the matched keyword).
 ///                               Both arms identical, nothing visible.
+///   - [testerToolsEnabled]    — 10/19: a tester account (`isTester`, set
+///                               by the admin only) unlocks 測試員工具 by
+///                               tapping the version line 7× — no PIN, no
+///                               special build.  Participants never can.
+///   - [transcriptRetentionToggleEnabled] — 10/19: show the participant's
+///                               「保留對話紀錄」 switch in 自己 (decision
+///                               0020).  Off (default) = the row is hidden;
+///                               the stored consent value is untouched.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -110,6 +118,8 @@ class RemoteFeatureFlags {
     this.researcherIntakeEnabled = false,
     this.testerArmSwitchEnabled = false,
     this.s1aEventLogEnabled = false,
+    this.testerToolsEnabled = false,
+    this.transcriptRetentionToggleEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -127,6 +137,8 @@ class RemoteFeatureFlags {
   final bool researcherIntakeEnabled;
   final bool testerArmSwitchEnabled;
   final bool s1aEventLogEnabled;
+  final bool testerToolsEnabled;
+  final bool transcriptRetentionToggleEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -176,6 +188,9 @@ class RemoteFeatureFlags {
         researcherIntakeEnabled: map['researcherIntakeEnabled'] == true,
         testerArmSwitchEnabled: map['testerArmSwitchEnabled'] == true,
         s1aEventLogEnabled: map['s1aEventLogEnabled'] == true,
+        testerToolsEnabled: map['testerToolsEnabled'] == true,
+        transcriptRetentionToggleEnabled:
+            map['transcriptRetentionToggleEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

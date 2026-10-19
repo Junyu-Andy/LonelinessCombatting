@@ -3,7 +3,8 @@
 /// Opened only from the invitation card's 「好呀」.  Shows "N/4", the stem
 /// 今次傾偈, the same four items and 1–7 scale as the popup
 /// [BriefPrPage] (items copied from there, raw scores, insensitivity not
-/// reversed), each point as a full-width row, separate next / submit
+/// reversed), the seven points side by side in one row with the anchors
+/// underneath (10/19, was one full-width row each), separate next / submit
 /// buttons, back (previous question) and abandon.  Button labels that
 /// exist in the App are kept (完成); labels not in docs/spec/copy/ are
 /// `【占位】` drafts.
@@ -172,23 +173,15 @@ class _BriefPrFlowPageState extends State<BriefPrFlowPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              for (var v = 1; v <= 7; v++) ...[
-                _OptionRow(
-                  value: v,
-                  label: v == 1
-                      ? item.low
-                      : v == 4
-                          ? item.mid
-                          : v == 7
-                              ? item.high
-                              : null,
-                  selected: _value == v,
-                  onTap: _saving
-                      ? null
-                      : () => setState(() => _answers[item.key] = v),
-                ),
-                const SizedBox(height: 8),
-              ],
+              _HorizontalScale(
+                value: _value,
+                low: item.low,
+                mid: item.mid,
+                high: item.high,
+                onSelect: _saving
+                    ? null
+                    : (v) => setState(() => _answers[item.key] = v),
+              ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -224,16 +217,85 @@ class _BriefPrFlowPageState extends State<BriefPrFlowPage> {
   }
 }
 
-class _OptionRow extends StatelessWidget {
-  const _OptionRow({
+/// 10/19 — the 1–7 scale as one row of seven boxes, the three anchors
+/// (1 · 4 · 7) underneath.  Keys `brief_pr_option_<n>` as before.
+class _HorizontalScale extends StatelessWidget {
+  const _HorizontalScale({
     required this.value,
-    required this.label,
+    required this.low,
+    required this.mid,
+    required this.high,
+    required this.onSelect,
+  });
+
+  final int? value;
+  final String low;
+  final String mid;
+  final String high;
+  final ValueChanged<int>? onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final anchorStyle = theme.textTheme.bodyLarge?.copyWith(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      color: theme.colorScheme.onSurface,
+      height: 1.3,
+    );
+    String? anchorFor(int v) => switch (v) {
+          1 => low,
+          4 => mid,
+          7 => high,
+          _ => null,
+        };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            for (var v = 1; v <= 7; v++)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: _ScaleBox(
+                    value: v,
+                    semanticsLabel: anchorFor(v),
+                    selected: value == v,
+                    onTap: onSelect == null ? null : () => onSelect!(v),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: Text(low, style: anchorStyle)),
+            Expanded(
+              child: Text(mid, textAlign: TextAlign.center, style: anchorStyle),
+            ),
+            Expanded(
+              child: Text(high, textAlign: TextAlign.right, style: anchorStyle),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ScaleBox extends StatelessWidget {
+  const _ScaleBox({
+    required this.value,
+    required this.semanticsLabel,
     required this.selected,
     required this.onTap,
   });
 
   final int value;
-  final String? label;
+  final String? semanticsLabel;
   final bool selected;
   final VoidCallback? onTap;
 
@@ -241,41 +303,38 @@ class _OptionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    return Material(
-      color: selected ? cs.primaryContainer : cs.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        key: Key('brief_pr_option_$value'),
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 56),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 36,
-                  child: Text(
-                    '$value',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: selected ? cs.onPrimaryContainer : cs.onSurface,
-                    ),
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: semanticsLabel == null ? '$value' : '$value，$semanticsLabel',
+      excludeSemantics: true,
+      child: Material(
+        color: selected ? cs.primary : cs.surfaceContainerHighest,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: selected ? cs.primary : cs.outline,
+            width: selected ? 2.5 : 1.2,
+          ),
+        ),
+        child: InkWell(
+          key: Key('brief_pr_option_$value'),
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: SizedBox(
+            height: 60,
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '$value',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: selected ? cs.onPrimary : cs.onSurface,
                   ),
                 ),
-                Expanded(
-                  child: Text(
-                    label ?? '',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontSize: 18,
-                      color: selected ? cs.onPrimaryContainer : cs.onSurface,
-                    ),
-                  ),
-                ),
-                if (selected)
-                  Icon(Icons.check_circle, color: cs.primary, size: 26),
-              ],
+              ),
             ),
           ),
         ),

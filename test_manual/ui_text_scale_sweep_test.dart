@@ -1,7 +1,12 @@
 // 10/18 — UI 扫一遍：这次批次（#108–#119）动过的老人页面，在四种手机宽度
 // （320 / 360 / 375 / 390 逻辑像素，对应 iPhone 放大显示、小安卓、iPhone SE、
-// iPhone 14）和两档字体（1.0 和 1.3 = App 的封顶，见 app.dart：手机系统字体 ×
-// App「字號」合起来最多 1.3 倍）下渲染并做基本交互。
+// iPhone 14）和两档字体（1.0 和 1.3 = 「特大」，App 的封顶，见 app_settings.dart
+// 的 combinedTextScale）下渲染并做基本交互。
+//
+// 10/19：「字體大小」改成五档 1.06／1.12／1.18／1.24／1.30。CI 仍然只跑 1.0
+// 和 1.3；要逐档看，用
+//   --dart-define=SWEEP_SCALES=1.06,1.12,1.18,1.24,1.3
+// 结果写在 docs/history.md 当天那一段。
 //
 // 任何 RenderFlex 溢出、断言或异常都会让那个用例失败（错误收集后一次列出）。
 // 带 --dart-define=SWEEP_SHOTS=true --update-goldens 运行时，每个画面另存一张
@@ -42,24 +47,34 @@ import 'package:app_demo/core/memory/memory_v1_service.dart';
 import 'package:app_demo/core/safety/distress_detector.dart';
 import 'package:app_demo/core/safety/distress_router.dart';
 import 'package:app_demo/core/safety/distress_state.dart';
+import 'package:app_demo/core/scheduling/weekly_schedule.dart';
 import 'package:app_demo/core/session/chat_session_recorder.dart';
+import 'package:app_demo/core/survey/likert_scale.dart';
 import 'package:app_demo/core/testing/tester_gate.dart';
 import 'package:app_demo/features/action_loop/presentation/pages/action_loop_arm_a_page.dart';
 import 'package:app_demo/features/action_loop/presentation/pages/action_loop_arm_b_page.dart';
 import 'package:app_demo/features/analytics/data/analytics_service.dart';
 import 'package:app_demo/features/analytics/presentation/analytics_scope.dart';
+import 'package:app_demo/features/assessment/presentation/pages/pgic_page.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
 import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:app_demo/features/auth/presentation/auth_service_scope.dart';
 import 'package:app_demo/features/auth/presentation/pages/login_page.dart';
+import 'package:app_demo/features/brief_pr/data/brief_pr_record.dart';
+import 'package:app_demo/features/brief_pr/data/brief_pr_scheduler.dart';
 import 'package:app_demo/features/brief_pr/data/brief_pr_store.dart';
 import 'package:app_demo/features/brief_pr/data/brief_pr_v2.dart';
+import 'package:app_demo/features/brief_pr/presentation/pages/brief_pr_flow_page.dart';
 import 'package:app_demo/features/brief_pr/presentation/widgets/session_close_hint.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_arm_a.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_shared.dart';
+import 'package:app_demo/features/crisis/presentation/pages/emergency_support_page.dart';
+import 'package:app_demo/features/crisis/presentation/widgets/safety_footer_card.dart';
 import 'package:app_demo/features/curious_companion/presentation/pages/tung_tung_page.dart';
 import 'package:app_demo/features/education/data/education_library.dart';
 import 'package:app_demo/features/education/presentation/pages/education_article_page.dart';
+import 'package:app_demo/features/my_story/presentation/pages/my_story_page.dart';
+import 'package:app_demo/features/my_story/presentation/widgets/story_thread_timeline.dart';
 import 'package:app_demo/features/onboarding/data/intake_repository.dart';
 import 'package:app_demo/features/onboarding/data/intake_response.dart';
 import 'package:app_demo/features/onboarding/presentation/pages/agent_onboarding_page.dart';
@@ -74,6 +89,11 @@ import 'package:app_demo/features/settings/presentation/pages/faq_page.dart';
 import 'package:app_demo/features/settings/presentation/pages/settings_page.dart';
 import 'package:app_demo/features/settings/presentation/widgets/tester_arm_switch_card.dart';
 import 'package:app_demo/features/today/data/mood_recorder.dart';
+import 'package:app_demo/features/today/presentation/widgets/agent_tile_row.dart';
+import 'package:app_demo/features/today/presentation/widgets/facts_recap_row.dart';
+import 'package:app_demo/features/today/presentation/widgets/home_tool_shortcuts.dart';
+import 'package:app_demo/features/weekly_bundle/presentation/weekly_bundle_flow_page.dart';
+import 'package:app_demo/features/weekly_pr/presentation/pages/weekly_pr_page.dart';
 import 'package:app_demo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -93,8 +113,12 @@ const _sizes = <Size>[
   Size(390, 844), // iPhone 14
 ];
 
-/// 1.0 and the App's cap (AppFontScale.xLarge): system × App never exceeds it.
-const _scales = <double>[1.0, 1.3];
+/// Default 1.0 and 1.3 (特大, the App's cap); override with
+/// --dart-define=SWEEP_SCALES=1.06,1.12,1.18,1.24,1.3 to check every level.
+const _scalesDefine = String.fromEnvironment('SWEEP_SCALES');
+final _scales = _scalesDefine.isEmpty
+    ? const <double>[1.0, 1.3]
+    : _scalesDefine.split(',').map((s) => double.parse(s.trim())).toList();
 
 const _reply =
     '好呀，同我講多啲。你頭先講嗰件事我記住咗，不如慢慢講下當時係點樣，發生咗啲乜嘢，你自己覺得點？';
@@ -326,6 +350,15 @@ Future<void> _back(_Ctx c) async {
   await c.tester.pumpAndSettle();
 }
 
+/// The first texts on screen, for a failure message.
+String _visibleText() => find
+    .byType(Text)
+    .evaluate()
+    .map((e) => (e.widget as Text).data ?? '')
+    .where((t) => t.isNotEmpty)
+    .take(20)
+    .join(' / ');
+
 /// The reply bubble uses the width it was given (10/16: 0.88 of the screen).
 void _expectWideBubble(_Ctx c, String text) {
   final f = find.textContaining(text.substring(0, 8));
@@ -465,9 +498,141 @@ final _flows = <String, _Flow>{
     expect(find.textContaining('英文'), findsNothing);
     expect(find.textContaining('English'), findsNothing);
   },
-  '個人化設定': (c) async {
+  '睇今日下半（三位夥伴 + 今個星期 + 三個捷徑 + 安全卡 → 支援熱線）': (c) async {
+    // The full TodayPage builds Firestore services in build(); these are the
+    // parts without Firebase, in the same order and padding.
+    await _pumpHome(
+        c,
+        const Scaffold(
+          body: SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AgentTileRow(),
+                  FactsRecapRow(),
+                  HomeToolShortcuts(),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 72),
+                    child: SafetyFooterCard(analyticsTag: 'sweep'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ));
+    await c.shot('today_top');
+    await _scrollTap(c, find.byKey(const Key('safety_footer_call_18111')));
+    await c.shot('today_bottom');
+    await _scrollTap(c, find.byKey(const Key('safety_footer_more')));
+    await c.shot('today_emergency');
+    expect(find.byType(EmergencySupportPage), findsOneWidget);
+  },
+  '傾完評分（1–7 横排）': (c) async {
+    final store = InMemoryBriefPrStore();
+    final at = DateTime(2026, 10, 14, 15, 20);
+    final record = BriefPrRecord(
+      uid: 'u1',
+      sessionId: 's1',
+      agentId: 'tung_tung',
+      agentDisplayName: '通通',
+      sessionType: 'free_chat',
+      endReason: SessionEndReason.closeButton,
+      sessionEndedAt: at,
+      lastReplyAt: at,
+      invitedAt: at,
+      invitedDayKey: '2026-10-14',
+      inviteChannel: BriefPrInviteChannel.listPage,
+    );
+    await store.put(record);
+    final scheduler = BriefPrScheduler(
+        store: store,
+        rules: const SessionRules(v2: true, idleTimeoutMin: 30),
+        clock: () => at.add(const Duration(minutes: 5)));
+    await _pushPage(c, BriefPrFlowPage(record: record, scheduler: scheduler));
+    for (var i = 0; i < 4; i++) {
+      await c.shot('brief_pr_$i');
+      await _scrollTap(c, find.byKey(const Key('brief_pr_option_7')));
+      await _scrollTap(c, find.byKey(const Key('brief_pr_next')));
+    }
+    expect(find.byType(BriefPrFlowPage), findsNothing,
+        reason: 'all four questions answered');
+  },
+  '人生回顧（時間線 → 開第二個主題）': (c) async {
+    await _pumpHome(c, const Scaffold(body: MyStoryPage()));
+    await c.shot('my_story_top');
+    await _scrollTap(c, find.byType(StoryThreadTimeline));
+    await c.shot('my_story_timeline');
+    await _scrollTap(c, find.byKey(const Key('story_theme_2')));
+    await _dismissIntro(c);
+    await c.shot('my_story_theme_2');
+    await _back(c);
+  },
+  '每週問卷 W1（預覽：DJG 六題 → 夥伴評估 → 同開始比較）': (c) async {
+    final bundle = WeeklySchedule.bundlesFor(
+            PhaseBConfig.current, WeeklyScheduleMode.standard)
+        .first;
+    await _pushPage(c, WeeklyBundleFlowPage.previewFor(bundle));
+    await c.shot('weekly_intro');
+    await _scrollTap(c, find.byKey(const ValueKey('weekly_start')));
+    const done = '全部做完喇，多謝你！';
+    for (var step = 0; step < 12; step++) {
+      if (find.text(done).evaluate().isNotEmpty) break;
+      await c.shot('weekly_step_$step');
+      final pr = find.byType(WeeklyPrPage);
+      if (pr.evaluate().isNotEmpty) {
+        // Weekly PR: a 1–7 row per item.  Answer 4 on every row on screen,
+        // scroll a little, repeat until 下一頁／提交 turns on (on a small
+        // screen with big text only part of one item fits at a time).
+        final label = find.text('下一頁').evaluate().isNotEmpty ? '下一頁' : '提交';
+        final next = find.ancestor(
+            of: find.text(label), matching: find.byType(FilledButton));
+        final list = find
+            .descendant(of: pr, matching: find.byType(Scrollable))
+            .first;
+        for (var pass = 0; pass < 30; pass++) {
+          final fours = find
+              .descendant(
+                  of: find.byType(LikertScale), matching: find.text('4'))
+              .hitTestable();
+          final spots = [
+            for (final e in fours.evaluate())
+              (e.renderObject! as RenderBox)
+                  .localToGlobal((e.renderObject! as RenderBox)
+                      .size
+                      .center(Offset.zero)),
+          ];
+          for (final p in spots) {
+            await c.tester.tapAt(p);
+            await c.tester.pump();
+          }
+          await c.tester.pumpAndSettle();
+          if (c.tester.widget<FilledButton>(next).onPressed != null) break;
+          await c.tester.drag(list, const Offset(0, -150));
+          await c.tester.pumpAndSettle();
+        }
+        await _tap(c, next);
+      } else if (find.byType(PgicPage).evaluate().isNotEmpty) {
+        await _scrollTap(c, find.text('冇變'));
+        await _scrollTap(c, find.text('提交'));
+      } else if (find.text('是').evaluate().isNotEmpty) {
+        for (var i = 0; i < 6; i++) {
+          await _tap(c, find.text('是'));
+        }
+        await _scrollTap(c, find.text('提交'));
+      } else {
+        break;
+      }
+    }
+    await c.shot('weekly_done');
+    expect(find.text(done), findsOneWidget,
+        reason: 'all three parts done; on screen: ${_visibleText()}');
+  },
+  '個人化設定（個人資料 + 登出）': (c) async {
     await _pumpHome(c, const PersonalizationPage());
     await c.shot('personalization');
+    await _scrollTap(c, find.byKey(const Key('profile_sign_out')));
+    await c.shot('personalization_sign_out');
   },
   '設定頁（測試員工具卡）': (c) async {
     TesterGate.forceUnlockForTest();
@@ -475,6 +640,11 @@ final _flows = <String, _Flow>{
     await _pumpHome(c, SettingsPage(testerArmBackend: _TesterBackend()),
         profile: _profile(tester: true));
     await c.shot('settings_top');
+    // 10/19: the five 字號 buttons (they keep their own size).  Before the
+    // tester card: the list is lazy and scrolling down drops this card.
+    expect(await _scrollTap(c, find.byKey(const Key('font_scale_xLarge'))),
+        isTrue);
+    await c.shot('settings_font');
     await _scrollTap(c, find.byType(TesterArmSwitchCard));
     await c.shot('settings_tester_card');
   },

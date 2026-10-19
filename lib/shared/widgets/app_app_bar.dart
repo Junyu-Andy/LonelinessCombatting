@@ -16,6 +16,14 @@ class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       title: AnimatedSwitcher(
         duration: const Duration(milliseconds: 220),
+        // 10/19: keep both titles at the start edge while they cross-fade.
+        // The default layout centres them in a box as wide as the longer
+        // one, so 「自己」 appeared centred and then jumped left once the old
+        // title was gone.
+        layoutBuilder: (current, previous) => Stack(
+          alignment: AlignmentDirectional.centerStart,
+          children: [...previous, if (current != null) current],
+        ),
         transitionBuilder: (child, animation) => FadeTransition(
           opacity: animation,
           child: SlideTransition(

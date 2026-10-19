@@ -4,6 +4,7 @@
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
 import 'package:app_demo/core/agents/agent_registry.dart';
+import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
 import 'package:app_demo/core/memory/memory_store.dart';
 import 'package:app_demo/core/privacy/transcript_retention.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
@@ -73,8 +74,44 @@ void main() {
     });
   });
 
+  Future<AppSettings> pumpSettings(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 8000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final settings = AppSettings(locale: const Locale('zh'))
+      ..profile = _profile();
+    await tester.pumpWidget(AppSettingsScope(
+      settings: settings,
+      child: AuthServiceScope(
+        authService: AuthService(available: false),
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: SettingsPage(),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    return settings;
+  }
+
+  // 10/19: the switch is hidden unless the server flag is on; the stored
+  // consent value is not touched either way.
+  testWidgets('switch hidden by default (transcriptRetentionToggleEnabled off)',
+      (tester) async {
+    RemoteFeatureFlags.current = const RemoteFeatureFlags();
+    addTearDown(() => RemoteFeatureFlags.current = const RemoteFeatureFlags());
+    final settings = await pumpSettings(tester);
+    expect(find.text('保留對話紀錄'), findsNothing);
+    expect(TranscriptRetention.isOn(settings.profile), isTrue);
+  });
+
   testWidgets('Settings switch turns retention off and back on',
       (tester) async {
+    RemoteFeatureFlags.current =
+        const RemoteFeatureFlags(transcriptRetentionToggleEnabled: true);
+    addTearDown(() => RemoteFeatureFlags.current = const RemoteFeatureFlags());
     tester.view.physicalSize = const Size(1080, 8000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

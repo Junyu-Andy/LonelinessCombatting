@@ -103,6 +103,15 @@ abstract class WeeklyBundleStore {
   Future<Map<WeeklyPart, String?>> partStatus(WeeklyBundle bundle);
 }
 
+/// 10/19 — tester preview: nothing started, nothing read or written.
+class PreviewWeeklyBundleStore implements WeeklyBundleStore {
+  const PreviewWeeklyBundleStore();
+
+  @override
+  Future<Map<WeeklyPart, String?>> partStatus(WeeklyBundle bundle) async =>
+      {for (final p in bundle.parts) p: null};
+}
+
 class FirestoreWeeklyBundleStore implements WeeklyBundleStore {
   FirestoreWeeklyBundleStore(this.uid, {FirebaseFirestore? db})
       : _db = db ?? FirebaseFirestore.instance;

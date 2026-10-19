@@ -18,18 +18,29 @@ import '../features/auth/data/user_profile.dart';
 /// frame; every setter writes its value back.  Before T37 they lived only
 /// in memory and reset to the defaults each time the App was closed.
 /// P4.1 — supported MediaQuery text scale multipliers for the
-/// elderly-friendly font sizing toggle in Settings. Stays inside a
-/// safe layout range (1.0–1.30) so existing pages don't reflow into
-/// a broken state at the largest setting.
-enum AppFontScale { standard, large, xLarge }
+/// elderly-friendly font sizing toggle in Settings.
+///
+/// 10/19: five even steps (Junyu) — 標準 1.06 · 稍大 1.12 · 大 1.18 ·
+/// 較大 1.24 · 特大 1.30.  Nothing above 1.30, the size every page is
+/// checked at.  Enum names are stored on the phone: the old three keep
+/// theirs (標準 1.0 → 1.06, 大 1.15 → 1.18, 特大 1.30 unchanged).
+enum AppFontScale { standard, slightlyLarge, large, larger, xLarge }
 
 extension AppFontScaleX on AppFontScale {
   double get multiplier => switch (this) {
-        AppFontScale.standard => 1.0,
-        AppFontScale.large => 1.15,
+        AppFontScale.standard => 1.06,
+        AppFontScale.slightlyLarge => 1.12,
+        AppFontScale.large => 1.18,
+        AppFontScale.larger => 1.24,
         AppFontScale.xLarge => 1.30,
       };
 }
+
+/// The text scale the App applies: phone setting × the App level.  10/15
+/// pilot: a big phone setting × 大字 overflowed the cards, so the result
+/// stays between 0.8 and 1.30 (特大).
+double combinedTextScale(double system, AppFontScale app) =>
+    (system * app.multiplier).clamp(0.8, AppFontScale.xLarge.multiplier);
 
 class AppSettings extends ChangeNotifier {
   AppSettings({

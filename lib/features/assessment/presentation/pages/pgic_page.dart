@@ -23,7 +23,11 @@ class PgicPage extends StatefulWidget {
   final String? bundle;
   final WeeklyPartPosition? part;
 
-  const PgicPage({super.key, this.weekIso, this.bundle, this.part});
+  /// 10/19 — tester preview of the weekly bundle: same page, nothing saved.
+  final bool preview;
+
+  const PgicPage(
+      {super.key, this.weekIso, this.bundle, this.part, this.preview = false});
 
   @override
   State<PgicPage> createState() => _PgicPageState();
@@ -57,7 +61,8 @@ class _PgicPageState extends State<PgicPage> {
   Future<void> _submit() async {
     if (_selected == null || _saving) return;
     setState(() => _saving = true);
-    final profile = AppSettingsScope.read(context).profile;
+    final profile =
+        widget.preview ? null : AppSettingsScope.read(context).profile;
     if (profile != null) {
       try {
         final now = DateTime.now();

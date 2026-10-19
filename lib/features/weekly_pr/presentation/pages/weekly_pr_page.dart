@@ -41,12 +41,17 @@ class WeeklyPrPage extends StatefulWidget {
   final String? bundle;
   final WeeklyPartPosition? part;
 
+  /// 10/19 — tester preview of the weekly bundle: the page behaves exactly
+  /// the same but writes nothing (no record, no analytics).
+  final bool preview;
+
   const WeeklyPrPage({
     super.key,
     required this.agent,
     this.weekIso,
     this.bundle,
     this.part,
+    this.preview = false,
   });
 
   @override
@@ -108,6 +113,7 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
   bool get _isLastPage => _pageIndex >= _pageCount - 1;
 
   Future<void> _persist(String status) async {
+    if (widget.preview) return;
     final profile = AppSettingsScope.read(context).profile;
     final armCode = Arm.of(context)?.code ?? 'B';
     final resp = WeeklyPrResponse(

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -8,6 +9,17 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../data/auth_service.dart';
 import '../../data/user_profile.dart';
+
+/// The form fields, in screen order (sign-in shows the first two).
+enum _Field {
+  email,
+  password,
+  passwordAgain,
+  name,
+  age,
+  contactName,
+  contactPhone,
+}
 
 /// Email + password sign-in, with a sign-up flow that captures the key
 /// profile fields we want to persist: display name, age group, and an
@@ -38,6 +50,17 @@ class _LoginPageState extends State<LoginPage> {
   bool _busy = false;
   String? _error;
 
+  // 10/19: a failed 建立帳號／登入 scrolls to the first field in trouble and
+  // puts the cursor there (the elder could not see what was wrong when the
+  // field was off screen).  A server refusal that belongs to one field
+  // (e-mail taken, bad e-mail, weak / wrong password) is also shown under
+  // that field until it is edited.
+  final _fieldKeys = {
+    for (final f in _Field.values) f: GlobalKey<FormFieldState<String>>(),
+  };
+  final _focusNodes = {for (final f in _Field.values) f: FocusNode()};
+  _Field? _serverErrorField;
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -47,16 +70,83 @@ class _LoginPageState extends State<LoginPage> {
     _contactNameCtrl.dispose();
     _contactPhoneCtrl.dispose();
     _ageCtrl.dispose();
+    for (final n in _focusNodes.values) {
+      n.dispose();
+    }
     super.dispose();
+  }
+
+  /// Fields on screen, top to bottom.
+  List<_Field> get _visibleFields =>
+      _isSignUp ? _Field.values : const [_Field.email, _Field.password];
+
+  Future<void> _jumpTo(_Field field) async {
+    final ctx = _fieldKeys[field]!.currentContext;
+    if (ctx != null) {
+      await Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.2,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+    // Focus only once the scroll has landed: focusing first makes the
+    // caret's own scroll cut the animation short, leaving the label off
+    // screen.
+    if (mounted) _focusNodes[field]!.requestFocus();
+  }
+
+  void _jumpToFirstInvalid() {
+    for (final f in _visibleFields) {
+      if (_fieldKeys[f]!.currentState?.hasError ?? false) {
+        _jumpTo(f);
+        return;
+      }
+    }
+  }
+
+  /// The field a server refusal is about, or null (network etc.).
+  _Field? _fieldForAuthError(Object error) {
+    if (error is AuthCredentialException) {
+      return error.emailRegistered ? _Field.password : _Field.email;
+    }
+    if (error is FirebaseAuthException) {
+      switch (error.code) {
+        case 'email-already-in-use':
+        case 'invalid-email':
+        case 'user-not-found':
+        case 'user-disabled':
+          return _Field.email;
+        case 'weak-password':
+        case 'wrong-password':
+        case 'invalid-credential':
+          return _Field.password;
+      }
+    }
+    return null;
+  }
+
+  String? _serverErrorFor(_Field field) =>
+      _serverErrorField == field ? _error : null;
+
+  void _clearServerError(_Field field) {
+    if (_serverErrorField == field) {
+      setState(() => _serverErrorField = null);
+    }
   }
 
   Future<void> _submit() async {
     final form = _formKey.currentState;
-    if (form == null || !form.validate()) return;
+    if (form == null) return;
+    if (!form.validate()) {
+      _jumpToFirstInvalid();
+      return;
+    }
 
     setState(() {
       _busy = true;
       _error = null;
+      _serverErrorField = null;
     });
 
     try {
@@ -91,7 +181,18 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       final isEn =
           AppSettingsScope.read(context).locale.languageCode == 'en';
-      setState(() => _error = describeAuthError(e, isEn: isEn));
+      final field = _fieldForAuthError(e);
+      setState(() {
+        _error = describeAuthError(e, isEn: isEn);
+        _serverErrorField =
+            field != null && _visibleFields.contains(field) ? field : null;
+      });
+      final target = _serverErrorField;
+      if (target != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _jumpTo(target);
+        });
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -130,67 +231,85 @@ class _LoginPageState extends State<LoginPage> {
                 else
                   const SizedBox.shrink(),
                 if (!widget.authService.available) const SizedBox(height: 16),
-                TextFormField(
+                KeyedSubtree(
                   key: const Key('login_email'),
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  // 10/16: wraps onto a second line instead of scrolling
-                  // sideways, so a long address can be read back in full
-                  // (a PILOT elder could only see the "…gmail.com" tail).
-                  // Spaces and line breaks are dropped as typed.
-                  maxLines: null,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.deny(RegExp(r'\s')),
-                  ],
-                  decoration: InputDecoration(
-                    labelText: isEn ? 'Email' : '電郵',
-                    prefixIcon: const Icon(Icons.mail_outline),
+                  child: TextFormField(
+                    key: _fieldKeys[_Field.email],
+                    focusNode: _focusNodes[_Field.email],
+                    forceErrorText: _serverErrorFor(_Field.email),
+                    onChanged: (_) => _clearServerError(_Field.email),
+                    controller: _emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    // 10/16: wraps onto a second line instead of scrolling
+                    // sideways, so a long address can be read back in full
+                    // (a PILOT elder could only see the "…gmail.com" tail).
+                    // Spaces and line breaks are dropped as typed.
+                    maxLines: null,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                    ],
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'Email' : '電郵',
+                      prefixIcon: const Icon(Icons.mail_outline),
+                    ),
+                    validator: (v) {
+                      final value = v?.trim() ?? '';
+                      if (value.isEmpty) return isEn ? 'Please enter your email.' : '請輸入電郵。';
+                      if (!value.contains('@')) return isEn ? 'Email format is incorrect.' : '電郵格式唔啱。';
+                      return null;
+                    },
                   ),
-                  validator: (v) {
-                    final value = v?.trim() ?? '';
-                    if (value.isEmpty) return isEn ? 'Please enter your email.' : '請輸入電郵。';
-                    if (!value.contains('@')) return isEn ? 'Email format is incorrect.' : '電郵格式唔啱。';
-                    return null;
-                  },
                 ),
                 const SizedBox(height: 14),
-                TextFormField(
+                KeyedSubtree(
                   key: const Key('login_password'),
-                  controller: _passwordCtrl,
-                  obscureText: !_showPassword,
-                  textInputAction: _isSignUp
-                      ? TextInputAction.next
-                      : TextInputAction.done,
-                  decoration: InputDecoration(
-                    labelText: isEn ? 'Password' : '密碼',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: _showPasswordToggle(isEn),
+                  child: TextFormField(
+                    key: _fieldKeys[_Field.password],
+                    focusNode: _focusNodes[_Field.password],
+                    forceErrorText: _serverErrorFor(_Field.password),
+                    onChanged: (_) => _clearServerError(_Field.password),
+                    controller: _passwordCtrl,
+                    obscureText: !_showPassword,
+                    textInputAction: _isSignUp
+                        ? TextInputAction.next
+                        : TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'Password' : '密碼',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: _showPasswordToggle(isEn),
+                    ),
+                    validator: (v) {
+                      if ((v ?? '').length < 6) return isEn ? 'Password must be at least 6 characters.' : '密碼最少 6 個字。';
+                      return null;
+                    },
                   ),
-                  validator: (v) {
-                    if ((v ?? '').length < 6) return isEn ? 'Password must be at least 6 characters.' : '密碼最少 6 個字。';
-                    return null;
-                  },
                 ),
                 if (_isSignUp) ...[
                   const SizedBox(height: 14),
-                  TextFormField(
+                  KeyedSubtree(
                     key: const Key('login_password_again'),
-                    controller: _passwordAgainCtrl,
-                    obscureText: !_showPassword,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: isEn ? 'Password again' : '再輸入一次密碼',
-                      prefixIcon: const Icon(Icons.lock_outline),
+                    child: TextFormField(
+                      key: _fieldKeys[_Field.passwordAgain],
+                      focusNode: _focusNodes[_Field.passwordAgain],
+                      forceErrorText: _serverErrorFor(_Field.passwordAgain),
+                      onChanged: (_) => _clearServerError(_Field.passwordAgain),
+                      controller: _passwordAgainCtrl,
+                      obscureText: !_showPassword,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        labelText: isEn ? 'Password again' : '再輸入一次密碼',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                      ),
+                      validator: (v) {
+                        if ((v ?? '') != _passwordCtrl.text) {
+                          return isEn
+                              ? 'The two passwords do not match.'
+                              : '兩次密碼唔一樣。';
+                        }
+                        return null;
+                      },
                     ),
-                    validator: (v) {
-                      if ((v ?? '') != _passwordCtrl.text) {
-                        return isEn
-                            ? 'The two passwords do not match.'
-                            : '兩次密碼唔一樣。';
-                      }
-                      return null;
-                    },
                   ),
                 ],
                 if (_isSignUp) ...[
@@ -201,6 +320,8 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
+                    key: _fieldKeys[_Field.name],
+                    focusNode: _focusNodes[_Field.name],
                     controller: _nameCtrl,
                     textInputAction: TextInputAction.next,
                     decoration: InputDecoration(
@@ -212,6 +333,8 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    key: _fieldKeys[_Field.age],
+                    focusNode: _focusNodes[_Field.age],
                     controller: _ageCtrl,
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
@@ -245,6 +368,8 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
+                    key: _fieldKeys[_Field.contactName],
+                    focusNode: _focusNodes[_Field.contactName],
                     controller: _contactNameCtrl,
                     textInputAction: TextInputAction.next,
                     decoration: InputDecoration(
@@ -256,6 +381,8 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    key: _fieldKeys[_Field.contactPhone],
+                    focusNode: _focusNodes[_Field.contactPhone],
                     controller: _contactPhoneCtrl,
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.done,
@@ -300,6 +427,7 @@ class _LoginPageState extends State<LoginPage> {
                       : () => setState(() {
                             _isSignUp = !_isSignUp;
                             _error = null;
+                            _serverErrorField = null;
                           }),
                   child: Text(
                     _isSignUp
@@ -430,7 +558,9 @@ class _SectionLabel extends StatelessWidget {
       children: [
         Icon(icon, size: 22, color: theme.colorScheme.primary),
         const SizedBox(width: 8),
-        Text(text, style: theme.textTheme.titleMedium),
+        // Wraps instead of overflowing if a label is wider than the row
+        // (10/19 sweep: 320 wide at text above 1.3).
+        Flexible(child: Text(text, style: theme.textTheme.titleMedium)),
       ],
     );
   }
