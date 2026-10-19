@@ -45,8 +45,9 @@ const SECTION = "# 從首頁心情入嚟（開場）";
 test("v2 and v3 untouched (hashes as pinned in build_info.g.dart)", () => {
   assert.strictEqual(sha("siu_yan.v2.txt"),
       "e8dd1172b91a10affe6f24db65c0672c58fa7ba8d4a508b5582daefd4ad7a827");
+  // v3 as batch 2 left it (1020e: the [簽到·唔講住] rule added in place).
   assert.strictEqual(sha(V3),
-      "ee31cf5109f1599f03ad388a9670d90a256782491b926c666f01099a0458a491");
+      "cabff10d3912a0e560041b89c42f64b3679ac62a6adacbc44c80786d41ac5e0f");
 });
 
 test("registry: siu_yan_v4 → v4; siu_yan_v3 → v3; siu_yan_v1 → v2", () => {
@@ -73,6 +74,13 @@ test("v4 = v3 + header + the mood-opener section only", () => {
   // Removing the header line and the section gives v3 back exactly.
   const rebuilt = [v3[0]].concat(v4.slice(1, start), v4.slice(end));
   assert.strictEqual(rebuilt.join("\n"), v3.join("\n"));
+});
+
+test("v4 keeps batch 2's Q4 唔講住 rule (from v3)", () => {
+  const v4 = read(V4);
+  assert.ok(v4.includes("`[簽到·唔講住]`"), "skip marker");
+  assert.ok(v4.includes("只回一句"), "one sentence");
+  assert.ok(v4.includes("唔好俾任何建議"), "no advice");
 });
 
 test("the section: marker, one open question, gentle when low, no advice",

@@ -12,7 +12,8 @@
 ///     few) or XG for 唔想答; reply 2 = R4a (answered) / R4b (唔講住).
 ///   - Hybrid: the LLM (prompt `siu_yan_v3`) — reply 1 from Q1–Q3 (+ Q3b),
 ///     reply 2 at most one or two places / ways for an answered Q4; for
-///     唔講住 the fixed R4b, no LLM and no advice.
+///     唔講住 one sentence, no advice, no question (1020e 二.8), the fixed
+///     R4b when the model fails.
 /// Already done today → a plain chat: rule arm opens with SY0 and answers
 /// from SY1–SY6 / SN1–SN4 ([SiuYanRuleChatPool]); Hybrid opens with an LLM
 /// line and keeps the existing Siu Yan chat (thought-exercise offer,
@@ -27,8 +28,12 @@
 ///
 /// Safety: Q3b, Q4 and every later message go through the same shared
 /// check as any chat input (input point `chat_check_in` in both arms —
-/// the Hybrid gateway uses it for `m2_check_in`).  A hit gets no template;
-/// the safety flow runs; acute ends the check-in early (both arms).
+/// the Hybrid gateway uses it for `m2_check_in`).  Rule arm: a
+/// moderate_review hit (grief, past hardship) gets an SN line (1020e 二.10);
+/// moderate_interrupt and acute get no template and the safety flow runs.
+/// Acute ends the check-in early (both arms); once the researcher marks the
+/// alert a false alarm (誤觸), the same day's next visit resumes it at the
+/// question where it stopped (1020e 二.9).
 ///
 /// Records: `check_in_responses` ([CheckInChatRecord]); a completed
 /// check-in marks its session valid ([ChatSessionRecorder.markCheckInCompleted]);
@@ -86,7 +91,6 @@ import '../../../reflective_dialogue/data/negative_cognition_detector.dart';
 import '../../../rule_replies/data/rule_reply_history_store.dart';
 import '../../../rule_replies/data/rule_reply_picker.dart';
 import '../../../rule_replies/data/rule_reply_pool.dart';
-import '../../../rule_replies/rule_reply_safety.dart';
 import '../../../thought_exercise/presentation/naming_thought_card.dart';
 import '../../../thought_exercise/presentation/thought_exercise_page.dart';
 import '../../../today/data/mood_recorder.dart';
@@ -293,14 +297,83 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
         latestMoodToday: entry?.mood ?? mood,
         lowMoodEntry: widget.lowMoodEntry || (entry?.lowOpener ?? false));
     if (entry != null) {
+      // From M7 / M8: the chat, never the check-in (nor its resume).
       setState(() => _stage = _Stage.chat);
       await _seedMoodOpener(entry);
-    } else if (done) {
+      return;
+    }
+    if (done) {
       setState(() => _stage = _Stage.chat);
       await _seedChatOpener();
+      return;
+    }
+    // 1020e 二.9 — a crisis stop the researcher marked 誤觸 today: carry
+    // on from the question where it stopped.
+    final resume = uid == null ? null : await _findResumable(uid);
+    if (!mounted) return;
+    if (resume != null) {
+      _resumeCheckIn(resume.$1, resume.$2, resume.$3);
     } else {
       _beginCheckIn();
     }
+  }
+
+  /// 1020e 二.9 — today's stopped chat check-in row that the researcher
+  /// marked a false alarm (`falseAlarm: true`, server-written), not yet
+  /// completed and not yet resumed: (id, row, stopped question).  Only
+  /// today's rows are read, so nothing is resumed the next day.
+  Future<(String, Map<String, dynamic>, String)?> _findResumable(
+      String uid) async {
+    Map<String, Map<String, dynamic>> rows;
+    try {
+      rows = await _responses.rowsForDay(
+          uid: uid, dateIso: MoodRecorder.dateIsoFor(_now()));
+    } catch (_) {
+      return null;
+    }
+    final resumed = {
+      for (final r in rows.values)
+        if (r['resumed_from'] is String) r['resumed_from'] as String,
+    };
+    for (final e in rows.entries) {
+      final r = e.value;
+      if (r['flow'] != 'chat_v2' ||
+          r['stopped_by_safety'] != true ||
+          r['falseAlarm'] != true ||
+          r['completed'] == true ||
+          resumed.contains(e.key)) {
+        continue;
+      }
+      final at = CheckInChatRecord.stoppedQuestionOf(r);
+      if (at != null) return (e.key, r, at);
+    }
+    return null;
+  }
+
+  /// 1020e 二.9 — continue a stopped check-in: a new record carries the
+  /// answers before [stoppedAt] (`resumed_from` = [id]); the stopped
+  /// question is asked again, then the usual order.
+  void _resumeCheckIn(String id, Map<String, dynamic> row, String stoppedAt) {
+    final now = _now();
+    _record = CheckInChatRecord.resumeOf(
+      id: id,
+      row: row,
+      stoppedAt: stoppedAt,
+      arm: _ruleArm ? 'B' : 'A',
+      dateIso: MoodRecorder.dateIsoFor(now),
+      copyVersion: CheckInChatCopy.version,
+    );
+    unawaited(_analytics?.logEvent('check_in_chat_resumed', {
+          'stopped_at': stoppedAt,
+        }) ??
+        Future<void>.value());
+    setState(() {
+      if (stoppedAt == 'Q3b') {
+        _ask(_Stage.q3b, 'Q3b', CheckInChatCopy.q3b, const []);
+      } else {
+        _ask(_Stage.q4, 'Q4', CheckInChatCopy.q4, const []);
+      }
+    });
   }
 
   Future<bool> _defaultCheckedInToday(String uid) =>
@@ -528,7 +601,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
         : await _hybridCheckInReply(input, block: _reply1Block());
     _record?.response1Id = outcome.id;
     if (outcome.stop) {
-      _stopCheckInForSafety();
+      _stopCheckInForSafety('Q3b');
       return;
     }
     _persist();
@@ -538,9 +611,13 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
 
   Future<void> _reply2(_FreeInput? input) async {
     final _ReplyOutcome outcome;
-    if (input == null) {
-      // 唔講住: R4b in both arms — no model call, no advice.
+    if (input == null && _ruleArm) {
+      // 唔講住, rule arm: the fixed R4b.
       outcome = await _fixedReply('R4b', CheckInChatCopy.r4b);
+    } else if (input == null) {
+      // 唔講住, Hybrid (1020e 二.8): one sentence from the model, no advice,
+      // no question; R4b when the model fails.
+      outcome = await _hybridSkipReply();
     } else if (_ruleArm) {
       outcome = await _ruleCheckInReply(input, reply1: false);
     } else {
@@ -548,7 +625,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     }
     _record?.response2Id = outcome.id;
     if (outcome.stop) {
-      _stopCheckInForSafety();
+      _stopCheckInForSafety('Q4');
       return;
     }
     _persist();
@@ -576,8 +653,11 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     _persist();
   }
 
-  void _stopCheckInForSafety() {
+  /// Acute: the check-in ends at [at] (Q3b / Q4); a 誤觸 mark lets the
+  /// same day's next visit resume there (1020e 二.9).
+  void _stopCheckInForSafety(String at) {
     _record?.stoppedBySafety = true;
+    _record?.stoppedAt = at;
     _persist();
     if (mounted) setState(() => _stage = _Stage.chat);
   }
@@ -654,7 +734,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
         await _ruleAcute(input, flag, turnId);
         return const _ReplyOutcome('none_safety', stop: true);
       }
-      if (!allowsTemplateReply(flag)) {
+      if (!_ruleAllowsReply(flag)) {
         await _ruleNoTemplate(input, flag, turnId);
         return const _ReplyOutcome('none_safety');
       }
@@ -662,12 +742,22 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     setState(() => _busy = true);
     await Future<void>.delayed(_templatePause);
     if (!mounted) return const _ReplyOutcome('none', stop: true);
-    final (RuleReplyEntry, String) picked = reply1
-        ? await _pickReply1()
-        : (
-            (id: 'R4a', agent: _siuYan, band: 'none', zh: CheckInChatCopy.r4a),
-            CheckInChatCopy.version,
-          );
+    // 1020e 二.10: a moderate_review hit (grief, past hardship) gets an SN
+    // low-mood line instead of the X / R4a template.
+    final (RuleReplyEntry, String) picked =
+        flag.level == DistressLevel.moderateReview
+            ? (await _pickChatLine(low: true), SiuYanRuleChatPool.version)
+            : reply1
+                ? await _pickReply1()
+                : (
+                    (
+                      id: 'R4a',
+                      agent: _siuYan,
+                      band: 'none',
+                      zh: CheckInChatCopy.r4a,
+                    ),
+                    CheckInChatCopy.version,
+                  );
     final entry = picked.$1;
     final version = picked.$2;
     if (!mounted) return const _ReplyOutcome('none', stop: true);
@@ -762,21 +852,15 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       await _ruleAcute(input, flag, turnId);
       return;
     }
-    if (!allowsTemplateReply(flag)) {
+    if (!_ruleAllowsReply(flag)) {
       await _ruleNoTemplate(input, flag, turnId);
       return;
     }
     await Future<void>.delayed(_templatePause);
     if (!mounted) return;
-    final store = _replyHistory;
-    final recent =
-        await store.recent(uid: _uid, agentId: SiuYanRuleChatPool.historyKey);
-    final entry = SiuYanRuleChatPool.pick(low: _lowMood, recent: recent);
-    unawaited(store.save(
-      uid: _uid,
-      agentId: SiuYanRuleChatPool.historyKey,
-      recent: SiuYanRuleChatPool.remember(recent, entry.id),
-    ));
+    // 1020e 二.10: moderate_review → an SN line, whatever today's mood.
+    final entry = await _pickChatLine(
+        low: _lowMood || flag.level == DistressLevel.moderateReview);
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -792,6 +876,31 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     if (mounted && flag.level != DistressLevel.none) {
       await _route(flag, turnDocId);
     }
+  }
+
+  /// 1020e 二.10 — which safety hits still get a rule-arm line: none, low
+  /// and moderate_review (grief / past hardship; logged, no pop-up — the
+  /// line is from SN).  moderate_interrupt and acute get no template; the
+  /// safety flow runs.  (`allowsTemplateReply` in rule_replies is the old
+  /// forms' rule and stays as it is.)
+  static bool _ruleAllowsReply(DistressMatch flag) =>
+      flag.level == DistressLevel.none ||
+      flag.level == DistressLevel.low ||
+      flag.level == DistressLevel.moderateReview;
+
+  /// The next SY (or SN when [low]) line, rotated through
+  /// `rule_reply_history/siu_yan_chat`.
+  Future<RuleReplyEntry> _pickChatLine({required bool low}) async {
+    final store = _replyHistory;
+    final recent =
+        await store.recent(uid: _uid, agentId: SiuYanRuleChatPool.historyKey);
+    final entry = SiuYanRuleChatPool.pick(low: low, recent: recent);
+    unawaited(store.save(
+      uid: _uid,
+      agentId: SiuYanRuleChatPool.historyKey,
+      recent: SiuYanRuleChatPool.remember(recent, entry.id),
+    ));
+    return entry;
   }
 
   /// The shared safety check (T7) — same input point as the Hybrid
@@ -911,6 +1020,10 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
 
   String _reply2Block() =>
       '[簽到·回應二]\n${_answerLines()}\nQ4 今日有咩打算：（見用戶最後一句）';
+
+  /// 1020e 二.8 — Q4 唔講住 (Hybrid): one sentence, no advice, no question.
+  String _skipBlock() =>
+      '[簽到·唔講住]\n${_answerLines()}\nQ4 今日有咩打算：（用戶揀咗「唔講住」）';
 
   /// After the check-in, the free-chat calls carry today's answers.
   String? _todayBlock() {
@@ -1065,6 +1178,69 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       await _route(escalation, turnDocId);
     }
     return _ReplyOutcome(id);
+  }
+
+  /// 1020e 二.8 — Hybrid reply 2 when Q4 was 唔講住: the model writes one
+  /// sentence (`[簽到·唔講住]`, prompt v3 — v4 with the mood row on, same
+  /// rule: no advice, no question).  A
+  /// failed call, an empty answer or a reply that tripped the safety scan
+  /// is replaced by the fixed R4b (`response2_id: llm_fallback`); the
+  /// flagged text is never shown, so no support page opens for it (the
+  /// gateway still wrote its safety event).  The turn sent is the button
+  /// 唔講住, as for every button-only Hybrid turn.
+  Future<_ReplyOutcome> _hybridSkipReply() async {
+    setState(() => _busy = true);
+    final lastBot =
+        _bubbles.lastIndexWhere((b) => !b.fromUser && !b.isSystem);
+    final history = _history(lastBot + 1);
+    final userInput = _bubbles
+        .skip(lastBot + 1)
+        .where((b) => b.fromUser)
+        .map((b) => b.text)
+        .join('\n');
+    LlmResponse? response;
+    try {
+      response = await _callLlm(
+        moduleId: SiuYanChatPage.checkInModule,
+        userInput: userInput,
+        history: history,
+        block: _skipBlock(),
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('[siu_yan_chat] 唔講住 reply failed: $e');
+    }
+    if (!mounted) return const _ReplyOutcome('none', stop: true);
+    final r = response;
+    final ok = r != null &&
+        !r.isFallback &&
+        !r.shortCircuited &&
+        !r.hasEscalation &&
+        r.text.trim().isNotEmpty;
+    final text = ok ? r.text.trim() : CheckInChatCopy.r4b;
+    setState(() {
+      _busy = false;
+      _bubbles.add(_Bubble.bot(text,
+          copyId: ok ? 'llm' : 'R4b',
+          promptHash: r?.metadata.systemPromptHash));
+    });
+    const none = DistressMatch(DistressLevel.none);
+    await _logTurn(
+      input: null,
+      flag: r == null ? none : _higher(r.inputFlag, r.outputFlag),
+      response: r ??
+          LlmResponse(
+            text: '',
+            inputFlag: none,
+            outputFlag: none,
+            shortCircuited: false,
+            metadata: TurnMetadata(
+                agentId: _siuYan, sessionId: _recorder?.sessionId),
+            status: LlmStatus.fallback,
+            error: 'client_error',
+          ),
+    );
+    if (ok) await _appendToBuffer(fromUser: false, text: text, response: r);
+    return _ReplyOutcome(ok ? 'llm' : 'llm_fallback');
   }
 
   /// The existing Siu Yan chat (CheckInArmA `_sendInner`), after the
@@ -1842,7 +2018,10 @@ class _Composer extends StatelessWidget {
                     maxLines: 4,
                     style: const TextStyle(fontSize: 17),
                     decoration: InputDecoration(
-                      hintText: isEn ? 'Type or speak…' : '寫或者講都得…',
+                      // 1020e 二.5: typing only (same words as #134).
+                      hintText: isEn
+                          ? CheckInChatCopy.inputHintEn
+                          : CheckInChatCopy.inputHint,
                     ),
                   ),
                 ),

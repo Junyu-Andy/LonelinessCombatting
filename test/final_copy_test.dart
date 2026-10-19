@@ -193,6 +193,11 @@ void main() {
       }
     });
 
+    test('input box hint: typing only (1020e 二.5)', () {
+      expect(CheckInChatCopy.inputHint, rows['HINT']![2]);
+      expect(CheckInChatCopy.inputHint.contains('講都得'), isFalse);
+    });
+
     test('rule arm fixed lines XG, R4a, R4b, SY0', () {
       expect(CheckInChatCopy.xg, rows['XG']![2]);
       expect(CheckInChatCopy.r4a, rows['R4a']![2]);
@@ -263,8 +268,11 @@ void main() {
         expect(MoodRowCopy.faceLabel(m), rows['F$m']![2], reason: 'F$m');
         expect(rows['F$m']![1], startsWith('$m '));
       }
-      expect([for (var m = 5; m >= 1; m--) MoodRowCopy.faceLabel(m)],
-          [for (final o in CheckInChatCopy.q1Options.take(5)) o.label]);
+      // Same word for the same score as the check-in Q1 button.
+      for (final o in CheckInChatCopy.q1Options) {
+        if (o.score == null) continue;
+        expect(MoodRowCopy.faceLabel(o.score!), o.label, reason: o.code);
+      }
     });
   });
 }

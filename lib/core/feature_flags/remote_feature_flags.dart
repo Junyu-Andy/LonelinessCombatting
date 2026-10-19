@@ -140,6 +140,15 @@
 ///                               on, [homeMoodOpensCheckInEnabled] cannot
 ///                               take effect (1020b §2 (1)).  Both arms
 ///                               identical apart from who writes the opener.
+///   - [safetyFalseAlarmMarkEnabled] — 1020e 二.9: the researcher
+///                               dashboard's safety-alert list offers
+///                               「標記誤觸」 (false alarm) to the
+///                               `unblinded` role; the `markSafetyFalseAlarm`
+///                               callable checks the same switch.  A marked
+///                               crisis stop lets the elder resume that
+///                               day's chat check-in.  Researcher tool only;
+///                               nothing changes for participants until a
+///                               researcher marks an alert.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -175,6 +184,7 @@ class RemoteFeatureFlags {
     this.checkInChatV2Enabled = false,
     this.homeLayoutV2Enabled = false,
     this.moodRowV2Enabled = false,
+    this.safetyFalseAlarmMarkEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -201,6 +211,7 @@ class RemoteFeatureFlags {
   final bool checkInChatV2Enabled;
   final bool homeLayoutV2Enabled;
   final bool moodRowV2Enabled;
+  final bool safetyFalseAlarmMarkEnabled;
 
   /// 1020b §2 (1): the 10/19 "first mood pick opens the check-in" path is
   /// unreachable while the mood row v2 is on, whatever its own field says.
@@ -277,6 +288,8 @@ class RemoteFeatureFlags {
         checkInChatV2Enabled: map['checkInChatV2Enabled'] == true,
         homeLayoutV2Enabled: map['homeLayoutV2Enabled'] == true,
         moodRowV2Enabled: map['moodRowV2Enabled'] == true,
+        safetyFalseAlarmMarkEnabled:
+            map['safetyFalseAlarmMarkEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

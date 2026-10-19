@@ -24,6 +24,14 @@
 - 做啲嘢：`assets/tools/` 四张定稿图，`MeListItem` 多 `image`、`tileColor`，开关开时用。
 - 测试：`test/home_v2_test.dart`、`test/mood_row_v2_test.dart`（加进 CI 两套 Phase B 构建）、`final_copy_test.dart` 加 `home-v2.md`、文字扫描加五个流程、Functions 加 `prompt_siu_yan_v4_test.js`、`prompt_siu_yan_v4_emulator_test.js`。报告 `docs/dev-reports/T53-T54-batch3-20261020.md`，截图 `docs/dev-reports/batch3-20261020-shots/`。
 - 待 Junyu：文字定稿（5.1、5.2、5.5 和 D1–D4）、v4 新一节措辞、表情下的字要不要改成 Q1 的说法、W5 天数算法、决策编号（草稿 `NNNN-home-two-pages-mood-row.md`）。
+## 2026-10-19 第 2 批跟进（1020e 二.5、二.8、二.9、二.10、二.12；PR #128）
+
+- 结论：Hybrid 组 Q4 唔講住改叫模型（一句、不建议、不提问，失败回落 R4b）；规则组中度复核用 SN；check-in 因急性停下后，研究员标「誤觸」，老人当天可从停下那题接着做；Q1 按钮由低到高；输入框提示只讲打字。
+- 提示词：`siu_yan.v3.txt` 原地加 `[簽到·唔講住]` 一条（v3 从未合并或部署，属 PR 内修改）；`build_info.g.dart` 重新生成。
+- 新函数 `markSafetyFalseAlarm`（`functions/false_alarm.js`，只认 `unblinded`，开关 `safetyFalseAlarmMarkEnabled`）：在 `safety_events`、`pi_alerts` 和当天停下的 `check_in_responses` 行写 `falseAlarm`、`markedBy`、`markedAt`，记 `alert_audit_log`。`firestore.rules`：这三个字段客户端不能写（安全事件和 check-in 行）。
+- App：告警列表加「標記誤觸」（确认框）；小欣窗口开门时读当天的 check-in 行，有已标误触、未完成、未续过的停止行就从 `stopped_at` 那题续问，另存新行 `resumed_from`。
+- 导出和看板：过程导出、盲法导出、分析导出加 `falseAlarm`、`markedAt`；运营看板安全事件多一个「誤觸」计数。
+- 测试：`check_in_chat_v2_test.dart` 加 19 条（唔講住调模型和回落、中度复核 SN、续问两组、隔天不续、未标不续、只续一次、后台按钮）；`false_alarm_emulator_test.js`；规则测试；过程导出和运营看板模拟器测试加断言。
 
 ## 2026-10-19 1020 第 2 批（A、F (1)–(4)、(6)）：小欣页一个聊天窗口，check-in 对话化，规则组小欣聊天（分支 `claude/zealous-fermat-8rgqtg-batch2`，PR #128 草稿）
 

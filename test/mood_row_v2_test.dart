@@ -535,6 +535,15 @@ void main() {
       await settle(tester);
       expect(run.llm.pageCalls.single.promptKey, 'siu_yan_v4');
       expect(SiuYanChatPage.activePromptKey, 'siu_yan_v4');
+      // Batch 2 (1020e 二.8): Q4 唔講住 calls the model with
+      // [簽到·唔講住] — under v4 too.
+      await tester.tap(find.byKey(const ValueKey('check_in_skip')));
+      await settle(tester);
+      final skip = run.llm.pageCalls.last;
+      expect(skip.suffix, contains('[簽到·唔講住]'));
+      expect(skip.promptKey, 'siu_yan_v4');
+      expect(skip.moduleId, 'm2_check_in');
+      expect(says(CheckInChatCopy.q5), findsOneWidget);
       RemoteFeatureFlags.current =
           const RemoteFeatureFlags(checkInChatV2Enabled: true);
       expect(SiuYanChatPage.activePromptKey, 'siu_yan_v3');

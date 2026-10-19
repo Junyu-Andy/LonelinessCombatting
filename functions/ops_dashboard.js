@@ -598,11 +598,14 @@ async function loadPerson(db, person, now, opts) {
     }
   }
 
-  const safety = {pendingAck: 0};
+  // 1020e 二.9: `falseAlarm` = events the researcher marked 誤觸 (they
+  // still count under their level).
+  const safety = {pendingAck: 0, falseAlarm: 0};
   for (const l of SAFETY_LEVELS) safety[l] = 0;
   for (const d of safetySnap.docs) {
     const l = d.get("level");
     if (safety[l] !== undefined) safety[l]++;
+    if (d.get("falseAlarm") === true) safety.falseAlarm++;
   }
   for (const d of alertSnap.docs) {
     if (!d.get("acknowledgedAt")) safety.pendingAck++;
