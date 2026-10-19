@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-10-20 dev-tasks-1020 第 4 批：08:30／19:00 check-in 推送、每周问卷三天提醒、第三天电邮（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-batch4`）
+
+- 从第 1 批分支（381f9a5）开。只改服务器和文档，App 不用改。报告：`docs/dev-reports/T55-T56-batch4-20261020.md`。
+- F (5)：`functions/daily_checkin_push.js`。`checkInChatV2Enabled` 开时新定时函数 `dailyCheckInMorningPush`（08:30）按人发 P1；`dailyMoodReminder` 改每天 19:00，按人发 P2（当天没做完 check-in、当天又没有每周问卷推送的人）。做完的判断认三样：旧表单行、第 2 批 `chat_v2` 行（`completed` 或危机中断）、`check_in_submitted` 事件。关时照旧周一至六广播。
+- G (1)：`weekly_schedule.js` 的 `dispatchWeeklyBundles` 在 `weeklyReminderV2Enabled` 开时对 W1–W4 用新文字、第二／三天（第 4 周关闭日前一天／当天）20:00 只推未完成者；第 4 周关闭日读 `weekly_status.w4VisitDate`。第 5–7 周不变。
+- G (3)：`functions/weekly_email.js` + 定时函数 `weeklyIncompleteEmail`（10:00），复用 `pi_alert.js` 的收件人和发信；`meta/weekly_email_test.send` 触发测试邮件（`onWeeklyEmailTestRequested`）。
+- 文字草稿 `functions/push_copy.js` ＝ `docs/spec/copy/push-and-email-1020.md`（`push_copy_test.js` 逐字比对）。`sendTestPush` 开关开时「每日心情提醒」发 P1、「每週問卷提醒」发 W1，供手机测试。
+- 测试：`pushes_email_1020_emulator_test.js` 11 项（模拟时钟）；整套后端测试通过。决策草稿 `NNNN-daily-and-weekly-pushes-1020.md`。
+- 发现：第 1–3 周 W2／W3 文字比实际窗口早一天；W4 面访日期只能事后录入、App 读不到，面访延后其实延不了。都列给 Junyu 定。
+
 ## 2026-10-19 dev-tasks-1020b：C 定案做完（RCT- 标 rct、一份 cohort 清单、序列 v2）、给 Qingyang 的上传步骤、#126 开关、语音次数（#127）
 
 - 1020b 存进 `docs/dev-tasks/`。#127 先合了最新 main（#126）。

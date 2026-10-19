@@ -44,6 +44,28 @@
  * sent until the research team signs the text off (counted as
  * blocked_placeholder, like T18).  Quiet hours (functions/quiet_hours.js)
  * postpone a push to the next tick.
+ *
+ * Reminders v2 (dev-tasks-1020 G(1), 1020b §4 5.5) — switch
+ * app_config/feature_flags.weeklyReminderV2Enabled (literal true; needs
+ * weeklyScheduleV2Enabled too, this whole dispatcher being off without
+ * it).  Both arms identical.  For W1–W3 and W4 only:
+ *   W1–W3  "day 1" = the push day (7, 14, 21): W1 when the window opens
+ *          (same tick as before); day 2 at weeklyPushHour: W2, only if a
+ *          part is still open; day 3 at weeklyPushHour: W3, same rule.
+ *          The window itself is unchanged (72 h from the day-1 push).
+ *   W4     W1-4 when it opens (day 26); W2-4 the day before the closing
+ *          day and W3-4 on the closing day, at weeklyPushHour, only if a
+ *          part is still open.  Closing day = the Hong Kong day the week-4
+ *          window ends: day week4CloseDay (29) or the W4 visit day,
+ *          whichever is later — the visit date is weekly_status/{uid}
+ *          .w4VisitDate, written by the assessor's W4 entry (assessor.js);
+ *          with the switch on, the dispatcher's week-4 window (and so the
+ *          missed marks) uses it too.
+ *   T18's 24-hour reminder is not sent for these four bundles.  W5–W7
+ *   (PGIC only) keep the push + 24-hour reminder above, with S14 copy.
+ *   weekly_status bundles[Wn] gains pushCopyId, w2PushSentAt,
+ *   w3PushSentAt.  The e-mail to the research lead on day 3 / the closing
+ *   day is functions/weekly_email.js.  Off: everything exactly as above.
  */
 
 "use strict";
@@ -52,6 +74,8 @@ const studyWeek = require("./study_week");
 const quietHours = require("./quiet_hours");
 const testerArm = require("./tester_arm");
 const studyPeriod = require("./study_period");
+const featureFlags = require("./feature_flags");
+const pushCopy = require("./push_copy");
 
 const CONFIG_DOC = "app_config/phase_b";
 const STATUS_COLLECTION = "weekly_status";
@@ -113,6 +137,9 @@ const PUSH_TITLE = "陪住";
 // isPlaceholder() still guards any override that carries the mark.
 const PUSH_BODY = "今個禮拜嘅問卷開咗，得閒入嚟答幾條。";
 const REMINDER_BODY = "今個禮拜嘅問卷仲未答完，得閒入嚟答埋佢。";
+
+/** 1020 G(1): app_config/feature_flags switch for the reminders v2. */
+const REMINDER_V2_FLAG = "weeklyReminderV2Enabled";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -302,6 +329,108 @@ function openBundleAt(cfg, mode, w0Key, now, opts) {
     if (now >= w.open && now < w.close) return {bundle: b, window: w};
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Reminders v2 (dev-tasks-1020 G(1)) — pure parts
+// ---------------------------------------------------------------------------
+
+/**
+ * Does reminders v2 cover this bundle?  W1–W3 (the first three bundle
+ * days) and W4 (closeRule "week4").  The PGIC-only weeks W5–W7 are left as
+ * they are (1020 G names weeks 1–4 only; W8 is T35, not built).
+ * @param {?object} bundle bundlesFor() element
+ * @return {boolean}
+ */
+function isReminderV2Bundle(bundle) {
+  return !!bundle && (bundle.closeRule === "week4" ||
+    (bundle.closeRule === "window" && bundle.index < 3));
+}
+
+/**
+ * The Hong Kong day a window ends on: the day of its last instant (W4
+ * closes at the end of a day, so that day; W1–W3 close at the push hour
+ * three days after opening).
+ * @param {{close: Date}} win windowFor() result
+ * @return {string} YYYY-MM-DD
+ */
+function closingDayKey(win) {
+  return studyWeek.hkDateKey(new Date(win.close.getTime() - 1));
+}
+
+/**
+ * The two reminders of reminders v2, in order.  W1–W3: W2 on day 2 and W3
+ * on day 3, day 1 being the push day.  W4: W2-4 on the day before the
+ * closing day and W3-4 on the closing day.  Each goes at weeklyPushHour on
+ * its day, only to a participant with a part still open.
+ * @param {object} bundle bundlesFor() element
+ * @param {{close: Date, pushDateKey: string}} win windowFor() result
+ * @return {Array<{step: string, dateKey: string, copyId: string}>}
+ */
+function reminderStepsFor(bundle, win) {
+  if (bundle.closeRule === "week4") {
+    const close = closingDayKey(win);
+    return [
+      {step: "W2", dateKey: studyWeek.addDays(close, -1), copyId: "W2-4"},
+      {step: "W3", dateKey: close, copyId: "W3-4"},
+    ];
+  }
+  return [
+    {step: "W2", dateKey: studyWeek.addDays(win.pushDateKey, 1),
+      copyId: "W2"},
+    {step: "W3", dateKey: studyWeek.addDays(win.pushDateKey, 2),
+      copyId: "W3"},
+  ];
+}
+
+/**
+ * @param {object} bundle
+ * @return {string} copy id of the push when the window opens
+ */
+function openCopyIdFor(bundle) {
+  return bundle.closeRule === "week4" ? "W1-4" : "W1";
+}
+
+/**
+ * The day the research lead's e-mail lists a bundle (1020 G(3)): day 3 of
+ * W1–W3, the closing day of W4 — the day of the last reminder.
+ * @param {object} bundle
+ * @param {object} win windowFor() result
+ * @return {string} YYYY-MM-DD
+ */
+function emailDayKeyFor(bundle, win) {
+  return reminderStepsFor(bundle, win)[1].dateKey;
+}
+
+/**
+ * @param {string} step "W2" | "W3"
+ * @return {string} the weekly_status bundles[Wn] field stamped on sending
+ */
+function stepSentField(step) {
+  return step === "W2" ? "w2PushSentAt" : "w3PushSentAt";
+}
+
+/**
+ * windowFor() options for one participant.  Reminders v2 on: the W4 visit
+ * date the assessor entered (weekly_status/{uid}.w4VisitDate, assessor.js)
+ * moves the week-4 close when it is later than day week4CloseDay.  Off:
+ * none, exactly T24.
+ * @param {?object} st weekly_status/{uid} data
+ * @param {boolean} reminderV2
+ * @return {(object|undefined)}
+ */
+function windowOptsFor(st, reminderV2) {
+  if (!reminderV2) return undefined;
+  const d = st ? st.w4VisitDate : null;
+  return studyWeek.isDateKey(d) ? {w4VisitDate: d} : {};
+}
+
+/**
+ * @param {object} db admin.firestore()
+ * @return {Promise<boolean>} weeklyReminderV2Enabled is literally true
+ */
+function reminderV2On(db) {
+  return featureFlags.isFeatureEnabled(db, REMINDER_V2_FLAG);
 }
 
 /**
@@ -561,13 +690,17 @@ async function markMissedParts(userRef, p) {
  * Hourly job: per-person push when a bundle opens, T18's one reminder,
  * the missed marks after the window.  Returns at once with the switch
  * off.  Phase B and pilot participants only (cohort), testers excluded,
- * no arm check.
+ * no arm check.  With weeklyReminderV2Enabled (1020 G(1)) W1–W4 use the
+ * W1…W3-4 texts and the day-2 / day-3 reminders instead of T18's one
+ * (file header).
  * @param {object} db admin.firestore()
  * @param {{send: function(object): Promise<string>}} messaging
  * @param {{now: (Date|undefined), log: (function|undefined),
- *     copy: (object|undefined), quiet: (object|undefined)}} opts
- *     copy overrides the draft text (tests only); quiet overrides the
- *     quiet-hours config
+ *     copy: (object|undefined), quiet: (object|undefined),
+ *     reminderV2: (boolean|undefined)}} opts
+ *     copy overrides the draft text (tests only; keys push, reminder and
+ *     the push_copy ids W1…W3-4); quiet overrides the quiet-hours config;
+ *     reminderV2 overrides the switch (tests only)
  * @return {Promise<object>} counts per outcome
  */
 async function dispatchWeeklyBundles(db, messaging, opts) {
@@ -583,6 +716,12 @@ async function dispatchWeeklyBundles(db, messaging, opts) {
   };
   if (!cfg.enabled) return counts;
   const quietCfg = o.quiet || await quietHours.readQuietHoursConfig(db);
+  const v2 = o.reminderV2 !== undefined ? o.reminderV2 === true :
+    await reminderV2On(db);
+  if (v2) counts.reminderV2 = true;
+  const v2Text = (id) =>
+    (typeof copy[id] === "string" ? copy[id] : pushCopy.TEXT[id]);
+  const todayKey = studyWeek.hkDateKey(now);
 
   const users = await db.collection("users").get();
   for (const userDoc of users.docs) {
@@ -601,9 +740,10 @@ async function dispatchWeeklyBundles(db, messaging, opts) {
       const bundles = st.bundles || {};
       const quiet = quietHours.inQuietHours(u, now, quietCfg);
       for (const b of bundlesFor(cfg, mode)) {
-        const win = windowFor(b, w0Key, cfg);
+        const win = windowFor(b, w0Key, cfg, windowOptsFor(st, v2));
         if (now < win.open) continue;
         const bst = bundles[b.id] || {};
+        const useV2 = v2 && isReminderV2Bundle(b);
         const base = {
           uid: userDoc.id, scheduleMode: mode, w0Date: w0Key,
           updatedAt: now,
@@ -643,25 +783,78 @@ async function dispatchWeeklyBundles(db, messaging, opts) {
             bump("quiet_hours");
             continue;
           }
-          if (isPlaceholder(copy.push)) {
+          // 1020 G(1): W1 (weeks 1–3) / W1-4 (week 4) with the switch on.
+          const openCopyId = useV2 ? openCopyIdFor(b) : null;
+          const body = useV2 ? v2Text(openCopyId) : copy.push;
+          if (isPlaceholder(body)) {
             bump("blocked_placeholder");
             continue;
           }
-          const res = await sendToDevices(messaging, userDoc, copy.push,
+          const res = await sendToDevices(messaging, userDoc, body,
               "weekly_bundle_push");
           const patch = {};
-          patch[b.id] = Object.assign({}, bundleFields, {pushedAt: now});
+          patch[b.id] = Object.assign({}, bundleFields, {pushedAt: now},
+              useV2 ? {pushCopyId: openCopyId} : {});
           const rid = st.researchId || await lookupResearchId(db, userDoc.id);
           await statusRef.set(Object.assign({}, base,
               {researchId: rid || null, bundles: patch}), {merge: true});
+          const params = {bundle: b.id, studyWeek: b.studyWeek,
+            studyDay: b.pushDay, tokens: res.tokens, delivered: res.delivered};
+          if (useV2) params.copyId = openCopyId;
           await userDoc.ref.collection("events").add({
             name: "weekly_bundle_push_sent",
-            params: {bundle: b.id, studyWeek: b.studyWeek, studyDay: b.pushDay,
-              tokens: res.tokens, delivered: res.delivered},
+            params,
             source: "cf_weeklyBundleDispatch",
             timestamp: now,
           });
           bump("pushed");
+          continue;
+        }
+
+        if (useV2) {
+          // 1020 G(1): day 2 / day 3 (week 4: the day before the closing
+          // day / the closing day) at weeklyPushHour, only while a part is
+          // open.  Never on the day W1 went out, nor on a day T18's
+          // reminder already went (switch turned on mid-window).
+          if (studyWeek.hkHour(now) < cfg.pushHour) continue;
+          if (studyWeek.hkDateKey(pushedAt) === todayKey) continue;
+          const oldReminder = studyWeek.toDate(bst.reminderSentAt);
+          if (oldReminder && studyWeek.hkDateKey(oldReminder) === todayKey) {
+            continue;
+          }
+          const step = reminderStepsFor(b, win)
+              .find((s) => s.dateKey === todayKey);
+          if (!step) continue;
+          const field = stepSentField(step.step);
+          if (bst[field]) continue;
+          const states = await partStates(userDoc.ref, b);
+          const open = b.parts.filter((p) => !states[p].submitted);
+          if (open.length === 0) continue;
+          if (quiet) {
+            bump("quiet_hours");
+            continue;
+          }
+          const body = v2Text(step.copyId);
+          if (isPlaceholder(body)) {
+            bump("blocked_placeholder");
+            continue;
+          }
+          const res = await sendToDevices(messaging, userDoc, body,
+              "weekly_bundle_reminder");
+          const patch = {};
+          patch[b.id] = {};
+          patch[b.id][field] = now;
+          await statusRef.set(Object.assign({}, base, {bundles: patch}),
+              {merge: true});
+          await userDoc.ref.collection("events").add({
+            name: "weekly_bundle_reminder_sent",
+            params: {bundle: b.id, studyWeek: b.studyWeek, parts: open,
+              step: step.step, copyId: step.copyId, dateKey: todayKey,
+              tokens: res.tokens, delivered: res.delivered},
+            source: "cf_weeklyBundleDispatch",
+            timestamp: now,
+          });
+          bump("reminded");
           continue;
         }
 
@@ -704,6 +897,68 @@ async function dispatchWeeklyBundles(db, messaging, opts) {
   return counts;
 }
 
+/**
+ * 1020 F(5): does this participant get a weekly-questionnaire push on the
+ * Hong Kong day of `now`?  The 19:00 check-in push (P2) is not sent on
+ * such a day, so nobody gets both in one evening (what the old Mon–Sat
+ * schedule did for everyone on Sundays, now per person).  Same rules as
+ * dispatchWeeklyBundles: the push when a window opens (today, or still
+ * owed), the v2 day-2 / day-3 reminders or T18's 24-hour reminder while a
+ * part is open; a weekly push already sent today counts too.  With the
+ * study-week schedule off, the old Sunday weekly reminder goes to
+ * everyone, so every Sunday counts.
+ * @param {object} db admin.firestore()
+ * @param {object} userDoc users/{uid} snapshot
+ * @param {Date} now
+ * @param {{cfg: object, reminderV2: boolean}} ctx cfg = readConfig()
+ * @return {Promise<boolean>}
+ */
+async function weeklyPushDueToday(db, userDoc, now, ctx) {
+  const cfg = ctx.cfg;
+  if (!cfg.enabled) {
+    return new Date(now.getTime() + 8 * 3600 * 1000).getUTCDay() === 0;
+  }
+  const u = userDoc.data() || {};
+  const mode = scheduleModeFor(u);
+  const w0Key = studyWeek.w0DateKey(u);
+  if (!mode || !w0Key) return false;
+  const todayKey = studyWeek.hkDateKey(now);
+  const statusSnap = await db.collection(STATUS_COLLECTION)
+      .doc(userDoc.id).get();
+  const st = statusSnap.exists ? (statusSnap.data() || {}) : {};
+  const bundles = st.bundles || {};
+  const sentToday = (v) => {
+    const d = studyWeek.toDate(v);
+    return !!d && studyWeek.hkDateKey(d) === todayKey;
+  };
+  for (const b of bundlesFor(cfg, mode)) {
+    const bst = bundles[b.id] || {};
+    if (sentToday(bst.pushedAt) || sentToday(bst.reminderSentAt) ||
+        sentToday(bst.w2PushSentAt) || sentToday(bst.w3PushSentAt)) {
+      return true;
+    }
+    if (bst.missedAt) continue;
+    const win = windowFor(b, w0Key, cfg, windowOptsFor(st, ctx.reminderV2));
+    if (now >= win.close || win.pushDateKey > todayKey) continue;
+    const pushedAt = studyWeek.toDate(bst.pushedAt);
+    if (!pushedAt) return true; // opens today, or owed at the next tick
+    let due = false;
+    if (ctx.reminderV2 && isReminderV2Bundle(b)) {
+      const step = reminderStepsFor(b, win)
+          .find((s) => s.dateKey === todayKey);
+      due = !!step && !bst[stepSentField(step.step)];
+    } else if (!bst.reminderSentAt) {
+      const at = new Date(pushedAt.getTime() +
+        cfg.reminderHours * 3600 * 1000 - REMINDER_SLACK_MS);
+      due = studyWeek.hkDateKey(at) <= todayKey;
+    }
+    if (!due) continue;
+    const states = await partStates(userDoc.ref, b);
+    if (b.parts.some((p) => !states[p].submitted)) return true;
+  }
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // The old Sunday weekly reminder (weeklySurveyReminder)
 // ---------------------------------------------------------------------------
@@ -737,4 +992,8 @@ module.exports = {
   partStamp, stampPartRecord, stampBriefPr, isPlaceholder, lookupResearchId,
   sendToDevices, partStates, markMissedParts, dispatchWeeklyBundles,
   legacyWeeklyReminderTarget,
+  // 1020 G(1) reminders v2, F(5) evening-push rule
+  REMINDER_V2_FLAG, isReminderV2Bundle, closingDayKey, reminderStepsFor,
+  openCopyIdFor, emailDayKeyFor, stepSentField, windowOptsFor, reminderV2On,
+  weeklyPushDueToday,
 };
