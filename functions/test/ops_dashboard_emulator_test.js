@@ -128,6 +128,14 @@ async function participant(p) {
     await u.collection("weekly_pr").doc("W1").set({status: "completed"});
     await db.collection("weekly_status").doc(uid).set({uid,
       bundles: {W1: {pushedAt: NOW}, W2: {pushedAt: NOW, missedAt: NOW}}});
+    // 1020d — three chapters: flagged, failed, clean.
+    const ch = u.collection("reminiscence_chapters");
+    await ch.doc("week_1").set({weekIndex: 1, source: "hybrid",
+      status: "ready", flags: ["太书面"], finalText: "我細個住喺鄉下。"});
+    await ch.doc("week_2").set({weekIndex: 2, source: "hybrid",
+      status: "failed", failReason: "llm_error"});
+    await ch.doc("week_3").set({weekIndex: 3, source: "hybrid",
+      status: "ready", flags: []});
   }
 }
 
@@ -281,6 +289,10 @@ test("unblinded: the table, 13 rows, numbers right", async () => {
   assert.strictEqual(pb1.weekly.W2, "missed");
   assert.strictEqual(pb1.weekly.W3, "not_yet");
   assert.strictEqual(pb1.weekly.W8, "not_built");
+  // 1020d — chapter counts by research ID; no text.
+  assert.deepStrictEqual(pb1.chapters, {flagged: 1, failed: 1});
+  assert.deepStrictEqual(by["PB-002"].chapters, {flagged: 0, failed: 0});
+  assert.ok(!JSON.stringify(table).includes("我細個住喺鄉下"));
 
   assertNoForbiddenKeys(table, "people");
 });

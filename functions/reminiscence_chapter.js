@@ -84,6 +84,8 @@ const THINKING_OFF = {type: "disabled"};
 /** Issue types the check may return (1020d §6 (2)(b)), in report order. */
 const ISSUE_TYPES = ["无出处", "细节错", "语气不当", "太书面", "太口语", "私隐",
   "敏感"];
+/** Style issues: sent back for a rewrite without Flash's suggestion. */
+const STYLE_TYPES = ["太书面", "太口语"];
 /** Still flagged after the last round → the sentence is deleted. */
 const DELETE_TYPES = ["无出处", "细节错"];
 /** Flag when the last check gave nothing usable (malformed twice). */
@@ -105,6 +107,12 @@ const DEFAULTS = {
   checkTemperature: 0.1,
   maxRewriteRounds: 2,
   checkRetries: 1,
+  // An empty Pro answer (everything left in the reasoning) is retried;
+  // 10/19 dry run: 5 of 23 short-conversation drafts came back empty.
+  draftRetries: 2,
+  // Drop a 太口语 issue whose quote has no colloquial grammar character
+  // outside 「」 (see screenIssues).
+  colloquialFilter: true,
   // The trigger runs for at most 540 s; stop starting new rounds early.
   totalBudgetMs: 480000,
   pushEnabled: true,
@@ -167,6 +175,9 @@ function configFrom(data) {
     maxRewriteRounds: intIn(d.maxRewriteRounds, 0, 2,
         DEFAULTS.maxRewriteRounds),
     checkRetries: intIn(d.checkRetries, 0, 2, DEFAULTS.checkRetries),
+    draftRetries: intIn(d.draftRetries, 0, 3, DEFAULTS.draftRetries),
+    colloquialFilter: typeof d.colloquialFilter === "boolean" ?
+      d.colloquialFilter : DEFAULTS.colloquialFilter,
     totalBudgetMs: intIn(d.totalBudgetMs, 60000, 520000,
         DEFAULTS.totalBudgetMs),
     pushEnabled: typeof d.pushEnabled === "boolean" ?
@@ -404,6 +415,52 @@ function parseCheck(text) {
   }
   if (parsed.ok === false && issues.length === 0) return null;
   return {ok: parsed.ok === true && issues.length === 0, issues};
+}
+
+/**
+ * Colloquial Cantonese GRAMMAR characters (not vocabulary).  The style
+ * rule (1020d §6 (3)) keeps the elder's Cantonese words; only a sentence
+ * built on these is 太口语.
+ */
+const COLLOQUIAL_GRAMMAR = ["喺", "嘅", "咗", "佢", "哋", "冇", "嗰", "呢", "啲",
+  "唔", "嚟", "咁", "噉"];
+
+/**
+ * @param {string} quote
+ * @return {string} the quote without the parts inside 「」 / 『』
+ */
+function outsideQuotes(quote) {
+  return String(quote || "").replace(/「[^」]*」/g, "")
+      .replace(/『[^』]*』/g, "");
+}
+
+/**
+ * Code-side guard on Flash's style judgement: a 太口语 issue whose quote
+ * has no colloquial grammar character outside quotation marks is dropped
+ * (the 10/19 dry run: Flash flagged sentences for keeping words such as
+ * 屋企 / 返學 / 食, which the style rule asks to keep).  The dropped issues
+ * stay in the archive.
+ * @param {{ok: boolean, issues: Array<object>}} parsed
+ * @param {{colloquialFilter: boolean}} cfg
+ * @return {{result: {ok: boolean, issues: Array<object>},
+ *     dropped: Array<object>}}
+ */
+function screenIssues(parsed, cfg) {
+  if (!cfg || cfg.colloquialFilter === false) {
+    return {result: parsed, dropped: []};
+  }
+  const kept = [];
+  const dropped = [];
+  for (const issue of parsed.issues) {
+    const rest = outsideQuotes(issue.quote);
+    if (issue.type === "太口语" &&
+        !COLLOQUIAL_GRAMMAR.some((ch) => rest.indexOf(ch) >= 0)) {
+      dropped.push(issue);
+    } else {
+      kept.push(issue);
+    }
+  }
+  return {result: {ok: kept.length === 0, issues: kept}, dropped};
 }
 
 // ---------------------------------------------------------------------------
@@ -652,9 +709,15 @@ function promptText(key) {
  * @return {string}
  */
 function rewriteMessage(conversation, previous, check) {
+  // Style issues go back without Flash's suggestion: in the 10/19 dry run
+  // its 太口语 suggestions swapped the elder's Cantonese words for
+  // Mandarin ones (屋企 → 家裏, 食 → 吃) and Pro copied them.  Pro fixes
+  // style from its own 語體 rules.
   const opinion = check ?
-    JSON.stringify({issues: check.issues.map((i) => ({type: i.type,
-      quote: i.quote, suggestion: i.suggestion}))}, null, 0) :
+    JSON.stringify({issues: check.issues.map((i) =>
+      STYLE_TYPES.indexOf(i.type) >= 0 ? {type: i.type, quote: i.quote} :
+        {type: i.type, quote: i.quote, suggestion: i.suggestion})},
+    null, 0) :
     "（核對冇結果。請你自己再逐句對照【對話】，刪走或者改正冇出處、細節唔啱嘅句子。）";
   return `${conversation}\n\n【上一稿】\n${previous}\n\n【核對意見】\n` +
     `${opinion}\n\n請按【核對意見】改寫【上一稿】，只輸出改好嘅全文。`;
@@ -702,19 +765,29 @@ async function runPipeline(deps, input) {
   const remaining = () => deadline - now();
   const slot = (wanted) => Math.max(1000, Math.min(wanted, remaining() - 2000));
 
+  // In thinking mode the Pro model now and then puts the whole answer in
+  // its reasoning and returns empty content (seen in the 10/19 dry run);
+  // an empty draft is asked for again, up to draftRetries times.
   const callDraft = async (step, user) => {
-    const r = await deps.model({step, model: cfg.draftModel,
-      thinking: cfg.draftThinking, reasoningEffort: cfg.draftReasoningEffort,
-      system: draftSystem, user, maxTokens: cfg.draftMaxTokens,
-      timeoutMs: slot(cfg.draftTimeoutMs), json: false});
-    const text = String(r.text || "").trim();
-    if (!text) {
-      const err = new Error("empty_draft");
-      err.code = "empty_draft";
-      err.call = callRecord(r);
-      throw err;
+    let emptyAttempts = 0;
+    for (;;) {
+      const r = await deps.model({step, model: cfg.draftModel,
+        thinking: cfg.draftThinking,
+        reasoningEffort: cfg.draftReasoningEffort,
+        system: draftSystem, user, maxTokens: cfg.draftMaxTokens,
+        timeoutMs: slot(cfg.draftTimeoutMs), json: false});
+      const text = String(r.text || "").trim();
+      if (text) {
+        return Object.assign({text}, callRecord(r), {emptyAttempts});
+      }
+      emptyAttempts++;
+      if (emptyAttempts > cfg.draftRetries || remaining() < 30000) {
+        const err = new Error("empty_draft");
+        err.code = "empty_draft";
+        err.call = callRecord(r);
+        throw err;
+      }
     }
-    return Object.assign({text}, callRecord(r));
   };
 
   const callCheck = async (draftText) => {
@@ -739,8 +812,13 @@ async function runPipeline(deps, input) {
       rec.usable = parsed !== null;
       if (error) rec.error = error;
       if (r && parsed === null) rec.raw = String(r.text || "").slice(0, 2000);
+      let screened = null;
+      if (parsed) {
+        screened = screenIssues(parsed, cfg);
+        if (screened.dropped.length) rec.droppedIssues = screened.dropped;
+      }
       attempts.push(rec);
-      if (parsed) return {result: parsed, attempts};
+      if (screened) return {result: screened.result, attempts};
     }
     return {result: null, attempts};
   };
@@ -1031,7 +1109,9 @@ async function generateClaimed(deps, c) {
   const archiveBase = {
     config: {draftModel: cfg.draftModel, draftThinking: cfg.draftThinking,
       draftReasoningEffort: cfg.draftReasoningEffort,
-      checkModel: cfg.checkModel, maxRewriteRounds: cfg.maxRewriteRounds},
+      checkModel: cfg.checkModel, maxRewriteRounds: cfg.maxRewriteRounds,
+      draftRetries: cfg.draftRetries, checkRetries: cfg.checkRetries,
+      colloquialFilter: cfg.colloquialFilter},
     promptVersions: {
       draft: promptRegistry.promptVersionFor(DRAFT_PROMPT),
       check: promptRegistry.promptVersionFor(CHECK_PROMPT),
@@ -1142,9 +1222,10 @@ async function generateClaimed(deps, c) {
 module.exports = {
   CHAPTERS, RUNS, FLAG, CONFIG_DOC, ENDPOINT, AGENT_ID, MODULE_ID,
   DRAFT_PROMPT, CHECK_PROMPT, THINKING_ON, THINKING_OFF, ISSUE_TYPES,
-  DELETE_TYPES, FLAG_CHECK_FAILED, OTHER_TYPE, DEFAULTS,
+  DELETE_TYPES, STYLE_TYPES, FLAG_CHECK_FAILED, OTHER_TYPE, DEFAULTS,
   configFrom, readConfig, normaliseInput, conversationText,
   buildRequestBody, deepSeekModel, parseCheck, splitSentences, paragraphs,
+  COLLOQUIAL_GRAMMAR, outsideQuotes, screenIssues,
   norm, dice, charDice, matchQuote, deleteFlagged, rewriteMessage, checkMessage,
   runPipeline, isHybridRequest, refusalFor, handleChapterWrite, pushReady,
 };

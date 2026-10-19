@@ -43,6 +43,11 @@
  *   Stage on study days 1–28: 0–2 "none", 3–5 "whatsapp", ≥ 6 "phone";
  *   from day 29 "follow_up_period" (still shows the count); day ≤ 0 "none".
  *
+ * 1020d §6 (2)(d): `chapters` on each person row — how many weekly
+ * 小篇章 are ready with unresolved `flags` (issues the check still had
+ * after the last rewrite) and how many failed.  Counts only: no chapter
+ * text, no flag wording, nothing per arm beyond the row's existing `arm`.
+ *
  * Storage: ops_daily/{uid}/days/{dayKey} keeps the finished days (server
  * only).  opsDailyRollup (02:10 HKT) writes yesterday for everyone; a
  * callable fills any missing finished day and computes today on demand,
@@ -62,6 +67,7 @@ const DAILY_COLLECTION = "ops_daily";
 const DAYS_SUBCOLLECTION = "days";
 const AUDIT_COLLECTION = "ops_audit_log";
 const USAGE_COLLECTION = "usage_events";
+const CHAPTER_COLLECTION = "reminiscence_chapters";
 
 /** A single foreground stretch counts at most this many minutes. */
 const FOREGROUND_CAP_MIN = 60;
@@ -121,6 +127,24 @@ async function requireFlag(db) {
 // ---------------------------------------------------------------------------
 // Pure helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * 1020d: weekly 小篇章 still flagged after the last rewrite, and failed
+ * ones.  Counts only.
+ * @param {Array<object>} docs reminiscence_chapters doc data
+ * @return {{flagged: number, failed: number}}
+ */
+function chapterCounts(docs) {
+  let flagged = 0;
+  let failed = 0;
+  for (const d of docs || []) {
+    if (!d) continue;
+    if (d.status === "failed") failed++;
+    else if (d.status === "ready" && Array.isArray(d.flags) &&
+      d.flags.length > 0) flagged++;
+  }
+  return {flagged, failed};
+}
 
 /**
  * @param {Date} d
@@ -530,7 +554,8 @@ async function loadPerson(db, person, now, opts) {
   const userRef = db.collection("users").doc(person.uid);
 
   const [sessions, briefPr, weeklyParts, statusSnap, moodSnap, memSnap,
-    sttSnap, voiceFailSnap, safetySnap, alertSnap, lastUsageSnap] =
+    sttSnap, voiceFailSnap, safetySnap, alertSnap, lastUsageSnap,
+    chapterSnap] =
     await Promise.all([
       readSessions(db, person.uid, null),
       readBriefPr(db, person.uid),
@@ -549,6 +574,7 @@ async function loadPerson(db, person, now, opts) {
       // few rows, the newest foreground among them is the last open.
       userRef.collection(USAGE_COLLECTION).orderBy("clientAt", "desc")
           .limit(10).get(),
+      userRef.collection(CHAPTER_COLLECTION).get(),
     ]);
 
   const byCompanion = {};
@@ -608,6 +634,8 @@ async function loadPerson(db, person, now, opts) {
     if (!d.get("acknowledgedAt")) safety.pendingAck++;
   }
 
+  const chapters = chapterCounts(chapterSnap.docs.map((d) => d.data()));
+
   let lastUse = lastSession;
   for (const d of lastUsageSnap.docs) {
     if (d.get("type") !== "foreground") continue;
@@ -634,6 +662,7 @@ async function loadPerson(db, person, now, opts) {
     memory,
     voice: {uses: sttSnap.size, failures: voiceFailSnap.size},
     safety,
+    chapters,
     w8Status: "not_built",
     debriefStatus: "not_built",
   };
@@ -782,6 +811,7 @@ module.exports = {
   FOREGROUND_CAP_MIN, FOLLOW_UP_LAST_DAY, WHATSAPP_FROM_DAYS, PHONE_FROM_DAYS,
   COMPANIONS, SESSION_TYPES, WEEKS, OUTCOME_COLLECTIONS, CSV_COLUMNS,
   foregroundMinutesByDay, dayRowsFor, followUpFor, dueListFor, weeklyCellFor,
+  chapterCounts,
   csvFor, participants, personDayRows, loadPerson,
   people, person, csv, rollup,
 };

@@ -3,7 +3,10 @@
  * reminiscenceV2Enabled).  Pure: reads the prompt files, no Firestore.
  *
  *   - ah_jan_ah_bak.v3.txt = ah_jan_ah_bak.v2.txt with the header bumped to
- *     v3 and ONE new section 「每題之後」; nothing else changed.
+ *     v3 and ONE new section 「每題之後」 at the very end (right before the
+ *     marker block the App appends — the dry runs of 10/19 asked fewer
+ *     questions in replies and more in follow-ups that way); nothing else
+ *     changed.
  *   - The registry maps the new key ah_jan_ah_bak_v3 → ah_jan_ah_bak.v3;
  *     the key every other 阿珍／阿伯 call sends (ah_jan_ah_bak_v1) still
  *     loads v2.
@@ -44,11 +47,10 @@ function test(name, fn) {
 const V2 = "ah_jan_ah_bak.v2.txt";
 const V3 = "ah_jan_ah_bak.v3.txt";
 const SECTION = "# 每題之後（回憶 v2：App 逐題問）";
-const NEXT = "# 負面認知處理（最關鍵 — spec §2.2）";
 
 function section() {
   const v3 = read(V3);
-  return v3.slice(v3.indexOf(SECTION), v3.indexOf(NEXT));
+  return v3.slice(v3.indexOf(SECTION));
 }
 
 test("v2 untouched (hash as pinned in build_info.g.dart)", () => {
@@ -73,20 +75,22 @@ test("registry: ah_jan_ah_bak_v3 → v3; ah_jan_ah_bak_v1 still → v2", () => {
   assert.strictEqual(reg.promptFileFor("tung_tung_v1"), "tung_tung.v3");
 });
 
-test("v3 = v2 + header + the 每題之後 section only", () => {
-  const v2 = read(V2).split("\n");
-  const v3 = read(V3).split("\n");
-  assert.strictEqual(v3[0], "## {{VARIANT_NAME}} — Reflective " +
-      "Peer-Listener · PPR-Understanding · v3 (rev 2026-10)");
-  const start = v3.indexOf(SECTION);
-  assert.ok(start > 0, "section present");
-  const end = v3.indexOf(NEXT);
-  assert.ok(end > start, "section sits right before 負面認知處理");
-  // The section comes after the 12 rules.
-  assert.ok(v3.indexOf("# 12 條 reminiscence 行為規矩") < start);
-  const rebuilt = [v2[0]].concat(v3.slice(1, start), v3.slice(end));
-  assert.strictEqual(rebuilt.join("\n"), v2.join("\n"));
-});
+test("v3 = v2 + header + the 每題之後 section at the end, nothing else",
+    () => {
+      const v2 = read(V2);
+      const v3 = read(V3);
+      const head2 = v2.split("\n")[0];
+      assert.strictEqual(v3.split("\n")[0], "## {{VARIANT_NAME}} — " +
+          "Reflective Peer-Listener · PPR-Understanding · v3 (rev 2026-10)");
+      const v2h = v3.split("\n")[0] + v2.slice(head2.length);
+      const start = v3.indexOf(SECTION);
+      assert.ok(start > 0, "section present");
+      assert.strictEqual(v3.slice(0, start), v2h + "\n",
+          "everything before the section is v2 (header bumped)");
+      assert.strictEqual(v3.indexOf("\n# ", start + 1), -1,
+          "the section is the last one");
+      assert.ok(v3.endsWith("\n"));
+    });
 
 test("the section names the three markers and the block fields", () => {
   const s = section();
@@ -114,12 +118,16 @@ test("the section carries 1020d §2 (3) (a)–(e)", () => {
   assert.ok(s.includes("地方、年代、生活方式，全部照老人自己講嘅"));
   assert.ok(s.includes("優先過上面第 3、10 條"));
   // (d) bereavement / trauma: acknowledge only
-  assert.ok(s.includes("(d) **離世、創傷：只承認。**"));
+  assert.ok(s.includes("(d) **離世、創傷：只承認，唔問。**"));
   assert.ok(s.includes("唔好追問細節"));
   assert.ok(s.includes("「最難受係咩」「最難係咩」"));
-  assert.ok(s.includes("都用一句承認代替追問"));
+  assert.ok(s.includes("就算標記係 `[回憶·追問]` 都係咁"));
+  assert.ok(s.includes("例外：老人呢次講到有人離世或者創傷"));
+  // The follow-up must carry a question; the reply none.
+  assert.ok(s.includes("然後一定要有一條問題"));
+  assert.ok(s.includes("**一條問題都唔好問**，連「係咪…？」都唔得"));
   // (e) everything else as before
-  assert.ok(s.includes("(e) 其餘照上面 12 條規矩"));
+  assert.ok(s.includes("(e) 其餘照上面 12 條規矩、主題鎖、禁止語同 Distress 處理"));
   // The App asks the questions; the model never does.
   assert.ok(s.includes("唔好自己出題"));
   // Same identity rule as v2: no banned self-description added.

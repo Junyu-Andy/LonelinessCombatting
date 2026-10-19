@@ -189,6 +189,19 @@ test("due list: whatsapp / phone only, most days first, no arm", () => {
   for (const r of list) assert.ok(!("arm" in r));
 });
 
+test("1020d chapter counts: ready with flags, failed; nothing else", () => {
+  assert.deepStrictEqual(O.chapterCounts([
+    {status: "ready", flags: ["太书面"]},
+    {status: "ready", flags: []},
+    {status: "ready"},
+    {status: "failed", failReason: "llm_error"},
+    {status: "generating", flags: ["无出处"]},
+    {source: "rule", status: "ready", version: 1},
+    null,
+  ]), {flagged: 1, failed: 1});
+  assert.deepStrictEqual(O.chapterCounts([]), {flagged: 0, failed: 0});
+});
+
 test("weekly cell: done / skipped / missed / open / not_yet", () => {
   assert.strictEqual(O.weeklyCellFor({status: "completed"}, null), "done");
   assert.strictEqual(O.weeklyCellFor({status: "skipped"}, null), "skipped");

@@ -67,6 +67,24 @@ async function seed() {
     await u.collection("brief_pr").doc("s1").set({schemaVersion: 3,
       sessionId: "s1", finalStatus: "completed", understanding: 6});
     await u.collection("mem_facts").add({value: SECRET});
+    // 1020d — a chapter (text in every text field) and its rating.
+    const ch = u.collection("reminiscence_chapters").doc("week_1");
+    await ch.set({weekIndex: 1, source: arm === "A" ? "hybrid" : "rule",
+      status: "ready", version: 1, requestId: "r1",
+      requestedAt: new Date("2026-11-07T02:00:00Z"),
+      input: {themeZh: "童年同屋企", items: [{questionIndex: 1, question: "q",
+        answer: SECRET, skipped: false, followups: [], reply: null}],
+      extras: []},
+      finalText: SECRET, ruleText: SECRET, editedText: SECRET,
+      editRatio: 0.25, flags: ["太书面"], deletedSentences: [SECRET],
+      generatedAt: new Date("2026-11-07T02:01:00Z"),
+      savedAt: new Date("2026-11-07T02:09:00Z")});
+    await ch.collection("runs").doc("r1").set({rounds: [{draft:
+      {text: SECRET}}]});
+    await u.collection("reminiscence_chapter_ratings").doc("week_1_v1").set({
+      weekIndex: 1, studyWeek: 1, source: arm === "A" ? "hybrid" : "rule",
+      scores: {q1: 6, q2: 7, q3: null},
+      ratedAt: new Date("2026-11-07T02:05:00Z"), note: SECRET});
     await db.collection("outcome_entries").add({researchId: rid, uid,
       instrument: "DJG-ES", instrumentVersion: "djg6_pkg3_v1",
       timepoint: "W4", assessmentDate: "2026-11-28", mode: "phone",
@@ -144,6 +162,19 @@ test("after the lock: arm + outcome values, Phase B only, research IDs, " +
   assert.strictEqual(f.allocation_records[0].researchId, "PB-103");
   assert.strictEqual(f.safety_events[0].matchedTerm, undefined);
   assert.strictEqual(f.llm_calls.length, 2);
+  // 1020d — chapter metadata and ratings, no text.
+  assert.deepStrictEqual(f.reminiscence_chapters.find((r) =>
+    r.researchId === "PB-101"), {dataset: "real", researchId: "PB-101",
+    arm: "A", weekIndex: 1, source: "hybrid", status: "ready", version: 1,
+    editRatio: 0.25, flagsCount: 1, deletedCount: 1, failReason: null,
+    edited: true, requestedAt: "2026-11-07T02:00:00.000Z",
+    generatedAt: "2026-11-07T02:01:00.000Z",
+    savedAt: "2026-11-07T02:09:00.000Z"});
+  assert.deepStrictEqual(f.reminiscence_chapter_ratings.find((r) =>
+    r.researchId === "PB-102"), {dataset: "real", researchId: "PB-102",
+    arm: "B", ratingId: "week_1_v1", weekIndex: 1, studyWeek: 1,
+    source: "rule", scores: {q1: 6, q2: 7, q3: null},
+    ratedAt: "2026-11-07T02:05:00.000Z"});
   const json = JSON.stringify(f);
   assert.ok(!json.includes(SECRET), "conversation text leaked");
   assert.ok(!json.includes(UID_A) && !json.includes(UID_B), "uid leaked");

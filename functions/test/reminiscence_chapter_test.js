@@ -271,6 +271,42 @@ test("parseCheck: valid, fenced, malformed, inconsistent", () => {
   assert.strictEqual(odd.issues[0].suggestion, "");
 });
 
+test("screenIssues: 太口语 needs colloquial grammar outside 「」", () => {
+  const cfg = rc.configFrom(null);
+  const parsed = {ok: false, issues: [
+    {type: "太口语", quote: "屋企後面有一條河。", suggestion: "家"},
+    {type: "太口语", quote: "我同阿嫲最親，佢成日湊我。", suggestion: ""},
+    {type: "太口语", quote: "阿媽常說「做人唔好嘥嘢」。", suggestion: ""},
+    {type: "太书面", quote: "屋企後面有一條河。", suggestion: ""},
+    {type: "无出处", quote: "我七歲。", suggestion: ""},
+  ]};
+  const out = rc.screenIssues(parsed, cfg);
+  assert.deepStrictEqual(out.result.issues.map((i) => i.quote), [
+    "我同阿嫲最親，佢成日湊我。", "屋企後面有一條河。", "我七歲。"]);
+  assert.strictEqual(out.result.ok, false);
+  assert.deepStrictEqual(out.dropped.map((i) => i.quote),
+      ["屋企後面有一條河。", "阿媽常說「做人唔好嘥嘢」。"]);
+  const onlyWords = rc.screenIssues({ok: false, issues: [
+    {type: "太口语", quote: "下晝得閒就同阿哥去河邊捉蝦。", suggestion: ""}]},
+  cfg);
+  assert.strictEqual(onlyWords.result.ok, true, "all dropped → ok");
+  const off = rc.screenIssues(parsed, rc.configFrom({colloquialFilter: false}));
+  assert.strictEqual(off.result.issues.length, 5);
+});
+
+test("pipeline: a check with only word-level 太口语 passes, dropped issues " +
+    "archived", async () => {
+  const model = scriptModel([{step: "draft", text: DRAFT_1},
+    {step: "check", text: issues([{type: "太口语",
+      quote: "屋企後面有條河。", suggestion: "家後面有條河。"}])}]);
+  const out = await rc.runPipeline({model, now: clock,
+    cfg: rc.configFrom(null)}, CONV);
+  assert.strictEqual(out.stoppedBy, "passed");
+  assert.strictEqual(model.calls.length, 2);
+  assert.strictEqual(out.rounds[0].check.attempts[0].droppedIssues[0].quote,
+      "屋企後面有條河。");
+});
+
 test("splitSentences keeps quotes whole", () => {
   assert.deepStrictEqual(rc.splitSentences(
       "阿媽成日講「食得係福。你要記住。」我記得。好開心！"),
@@ -387,8 +423,22 @@ test("pipeline: one rewrite, then ok", async () => {
   assert.ok(rw.user.includes("\"quote\":\"我七歲就識游水。\""));
   assert.ok(rw.user.includes("老人答：細個住喺潮州鄉下"),
       "rewrite sees the conversation too");
+  assert.ok(rw.user.includes("\"suggestion\":\"刪去年紀\""));
   assert.deepStrictEqual(out.deleted, []);
 });
+
+test("rewrite message: style issues go back without Flash's suggestion",
+    () => {
+      const msg = rc.rewriteMessage("CONV", "上一稿。", {ok: false, issues: [
+        {type: "太口语", quote: "屋企有條河。", suggestion: "家裏有條河。"},
+        {type: "太书面", quote: "歲月如歌。", suggestion: "x"},
+        {type: "细节错", quote: "阿哥。", suggestion: "係阿姐"}]});
+      assert.ok(!msg.includes("家裏有條河"));
+      assert.ok(msg.includes("{\"type\":\"太口语\",\"quote\":\"屋企有條河。\"}"));
+      assert.ok(msg.includes("\"suggestion\":\"係阿姐\""));
+      assert.ok(rc.rewriteMessage("CONV", "上一稿。", null)
+          .includes("核對冇結果"));
+    });
 
 test("pipeline: still flagged after 2 rounds → the sentence is deleted",
     async () => {
@@ -491,10 +541,26 @@ test("pipeline: the first draft failing throws", async () => {
     error: new Error("deepseek 500")}]);
   await assert.rejects(rc.runPipeline({model, now: clock,
     cfg: rc.configFrom(null)}, CONV), /deepseek 500/);
-  const empty = scriptModel([{step: "draft", text: "  "}]);
+  const empty = scriptModel([{step: "draft", text: "  "},
+    {step: "draft", text: ""}, {step: "draft", text: ""}]);
   await assert.rejects(rc.runPipeline({model: empty, now: clock,
     cfg: rc.configFrom(null)}, CONV), (e) => e.code === "empty_draft");
+  assert.strictEqual(empty.calls.length, 3, "two retries, then give up");
 });
+
+test("pipeline: an empty draft (answer left in the reasoning) is retried",
+    async () => {
+      const model = scriptModel([{step: "draft", text: ""},
+        {step: "draft", text: DRAFT_1}, {step: "check", text: OK}]);
+      const out = await rc.runPipeline({model, now: clock,
+        cfg: rc.configFrom(null)}, CONV);
+      assert.strictEqual(out.text, DRAFT_1);
+      assert.strictEqual(out.rounds[0].draft.emptyAttempts, 1);
+      const none = scriptModel([{step: "draft", text: ""}]);
+      await assert.rejects(rc.runPipeline({model: none, now: clock,
+        cfg: rc.configFrom({draftRetries: 0})}, CONV),
+      (e) => e.code === "empty_draft");
+    });
 
 test("pipeline: archive of every round", async () => {
   const issue = {type: "语气不当", quote: "我七歲就識游水。", suggestion: "x"};

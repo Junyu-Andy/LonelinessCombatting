@@ -29,6 +29,16 @@
  * App writes `s1a_fixed_reply` only while
  * `app_config/feature_flags.s1aEventLogEnabled` is on, so a 0 before the
  * switch was turned on means "not recorded", not "never shown".
+ *
+ * 1020d §6: `reminiscence_chapters` — one row per weekly 小篇章 (both
+ * arms; `source` hybrid / rule): week, status, version, editRatio, how
+ * many flags and deleted sentences, failReason, whether the elder saved
+ * an edit, and the request / generation / save times.  Never the chapter
+ * text, the elder's input, the edit or the check archive (runs/).  The
+ * chapter ratings (reminiscence_chapter_ratings) are NOT here: they are
+ * scores, possibly an exploratory outcome (1020d §10 (2), Junyu to
+ * decide), so they go only into the post-lock analysis export
+ * (tool/analysis_export.js).
  */
 
 "use strict";
@@ -86,6 +96,33 @@ const SOURCE_GROUP = {
 // T49c — users/{uid}/events names counted per participant (count only).
 const COUNTED_EVENTS = ["s1a_fixed_reply"];
 
+// 1020d — users/{uid}/reminiscence_chapters, metadata only (see top).
+const CHAPTER_COLLECTION = "reminiscence_chapters";
+
+/**
+ * One chapter doc → its export row (no text).
+ * @param {object} d chapter doc data
+ * @return {object}
+ */
+function chapterRow(d) {
+  const x = d || {};
+  return {
+    weekIndex: Number.isInteger(x.weekIndex) ? x.weekIndex : null,
+    source: typeof x.source === "string" ? x.source : null,
+    status: typeof x.status === "string" ? x.status : null,
+    version: Number.isInteger(x.version) ? x.version : null,
+    editRatio: typeof x.editRatio === "number" ? x.editRatio : null,
+    flagsCount: Array.isArray(x.flags) ? x.flags.length : 0,
+    deletedCount: Array.isArray(x.deletedSentences) ?
+      x.deletedSentences.length : 0,
+    failReason: typeof x.failReason === "string" ? x.failReason : null,
+    edited: typeof x.editedText === "string",
+    requestedAt: blinding.plain(x.requestedAt),
+    generatedAt: blinding.plain(x.generatedAt),
+    savedAt: blinding.plain(x.savedAt),
+  };
+}
+
 /** Outcome collections that must never appear in this export. */
 const OUTCOME_COLLECTIONS = [
   "outcome_entries", "djg_responses", "djg_es", "pgic", "loneliness_probes",
@@ -113,7 +150,7 @@ function switchesFromSnap(snap) {
  */
 async function buildProcessExport(db, opts) {
   const files = {participants: [], usage_weekly: [], safety_events: [],
-    event_counts: []};
+    event_counts: [], reminiscence_chapters: []};
   for (const name of Object.keys(PROCESS_COLLECTIONS)) files[name] = [];
   const eventCountsByArm = {};
   for (const name of COUNTED_EVENTS) eventCountsByArm[name] = {A: 0, B: 0};
@@ -145,6 +182,12 @@ async function buildProcessExport(db, opts) {
         files[name].push(Object.assign({researchId, arm: u.arm},
             blinding.pick(d.data(), PROCESS_COLLECTIONS[name])));
       }
+    }
+    // 1020d — chapter metadata; the text, input and archive stay behind.
+    const chapters = await userDoc.ref.collection(CHAPTER_COLLECTION).get();
+    for (const d of chapters.docs) {
+      files.reminiscence_chapters.push(Object.assign({researchId,
+        arm: u.arm}, chapterRow(d.data())));
     }
     // T49c — event counts by name; the rows' params are never read.
     for (const name of COUNTED_EVENTS) {
@@ -235,7 +278,8 @@ async function writeProcessExport(bucket, built, dateKey) {
 function leakCheck(built) {
   const bad = [];
   const forbidden = new RegExp("^(text|message|content|reply|prompt|quote|" +
-    "summary|value|score|scores|answers|mood|matchedTerm|snippet)$", "i");
+    "summary|value|score|scores|answers|mood|matchedTerm|snippet|" +
+    "finalText|ruleText|editedText|input|rounds|deletedSentences)$", "i");
   for (const name of Object.keys(built.files)) {
     if (OUTCOME_COLLECTIONS.indexOf(name) >= 0) bad.push(name);
     for (const row of built.files[name]) {
@@ -250,6 +294,6 @@ function leakCheck(built) {
 module.exports = {
   EXPORT_PREFIX, EXPORT_VERSION, LOG_COLLECTION, PROCESS_COLLECTIONS,
   SAFETY_FIELDS, SOURCE_GROUP, COUNTED_EVENTS, OUTCOME_COLLECTIONS,
-  switchesFromSnap,
+  CHAPTER_COLLECTION, chapterRow, switchesFromSnap,
   buildProcessExport, writeProcessExport, leakCheck,
 };
