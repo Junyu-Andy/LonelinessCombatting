@@ -75,6 +75,18 @@
 ///                                     [1, 3, 5, 7].
 ///   - [pilotWindowDays]             — pilot answer window.  1.
 ///
+/// 1020d (回憶 v2, switch `app_config/feature_flags.reminiscenceV2Enabled`):
+///
+///   - [reminiscenceFollowupsMax]        — Hybrid: LLM follow-ups per
+///                                         question before its short reply.
+///                                         1 (allowed 1–2; other values →
+///                                         1 or 2).
+///   - [reminiscenceV2ValidMinQuestions] — both arms: a reminiscence visit
+///                                         is a valid session once this many
+///                                         of the week's questions were
+///                                         answered in it (follow-up answers
+///                                         and 唔想講 do not count).  3.
+///
 /// Call [PhaseBConfig.load] once at startup; read via [current].
 library;
 
@@ -106,6 +118,8 @@ class PhaseBConfig {
     this.socialContactProbeEnabled = false,
     this.pilotBundleDays = const [1, 3, 5, 7],
     this.pilotWindowDays = 1,
+    this.reminiscenceFollowupsMax = 1,
+    this.reminiscenceV2ValidMinQuestions = 3,
   });
 
   final bool djgW2InAppEnabled;
@@ -135,6 +149,10 @@ class PhaseBConfig {
   final bool socialContactProbeEnabled;
   final List<int> pilotBundleDays;
   final int pilotWindowDays;
+
+  // 1020d — reminiscence v2 (see the library comment).
+  final int reminiscenceFollowupsMax;
+  final int reminiscenceV2ValidMinQuestions;
 
   static PhaseBConfig _current = const PhaseBConfig();
 
@@ -224,6 +242,12 @@ class PhaseBConfig {
       socialContactProbeEnabled: map['socialContactProbeEnabled'] == true,
       pilotBundleDays: days('pilotBundleDays', d.pilotBundleDays, 0),
       pilotWindowDays: n('pilotWindowDays', d.pilotWindowDays, 1),
+      reminiscenceFollowupsMax:
+          n('reminiscenceFollowupsMax', d.reminiscenceFollowupsMax, 1)
+              .clamp(1, 2)
+              .toInt(),
+      reminiscenceV2ValidMinQuestions: n('reminiscenceV2ValidMinQuestions',
+          d.reminiscenceV2ValidMinQuestions, 1),
     );
   }
 }

@@ -304,6 +304,7 @@ class ChatSessionRecorder {
     this.theme,
     this.onIdleTimeout,
     this.onSwitchedAway,
+    this.reminiscenceV2 = false,
     SessionRules? rules,
     DateTime Function()? clock,
     FirebaseFirestore? db,
@@ -329,6 +330,11 @@ class ChatSessionRecorder {
   /// end-of-session flow (Brief PR scheduler) for the closed session.
   final void Function()? onSwitchedAway;
 
+  /// 1020d (回憶 v2) — the v2 reminiscence page: validity counts the
+  /// week's questions answered in the session
+  /// ([markReminiscenceQuestionAnswered]).
+  final bool reminiscenceV2;
+
   final SessionRules? _rules;
   final DateTime Function() _clock;
   final FirebaseFirestore? _db;
@@ -351,6 +357,7 @@ class ChatSessionRecorder {
   bool _ruleSubmission = false;
   bool _ruleSubmissionCompleted = false;
   bool _checkInCompleted = false;
+  int _reminiscenceQuestionsAnswered = 0;
   bool _ended = false;
   String? _endReason;
   IdleSessionTimer? _idle;
@@ -390,6 +397,8 @@ class ChatSessionRecorder {
         ruleSubmissionCompleted: _ruleSubmissionCompleted,
         endReason: _endReason,
         checkInCompleted: _checkInCompleted,
+        reminiscenceV2: reminiscenceV2,
+        reminiscenceQuestionsAnswered: _reminiscenceQuestionsAnswered,
       );
 
   /// T25 — "完成一个互动单元" (C16) under [rules].  Under the legacy rules
@@ -424,6 +433,22 @@ class ChatSessionRecorder {
   }
 
   bool get checkInCompleted => _checkInCompleted;
+
+  /// 1020d (2)(5) — one of the week's questions was answered in this
+  /// session (v2 reminiscence page, both arms).  Marks the row at once, as
+  /// [markCheckInCompleted] does.
+  void markReminiscenceQuestionAnswered() {
+    _reminiscenceQuestionsAnswered++;
+    final ref = _sessionRef;
+    if (ref == null || _ended) return;
+    final n = _reminiscenceQuestionsAnswered;
+    unawaited(_guard(() => ref.set({
+          'reminiscenceV2': true,
+          'reminiscenceQuestionsAnswered': n,
+        }, SetOptions(merge: true))));
+  }
+
+  int get reminiscenceQuestionsAnswered => _reminiscenceQuestionsAnswered;
 
   /// T25 — what the Brief PR scheduler needs once the session has ended.
   /// Null while the session is open or when there is no signed-in user.
@@ -501,6 +526,7 @@ class ChatSessionRecorder {
     _ended = false;
     _endReason = null;
     _checkInCompleted = false;
+    _reminiscenceQuestionsAnswered = 0;
     _open.add(this);
     _startIdleTimer();
     unawaited(analytics.logEvent(PhaseAEvents.sessionStart, {
@@ -543,6 +569,8 @@ class ChatSessionRecorder {
           'ruleSubmissionCompleted': _ruleSubmissionCompleted,
           'briefPrInvitedTodayAlready': null,
           'briefPrSkippedByCap': false,
+          if (reminiscenceV2) 'reminiscenceV2': true,
+          if (reminiscenceV2) 'reminiscenceQuestionsAnswered': 0,
         })));
   }
 
@@ -654,6 +682,9 @@ class ChatSessionRecorder {
           'isRuleSubmission': _ruleSubmission,
           'ruleSubmissionCompleted': _ruleSubmissionCompleted,
           if (_checkInCompleted) 'checkInCompleted': true,
+          if (reminiscenceV2) 'reminiscenceV2': true,
+          if (reminiscenceV2)
+            'reminiscenceQuestionsAnswered': _reminiscenceQuestionsAnswered,
         }, SetOptions(merge: true))));
   }
 

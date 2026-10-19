@@ -173,7 +173,7 @@ class _BriefPrFlowPageState extends State<BriefPrFlowPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              _HorizontalScale(
+              BriefPrScale(
                 value: _value,
                 low: item.low,
                 mid: item.mid,
@@ -219,20 +219,26 @@ class _BriefPrFlowPageState extends State<BriefPrFlowPage> {
 
 /// 10/19 — the 1–7 scale as one row of seven boxes, the three anchors
 /// (1 · 4 · 7) underneath.  Keys `brief_pr_option_<n>` as before.
-class _HorizontalScale extends StatelessWidget {
-  const _HorizontalScale({
+///
+/// 1020d 7 — public so the chapter rating reuses it: [mid] null = words
+/// at both ends only; [keyPrefix] gives that page its own keys.
+class BriefPrScale extends StatelessWidget {
+  const BriefPrScale({
+    super.key,
     required this.value,
     required this.low,
-    required this.mid,
+    this.mid,
     required this.high,
     required this.onSelect,
+    this.keyPrefix = 'brief_pr_option_',
   });
 
   final int? value;
   final String low;
-  final String mid;
+  final String? mid;
   final String high;
   final ValueChanged<int>? onSelect;
+  final String keyPrefix;
 
   @override
   Widget build(BuildContext context) {
@@ -243,6 +249,7 @@ class _HorizontalScale extends StatelessWidget {
       color: theme.colorScheme.onSurface,
       height: 1.3,
     );
+    final mid = this.mid;
     String? anchorFor(int v) => switch (v) {
           1 => low,
           4 => mid,
@@ -259,6 +266,7 @@ class _HorizontalScale extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 3),
                   child: _ScaleBox(
+                    boxKey: Key('$keyPrefix$v'),
                     value: v,
                     semanticsLabel: anchorFor(v),
                     selected: value == v,
@@ -273,9 +281,11 @@ class _HorizontalScale extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: Text(low, style: anchorStyle)),
-            Expanded(
-              child: Text(mid, textAlign: TextAlign.center, style: anchorStyle),
-            ),
+            if (mid != null)
+              Expanded(
+                child:
+                    Text(mid, textAlign: TextAlign.center, style: anchorStyle),
+              ),
             Expanded(
               child: Text(high, textAlign: TextAlign.right, style: anchorStyle),
             ),
@@ -288,12 +298,14 @@ class _HorizontalScale extends StatelessWidget {
 
 class _ScaleBox extends StatelessWidget {
   const _ScaleBox({
+    required this.boxKey,
     required this.value,
     required this.semanticsLabel,
     required this.selected,
     required this.onTap,
   });
 
+  final Key boxKey;
   final int value;
   final String? semanticsLabel;
   final bool selected;
@@ -318,7 +330,7 @@ class _ScaleBox extends StatelessWidget {
           ),
         ),
         child: InkWell(
-          key: Key('brief_pr_option_$value'),
+          key: boxKey,
           borderRadius: BorderRadius.circular(12),
           onTap: onTap,
           child: SizedBox(

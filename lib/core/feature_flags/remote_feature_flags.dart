@@ -132,6 +132,26 @@
 ///                               closes (lib/shared/widgets/
 ///                               keyboard_compact.dart).  Both arms the
 ///                               same.  Off: nothing changes.
+///   - [reminiscenceV2Enabled] — 1020d (回憶 v2): the reminiscence weeks open
+///                               one chat page for both arms: a fixed
+///                               three-bubble opener and the week's eight
+///                               open questions in order, each with an
+///                               input box and 「唔想講」.  Hybrid: one LLM
+///                               follow-up and one short LLM reply per
+///                               question (prompt `ah_jan_ah_bak_v3`); rule
+///                               arm: one fixed line, no LLM.  「完成今個
+///                               禮拜」 makes the week's chapter (Hybrid on
+///                               the server, rule arm on the phone), then
+///                               three ratings and 「改一改」; the landing
+///                               page gets 「我嘅人生小篇章」.  Off: the old
+///                               reminiscence pages, exactly as before.
+///   - [leaveButtonV2Enabled]  — 1020d 8 (2)(3): the top-left S9 button
+///                               「今日傾到呢度」 reads 「離開」 (first-use
+///                               note 「撳『離開』就係今次傾完。…」) on the
+///                               companion chat pages, and 「離開（會暫存）」
+///                               on the v2 reminiscence page.  Same end-of-
+///                               session rules and Brief PR.  Both arms.
+///                               Off: the old label and note.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -166,6 +186,8 @@ class RemoteFeatureFlags {
     this.transcriptRetentionToggleEnabled = false,
     this.checkInChatV2Enabled = false,
     this.keyboardCompactHeaderEnabled = false,
+    this.reminiscenceV2Enabled = false,
+    this.leaveButtonV2Enabled = false,
   });
 
   final bool webSearchEnabled;
@@ -191,6 +213,8 @@ class RemoteFeatureFlags {
   final bool transcriptRetentionToggleEnabled;
   final bool checkInChatV2Enabled;
   final bool keyboardCompactHeaderEnabled;
+  final bool reminiscenceV2Enabled;
+  final bool leaveButtonV2Enabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -252,6 +276,8 @@ class RemoteFeatureFlags {
         checkInChatV2Enabled: map['checkInChatV2Enabled'] == true,
         keyboardCompactHeaderEnabled:
             map['keyboardCompactHeaderEnabled'] == true,
+        reminiscenceV2Enabled: map['reminiscenceV2Enabled'] == true,
+        leaveButtonV2Enabled: map['leaveButtonV2Enabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

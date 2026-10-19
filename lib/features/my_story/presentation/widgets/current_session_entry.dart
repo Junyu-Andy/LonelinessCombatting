@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/arm/arm_scope.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../reminiscence/data/reminiscence_themes.dart';
-import '../../../reminiscence/presentation/pages/reminiscence_arm_a_page.dart';
-import '../../../reminiscence/presentation/pages/reminiscence_arm_b_page.dart';
+import '../../../reminiscence/presentation/reminiscence_router.dart';
 import '../../data/my_story_progress.dart';
 
 class CurrentSessionEntry extends StatelessWidget {
@@ -107,13 +105,10 @@ class CurrentSessionEntry extends StatelessWidget {
   }
 
   void _open(BuildContext context, ReminiscenceTheme theme) {
-    final isArmA = Arm.isA(context);
+    // 1020d: the v2 page when `reminiscenceV2Enabled`, else arm A / B.
+    final page = ReminiscenceRouter.pageFor(context, theme);
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => isArmA
-            ? ReminiscenceArmAPage(theme: theme)
-            : ReminiscenceArmBPage(theme: theme),
-      ),
+      MaterialPageRoute<void>(builder: (_) => page),
     );
   }
 }

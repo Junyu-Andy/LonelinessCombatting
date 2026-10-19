@@ -2,18 +2,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
-import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/config/usage_copy.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/reminiscence_themes.dart';
-import 'reminiscence_arm_a_page.dart';
-import 'reminiscence_arm_b_page.dart';
+import '../../data/reminiscence_v2_copy.dart';
+import '../../data/reminiscence_v2_models.dart';
+import '../../data/reminiscence_v2_store.dart';
+import '../reminiscence_router.dart';
+import 'reminiscence_chapters_page.dart';
 import 'reminiscence_memories_page.dart';
 
 /// M3 entry point. Lists the [ReminiscenceTheme.totalWeeks] weekly themes
 /// with a "completed" check per week (any saved entry for that theme counts). Same UI in both
 /// arms — only the session experience that opens differs.
+///
+/// 1020d (switch `reminiscenceV2Enabled`): the weeks open the v2 page,
+/// 「我嘅回憶」 becomes 「我嘅人生小篇章」, and a week whose new chapter is
+/// ready but not yet saved shows 「第 N 章整理好喇」 under its title.
 class ReminiscenceLandingPage extends StatelessWidget {
   const ReminiscenceLandingPage({super.key});
 
@@ -33,6 +39,7 @@ class ReminiscenceLandingPage extends StatelessWidget {
     final theme = Theme.of(context);
     final profile = AppSettingsScope.of(context).profile;
     final auth = AuthServiceScope.of(context);
+    final v2 = ReminiscenceRouter.v2;
 
     return Scaffold(
       appBar: AppBar(
@@ -62,12 +69,17 @@ class ReminiscenceLandingPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: () => _openMemories(context),
-              icon: const Icon(Icons.collections_bookmark_outlined),
+              key: Key(v2 ? 'reminiscence_chapters_entry' : 'reminiscence_memories_entry'),
+              onPressed: () => v2 ? _openChapters(context) : _openMemories(context),
+              icon: Icon(v2
+                  ? Icons.auto_stories_outlined
+                  : Icons.collections_bookmark_outlined),
               label: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  isEn ? 'My memories' : '我嘅回憶',
+                  v2
+                      ? ReminiscenceV2Copy.chaptersPageTitle
+                      : (isEn ? 'My memories' : '我嘅回憶'),
                   style: const TextStyle(fontSize: 16),
                 ),
               ),
@@ -79,6 +91,9 @@ class ReminiscenceLandingPage extends StatelessWidget {
                 onOpen: () => _open(context, t),
                 completedStream:
                     _completedStream(auth, profile?.uid, t.weekIndex),
+                readyStream: v2 && profile != null
+                    ? _readyStream(auth, profile.uid, t.weekIndex)
+                    : null,
               ),
           ],
         ),
@@ -87,17 +102,27 @@ class ReminiscenceLandingPage extends StatelessWidget {
   }
 
   void _open(BuildContext context, ReminiscenceTheme theme) {
-    // Use the canonical Arm.isA lookup so FORCE_ARM dart-define applies
-    // (the previous direct `profile?.arm` read bypassed it).
-    final isArmA = Arm.isA(context);
+    // The canonical Arm.isA lookup (FORCE_ARM applies) lives in the router;
+    // 1020d: the v2 page when `reminiscenceV2Enabled`.
+    final page = ReminiscenceRouter.pageFor(context, theme);
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+  }
+
+  void _openChapters(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => isArmA
-            ? ReminiscenceArmAPage(theme: theme)
-            : ReminiscenceArmBPage(theme: theme),
+        builder: (_) => const ReminiscenceChaptersPage(),
       ),
     );
   }
+
+  /// 1020d — 「第 N 章整理好喇」: the chapter is ready and the elder has not
+  /// pressed 儲存 on it yet (a new version after 重新整理 shows it again).
+  Stream<bool> _readyStream(AuthService auth, String uid, int weekIndex) =>
+      ReminiscenceV2Stores.chapters(available: auth.available)
+          .watch(uid, weekIndex)
+          .map((ReminiscenceChapterDoc? d) =>
+              d != null && d.isReady && d.savedAt == null);
 
   void _openMemories(BuildContext context) {
     Navigator.of(context).push(
@@ -134,11 +159,13 @@ class _ThemeCard extends StatelessWidget {
   final ReminiscenceTheme theme;
   final VoidCallback onOpen;
   final Stream<bool> completedStream;
+  final Stream<bool>? readyStream;
 
   const _ThemeCard({
     required this.theme,
     required this.onOpen,
     required this.completedStream,
+    this.readyStream,
   });
 
   @override
@@ -190,6 +217,25 @@ class _ThemeCard extends StatelessWidget {
                           color: t.colorScheme.onSurfaceVariant,
                         ),
                       ),
+                      if (readyStream != null)
+                        StreamBuilder<bool>(
+                          stream: readyStream,
+                          builder: (_, snap) => snap.data == true
+                              ? Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    ReminiscenceV2Copy.chapterReady(
+                                        theme.weekIndex),
+                                    key: ValueKey(
+                                        'reminiscence_landing_ready_${theme.weekIndex}'),
+                                    style: t.textTheme.bodyMedium?.copyWith(
+                                      color: t.colorScheme.primary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
                     ],
                   ),
                 ),
