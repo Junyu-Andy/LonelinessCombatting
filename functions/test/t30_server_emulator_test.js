@@ -174,10 +174,13 @@ async function seedProcessParticipants() {
     if (arm === "A") await s1a(2);
     await u.collection("events").add({name: "tung_tung_search_off_reply",
       arm, params: {arm, version: "2026-10-10-s1a"}});
-    await db.collection("safety_events").add({uid, source: arm === "A" ?
-      "ai_output_scan" : "rule_turn", level: "acute", tier: "acute",
-    matchedTerm: "唔想活", textHash: "h", crisisPageShown: true,
-    createdAt: new Date("2026-11-05T02:00:00Z")});
+    // 1020e 二.9: the rule-arm event carries a 「誤觸」 mark.
+    await db.collection("safety_events").add(Object.assign({uid,
+      source: arm === "A" ? "ai_output_scan" : "rule_turn", level: "acute",
+      tier: "acute", matchedTerm: "唔想活", textHash: "h",
+      crisisPageShown: true, createdAt: new Date("2026-11-05T02:00:00Z")},
+    arm === "B" ? {falseAlarm: true, markedBy: "researcherUid1",
+      markedAt: new Date("2026-11-05T03:00:00Z")} : {}));
   };
   await mk("hybridUid0000000000000000001", "PB-101", "A");
   await mk("ruleUid000000000000000000002", "PB-102", "B");
@@ -219,6 +222,11 @@ test("process export: research ID + real arm, T25 fields, sources; no " +
   assert.strictEqual(hy.sourceGroup, "ai_reply_scan");
   assert.strictEqual(hy.matchedTerm, undefined);
   assert.strictEqual(hy.textHash, undefined);
+  assert.strictEqual(hy.falseAlarm, undefined, "1020e: unmarked event");
+  const ru = se.find((r) => r.researchId === "PB-102");
+  assert.strictEqual(ru.falseAlarm, true, "1020e: 誤觸 mark exported");
+  assert.ok(ru.markedAt, "1020e: markedAt exported");
+  assert.strictEqual(ru.markedBy, undefined, "who marked is not exported");
   for (const name of ["outcome_entries", "djg_responses", "pgic", "daily_mood",
     "turns"]) {
     assert.strictEqual(f[name], undefined, `${name} must not be exported`);

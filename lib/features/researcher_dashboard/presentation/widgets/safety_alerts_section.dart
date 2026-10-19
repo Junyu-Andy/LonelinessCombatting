@@ -9,11 +9,20 @@
 /// `acknowledgeAlert` Cloud Function (asia-east2), which checks the role
 /// again and records who and when on the alert and in `alert_audit_log`;
 /// the App never writes `pi_alerts`.
+///
+/// 1020e 二.9 — 「標記誤觸」 (false alarm), behind the remote switch
+/// `safetyFalseAlarmMarkEnabled`: the `markSafetyFalseAlarm` function checks
+/// the role and the switch again and stamps `falseAlarm` / `markedBy` /
+/// `markedAt` on the alert, its safety event and that day's stopped chat
+/// check-in row.  The App never reads `safety_events`; the row shows the
+/// mark from the alert.
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 
 /// One `pi_alerts` row as the dashboard shows it.  Pure (no Firebase) so
 /// the mapping is unit-testable.
@@ -33,6 +42,8 @@ class SafetyAlertView {
     this.primaryFailedAt,
     this.primaryFailedReason,
     this.emailSentAt,
+    this.falseAlarm = false,
+    this.falseAlarmMarkedAt,
   });
 
   final String alertId;
@@ -53,6 +64,10 @@ class SafetyAlertView {
   final DateTime? primaryFailedAt;
   final String? primaryFailedReason;
   final DateTime? emailSentAt;
+
+  /// 1020e 二.9 — the researcher marked this alert 誤觸 (false alarm).
+  final bool falseAlarm;
+  final DateTime? falseAlarmMarkedAt;
 
   bool get acknowledged => acknowledgedAt != null;
   bool get escalated => escalatedAt != null;
@@ -77,6 +92,8 @@ class SafetyAlertView {
       primaryFailedAt: ts(d['primaryFailedAt']),
       primaryFailedReason: d['primaryFailedReason'] as String?,
       emailSentAt: ts(d['emailSentAt']),
+      falseAlarm: d['falseAlarm'] == true,
+      falseAlarmMarkedAt: ts(d['markedAt']),
     );
   }
 
@@ -135,17 +152,34 @@ Future<void> acknowledgeAlertViaFunction(String alertId) async {
       .call<Map<String, dynamic>>({'alertId': alertId});
 }
 
+/// 1020e 二.9 — calls `markSafetyFalseAlarm`.  A fake in tests.
+typedef MarkFalseAlarm = Future<void> Function(String alertId);
+
+Future<void> markFalseAlarmViaFunction(String alertId) async {
+  await FirebaseFunctions.instanceFor(region: 'asia-east2')
+      .httpsCallable('markSafetyFalseAlarm')
+      .call<Map<String, dynamic>>({'alertId': alertId});
+}
+
 class SafetyAlertsSection extends StatelessWidget {
   const SafetyAlertsSection({
     super.key,
     required this.isEn,
     this.acknowledge = acknowledgeAlertViaFunction,
     this.limit = 30,
+    this.markFalseAlarm = markFalseAlarmViaFunction,
   });
 
   final bool isEn;
   final AcknowledgeAlert acknowledge;
   final int limit;
+
+  /// Offered only while `safetyFalseAlarmMarkEnabled` is on.
+  final MarkFalseAlarm markFalseAlarm;
+
+  /// 1020e 二.9 — [mark] while the switch is on, else null (no button).
+  static MarkFalseAlarm? offeredMark(MarkFalseAlarm mark) =>
+      RemoteFeatureFlags.current.safetyFalseAlarmMarkEnabled ? mark : null;
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +214,8 @@ class SafetyAlertsSection extends StatelessWidget {
                   key: ValueKey('alert_${a.alertId}'),
                   alert: a,
                   isEn: isEn,
-                  acknowledge: acknowledge),
+                  acknowledge: acknowledge,
+                  markFalseAlarm: offeredMark(markFalseAlarm)),
           ],
         );
       },
@@ -201,11 +236,15 @@ class SafetyAlertRow extends StatefulWidget {
     required this.alert,
     required this.isEn,
     required this.acknowledge,
+    this.markFalseAlarm,
   });
 
   final SafetyAlertView alert;
   final bool isEn;
   final AcknowledgeAlert acknowledge;
+
+  /// 1020e 二.9 — non-null (switch on): the row offers 「標記誤觸」.
+  final MarkFalseAlarm? markFalseAlarm;
 
   @override
   State<SafetyAlertRow> createState() => _SafetyAlertRowState();
@@ -214,6 +253,55 @@ class SafetyAlertRow extends StatefulWidget {
 class _SafetyAlertRowState extends State<SafetyAlertRow> {
   bool _busy = false;
   String? _error;
+
+  /// Marked in this session (the list stream brings the stored mark).
+  bool _markedHere = false;
+
+  Future<void> _markFalseAlarm() async {
+    final mark = widget.markFalseAlarm;
+    if (mark == null) return;
+    final isEn = widget.isEn;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isEn ? 'Mark as a false alarm?' : '標記為誤觸？'),
+        content: Text(isEn
+            ? 'Only when the participant confirmed it was a slip. If today\'s '
+                'check-in stopped here, they can carry on from that question '
+                'today.'
+            : '只喺確認係老人誤觸先標記。如果今日嘅 check-in 喺呢度停咗，'
+                '老人今日再入小欣頁會由停低嗰題繼續。'),
+        actions: [
+          TextButton(
+            key: const ValueKey('false_alarm_cancel'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(isEn ? 'Cancel' : '取消'),
+          ),
+          FilledButton(
+            key: const ValueKey('false_alarm_confirm'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(isEn ? 'Mark' : '確定標記'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await mark(widget.alert.alertId);
+      if (mounted) setState(() => _markedHere = true);
+    } catch (e) {
+      if (mounted) {
+        setState(() =>
+            _error = isEn ? 'Failed: $e' : '標記失敗：$e');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   Future<void> _ack() async {
     setState(() {
@@ -290,6 +378,28 @@ class _SafetyAlertRowState extends State<SafetyAlertRow> {
                   ),
               ],
             ),
+            // 1020e 二.9 — 誤觸 mark (switch on), or the stored mark.
+            if (a.falseAlarm || _markedHere) ...[
+              const SizedBox(height: 4),
+              Text(
+                (isEn ? 'Marked false alarm' : '已標記誤觸') +
+                    (a.falseAlarmMarkedAt == null
+                        ? ''
+                        : ' · ${SafetyAlertView.hkTime(a.falseAlarmMarkedAt)}'),
+                key: ValueKey('false_alarm_marked_${a.alertId}'),
+                style: theme.textTheme.bodySmall,
+              ),
+            ] else if (widget.markFalseAlarm != null) ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton(
+                  key: ValueKey('false_alarm_${a.alertId}'),
+                  onPressed: _busy ? null : _markFalseAlarm,
+                  child: Text(isEn ? 'Mark false alarm' : '標記誤觸'),
+                ),
+              ),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 4),
               Text(_error!,

@@ -5,7 +5,7 @@
 const String kAppVersion = '1.0.0';
 const String kBuildNumber = '3';
 const String kLexiconVersion = 'v5-2026-09';
-const String kPromptBundleHash = '6301a61dfed757553dd041435cc2f7551c16e687abdbfa940f4223f1d84aedf6';
+const String kPromptBundleHash = '5dd766eeda63d85addc7cabcf83761efbf942764dcd8e98a6bb528ee16160f53';
 const String kGeneratedAt = '2026-10-19';
 
 /// Per-artefact SHA-256 (path → hex) for the About page / audit.
@@ -17,7 +17,7 @@ const Map<String, String> kArtefactHashes = {
   'functions/prompts/siu_yan.v2.txt': 'e8dd1172b91a10affe6f24db65c0672c58fa7ba8d4a508b5582daefd4ad7a827',
   'functions/prompts/ah_jan_ah_bak.v2.txt': '3e93815b7f6174e8dd34369756b57877586cd5ab87e50ad988a91e2d5c06eb74',
   'functions/prompts/tung_tung.v3.txt': 'ba5e39c6090a96b6b13d60d55ec2dd150b9c970e6d7526a11efbf67b04918f26',
-  'functions/prompts/siu_yan.v3.txt': 'ee31cf5109f1599f03ad388a9670d90a256782491b926c666f01099a0458a491',
+  'functions/prompts/siu_yan.v3.txt': 'cabff10d3912a0e560041b89c42f64b3679ac62a6adacbc44c80786d41ac5e0f',
   'docs/prompts/context_suffix_template.txt': 'a068c471634e6577a47eec379578334318d100df228ca1fed4e416c0702b2a22',
   'functions/prompts/safety_acknowledgements.json': '96fd03c84e3ece63216420de7e8ae60600daf2d798fde45865fe4075ab2db218',
   'functions/prompts/crisis_resources.json': 'b8b0d47c5739f82e58986d6a420f8d02089f96e35044f045f5b56225f2d88786',

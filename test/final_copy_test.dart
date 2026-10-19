@@ -190,6 +190,11 @@ void main() {
       }
     });
 
+    test('input box hint: typing only (1020e 二.5)', () {
+      expect(CheckInChatCopy.inputHint, rows['HINT']![2]);
+      expect(CheckInChatCopy.inputHint.contains('講都得'), isFalse);
+    });
+
     test('rule arm fixed lines XG, R4a, R4b, SY0', () {
       expect(CheckInChatCopy.xg, rows['XG']![2]);
       expect(CheckInChatCopy.r4a, rows['R4a']![2]);

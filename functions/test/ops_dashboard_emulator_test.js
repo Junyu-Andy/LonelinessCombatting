@@ -117,6 +117,11 @@ async function participant(p) {
     await u.collection("mem_facts").add({status: "active", layer: "private",
       text: "膝頭痛"});
   }
+  if (p.rid === "PB-002") {
+    // 1020e 二.9: an acute event the researcher marked 誤觸.
+    await db.collection("safety_events").add({uid, level: "acute",
+      source: "user_input", createdAt: NOW, falseAlarm: true});
+  }
   if (p.rid === "PB-001") {
     await db.collection("safety_events").add({uid, level: "acute",
       source: "user_input", createdAt: NOW});
@@ -264,6 +269,8 @@ test("unblinded: the table, 13 rows, numbers right", async () => {
   assert.strictEqual(pb3.consecutiveUnopenedDays, 6);
 
   const pb2 = by["PB-002"];
+  assert.deepStrictEqual(pb2.safety,
+      {pendingAck: 0, falseAlarm: 1, acute: 1, moderate: 0, low: 0});
   assert.strictEqual(pb2.legacyBasis, true); // acceptance 9
   assert.strictEqual(pb2.consecutiveUnopenedDays, 3);
   assert.strictEqual(pb2.stage, "whatsapp");
@@ -275,7 +282,7 @@ test("unblinded: the table, 13 rows, numbers right", async () => {
 
   const pb1 = by["PB-001"];
   assert.deepStrictEqual(pb1.safety,
-      {pendingAck: 1, acute: 1, moderate: 0, low: 0});
+      {pendingAck: 1, falseAlarm: 0, acute: 1, moderate: 0, low: 0});
   assert.deepStrictEqual(pb1.voice, {uses: 1, failures: 1});
   assert.strictEqual(pb1.weekly.W1, "done");
   assert.strictEqual(pb1.weekly.W2, "missed");
