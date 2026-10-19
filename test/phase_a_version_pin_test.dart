@@ -20,6 +20,7 @@ const _bundleOrder = [
   'functions/prompts/ah_jan_ah_bak.v2.txt',
   'functions/prompts/tung_tung.v3.txt',
   'functions/prompts/siu_yan.v3.txt',
+  'functions/prompts/ah_jan_ah_bak.v3.txt',
   'docs/prompts/context_suffix_template.txt',
   'functions/prompts/safety_acknowledgements.json',
   'functions/prompts/crisis_resources.json',

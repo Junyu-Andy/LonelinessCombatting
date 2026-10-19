@@ -49,6 +49,31 @@ calls.forEach((rest, i) => {
       `call ${i + 1}: thinking is not DEEPSEEK_THINKING`);
 });
 
+// 1020d §6: the 小篇章 module (functions/reminiscence_chapter.js) also
+// goes through deepSeekChat.  Its draft is the one place that turns
+// thinking ON (deepseek-v4-pro); its check is deepseek-flash, thinking off
+// whatever the config says.
+const chapterSrc = read("reminiscence_chapter.js");
+assert.strictEqual(count(chapterSrc), 0,
+    "reminiscence_chapter.js calls DeepSeek directly");
+assert.ok(chapterSrc.includes("llmLog.deepSeekChat("),
+    "reminiscence_chapter.js must call llmLog.deepSeekChat");
+assert.ok(chapterSrc.includes("const THINKING_OFF = {type: \"disabled\"};"));
+const chapter = require("../reminiscence_chapter");
+const chapterBody = (step, thinking) => chapter.buildRequestBody({step,
+  model: step === "check" ? chapter.DEFAULTS.checkModel :
+    chapter.DEFAULTS.draftModel,
+  thinking, system: "s", user: "u", maxTokens: 10, temperature: 0.1,
+  json: step === "check"});
+assert.strictEqual(chapterBody("check", true).model, "deepseek-flash");
+assert.deepStrictEqual(chapterBody("check", true).thinking,
+    {type: "disabled"}, "the chapter check never thinks");
+assert.strictEqual(chapterBody("draft", true).model, "deepseek-v4-pro");
+assert.deepStrictEqual(chapterBody("draft", true).thinking,
+    {type: "enabled"}, "the chapter draft thinks (1020d §6 (2)(a))");
+assert.deepStrictEqual(chapterBody("rewrite", false).thinking,
+    {type: "disabled"}, "config can switch the draft's thinking off");
+
 // No server code still asks for the legacy alias.
 fs.readdirSync(root)
     .filter((f) => f.endsWith(".js"))
