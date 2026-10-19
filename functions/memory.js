@@ -66,9 +66,11 @@ const studyPeriod = require("./study_period");
 const AGENTS = ["siu_yan", "ah_jan_ah_bak", "tung_tung"];
 
 /** Chat surfaces that receive the memory block. */
+// 10/19: m6_suggestions (今日嘅小邀請) only reaches here when the App's
+// suggestionsUseProfileEnabled switch is on — off, it sends no agentId.
 const INJECT_MODULES = new RegExp(
     "^(m2_check_in|reflective_dialogue|tung_tung_chat|m3_reminiscence_w\\d+" +
-    "|greeting_(siu_yan|ah_jan_ah_bak|tung_tung))$");
+    "|greeting_(siu_yan|ah_jan_ah_bak|tung_tung)|m6_suggestions)$");
 
 /** Fixed category list the extractor must use. */
 const CATEGORIES = [

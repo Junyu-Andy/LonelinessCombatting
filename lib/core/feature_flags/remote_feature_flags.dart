@@ -84,6 +84,18 @@
 ///                               matchedVersion, clientTime — never the
 ///                               elder's words or the matched keyword).
 ///                               Both arms identical, nothing visible.
+///   - [homeMoodOpensCheckInEnabled] — 10/19 (Junyu): the first mood pick
+///                               of the day on the home pad opens the
+///                               check-in page itself (Hybrid: Siu Yan,
+///                               rule arm: the form) with that face chosen,
+///                               instead of the 5-second snackbar.  Both
+///                               arms; the pick is still one daily_mood row.
+///   - [suggestionsUseProfileEnabled] — 10/19 (Junyu): 今日嘅小邀請 (Hybrid)
+///                               gives the model the people the elder
+///                               shared, the ones to reconnect with, the
+///                               interests and 唔想提起, and asks the server
+///                               for Siu Yan's memory block.  Rule arm
+///                               unchanged (static pool).
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -110,6 +122,8 @@ class RemoteFeatureFlags {
     this.researcherIntakeEnabled = false,
     this.testerArmSwitchEnabled = false,
     this.s1aEventLogEnabled = false,
+    this.homeMoodOpensCheckInEnabled = false,
+    this.suggestionsUseProfileEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -127,6 +141,8 @@ class RemoteFeatureFlags {
   final bool researcherIntakeEnabled;
   final bool testerArmSwitchEnabled;
   final bool s1aEventLogEnabled;
+  final bool homeMoodOpensCheckInEnabled;
+  final bool suggestionsUseProfileEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -176,6 +192,10 @@ class RemoteFeatureFlags {
         researcherIntakeEnabled: map['researcherIntakeEnabled'] == true,
         testerArmSwitchEnabled: map['testerArmSwitchEnabled'] == true,
         s1aEventLogEnabled: map['s1aEventLogEnabled'] == true,
+        homeMoodOpensCheckInEnabled:
+            map['homeMoodOpensCheckInEnabled'] == true,
+        suggestionsUseProfileEnabled:
+            map['suggestionsUseProfileEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

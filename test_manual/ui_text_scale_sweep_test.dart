@@ -56,6 +56,7 @@ import 'package:app_demo/features/brief_pr/data/brief_pr_store.dart';
 import 'package:app_demo/features/brief_pr/data/brief_pr_v2.dart';
 import 'package:app_demo/features/brief_pr/presentation/widgets/session_close_hint.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_arm_a.dart';
+import 'package:app_demo/features/context/presentation/pages/check_in_arm_b.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_shared.dart';
 import 'package:app_demo/features/curious_companion/presentation/pages/tung_tung_page.dart';
 import 'package:app_demo/features/education/data/education_library.dart';
@@ -414,6 +415,15 @@ final _flows = <String, _Flow>{
     await _send(c, '今日幾好，去咗公園行下');
     await c.shot('checkin_chat');
     if (!_armB) _expectWideBubble(c, _reply);
+    await _back(c);
+  },
+  '规则组签到表格（首页带心情进来）': (c) async {
+    // 10/19: homeMoodOpensCheckInEnabled opens the rule-arm form with the
+    // face chosen.  Hybrid builds render the page too (no arm gate here).
+    await _pushPage(c, const CheckInArmB(initialMoodValue: 3));
+    final picker = c.tester.widget<MoodFacePicker>(find.byType(MoodFacePicker));
+    expect(picker.value, MoodFace.values[2], reason: 'face 3 pre-chosen');
+    await c.shot('checkin_b_prefilled');
     await _back(c);
   },
   '阿珍／阿伯回忆页': (c) async {
