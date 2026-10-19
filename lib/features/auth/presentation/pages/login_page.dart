@@ -558,7 +558,9 @@ class _SectionLabel extends StatelessWidget {
       children: [
         Icon(icon, size: 22, color: theme.colorScheme.primary),
         const SizedBox(width: 8),
-        Text(text, style: theme.textTheme.titleMedium),
+        // Wraps instead of overflowing if a label is wider than the row
+        // (10/19 sweep: 320 wide at text above 1.3).
+        Flexible(child: Text(text, style: theme.textTheme.titleMedium)),
       ],
     );
   }

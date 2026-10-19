@@ -163,14 +163,15 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
   }
 
   // Theme-driven colours (the old hard-coded warm greys ignored
-  // high-contrast mode) + 14pt so the line is legible without shouting.
+  // high-contrast mode).  10/19: 14 → 17 pt label, 16 pt items (Junyu:
+  // 「今個星期」 too small).
   Widget _label(String text) => Builder(
         builder: (context) => Text(
           text,
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
           ),
         ),
       );
@@ -180,7 +181,7 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
           '·',
           style: TextStyle(
             color: Theme.of(context).colorScheme.outline,
-            fontSize: 14,
+            fontSize: 16,
           ),
         ),
       );
@@ -193,12 +194,12 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 16, color: cs.onSurfaceVariant),
+              Icon(icon, size: 20, color: cs.onSurfaceVariant),
               const SizedBox(width: 4),
             ],
             Text(
               text,
-              style: TextStyle(color: cs.onSurface, fontSize: 14),
+              style: TextStyle(color: cs.onSurface, fontSize: 16),
             ),
           ],
         );

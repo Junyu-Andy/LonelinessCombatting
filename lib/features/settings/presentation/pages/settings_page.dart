@@ -15,7 +15,6 @@ import '../widgets/tester_arm_switch_card.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
-import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import '../../../personalization/presentation/pages/personalization_page.dart';
@@ -89,14 +88,9 @@ class _SettingsPageState extends State<SettingsPage> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         children: [
-          Text(
-            l10n.settingsSubtitle,
-            style: theme.textTheme.bodyLarge,
-          ),
-          if (settings.profile != null) ...[
-            const SizedBox(height: 20),
-            _ProfileCard(profile: settings.profile!, isEn: isEn),
-          ],
+          // 10/19: the old intro line (「語言、界線、demo 資料」) and the
+          // 「你嘅資料」 card with its 登出 button are gone; the details,
+          // editing and 登出 all live behind the 個人資料 tile below.
 
           // 自己 tab (Product Overview §3.2) now folds three personal
           // surfaces above the existing settings sections:
@@ -535,7 +529,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _FontScaleCard extends StatelessWidget {
+class _FontScaleCard extends StatefulWidget {
   final AppFontScale value;
   final ValueChanged<AppFontScale> onChanged;
   final bool isEn;
@@ -543,20 +537,49 @@ class _FontScaleCard extends StatelessWidget {
   const _FontScaleCard({required this.value, required this.onChanged, required this.isEn});
 
   @override
+  State<_FontScaleCard> createState() => _FontScaleCardState();
+}
+
+/// 10/19 (Junyu): five levels; each button shows 「字」 at a fixed size that
+/// grows level by level, the name underneath.  A pick changes the whole App
+/// at once, so instead of a preview line the card asks once whether the
+/// new size is too big (or too small), with a button back to the old one.
+/// Answering is optional.
+class _FontScaleCardState extends State<_FontScaleCard> {
+  static const _glyphSizes = [17.0, 19.0, 21.0, 23.0, 25.0];
+
+  /// The level before the last pick; null = no question showing.
+  AppFontScale? _before;
+
+  bool get isEn => widget.isEn;
+
+  String _name(AppFontScale s) => switch (s) {
+        AppFontScale.standard => isEn ? 'Std' : '標準',
+        AppFontScale.slightlyLarge => isEn ? 'M' : '稍大',
+        AppFontScale.large => isEn ? 'L' : '大',
+        AppFontScale.larger => isEn ? 'XL' : '較大',
+        AppFontScale.xLarge => isEn ? 'Max' : '特大',
+      };
+
+  void _pick(AppFontScale s) {
+    if (s == widget.value) return;
+    setState(() => _before = widget.value);
+    widget.onChanged(s);
+  }
+
+  void _undo() {
+    final before = _before;
+    setState(() => _before = null);
+    if (before != null) widget.onChanged(before);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    final options = isEn
-        ? const [
-            (AppFontScale.standard, 'Std', 18.0),
-            (AppFontScale.large, 'Large', 22.0),
-            (AppFontScale.xLarge, 'X-Large', 26.0),
-          ]
-        : const [
-            (AppFontScale.standard, '標準', 18.0),
-            (AppFontScale.large, '大', 22.0),
-            (AppFontScale.xLarge, '特大', 26.0),
-          ];
+    final cs = theme.colorScheme;
+    const levels = AppFontScale.values;
+    final value = widget.value;
+    final before = _before;
 
     return Card(
       child: Padding(
@@ -570,75 +593,161 @@ class _FontScaleCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              isEn ? 'The preview below updates instantly.' : '預覽效果會即時反映喺下面。',
+              isEn
+                  ? 'The whole App changes as soon as you pick.'
+                  : '揀咗之後，成個 App 嘅字即刻跟住變。',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color: cs.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: List.generate(options.length, (index) {
-                final option = options[index];
-                final selected = option.$1 == value;
-                return Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: index == options.length - 1 ? 0 : 8,
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => onChanged(option.$1),
-                      child: Container(
-                        height: 72,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? theme.colorScheme.primary
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: selected
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.outlineVariant,
-                            width: 2,
-                          ),
-                        ),
-                        child: Text(
-                          option.$2,
-                          style: TextStyle(
-                            fontSize: option.$3,
-                            fontWeight: FontWeight.w600,
-                            color: selected
-                                ? theme.colorScheme.onPrimary
-                                : theme.colorScheme.onSurface,
+            // The buttons keep their own sizes whatever level is on, so the
+            // five always fit in one row.
+            MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.noScaling),
+              child: Row(
+                children: [
+                  for (var i = 0; i < levels.length; i++)
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                            right: i == levels.length - 1 ? 0 : 6),
+                        child: Semantics(
+                          button: true,
+                          selected: levels[i] == value,
+                          label: _name(levels[i]),
+                          excludeSemantics: true,
+                          child: InkWell(
+                            key: Key('font_scale_${levels[i].name}'),
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => _pick(levels[i]),
+                            child: Container(
+                              height: 76,
+                              decoration: BoxDecoration(
+                                color: levels[i] == value
+                                    ? cs.primary
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: levels[i] == value
+                                      ? cs.primary
+                                      : cs.outlineVariant,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    isEn ? 'A' : '字',
+                                    style: TextStyle(
+                                      fontSize: _glyphSizes[i],
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.1,
+                                      color: levels[i] == value
+                                          ? cs.onPrimary
+                                          : cs.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      _name(levels[i]),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: levels[i] == value
+                                            ? cs.onPrimary
+                                            : cs.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              }),
+                ],
+              ),
             ),
-            const SizedBox(height: 18),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
+            if (before != null && before != value) ...[
+              const SizedBox(height: 16),
+              _FontSizeCheck(
+                key: const Key('font_scale_check'),
+                bigger: value.index > before.index,
+                beforeName: _name(before),
+                isEn: isEn,
+                onUndo: _undo,
+                onKeep: () => setState(() => _before = null),
               ),
-              child: Text(
-                isEn
-                    ? 'Preview: Feeling good today — maybe call a friend.'
-                    : '預覽：今日心情幾好，試吓打個電話畀阿May。',
-                style: TextStyle(
-                  fontSize: options
-                      .firstWhere((option) => option.$1 == value)
-                      .$3,
-                  height: 1.5,
-                  color: theme.colorScheme.onSurface,
-                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 「字大咗，會唔會太大？」 (or 太細) with 返回 and 啱啱好.
+class _FontSizeCheck extends StatelessWidget {
+  final bool bigger;
+  final String beforeName;
+  final bool isEn;
+  final VoidCallback onUndo;
+  final VoidCallback onKeep;
+
+  const _FontSizeCheck({
+    super.key,
+    required this.bigger,
+    required this.beforeName,
+    required this.isEn,
+    required this.onUndo,
+    required this.onKeep,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final question = bigger
+        ? (isEn ? 'Text is bigger now. Too big?' : '字大咗。會唔會太大？')
+        : (isEn ? 'Text is smaller now. Too small?' : '字細咗。會唔會太細？');
+    final undo = bigger
+        ? (isEn ? 'Too big, back to $beforeName' : '太大，返回「$beforeName」')
+        : (isEn ? 'Too small, back to $beforeName' : '太細，返回「$beforeName」');
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              question,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton(
+              key: const Key('font_scale_undo'),
+              onPressed: onUndo,
+              child: Text(undo, textAlign: TextAlign.center),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              key: const Key('font_scale_keep'),
+              onPressed: onKeep,
+              child: Text(isEn ? 'Just right' : '啱啱好'),
             ),
           ],
         ),
@@ -881,85 +990,6 @@ class _BoundaryCard extends StatelessWidget {
 }
 
 
-class _ProfileCard extends StatelessWidget {
-  final UserProfile profile;
-  final bool isEn;
-
-  const _ProfileCard({required this.profile, required this.isEn});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final emergencyPhone = profile.emergencyContactPhone;
-    final lines = <(IconData, String)>[
-      (Icons.person_outline, profile.displayName),
-      (Icons.mail_outline, profile.email),
-      if (profile.ageGroup != null)
-        (Icons.cake_outlined, isEn ? 'Age group: ${profile.ageGroup}' : '年齡組別：${profile.ageGroup}'),
-      if (profile.emergencyContactName != null)
-        (
-          Icons.favorite_outline,
-          emergencyPhone != null
-              ? (isEn
-                  ? 'Emergency: ${profile.emergencyContactName} ($emergencyPhone)'
-                  : '緊急聯絡：${profile.emergencyContactName} ($emergencyPhone)')
-              : (isEn
-                  ? 'Emergency: ${profile.emergencyContactName}'
-                  : '緊急聯絡：${profile.emergencyContactName}')
-        ),
-    ];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.account_circle_outlined,
-                      size: 28, color: theme.colorScheme.onPrimaryContainer),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(isEn ? 'Your Profile' : '你嘅資料', style: theme.textTheme.titleLarge),
-                ),
-                _SignOutButton(),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...lines.map(
-              (line) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    Icon(line.$1,
-                        size: 20, color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        line.$2,
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _TranscriptRetentionTile extends StatelessWidget {
   final bool isEn;
   final bool value;
@@ -1010,37 +1040,6 @@ class _TranscriptRetentionTile extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _SignOutButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final auth = AuthServiceScope.of(context);
-    final settings = AppSettingsScope.read(context);
-    return TextButton.icon(
-      onPressed: () async {
-        final isEn = Localizations.localeOf(context).languageCode == 'en';
-        final confirmed = await showAppConfirm(
-          context: context,
-          title: isEn ? 'Sign out?' : '登出？',
-          message: isEn
-              ? 'You will need to sign in again next time, and any '
-                  'unsynced session will stay in your account.'
-              : '下次要再登入。仲未同步嘅內容會留喺你個帳號入面。',
-          confirmLabel: isEn ? 'Sign out' : '登出',
-          destructive: true,
-        );
-        if (!confirmed) return;
-        await auth.signOut();
-        settings.profile = null;
-      },
-      icon: const Icon(Icons.logout_rounded, size: 20),
-      label: Builder(builder: (ctx) {
-        final isEn = Localizations.localeOf(ctx).languageCode == 'en';
-        return Text(isEn ? 'Sign out' : '登出');
-      }),
     );
   }
 }

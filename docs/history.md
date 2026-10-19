@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-10-19 Junyu 第二轮核对：切页跳回、标题跳动、「自己」页精简、首页安全卡、首页字放大、字号五档（同一 PR 草稿，分支 `claude/zealous-fermat-8rgqtg`）
+
+- 登录后第一次点「自己」跳回「睇今日」：`AuthGate` 每次 build 都新建 `profileChanges()` 流，登录后重读开关的 `setState` 让 `StreamBuilder` 回到等待状态，整个 `MainShell` 被换掉。改为流只建一次，重读开关后只把 `configRevision` 加一交给 `StaffGate`（它据此重查评估员身份，重查时不再显示转圈）。测试 `test/auth_gate_stream_test.dart`，去掉修复会失败。
+- 标题跳动：`AppAppBar` 的 `AnimatedSwitcher` 默认把新旧标题居中叠放，动画完才回到左边；`layoutBuilder` 改为靠左。
+- 「自己」页：删掉开头「語言、界線、demo 資料」一句、「你嘅資料」卡和那里的登出；登出移到「個人資料」页底（键 `profile_sign_out`，先确认、回到第一页再登出）。
+- 首页安全卡：两部分，见决策草稿 `NNNN-home-safety-card-simplified.md`（危机界面，待 PI 审核）。「24×7 政府熱線」独占一行居中，「如果唔安全，／睇更多支援熱線」固定两行——扫描截图里放在按钮旁边或一行写完时，大字下会断成「政府熱／線」「支援熱／線」。
+- 「行動／望一望／進度」标签 17 pt、图标 30；「今個星期」17 pt、后面各项 16 pt。
+- 字号五档（决策草稿 `NNNN-five-font-levels.md`）：先做过一版「加超大 1.45、最大 1.6」，Junyu 看后改为 1.06／1.12／1.18／1.24／1.30 平均五档，最大仍 1.3。`AppFontScale` = `standard`/`slightlyLarge`/`large`/`larger`/`xLarge`（旧三档名字不变，已存设定照旧读得到；原標準 1.0 变 1.06）。`combinedTextScale` 封顶 1.3。设定页五个按钮不随字号变；去掉预览，换档后 `_FontSizeCheck` 问「會唔會太大／太細」，可返回原档（测试 `test/font_scale_check_test.dart`）。
+- 五档扫描：`ui_text_scale_sweep_test.dart` 支持 `SWEEP_SCALES`，新加五条流程（睇今日下半＋支援熱線页、傾完評分、人生回顧、每週問卷 W1 全套、個人資料＋登出；设定页加字号按钮）。18 条流程 × 4 种宽度（320／360／375／390）× 5 档 × 两组 = 720 次，**全部没有溢出**。中间试 1.45／1.6 时注册页小标题在 320／360 宽超出，已改为可换行（现在用不到这么大，但留着无害）。没覆盖的：首页最上面的问候和心情、继续倾偈卡、提醒横幅（要连 Firebase），「望一望」「進度」打开后的页面。底部分页的字 Flutter 自己封顶 1.3。
+
 ## 2026-10-19 Junyu 核对后六处：测试员免打包解锁、每週問卷測試页、Brief PR 横排、注册跳到错处、人生回顧去锁、做啲嘢用词与保留对话开关（PR 草稿，分支 `claude/zealous-fermat-8rgqtg`）
 
 - 测试员工具：`TesterGate.tryUnlockAsTester`——`isTester` 且 `testerToolsEnabled` 时 7 次点击直接解锁；旧的 `TESTER_PIN` 照旧可用；非测试员不弹任何提示。决策草稿 `NNNN-tester-tools-unlock-without-pin.md`。
