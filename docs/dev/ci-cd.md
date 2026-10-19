@@ -29,6 +29,8 @@
 
 **测试工具：** 如果在仓库 Secrets 里设了 `TESTER_PIN`，打出来的包可以解锁测试工具（日程模拟器、测试推送）：在「關於」页连点版本号 7 次，再输入这个密码。没有设置时，测试工具在这个包里完全打不开。
 
+**测试工具（10/19 起不用另外打包）：** 帐号是测试员（`isTester: true`，只有管理员能设：`tool/set_tester.js` 或控制台），而且控制台 `app_config/feature_flags.testerToolsEnabled` 是 `true` 时，任何包（包括给老人的包）在「關於」页连点版本号 7 次就直接解锁，不用密码。参与者点了没有反应。
+
 **Flutter 版本：** CI、打包和 Codemagic 都固定用 Flutter 3.35.3，和团队本地一致（见 `.metadata`）。升级 Flutter 时要同时把 Gradle 升到 8.14 以上（`android/gradle/wrapper/gradle-wrapper.properties`），单独开一个 PR 做。
 
 ## iOS 包

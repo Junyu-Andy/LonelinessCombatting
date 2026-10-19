@@ -252,19 +252,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               // the cards could not hold it.  The combined factor is now
               // capped at the App's own largest size; the App setting
               // still works on its own.
+              // 10/19: five levels, same 1.30 cap (combinedTextScale).
               final base = MediaQuery.of(context);
               // 10/19 (Junyu, switch appFontScaleOnlyEnabled): the phone's
-              // font size is ignored and only the App's 字號 counts, so
-              // every page scales the same way.
+              // font size is ignored and only the App's 字號 (five levels)
+              // counts, so every page scales the same way.
               final combined =
                   RemoteFeatureFlags.current.appFontScaleOnlyEnabled
                       ? widget.settings.fontScale.multiplier
-                      : base.textScaler.scale(1.0) *
-                          widget.settings.fontScale.multiplier;
+                      : combinedTextScale(
+                          base.textScaler.scale(1.0), widget.settings.fontScale);
               final scaled = base.copyWith(
-                textScaler: TextScaler.linear(
-                  combined.clamp(0.8, AppFontScale.xLarge.multiplier),
-                ),
+                textScaler: TextScaler.linear(combined),
               );
               return MediaQuery(
                 data: scaled,

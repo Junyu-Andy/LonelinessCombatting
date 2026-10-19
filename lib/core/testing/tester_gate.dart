@@ -1,18 +1,23 @@
-/// Tester-tools unlock (2026-09-23).
+/// Tester-tools unlock (2026-09-23; PIN-free path 2026-10-19).
 ///
 /// Tester tools (survey previews, schedule simulator, test pushes, data
-/// reset, the tester-account switch, and the direct survey entries) are
-/// hidden from everyone — debug builds and `isTester` accounts included —
-/// until someone enters the PIN compiled into the build:
+/// reset, the arm switch, and the direct survey entries) are hidden from
+/// everyone until unlocked.  Entry point: tap the version line on
+/// 設定 → 關於同支援 seven times.  Two ways in:
 ///
-///     flutter run --dart-define=TESTER_PIN=246810
+///  1. Tester account (10/19, [canUnlockAsTester]): `users/{uid}.isTester`
+///     is true AND `app_config/feature_flags.testerToolsEnabled` is true.
+///     Seven taps unlock at once — no PIN, any build (the participant
+///     build included).  `isTester` is admin-only (firestore.rules refuse
+///     any client write; tool/set_tester.js), and the server functions
+///     behind the tools check it again, so a participant can never get in.
+///  2. Build PIN (old way, still works): the PIN compiled into the build,
+///         flutter run --dart-define=TESTER_PIN=246810
+///     A build without `TESTER_PIN` has no PIN dialog.
 ///
-/// A build without `TESTER_PIN` cannot be unlocked at all, which is the
-/// safe default for participant builds.  Unlock lasts for the app process
-/// only; killing the app locks it again and clears any simulated clock.
-/// Five wrong attempts lock the dialog for the rest of the process.
-///
-/// Entry point: tap the version line on 設定 → 關於同支援 seven times.
+/// Unlock lasts for the app process only; killing the app locks it again
+/// and clears any simulated clock.  Five wrong PINs lock the dialog for
+/// the rest of the process.
 library;
 
 import 'package:flutter/foundation.dart';
@@ -32,6 +37,27 @@ class TesterGate {
   static bool get isConfigured => _pin.isNotEmpty;
   static bool get isLockedOut => _failures >= maxAttempts;
   static int get attemptsLeft => maxAttempts - _failures;
+
+  /// 10/19 — the PIN-free path: an admin-flagged tester account with the
+  /// server switch on.  Pure (tests).
+  static bool canUnlockAsTester({
+    required bool isTester,
+    required bool testerToolsEnabled,
+  }) =>
+      isTester && testerToolsEnabled;
+
+  /// Unlocks when [canUnlockAsTester]; returns whether it did.
+  static bool tryUnlockAsTester({
+    required bool isTester,
+    required bool testerToolsEnabled,
+  }) {
+    if (!canUnlockAsTester(
+        isTester: isTester, testerToolsEnabled: testerToolsEnabled)) {
+      return false;
+    }
+    unlocked.value = true;
+    return true;
+  }
 
   /// Returns true and unlocks when [candidate] matches the build PIN.
   static bool tryUnlock(String candidate) {

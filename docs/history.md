@@ -10,7 +10,7 @@
 
 - 两个开关默认关：`appFontScaleOnlyEnabled`（`app.dart` 只用 `settings.fontScale`，不乘系统 textScaler）、`briefPrHomeBannerEnabled`（`today_page.dart` 问候语下面放同一个 `BriefPrCardHost`，调度规则不变）。
 - 记忆页：`MemoryItem` 多 `category`（事实的服务器类目）；页面按类目和日期用 `ExpansionTile` 分组，页顶汇总一句。类目中文名照 `functions/memory.js` 的注释，记 S20 待产品窗口核。
-- 资料卡 `_ProfileCard`：名字 headlineSmall、电邮 bodySmall、緊急聯絡 `ExpansionTile`。`safety_footer_card.dart` 只缩字号、图标和留白，文字号码不动。
+- 资料卡 `_ProfileCard`：名字 headlineSmall、电邮 bodySmall、緊急聯絡 `ExpansionTile`。`safety_footer_card.dart` 的缩小在并入 main 时放弃，改用 #125 的两部分新卡。
 - UI 扫描加「我記得嘅嘢（分組）」流程（假的 `MemoryV1Service` 喂合成条目）。
 
 ## 2026-10-19 W0 现场三件（Junyu 定）：首页表情直进签到页、建议页用入组资料、语音模型可切 chirp_3（PR 草稿，分支 `feat/1019-home-mood-suggestions-chirp3`，接 `fix/1019-field-issues`）
@@ -19,6 +19,24 @@
 - 建议页的提示词仍在 App 里（历史遗留），新版只在开关开着时用；要搬到 `functions/prompts/` 另排。
 - `functions/stt.js`：`meta/stt_config.model` 二选一（`chirp_2` 默认、`chirp_3`），Google 拒绝时该次退回默认；`stt_usage` 和返回值记实际用的模型。
 - 待 Junyu：决策编号；建议页提示词搬服务器；PPT 乙部铺垫句已加（见 scratchpad 两份 deck）。
+## 2026-10-19 Junyu 第二轮核对：切页跳回、标题跳动、「自己」页精简、首页安全卡、首页字放大、字号五档（同一 PR 草稿，分支 `claude/zealous-fermat-8rgqtg`）
+
+- 登录后第一次点「自己」跳回「睇今日」：`AuthGate` 每次 build 都新建 `profileChanges()` 流，登录后重读开关的 `setState` 让 `StreamBuilder` 回到等待状态，整个 `MainShell` 被换掉。改为流只建一次，重读开关后只把 `configRevision` 加一交给 `StaffGate`（它据此重查评估员身份，重查时不再显示转圈）。测试 `test/auth_gate_stream_test.dart`，去掉修复会失败。
+- 标题跳动：`AppAppBar` 的 `AnimatedSwitcher` 默认把新旧标题居中叠放，动画完才回到左边；`layoutBuilder` 改为靠左。
+- 「自己」页：删掉开头「語言、界線、demo 資料」一句、「你嘅資料」卡和那里的登出；登出移到「個人資料」页底（键 `profile_sign_out`，先确认、回到第一页再登出）。
+- 首页安全卡：两部分，见决策草稿 `NNNN-home-safety-card-simplified.md`（危机界面，待 PI 审核）。「24×7 政府熱線」独占一行居中，「如果唔安全，／睇更多支援熱線」固定两行——扫描截图里放在按钮旁边或一行写完时，大字下会断成「政府熱／線」「支援熱／線」。
+- 「行動／望一望／進度」标签 17 pt、图标 30；「今個星期」17 pt、后面各项 16 pt。
+- 字号五档（决策草稿 `NNNN-five-font-levels.md`）：先做过一版「加超大 1.45、最大 1.6」，Junyu 看后改为 1.06／1.12／1.18／1.24／1.30 平均五档，最大仍 1.3。`AppFontScale` = `standard`/`slightlyLarge`/`large`/`larger`/`xLarge`（旧三档名字不变，已存设定照旧读得到；原標準 1.0 变 1.06）。`combinedTextScale` 封顶 1.3。设定页五个按钮不随字号变；去掉预览，换档后 `_FontSizeCheck` 问「會唔會太大／太細」，可返回原档（测试 `test/font_scale_check_test.dart`）。
+- 五档扫描：`ui_text_scale_sweep_test.dart` 支持 `SWEEP_SCALES`，新加五条流程（睇今日下半＋支援熱線页、傾完評分、人生回顧、每週問卷 W1 全套、個人資料＋登出；设定页加字号按钮）。18 条流程 × 4 种宽度（320／360／375／390）× 5 档 × 两组 = 720 次，**全部没有溢出**。中间试 1.45／1.6 时注册页小标题在 320／360 宽超出，已改为可换行（现在用不到这么大，但留着无害）。没覆盖的：首页最上面的问候和心情、继续倾偈卡、提醒横幅（要连 Firebase），「望一望」「進度」打开后的页面。底部分页的字 Flutter 自己封顶 1.3。
+
+## 2026-10-19 Junyu 核对后六处：测试员免打包解锁、每週問卷測試页、Brief PR 横排、注册跳到错处、人生回顧去锁、做啲嘢用词与保留对话开关（PR 草稿，分支 `claude/zealous-fermat-8rgqtg`）
+
+- 测试员工具：`TesterGate.tryUnlockAsTester`——`isTester` 且 `testerToolsEnabled` 时 7 次点击直接解锁；旧的 `TESTER_PIN` 照旧可用；非测试员不弹任何提示。决策草稿 `NNNN-tester-tools-unlock-without-pin.md`。
+- 新页 `tester_weekly_bundle_page.dart`：W1–W7 预览（`WeeklyBundleFlowPage.previewFor`，各部分 `preview: true` 不写 Firestore）和「模擬到嗰日」（`AppClock` 拨到推送后 30 分钟，回首页）。模拟要帐号有 cohort 和 W0（切换组别一次会补上）。
+- Brief PR 第二版问卷：七个选项横排（`_HorizontalScale`，键名 `brief_pr_option_N` 不变），小屏大字测试不溢出。
+- 注册页：每格 `GlobalKey` + `FocusNode`，验证失败滚到第一格错处再聚焦（先滚完再聚焦，否则光标的滚动会打断动画）；服务器错误按代码对到电邮或密码格，用 `forceErrorText` 显示，改了就消失。
+- 人生回顧时间线：去掉锁和灰色，未完成的主题白底加播放图标，点开对应主题（同 `reminiscence_landing.dart`）。人生點滴本来就不限次序，这里只是界面跟上。
+- 「做啲嘢」页去掉「agent」；「保留對話紀錄」开关加 `transcriptRetentionToggleEnabled`（默认关），决策 0020 第 5 条标取代。仓库里没找到更早「不开放」的书面记录，待 Junyu 确认并核对 ICF。
 
 ## 2026-10-19 W0 现场两处修正：签到页揀心情那屏溢出、语音转写空格（PR 草稿，分支 `fix/1019-field-issues`）
 

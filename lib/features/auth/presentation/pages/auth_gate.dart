@@ -60,6 +60,27 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   String? _lastUid;
 
+  // 10/19: ONE subscription for the life of the gate.  profileChanges() is
+  // an async* generator, so calling it in build handed StreamBuilder a new
+  // stream on every rebuild: it fell back to "waiting", showed the loading
+  // screen and rebuilt the whole MainShell from scratch — the tab jumped
+  // back to 睇今日.  The setState after the post-login config reload below
+  // did exactly that about a second after signing in.
+  late Stream<UserProfile?> _profiles = widget.authService.profileChanges();
+
+  // Bumped after the post-login reload of app_config/*, so the gates below
+  // re-read the switches (StaffGate re-routes, ConsentGate rebuilds)
+  // without remounting the App.
+  int _configRevision = 0;
+
+  @override
+  void didUpdateWidget(AuthGate old) {
+    super.didUpdateWidget(old);
+    if (old.authService != widget.authService) {
+      _profiles = widget.authService.profileChanges();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Guest mode: Firebase unavailable — let the user into the main shell
@@ -71,7 +92,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     return StreamBuilder<UserProfile?>(
-      stream: widget.authService.profileChanges(),
+      stream: _profiles,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const _Loading();
@@ -104,7 +125,7 @@ class _AuthGateState extends State<AuthGate> {
             if (profile != null) {
               await _reloadRemoteConfig();
               await _syncQuietHours(profile.uid, settings);
-              if (mounted) setState(() {});
+              if (mounted) setState(() => _configRevision++);
             }
           }
           widget.onProfileSeen?.call(profile);
@@ -120,11 +141,16 @@ class _AuthGateState extends State<AuthGate> {
         // before the enrolment gate, so it is never held on S8.
         return StaffGate(
           uid: profile.uid,
+          configRevision: _configRevision,
           onSignOut: widget.authService.signOut,
           onStaffRoute: widget.onStaffRoute,
           child: EnrollmentWaitGate(
             profile: profile,
-            child: const ConsentGate(child: MainShell()),
+            // Not const on purpose: a new instance on every rebuild makes
+            // ConsentGate re-read the remote switches after the reload,
+            // while the const MainShell below keeps its state (tab).
+            // ignore: prefer_const_constructors
+            child: ConsentGate(child: const MainShell()),
           ),
         );
       },

@@ -66,6 +66,7 @@ class _Shortcut extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -78,19 +79,22 @@ class _Shortcut extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
+          // 10/19: 12 → 17 pt labels and bigger icons (Junyu: too small to
+          // read); colours from the theme so high contrast applies.
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 24, color: const Color(0xFFA8845F)),
-                const SizedBox(height: 6),
+                Icon(icon, size: 30, color: cs.primary),
+                const SizedBox(height: 8),
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF6B5D52),
-                    fontWeight: FontWeight.w500,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 17,
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],

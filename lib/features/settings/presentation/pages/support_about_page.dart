@@ -2,6 +2,8 @@ import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 
+import '../../../../app/app_settings_scope.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/testing/tester_gate.dart';
 import '../../../../core/version/build_info.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -47,7 +49,9 @@ class SupportAboutPage extends StatelessWidget {
                     // V-1 — field-checkable pin: version, build, lexicon and
                     // the first 8 hex of promptBundleHash must match the
                     // Manual §13 table for this Phase A build.
-                    // Tester unlock: 7 taps on the version line → PIN dialog.
+                    // Tester unlock: 7 taps on the version line → a tester
+                    // account with the server switch on is let straight in;
+                    // otherwise the build PIN dialog (if the build has one).
                     const _VersionTapTarget(),
                     const SizedBox(height: 4),
                     Text(
@@ -129,13 +133,36 @@ class _VersionTapTargetState extends State<_VersionTapTarget> {
     }
   }
 
+  /// `users/{uid}.isTester` of the signed-in account (admin-only field).
+  /// Looked up without asserting so the page also works without the scope.
+  bool get _isTester =>
+      context
+          .getInheritedWidgetOfExactType<AppSettingsScope>()
+          ?.notifier
+          ?.profile
+          ?.isTester ??
+      false;
+
   Future<void> _askPin() async {
     if (TesterGate.unlocked.value) {
       _toast('測試員工具已解鎖，去「自己」頁最底。');
       return;
     }
+    // 10/19 — tester account + server switch: no PIN, no special build.
+    final isTester = _isTester;
+    final switchOn = RemoteFeatureFlags.current.testerToolsEnabled;
+    if (TesterGate.tryUnlockAsTester(
+        isTester: isTester, testerToolsEnabled: switchOn)) {
+      _toast('已解鎖。測試員工具喺「自己」頁最底；重開 app 會自動鎖返。');
+      return;
+    }
     if (!TesterGate.isConfigured) {
-      _toast('呢個 build 冇設定測試密碼（build 時加 --dart-define=TESTER_PIN=…）。');
+      // Participants get no hint at all.  A tester whose switch is still
+      // off is told what is missing.
+      if (isTester) {
+        _toast('伺服器開關 testerToolsEnabled 未開（控制台 app_config/feature_flags），'
+            '開咗之後重開 app 再試。');
+      }
       return;
     }
     if (TesterGate.isLockedOut) {

@@ -51,6 +51,11 @@ class StaffGate extends StatefulWidget {
   /// T30 test hook for the assessor view's backend.
   final AssessorBackend? assessorBackend;
 
+  /// 10/19: bumped by AuthGate after it re-reads app_config/* once signed
+  /// in; the route is worked out again (the assessor-view switch may only
+  /// be known then).  While it reloads the current page stays up.
+  final int configRevision;
+
   const StaffGate({
     super.key,
     required this.uid,
@@ -60,6 +65,7 @@ class StaffGate extends StatefulWidget {
     this.assessorViewOn,
     this.onStaffRoute,
     this.assessorBackend,
+    this.configRevision = 0,
   });
 
   @override
@@ -85,7 +91,9 @@ class _StaffGateState extends State<StaffGate> {
   @override
   void didUpdateWidget(StaffGate old) {
     super.didUpdateWidget(old);
-    if (old.uid != widget.uid) _route = _load();
+    if (old.uid != widget.uid || old.configRevision != widget.configRevision) {
+      _route = _load();
+    }
   }
 
   Future<StaffRoute> _load() async {
@@ -114,7 +122,9 @@ class _StaffGateState extends State<StaffGate> {
     return FutureBuilder<StaffRoute>(
       future: _route,
       builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
+        // A re-check (new configRevision) keeps showing the page already
+        // up instead of a spinner, so the App underneath is not torn down.
+        if (snap.connectionState != ConnectionState.done && !snap.hasData) {
           return const Scaffold(
               body: Center(child: CircularProgressIndicator()));
         }
