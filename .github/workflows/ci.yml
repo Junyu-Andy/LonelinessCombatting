@@ -1,6 +1,7 @@
 # CI — runs on every push and pull request.
 #
-#   flutter : analyze + every test variant (tool/ci_flutter_tests.sh)
+#   flutter : 小讀本 HTML check (1020c) + analyze + every test variant
+#             (tool/ci_flutter_tests.sh)
 #   backend : Cloud Functions tests + Firestore rules / emulator tests
 #             (tool/ci_backend_tests.sh)
 #
@@ -30,6 +31,14 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      # 1020c §3 — every 小讀本 file in assets/readers/ (no external
+      # resources, no network APIs, no phone numbers, no 「AI」「模型」
+      # 「機械人」「版本」「組」, data-section, .txt, manifest, < 1 MB), then
+      # the checker's own tests.  Node is preinstalled on the runner.
+      - name: Reader HTML check
+        run: |
+          node tool/check_reader_html.js
+          node test/reader_html_check/check_reader_html_test.js
       # Existing infos/warnings are known (ARCHITECTURE_NOTES.md); only
       # errors fail the build.
       - name: Analyze

@@ -63,6 +63,12 @@ const DAYS_SUBCOLLECTION = "days";
 const AUDIT_COLLECTION = "ops_audit_log";
 const USAGE_COLLECTION = "usage_events";
 
+/**
+ * How many of a person's newest usage rows are scanned for the last open
+ * (1020c: reader_* rows sit between foreground rows).
+ */
+const LAST_USE_SCAN = 60;
+
 /** A single foreground stretch counts at most this many minutes. */
 const FOREGROUND_CAP_MIN = 60;
 /** Follow-up stages are computed on study days 1..FOLLOW_UP_LAST_DAY. */
@@ -148,12 +154,16 @@ function dayStart(key) {
  * killed before a background event → the next foreground), or at `now`
  * for the last event when it is a foreground.  Each stretch is capped at
  * FOREGROUND_CAP_MIN and credited to the day the stretch started.
+ * Only foreground / background rows count: the 1020c 小讀本 rows
+ * (reader_*) happen inside a foreground stretch and must not end it.
  * @param {Array<{type: string, clientAt: Date}>} events
  * @param {Date} now
  * @return {Object<string, number>} dayKey → minutes (rounded)
  */
 function foregroundMinutesByDay(events, now) {
-  const sorted = events.slice().sort((a, b) => a.clientAt - b.clientAt);
+  const sorted = events
+      .filter((e) => e.type === "foreground" || e.type === "background")
+      .sort((a, b) => a.clientAt - b.clientAt);
   const out = {};
   for (let i = 0; i < sorted.length; i++) {
     const e = sorted[i];
@@ -546,9 +556,11 @@ async function loadPerson(db, person, now, opts) {
       db.collection("safety_events").where("uid", "==", person.uid).get(),
       db.collection("pi_alerts").where("uid", "==", person.uid).get(),
       // Single-field order only (no composite index needed): the latest
-      // few rows, the newest foreground among them is the last open.
+      // rows, the newest foreground among them is the last open.  1020c:
+      // a reading session adds reader_* rows after its foreground, so
+      // look further back than the 10 rows that were enough before.
       userRef.collection(USAGE_COLLECTION).orderBy("clientAt", "desc")
-          .limit(10).get(),
+          .limit(LAST_USE_SCAN).get(),
     ]);
 
   const byCompanion = {};

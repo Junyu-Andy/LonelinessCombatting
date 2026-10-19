@@ -27,6 +27,7 @@ import '../core/telemetry/screen_dwell_observer.dart';
 import '../core/version/build_info.dart';
 import '../core/telemetry/screen_dwell_tracker.dart';
 import '../core/usage/usage_event_recorder.dart';
+import '../core/usage/usage_events_scope.dart';
 import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
 import '../features/auth/data/auth_service.dart';
@@ -267,8 +268,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               );
               return MediaQuery(
                 data: scaled,
-                child: SafetyOverlay(
-                  child: child ?? const SizedBox.shrink(),
+                // 1020c: pages (the 小讀本 reader) reach the recorder here.
+                child: UsageEventsScope(
+                  recorder: _usage,
+                  child: SafetyOverlay(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
               );
             },

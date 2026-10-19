@@ -58,6 +58,31 @@ test("foreground followed by another foreground (killed): the stretch " +
   assert.strictEqual(O.foregroundMinutesByDay(ev, NOW)["2026-10-20"], 7);
 });
 
+test("1020c: reader_* rows inside a foreground stretch neither end it " +
+    "nor count as an open", () => {
+  const ev = [
+    {type: "foreground", clientAt: at("2026-10-20T01:00:00Z")},
+    {type: "reader_open", clientAt: at("2026-10-20T01:02:00Z")},
+    {type: "reader_section", clientAt: at("2026-10-20T01:03:00Z")},
+    {type: "reader_cta", clientAt: at("2026-10-20T01:04:00Z")},
+    {type: "reader_close", clientAt: at("2026-10-20T01:09:00Z")},
+    {type: "background", clientAt: at("2026-10-20T01:20:00Z")},
+    {type: "reader_open", clientAt: at("2026-10-21T01:00:00Z")}, // no fg
+  ];
+  const m = O.foregroundMinutesByDay(ev, NOW);
+  assert.strictEqual(m["2026-10-20"], 20);
+  assert.strictEqual(m["2026-10-21"], undefined);
+  const rows = O.dayRowsFor({
+    w0Key: W0, todayKey: "2026-10-25", now: NOW, hasUsageEvents: true,
+    days: ["2026-10-20", "2026-10-21"], usageEvents: ev, sessions: [],
+    briefPr: [],
+  });
+  assert.strictEqual(rows[0].opened, true);
+  assert.strictEqual(rows[0].firstOpenAt, "09:00");
+  assert.strictEqual(rows[0].foregroundMinutes, 20);
+  assert.strictEqual(rows[1].opened, false);
+});
+
 test("day rows on the usage basis: opened, first open HH:mm, minutes, " +
     "valid sessions per companion by end day, Brief PR by invite day", () => {
   const rows = O.dayRowsFor({

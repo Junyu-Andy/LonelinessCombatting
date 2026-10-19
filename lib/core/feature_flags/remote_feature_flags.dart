@@ -113,6 +113,13 @@
 ///                               「保留對話紀錄」 switch in 自己 (decision
 ///                               0020).  Off (default) = the row is hidden;
 ///                               the stored consent value is untouched.
+///   - [htmlReadersEnabled]    — 1020c (decision NNNN-html-readers-webview):
+///                               the 「小讀本」 section at the top of 讀少少
+///                               (bundled HTML readers in a WebView,
+///                               `assets/readers/`).  Off (default) = 讀少少
+///                               exactly as before; on with no packaged
+///                               unit = still hidden.  Both arms identical
+///                               except 「問下通通」 (Hybrid only, C08).
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -145,6 +152,7 @@ class RemoteFeatureFlags {
     this.briefPrHomeBannerEnabled = false,
     this.testerToolsEnabled = false,
     this.transcriptRetentionToggleEnabled = false,
+    this.htmlReadersEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -168,6 +176,7 @@ class RemoteFeatureFlags {
   final bool briefPrHomeBannerEnabled;
   final bool testerToolsEnabled;
   final bool transcriptRetentionToggleEnabled;
+  final bool htmlReadersEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -226,6 +235,7 @@ class RemoteFeatureFlags {
         testerToolsEnabled: map['testerToolsEnabled'] == true,
         transcriptRetentionToggleEnabled:
             map['transcriptRetentionToggleEnabled'] == true,
+        htmlReadersEnabled: map['htmlReadersEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

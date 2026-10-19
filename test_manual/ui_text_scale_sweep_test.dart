@@ -37,6 +37,7 @@ import 'package:app_demo/core/agents/agent_registry.dart';
 import 'package:app_demo/core/agents/persona_resolver.dart';
 import 'package:app_demo/core/config/phase_b_config.dart';
 import 'package:app_demo/core/core_services_scope.dart';
+import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
 import 'package:app_demo/core/cross_referral/handoff_executor.dart';
 import 'package:app_demo/core/cross_referral/referral_routing_service.dart';
 import 'package:app_demo/core/llm/agent_greeting_service.dart';
@@ -73,7 +74,13 @@ import 'package:app_demo/features/crisis/presentation/pages/emergency_support_pa
 import 'package:app_demo/features/crisis/presentation/widgets/safety_footer_card.dart';
 import 'package:app_demo/features/curious_companion/presentation/pages/tung_tung_page.dart';
 import 'package:app_demo/features/education/data/education_library.dart';
+import 'package:app_demo/features/education/data/reader_read_marks.dart';
+import 'package:app_demo/features/education/data/reader_test_unit.dart';
+import 'package:app_demo/features/education/data/reader_unit.dart';
 import 'package:app_demo/features/education/presentation/pages/education_article_page.dart';
+import 'package:app_demo/features/education/presentation/pages/education_library_page.dart';
+import 'package:app_demo/features/education/presentation/pages/reader_page.dart';
+import 'package:app_demo/features/education/presentation/reader/reader_surface.dart';
 import 'package:app_demo/features/memory/presentation/pages/remembered_page.dart';
 import 'package:app_demo/features/my_story/presentation/pages/my_story_page.dart';
 import 'package:app_demo/features/my_story/presentation/widgets/story_thread_timeline.dart';
@@ -768,6 +775,30 @@ final _flows = <String, _Flow>{
     expect(child, findsWidgets);
     await c.shot('remembered_family_open');
   },
+  '讀少少 小讀本（1020c）': (c) async {
+    // Switch on, two units (one with a long title, one ticked); the
+    // WebView is a stand-in here (platform views do not render in tests).
+    final saved = RemoteFeatureFlags.current;
+    RemoteFeatureFlags.current =
+        const RemoteFeatureFlags(htmlReadersEnabled: true);
+    addTearDown(() => RemoteFeatureFlags.current = saved);
+    final source = _SweepReaderSource();
+    await _pumpHome(
+        c,
+        EducationLibraryPage(
+          readerSource: source,
+          readerSurface: const _SweepReaderSurface(),
+          readMarks: InMemoryReaderReadMarks({_sweepUnit2.id}),
+        ));
+    expect(find.text('小讀本'), findsOneWidget);
+    await c.shot('readers_list');
+    await c.tester.tap(find.text(readerTestUnit.titleZh));
+    await c.tester.pumpAndSettle();
+    expect(find.byType(ReaderPage), findsOneWidget);
+    expect(find.byKey(ReaderPage.askKey), _armB ? findsNothing : findsOneWidget);
+    await c.shot('reader_page');
+    await _back(c);
+  },
   '健康資訊文章页': (c) async {
     await _pushPage(
         c, EducationArticlePage(article: EducationLibrary.articles.first));
@@ -841,4 +872,30 @@ void main() {
       });
     }
   }
+}
+
+// 1020c 小讀本 stand-ins for the sweep.
+const _sweepUnit2 = ReaderUnit(
+    id: 'u2_long_title',
+    titleZh: '點解孤單要理：同屋企人、朋友、鄰居慢慢重新聯絡',
+    minutes: 10,
+    order: 2);
+
+class _SweepReaderSource extends ReaderContentSource {
+  @override
+  Future<List<ReaderUnit>> units() async => [readerTestUnit, _sweepUnit2];
+
+  @override
+  Future<String> html(String id) async => readerTestUnitHtml;
+
+  @override
+  Future<String> text(String id) async => readerTestUnitText;
+}
+
+class _SweepReaderSurface extends ReaderSurface {
+  const _SweepReaderSurface();
+
+  @override
+  Widget build(BuildContext context, ReaderSurfaceRequest request) =>
+      const Center(child: Text('（網頁內容：真機上由 WebView 顯示）'));
 }

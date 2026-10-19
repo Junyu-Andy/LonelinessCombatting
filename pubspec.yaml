@@ -34,6 +34,10 @@ dependencies:
   # before the Phase B freeze.  Evaluation:
   # docs/dev-reports/webview-eval-20261020.md
   webview_flutter: 4.13.1
+  # Same versions the lock already had; listed directly because the reader
+  # calls Android setTextZoom(100) / iOS setAllowsLinkPreview(false).
+  webview_flutter_android: 4.12.0
+  webview_flutter_wkwebview: 3.25.0
 
 dev_dependencies:
   flutter_test:
@@ -49,6 +53,9 @@ flutter:
     - assets/images/
     - assets/agents/
     - assets/config/
+    # 1020c 小讀本: <id>.html, <id>.txt, manifest.json (committed as []).
+    # Checked by tool/check_reader_html.js in CI.
+    - assets/readers/
     # Phase A baseline — single source of truth shared with the Cloud
     # Functions bundle (S-3 templates, S-4 crisis resources).  Bundled so
     # the client shows the same strings the server would return.

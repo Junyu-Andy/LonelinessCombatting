@@ -52,7 +52,7 @@ rules_version = '2';
 //   users/{uid}/social_contact_probes/{Wn}       -> T24 weekly social-contact probe (client: answers 0–3; server: study-week stamps)
 //   users/{uid}/weekly_pr|pgic|brief_pr          -> T24: studyWeek/studyDay/window/missed fields are server-only
 //   weekly_status/{uid}                          -> T24 weekly bundle status, research ID, push times (server only)
-//   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events (owner: create only; server stamps research ID, study day, uploadedLate)
+//   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events, 1020c reader_* rows (owner: create only; server stamps research ID, study day, uploadedLate)
 //   intake_audit_log/{id}                        -> T47 researcher-recorded intake log (server-only)
 //   ops_daily/{uid}/days/{dayKey}, ops_audit_log/{id} -> T39 operations dashboard: stored day rows + open log (server only)
 
@@ -324,6 +324,13 @@ service cloud.firestore {
     // creates: no read (the server stamps the research ID — decision
     // 0021), no update, no delete.  Server-only fields can never come
     // from the client.
+    //
+    // 1020c §1(5) — the 小讀本 rows share the collection (same switch, same
+    // enrolment check, App side): reader_open / reader_section /
+    // reader_cta / reader_close, each with exactly its own extra fields —
+    // a unit id, a section id, a CTA code or whole seconds.  Ids must be
+    // short lower-case slugs (the pattern in usage_event_recorder.dart and
+    // tool/check_reader_html.js), so no text can ride along.
     // ============================================================
     function isEnrolledParticipant(uid) {
       let u = get(/databases/$(database)/documents/users/$(uid)).data;
@@ -336,20 +343,49 @@ service cloud.firestore {
     }
 
     function usageEventValid(d) {
-      return d.type in ['foreground', 'background']
-        && d.clientAt is timestamp
+      return d.clientAt is timestamp
         && d.receivedAt == request.time
         && d.appVersion is string
         && d.buildNumber is string
         && d.platform is string
-        && d.schemaVersion == 1;
+        && d.schemaVersion == 1
+        && (usageLifecycleValid(d) || usageReaderValid(d));
+    }
+
+    // T40 foreground / background: the base fields only.
+    function usageLifecycleValid(d) {
+      return d.type in ['foreground', 'background']
+        && d.keys().hasOnly(usageEventClientKeys());
+    }
+
+    function readerIdOk(v) {
+      return v is string && v.matches('^[a-z0-9][a-z0-9_-]{0,47}$');
+    }
+
+    function usageReaderOnly(d, extra) {
+      return d.keys().hasOnly(usageEventClientKeys().concat(extra))
+        && d.keys().hasAll(extra);
+    }
+
+    // 1020c reader rows.
+    function usageReaderValid(d) {
+      return readerIdOk(d.get('unitId', null)) && (
+        (d.type == 'reader_open' && usageReaderOnly(d, ['unitId']))
+        || (d.type == 'reader_section'
+            && usageReaderOnly(d, ['unitId', 'sectionId'])
+            && readerIdOk(d.sectionId))
+        || (d.type == 'reader_cta'
+            && usageReaderOnly(d, ['unitId', 'cta'])
+            && d.cta in ['small_action', 'plan', 'thought'])
+        || (d.type == 'reader_close'
+            && usageReaderOnly(d, ['unitId', 'seconds'])
+            && d.seconds is int && d.seconds >= 0 && d.seconds <= 86400));
     }
 
     match /users/{uid}/usage_events/{eventId} {
       allow read: if false;
       allow create: if isOwner(uid)
         && isEnrolledParticipant(uid)
-        && request.resource.data.keys().hasOnly(usageEventClientKeys())
         && request.resource.data.keys().hasAll(usageEventClientKeys())
         && usageEventValid(request.resource.data);
       allow update, delete: if false;

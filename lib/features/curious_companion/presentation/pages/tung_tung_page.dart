@@ -64,11 +64,17 @@ class TungTungPage extends StatefulWidget {
   /// L-1 — `tungtung.articleId` when opened from an article (mode A).
   final String? articleId;
 
+  /// 1020c §1(6) — replaces the line in front of [articleContext] (the
+  /// 小讀本 send their own, `reader_qa_prompt.dart`).  Null = the article
+  /// header as before.
+  final String? articleContextHeader;
+
   const TungTungPage({
     super.key,
     this.articleContext,
     this.articleTitle,
     this.articleId,
+    this.articleContextHeader,
   });
 
   @override
@@ -420,9 +426,10 @@ class _TungTungPageState extends State<TungTungPage> {
       suffix.writeln();
     }
     if (widget.articleContext != null) {
-      suffix.writeln(isEn
-          ? '[Article context — ground all answers in this text]'
-          : '[文章內容 — 所有回答只可以根據呢段]');
+      suffix.writeln(widget.articleContextHeader ??
+          (isEn
+              ? '[Article context — ground all answers in this text]'
+              : '[文章內容 — 所有回答只可以根據呢段]'));
       if (widget.articleTitle != null) {
         suffix.writeln('TITLE: ${widget.articleTitle}');
       }
