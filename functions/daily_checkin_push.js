@@ -8,14 +8,14 @@
  *   - 08:30 (dailyCheckInMorningPush) does nothing;
  *   - 19:00 (dailyMoodReminder) sends the old topic broadcast
  *     "今日過得點？…" Monday to Saturday and nothing on Sunday.
- * On:
- *   - 08:30 HKT, every day: P1 to every target (below), per device
- *     (users/{uid}/fcm_tokens), never a topic.
- *   - 19:00 HKT, every day: P2 per device, only to a target who has not
- *     completed today's check-in (Hong Kong date, checkInDoneOn) and who
- *     gets no weekly-questionnaire push today
- *     (weekly_schedule.weeklyPushDueToday — the per-person form of the old
- *     "no daily reminder on Sunday, the weekly reminder goes then").
+ * On (1020e 一.(8), 二.4):
+ *   - 08:30 HKT, every day: P1 per device (users/{uid}/fcm_tokens, never
+ *     a topic) to every target (below) who has not already done today's
+ *     check-in (Hong Kong date, checkInDoneOn).
+ *   - 19:00 HKT, every day: P2 per device, same rule — weekly-
+ *     questionnaire push days included.
+ *   - "Done" also covers a chat check-in stopped by an acute safety hit,
+ *     unless the research lead marked it a false alarm (rowCompletes).
  *   - Quiet hours (functions/quiet_hours.js, fixed on, 22:00–08:00 by
  *     default) skip the push; each slot runs once a day, so a skipped push
  *     is not sent later.
@@ -71,12 +71,14 @@ function hkWeekday(d) {
 }
 
 /**
- * Is one check_in_responses row a check-in completed on `dateKey`?
+ * Is one check_in_responses row a check-in done on `dateKey`?
  *   - old form (CheckInArmB, no `flow` field): the row is written only on
  *     submit, so its date_iso is a completed check-in;
  *   - batch 2 chat (`flow: "chat_v2"`): `completed: true`; a check-in that
  *     an acute safety hit ended (`stopped_by_safety: true`) also counts, so
- *     nobody is nudged back after the crisis flow.
+ *     nobody is nudged back after the crisis flow (1020e 一.(8)) — unless
+ *     the research lead marked it a false alarm (`falseAlarm: true`,
+ *     1020e 二.9(4)): then it is not done and P2 goes as usual.
  * `date_iso` is the phone's date (Hong Kong for these participants).
  * @param {?object} row
  * @param {string} dateKey YYYY-MM-DD
@@ -85,8 +87,9 @@ function hkWeekday(d) {
 function rowCompletes(row, dateKey) {
   if (!row || row.date_iso !== dateKey) return false;
   if (row.flow === undefined || row.flow === null) return true;
-  return row.flow === CHAT_V2_FLOW &&
-    (row.completed === true || row.stopped_by_safety === true);
+  if (row.flow !== CHAT_V2_FLOW) return false;
+  if (row.completed === true) return true;
+  return row.stopped_by_safety === true && row.falseAlarm !== true;
 }
 
 /**
@@ -211,7 +214,8 @@ async function sendSlot(db, messaging, slot, o, decide) {
 }
 
 /**
- * 08:30 job: P1 to every target.  Switch off: nothing.
+ * 08:30 job: P1 to every target who has not already done today's check-in
+ * (1020e 二.4).  Switch off: nothing.
  * @param {object} db admin.firestore()
  * @param {{send: function(object): Promise<string>}} messaging
  * @param {{now: (Date|undefined), log: (function|undefined),
@@ -224,19 +228,22 @@ async function sendSlot(db, messaging, slot, o, decide) {
 async function sendMorningPush(db, messaging, opts) {
   const o = opts || {};
   if (!(await flagOn(db, o))) return {enabled: false};
-  return sendSlot(db, messaging, SLOT_P1, o, async () => null);
+  return sendSlot(db, messaging, SLOT_P1, o, async (userDoc, dateKey) => {
+    const done = await checkInDoneOn(userDoc.ref, dateKey);
+    return done ? `done_${done}` : null;
+  });
 }
 
 /**
  * 19:00 job.  Switch off: today's behaviour — `legacyDoorbell()` (the
  * topic broadcast, index.js sendDoorbell) Monday to Saturday, nothing on
- * Sunday.  On: P2 to every target who has not completed today's check-in
- * and has no weekly-questionnaire push today.
+ * Sunday.  On: P2 to every target who has not done today's check-in, every
+ * day, weekly-questionnaire push days included (1020e 一.(8)).
  * @param {object} db admin.firestore()
  * @param {{send: function(object): Promise<string>}} messaging
  * @param {{now: (Date|undefined), log: (function|undefined),
  *     quiet: (object|undefined), copy: (object|undefined),
- *     flagOn: (boolean|undefined), reminderV2: (boolean|undefined),
+ *     flagOn: (boolean|undefined),
  *     legacyDoorbell: function(): Promise<void>}} opts
  * @return {Promise<object>} counts
  */
@@ -248,18 +255,10 @@ async function runEveningPush(db, messaging, opts) {
     if (o.legacyDoorbell) await o.legacyDoorbell();
     return {enabled: false, legacy: "broadcast"};
   }
-  const cfg = await weeklySchedule.readConfig(db);
-  const reminderV2 = o.reminderV2 !== undefined ? o.reminderV2 === true :
-    await weeklySchedule.reminderV2On(db);
   return sendSlot(db, messaging, SLOT_P2, Object.assign({}, o, {now}),
       async (userDoc, dateKey) => {
         const done = await checkInDoneOn(userDoc.ref, dateKey);
-        if (done) return `done_${done}`;
-        if (await weeklySchedule.weeklyPushDueToday(db, userDoc, now,
-            {cfg, reminderV2})) {
-          return "weekly_push_day";
-        }
-        return null;
+        return done ? `done_${done}` : null;
       });
 }
 

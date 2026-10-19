@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-10-20 第 4 批按 dev-tasks-1020e 改：每周问卷整日窗口和 10:00 推送、W4 录入即关、P1／P2 新规则（同一 PR 草稿 #132）
+
+- 1020e 回复了第 4 批的待定项。每周问卷：第 1–3 周第 7 天 00:00 至第 9 天 23:59；第 4 周第 26 天 00:00 至评估员录入 W4 那天结束、最晚第 42 天；推送都在 10:00（预告、开放、提醒），电邮第 9、16、23、28 天。第 5–7 周不变。
+- 窗口 App 和服务器一起改，都在 `weeklyReminderV2Enabled` 后：服务器 `weekly_schedule.js` `windowFor`／`week4CloseV2`／`v2StepsFor`，App `weekly_schedule.dart` 同一算法、同一张表（`v2` 节）；App 加 `RemoteFeatureFlags.weeklyReminderV2Enabled`。
+- App 要知道 W4 关了：新字段 `users/{uid}.w4RecordedOn`（`assessor.js` 第一次录入 W4 时写；规则只许服务器写；`UserProfile` 读）。W4 最长开到第 42 天，会和 W5、W6 重叠，首页卡改为取第一个没做完的（`openBundlesAt`、`firstNotDone`）。
+- 各部分记录开关开时多盖 `outsideWindow`；先存草稿后提交的，提交时补盖一次。缺失标记按新窗口。
+- P1 跳过当天已做 check-in 的人；P2 每周问卷推送日照发；check-in 因危机中断算做过，`falseAlarm: true`（第 2 批的「誤觸」标记）不算。
+- 测试员工具测试推送按钮改名，加 P2 和每周问卷新推送的按钮。
+- 测试：`pushes_email_1020_emulator_test.js` 13 项、`weekly_schedule_test.js` 和 `test/weekly_schedule_test.dart` 加 v2 共用表、规则测试加 `w4RecordedOn`、`outsideWindow`；整套后端和 Flutter 六套测试通过。
+
 ## 2026-10-20 dev-tasks-1020 第 4 批：08:30／19:00 check-in 推送、每周问卷三天提醒、第三天电邮（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-batch4`）
 
 - 从第 1 批分支（381f9a5）开。只改服务器和文档，App 不用改。报告：`docs/dev-reports/T55-T56-batch4-20261020.md`。

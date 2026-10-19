@@ -219,13 +219,104 @@ test("legacy Sunday reminder (switch on): never Phase B / pilot / tester; " +
   assert.strictEqual(t({}, {gateOn: true}), false);
 });
 
+// ---------------------------------------------------------------------------
+// 1020e reminders v2 (weeklyReminderV2Enabled), same fixture as the App
+// ---------------------------------------------------------------------------
+
+const V2 = ws.configFromData(Object.assign({weeklyScheduleV2Enabled: true},
+    TABLE.config), {weeklyReminderV2Enabled: true});
+
+test("v2 switch: only literal true in app_config/feature_flags", () => {
+  assert.strictEqual(V2.reminderV2, true);
+  assert.strictEqual(CFG.reminderV2, false);
+  assert.strictEqual(ws.configFromData({}, {weeklyReminderV2Enabled: "true"})
+      .reminderV2, false);
+  assert.strictEqual(ws.configFromData({}, null).reminderV2, false);
+});
+
+test("v2 shared table: W1–W3 whole days, W4 to day 42, W5–W7 as T24",
+    () => {
+      const w0 = TABLE.v2.w0;
+      const bundles = ws.bundlesFor(V2, "standard");
+      TABLE.v2.bundles.forEach((e, i) => {
+        const w = ws.windowFor(bundles[i], w0, V2, ws.windowOptsFor({}, V2));
+        assert.strictEqual(bundles[i].id, e.id);
+        assert.strictEqual(iso(w.open), fx(e.open), `${e.id} open`);
+        assert.strictEqual(iso(w.close), fx(e.close), `${e.id} close`);
+      });
+      // Switch off: the T24 table, whatever w4RecordedOn says.
+      const w4 = bundles[3];
+      assert.strictEqual(iso(ws.windowFor(w4, w0, CFG,
+          ws.windowOptsFor({w4RecordedOn: "2026-11-15"}, CFG)).close),
+      fx(TABLE.standard.bundles[3].close));
+    });
+
+test("v2 shared table: week-4 close by the recorded W4 visit", () => {
+  const w0 = TABLE.v2.w0;
+  const w4 = ws.bundlesFor(V2, "standard")[3];
+  for (const c of TABLE.v2.week4Close) {
+    assert.strictEqual(iso(ws.week4CloseV2(w0, c.w4RecordedOn, w4)),
+        fx(c.close), c.case);
+    const opts = ws.windowOptsFor({w4RecordedOn: c.w4RecordedOn}, V2);
+    assert.strictEqual(iso(ws.windowFor(w4, w0, V2, opts).close),
+        fx(c.close), c.case);
+  }
+});
+
+test("v2 shared table: referent range and the 10:00 push days", () => {
+  const w0 = TABLE.v2.w0;
+  const bundles = ws.bundlesFor(V2, "standard");
+  const r = ws.referentRangeFor(bundles[1], w0, V2, "standard");
+  assert.strictEqual(iso(r.start), fx(TABLE.v2.referentRangeW2.start));
+  assert.strictEqual(iso(r.end), fx(TABLE.v2.referentRangeW2.end));
+  for (const id of ["W1", "W4"]) {
+    const b = bundles.find((x) => x.id === id);
+    const steps = ws.v2StepsFor(b, ws.windowFor(b, w0, V2, {}));
+    const want = TABLE.v2.pushes.filter((p) => p.bundle === id);
+    assert.deepStrictEqual(steps.map((s) => [s.step, s.dateKey, s.copyId,
+      s.all, s.email]), want.map((p) => [p.step, p.date, p.copyId, p.all,
+      p.email === true]), id);
+    assert.strictEqual(ws.emailDayKeyFor(b, ws.windowFor(b, w0, V2, {})),
+        want.find((p) => p.email).date);
+  }
+  assert.strictEqual(ws.V2_PUSH_HOUR, 10);
+  // W5–W7 are not v2 bundles.
+  assert.deepStrictEqual(bundles.map(ws.isReminderV2Bundle),
+      [true, true, true, true, false, false, false]);
+});
+
+test("v2 outsideWindow: inside → false, before / at close → true, none → " +
+    "null, and only in a v2 stamp", () => {
+  const b = ws.bundlesFor(V2, "standard")[0];
+  const w = ws.windowFor(b, "2026-10-19", V2, {});
+  const at = (s) => new Date(s);
+  assert.strictEqual(ws.outsideWindowOf(at("2026-10-26T00:00:00+08:00"), w),
+      false);
+  assert.strictEqual(ws.outsideWindowOf(at("2026-10-28T23:59:59+08:00"), w),
+      false);
+  assert.strictEqual(ws.outsideWindowOf(at("2026-10-29T00:00:00+08:00"), w),
+      true);
+  assert.strictEqual(ws.outsideWindowOf(at("2026-10-25T23:00:00+08:00"), w),
+      true);
+  assert.strictEqual(ws.outsideWindowOf(null, w), null);
+  const p = {bundle: b, window: w, w0Key: "2026-10-19", mode: "standard",
+    pushedAt: null, submittedAt: at("2026-10-27T09:00:00+08:00"),
+    missed: false, now: new Date()};
+  assert.strictEqual(ws.partStamp(Object.assign({v2: true}, p))
+      .outsideWindow, false);
+  assert.strictEqual("outsideWindow" in ws.partStamp(p), false);
+  assert.strictEqual(ws.partStamp(Object.assign({v2: true}, p,
+      {missed: true, submittedAt: null})).outsideWindow, null);
+});
+
 test("stamp fields are exactly the server-only list the rules refuse", () => {
   const b = ws.bundlesFor(CFG, "standard")[1];
   const w = ws.windowFor(b, "2026-10-19", CFG);
   const st = ws.partStamp({bundle: b, window: w, w0Key: "2026-10-19",
     mode: "standard", pushedAt: w.open,
     submittedAt: new Date("2026-11-03T09:00:00+08:00"), missed: false,
-    now: new Date()});
+    now: new Date(), v2: true});
+  assert.strictEqual(st.outsideWindow, false);
   assert.strictEqual(st.studyWeek, 2);
   assert.strictEqual(st.studyDay, 14);
   assert.strictEqual(st.submittedStudyDay, 15);

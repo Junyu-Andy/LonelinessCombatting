@@ -33,7 +33,7 @@ const CHECKS = [
   ['app_config/feature_flags', 'checkInChatV2Enabled', true,
     'T55 check-in 对话化 + 08:30 P1、19:00 P2（10/21 开）'],
   ['app_config/feature_flags', 'weeklyReminderV2Enabled', true,
-    'T56 每周问卷三天提醒 + 给 Junyu 的电邮（10/21 开）'],
+    'T56 每周问卷整日窗口、10:00 提醒、给 Junyu 的电邮（1020e；装新构建后开）'],
   // 1020b §2: two of #126's switches stay off for 10/21; 1020c 一: Junyu
   // turns the other two on once the 10/20 phone test passes, before the
   // first RCT- registration.

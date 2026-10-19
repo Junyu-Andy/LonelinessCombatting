@@ -7,9 +7,9 @@
  * (app_config/phase_b.weeklyScheduleV2Enabled) must be on.  Off: nothing.
  *
  * When: 10:00 Hong Kong time every day (index.js weeklyIncompleteEmail).
- * A participant is listed on day 3 of W1–W3 (the push day being day 1) or
- * on the closing day of W4 (day 29 or the W4 visit day, whichever is
- * later) — weekly_schedule.emailDayKeyFor — when the window is still open,
+ * 1020e: a participant is listed on the last day of W1–W3 (day 9, 16, 23)
+ * or on day 28 for W4 — weekly_schedule.emailDayKeyFor — when the v2
+ * window is still open (W4 may already be closed by the recorded visit),
  * not marked missed, and at least one part is not submitted.  W5–W7 (PGIC
  * only) are not listed; W8 (T35) is not built.
  *
@@ -53,7 +53,7 @@ const WEEKDAY_ZH = ["日", "一", "二", "三", "四", "五", "六"];
 const TEST_ROWS = [
   {researchId: "PILOT-TEST01", studyDay: 9, questionnaireWeek: 1},
   {researchId: "PB-TEST02", studyDay: 16, questionnaireWeek: 2},
-  {researchId: "RCT-TEST03", studyDay: 29, questionnaireWeek: 4},
+  {researchId: "RCT-TEST03", studyDay: 28, questionnaireWeek: 4},
 ];
 
 /**
@@ -61,11 +61,14 @@ const TEST_ROWS = [
  * and is not complete.  Read only.
  * @param {object} db admin.firestore()
  * @param {Date} now
+ * @param {?object} config weekly_schedule.readConfig() result (read here
+ *     when absent); the v2 windows are used whatever its reminderV2 says
  * @return {Promise<Array<{researchId: ?string, studyDay: number,
  *     questionnaireWeek: number, bundle: string}>>} sorted by research ID
  */
-async function incompleteClosingToday(db, now) {
-  const cfg = await weeklySchedule.readConfig(db);
+async function incompleteClosingToday(db, now, config) {
+  const read = config || await weeklySchedule.readConfig(db);
+  const cfg = Object.assign({}, read, {reminderV2: true});
   if (!cfg.enabled) return [];
   const todayKey = studyWeek.hkDateKey(now);
   const rows = [];
@@ -83,7 +86,7 @@ async function incompleteClosingToday(db, now) {
     for (const b of weeklySchedule.bundlesFor(cfg, mode)) {
       if (!weeklySchedule.isReminderV2Bundle(b)) continue;
       const win = weeklySchedule.windowFor(b, w0Key, cfg,
-          weeklySchedule.windowOptsFor(st, true));
+          weeklySchedule.windowOptsFor(u, cfg));
       if (now < win.open || now >= win.close) continue;
       if ((bundles[b.id] || {}).missedAt) continue;
       if (weeklySchedule.emailDayKeyFor(b, win) !== todayKey) continue;
@@ -123,8 +126,9 @@ function buildEmail(rows, now, opts) {
       "不是参与者。正式邮件的格式和这封一样。", "");
   }
   lines.push(`${dateKey}（星期${weekday}）10:00，` +
-    "以下研究编号的每周问卷今天是最后一次提醒日" +
-    "（第 1–3 周：开放第三天；第 4 周：关闭当天），还没有完成：", "");
+    "以下研究编号的每周问卷还没有完成" +
+    "（第 1–3 周：今天 23:59 截止；第 4 周：开放第三天，" +
+    "W4 面访记录后或第 42 天截止）：", "");
   lines.push("研究编号 ｜ 研究第几天 ｜ 第几周问卷");
   for (const r of rows) {
     lines.push(`${r.researchId || "（研究编号缺失）"} ｜ ` +
@@ -181,8 +185,8 @@ async function sendDailyIncompleteEmail(db, deps) {
   const d = deps || {};
   const now = d.now || new Date();
   const stamp = d.serverTimestamp ? d.serverTimestamp() : now;
-  const on = d.flagOn !== undefined ? d.flagOn === true :
-    await weeklySchedule.reminderV2On(db);
+  const cfg = await weeklySchedule.readConfig(db);
+  const on = d.flagOn !== undefined ? d.flagOn === true : cfg.reminderV2;
   if (!on) return {status: "disabled", count: 0};
   const dateKey = studyWeek.hkDateKey(now);
   const auditId = AUDIT_PREFIX + dateKey;
@@ -205,7 +209,7 @@ async function sendDailyIncompleteEmail(db, deps) {
         {merge: true});
     return Object.assign({status}, extra || {});
   };
-  const rows = await incompleteClosingToday(db, now);
+  const rows = await incompleteClosingToday(db, now, cfg);
   if (rows.length === 0) return finish("none", {count: 0});
   if (!d.smtp) return finish("no_smtp", {count: rows.length});
   const to = await recipients(db, d.auth, d.smtp, stamp, auditId);

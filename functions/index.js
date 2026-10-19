@@ -2820,34 +2820,35 @@ const _TEST_PUSH_COPY = {
 };
 
 /**
- * The text a test push of `kind` sends.  1020 batch 4: the 1020b texts by
- * kind (functions/push_copy.js TEST_PUSH_KINDS: P1, P2, W1…W3-4).  The
- * App's tester page has fixed buttons, so with checkInChatV2Enabled on its
- * 「每日心情提醒」 button sends P1 (the 08:30 push that replaces the old
- * daily reminder), and with weeklyReminderV2Enabled on its 「每週問卷提醒」
- * button sends W1.  Both switches off: the old texts, unchanged.
+ * The text a test push of `kind` sends.  1020 batch 4: the batch-4 texts
+ * by kind (functions/push_copy.js TEST_PUSH_KINDS: P1, P2 and the weekly
+ * texts, week 1 / week 4).  Older App builds have only the three old
+ * buttons, so with checkInChatV2Enabled on the 「每日心情提醒」 kind sends
+ * P1 (the 08:30 push that replaces the old daily reminder), and with
+ * weeklyReminderV2Enabled on the 「每週問卷提醒」 kind sends the week-1
+ * opening push.  Both switches off: the old texts, unchanged.
  * @param {object} db admin.firestore()
  * @param {*} kind requested kind
  * @return {Promise<?{kind: string, body: string, extra: object}>} null =
- *     unknown kind; extra = {copyId} when a 1020b text is sent
+ *     unknown kind; extra = {copyId} when a batch-4 text is sent
  */
 async function testPushCopy(db, kind) {
   const has = (o) => typeof kind === "string" &&
     Object.prototype.hasOwnProperty.call(o, kind);
-  let copyId = has(pushCopy.TEST_PUSH_KINDS) ?
+  let pick = has(pushCopy.TEST_PUSH_KINDS) ?
     pushCopy.TEST_PUSH_KINDS[kind] : null;
-  if (!copyId && !has(_TEST_PUSH_COPY)) return null;
+  if (!pick && !has(_TEST_PUSH_COPY)) return null;
   if (kind === "daily_mood_reminder" &&
       await featureFlags.isFeatureEnabled(db, dailyCheckInPush.FLAG)) {
-    copyId = "P1";
+    pick = pushCopy.TEST_PUSH_KINDS.checkin_p1;
   }
   const weeklyFlag = weeklySchedule.REMINDER_V2_FLAG;
   if (kind === "weekly_survey_reminder" &&
       await featureFlags.isFeatureEnabled(db, weeklyFlag)) {
-    copyId = "W1";
+    pick = pushCopy.TEST_PUSH_KINDS.weekly_open;
   }
-  if (!copyId) return {kind, body: _TEST_PUSH_COPY[kind], extra: {}};
-  return {kind, body: pushCopy.TEXT[copyId], extra: {copyId}};
+  if (!pick) return {kind, body: _TEST_PUSH_COPY[kind], extra: {}};
+  return {kind, body: pushCopy.testKindText(pick), extra: {copyId: pick.id}};
 }
 
 exports.sendTestPush = onCall(

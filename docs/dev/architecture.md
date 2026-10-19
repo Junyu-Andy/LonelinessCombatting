@@ -31,6 +31,7 @@
 > 2026-10-19 第二轮：`AuthGate` 缓存 `profileChanges()` 流，登录后重读开关只把 `configRevision` 加一传给 `StaffGate`（不再换流、不再重建 `MainShell`）；`AppAppBar` 标题动画 `layoutBuilder` 靠左；设定页删 `_ProfileCard`／`_SignOutButton`，登出移到 `PersonalizationPage` 底部（键 `profile_sign_out`）；`SafetyFooterCard` 两部分（18111 + 「如果唔安全，睇更多支援熱線」），无 999 行；`AppFontScale` 五档 1.06–1.30（`standard`/`slightlyLarge`/`large`/`larger`/`xLarge`，旧名照旧）+ `combinedTextScale`（封顶 1.3）；字号卡去预览、换档后 `_FontSizeCheck` 问太大／太细可返回；`ui_text_scale_sweep_test.dart` 可用 `SWEEP_SCALES` 指定字号。PR 草稿。
 > 2026-10-19 测试员工具解锁多一条路：`isTester` + `app_config/feature_flags.testerToolsEnabled` 时 7 次点击直接解锁（`tester_gate.dart`）；新页 `tester_weekly_bundle_page.dart`（每周问卷预览不写库、`AppClock` 模拟到推送日）；`WeeklyPrPage`、`PgicPage`、`WeeklyBundleFlowPage` 加 `preview`；Brief PR v2 选项横排；注册页错处滚动聚焦和服务器错误落到格子；人生回顧时间线去锁可点；`transcriptRetentionToggleEnabled` 控制「保留對話紀錄」一行（默认不显示）。PR 草稿。
 > 2026-10-20 1020 第 4 批（F (5)、G (1)(3)）：`checkInChatV2Enabled` 开时 `dailyMoodReminder` 改每天 19:00 按人发 P2（当天没做完 check-in、当天又没有每周问卷推送的人；做完 = `check_in_responses` 当天无 `flow` 的旧表单行或 `flow: chat_v2` 且 `completed`／`stopped_by_safety`，或当天的 `check_in_submitted` 事件），新定时函数 `dailyCheckInMorningPush` 每天 08:30 按人发 P1（`functions/daily_checkin_push.js`；事件 `daily_checkin_push_sent`，每人每天每档最多一次）；关时照旧（周一至六 19:00 广播，周日不发）。`weeklyReminderV2Enabled` 开时 `dispatchWeeklyBundles` 对 W1–W4 用 W1…W3-4 文字、第二／三天（第 4 周关闭日前一天／当天）20:00 只推未完成者、不再发 24 小时提醒，第 4 周窗口按 `weekly_status.w4VisitDate` 延到面访当天（`weekly_status.bundles[Wn]` 加 `pushCopyId`、`w2PushSentAt`、`w3PushSentAt`）；新定时函数 `weeklyIncompleteEmail` 每天 10:00 发 E1 给 `meta/alert_config.primaryEmail`（`functions/weekly_email.js`，复用 `pi_alert.js` 收件人和发信，`alert_audit_log/weekly_incomplete_<日期>` 每天一次）；`onWeeklyEmailTestRequested`：控制台把 `meta/weekly_email_test.send` 设 true 发一封虚构编号的测试邮件。文字在 `functions/push_copy.js`（草稿）。`sendTestPush` 开关开时「每日心情提醒」发 P1、「每週問卷提醒」发 W1。PR 草稿。
+> 2026-10-20 第 4 批按 1020e 改（取代上一行的每周问卷部分）：`weeklyReminderV2Enabled` 开时 App 和服务器的 W1–W4 窗口改为整日（第 1–3 周第 7 天 00:00 至第 9 天 23:59；第 4 周第 26 天 00:00 至评估员录入 W4 那天结束，最晚第 42 天结束），推送都在 10:00（预告、开放、提醒，`v2StepsFor`），电邮在第 9、16、23、28 天；新服务器字段 `users/{uid}.w4RecordedOn`（`assessor.js` 写，规则只许服务器写，App `UserProfile.w4RecordedOn` 读）、各部分 `outsideWindow`；App `RemoteFeatureFlags.weeklyReminderV2Enabled`、`WeeklySchedule.openBundlesAt` / `WeeklyBundleDue.firstNotDone`（W4 与 W5/W6 重叠时取第一个未做完的）；P1 跳过已做 check-in 的人，P2 每周问卷推送日照发，check-in 因危机中断算做过、`falseAlarm: true` 的不算；测试推送按钮改名并加新 kind。PR 草稿。
 
 ## 1. 一句话
 
@@ -244,7 +245,7 @@ Persona 设定在 `functions/prompts/`：小欣、阿珍/阿伯用 `*_v1.txt`；
 | 推送、提醒、缺失 | 定时函数 `weeklyBundleDispatch`（每小时 08:00–21:00）：窗口一开按人推（`fcm_tokens`，不广播）；安静时段不发、下一小时再试（`functions/quiet_hours.js`）；T18 的规则：推送后 `djgW2ReminderHours`（24）小时还有部分没交提醒一次；窗口过后每个没交的部分写一份 `status: missed` 记录（只在关窗后 7 天内补，避免开关中途打开时把早已过去的周全记缺失）。推送文字 10/15 定稿（S14），开关打开即发；带【占位】的覆盖文字仍不发。两个开关同时开时本函数说了算：`djgW2Dispatch` 不再发第 14 天推送 | `functions/weekly_schedule.js` `dispatchWeeklyBundles`、`markMissedParts` |
 | 服务器状态 | `weekly_status/{uid}`：研究编号（从 `research_id_map` 抄）、每周的推送 / 提醒 / 缺失时间和窗口。客户端不能读写（研究编号不进老人能读的文档，决策 0021） | `firestore.rules`、`tool/delete_participant.js` 会删 |
 | 旧的星期日推送 | 开关开时 `weeklySurveyReminder` 不再广播，改为按人发给不在研究周排程里的账号（不是 Phase B / 试跑、不是测试员、登记门关着）；开关关时照旧广播 | `functions/index.js` |
-| 三天提醒和电邮（1020 G，开关 `app_config/feature_flags.weeklyReminderV2Enabled`，默认关，两组相同） | 只管 W1–W4。第 1–3 周：开窗那一刻推 W1（第 7、14、21 天 20:00）；第二天、第三天 `weeklyPushHour`（20:00）只推还有部分没交的人（W2、W3）；窗口本身不变（第三天之后还有一天到 20:00）。第 4 周：第 26 天推 W1-4；关闭日前一天、当天 20:00 只推未完成者（W2-4、W3-4）；关闭日 = 第 29 天或 `weekly_status.w4VisitDate`（评估员录入的 W4 日期）较晚者，开关开时缺失标记也按它。这四周不再发 24 小时提醒；第 5–7 周照旧。每天 10:00 `weeklyIncompleteEmail`：第 1–3 周开放第三天、第 4 周关闭当天仍未完成的人，列研究编号、研究第几天、第几周问卷，发 E1 给 `meta/alert_config.primaryEmail`；没人不发；测试员不列 | `functions/weekly_schedule.js`（`reminderStepsFor`、`emailDayKeyFor`）、`functions/weekly_email.js`、`functions/push_copy.js` |
+| 每周问卷 v2（1020 G 按 1020e 第二节 1–3 改，开关 `app_config/feature_flags.weeklyReminderV2Enabled`，默认关，两组相同） | 只管 W1–W4，App 和服务器同一规则（共用表 `test/fixtures/weekly_schedule_table.json` 的 `v2` 节）。**第 1–3 周**：窗口整日计，第 7 天 00:00 开、第 9 天 23:59 关（14–16、21–23 天同）；10:00 推送：第 6 天预告、第 7 天开放（所有人），第 8、9 天只推还有部分没交的人。**第 4 周**：第 26 天 00:00 开；评估员录入 W4（`submitOutcomeEntry`）那天结束时关（`users/{uid}.w4RecordedOn`，App 可读、只有服务器能写；不早于第 26 天结束），没录入则第 42 天结束关；10:00 推送：第 25 天预告、第 26 天开放、第 28 天只推未完成者。缺失标记按新窗口；各部分记录多盖 `outsideWindow`（提交时间在窗口外为 true）。这四周不再发 24 小时提醒；第 5–7 周照旧。每天 10:00 `weeklyIncompleteEmail`：第 9、16、23 天和第 28 天仍未完成的人（研究编号、研究第几天、第几周问卷）发 E1 给 `meta/alert_config.primaryEmail`；没人不发；测试员不列 | `functions/weekly_schedule.js`（`windowFor`、`week4CloseV2`、`v2StepsFor`）、`functions/weekly_email.js`、`functions/push_copy.js`、`functions/assessor.js`；App `lib/core/scheduling/weekly_schedule.dart`、`pending_prompts_service.dart` |
 | 旧的每周孤独探针 | 没有任何页面挂它（`lib/features/loneliness_probe/` 的页面没有被引用），`WEEKLY_PROBE` 编译开关默认关，服务器只给 `weeklyProbeEnabled: true` 的用户排队 → Phase B / 试跑不会出现 | backlog 107 |
 
 ## 7. 记忆
@@ -330,9 +331,11 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `meta/blinding_config` | 盲法开关：`enabled`、`includeBriefPr`、`includeUsageSummary`；T30 加 `processExportEnabled`（过程数据周导出）、`outcomeExportPaused`（锁库前停 `exports_v2`）。都默认 false。客户端不能读写 |
 | `outcome_entries`、`outcome_entry_corrections` | T30 评估员录入的 W4 纸本结局（研究编号、uid、问卷、时间点、施测日期、方式、评估员、原始答案、缺答、分数、超窗）和更正日志。只有服务器能读写；评估员经函数录入，看不到分数 |
 | `weekly_status/{uid}` | T30：`w4VisitDate`（W4 施测日期，给 T24 关第 4 周）、`w4EntryAt`、`w4EntryInstrument`。只有服务器 |
-| `weekly_status/{uid}.bundles[Wn]` | 1020 G（`weeklyReminderV2Enabled` 开时）：`pushCopyId`（开窗推送用的文字编号 W1 / W1-4）、`w2PushSentAt`、`w3PushSentAt`（第二、三天提醒的时间）。只有服务器 |
+| `weekly_status/{uid}.bundles[Wn]` | 1020 G（`weeklyReminderV2Enabled` 开时）：`previewSentAt`（前一天预告）、`pushedAt`（开放那天推送，原字段）、`pushCopyId`、`remind1SentAt`、`remind2SentAt`（提醒时间）。只有服务器 |
 | `users/{uid}/events` 的 `daily_checkin_push_sent` | 1020 F（5）：P1 / P2 每发一次一条（服务器写）。`params`：`slot`（P1 / P2）、`dateKey`（香港日期）、`copyId`、`copyVersion`、`tokens`、`delivered`；`source` 是 `cf_dailyCheckInMorningPush` / `cf_dailyMoodReminder`。同一天同一档已有就不再发 | 服务器 |
 | `alert_audit_log/weekly_incomplete_<日期>`、`meta/weekly_email_test` | 1020 G（3）：每天 10:00 那封未完成名单邮件的运行记录（`status`：none / sent / no_smtp / no_recipients / failed，`count`，`to`；不存研究编号）；测试邮件的开关文档（控制台写 `send: true` 发一封虚构编号的测试邮件，函数写回 `send: false`、`lastSentAt`、`lastResult`）。都只有服务器能读写 |
+| `users/{uid}.w4RecordedOn` | 1020e 第二节 2：评估员第一次录入 W4 纸本（`submitOutcomeEntry`）那天的香港日期 `YYYY-MM-DD`，之后再录入不改。老人本人可读（App 用它关第 4 周问卷），只有服务器能写（规则 `assignmentFields()`）。开关关时也照写，但只在开关开时生效 | 服务器 |
+| 每周问卷各部分的 `outsideWindow` | 1020e：开关开时 `weekly_pr`、`pgic`、`djg_responses`、`social_contact_probes` 的 W1–W7 记录多一个服务器字段：提交时间（`submittedAt` / `answeredAt` / `respondedAt`）在窗口外为 true、窗口内为 false、没提交或缺失记录为 null；先存草稿后提交的记录在提交那次补盖一次。规则拒绝客户端写 | 服务器 |
 | `sequence_upload_log`、`pairing_change_log`、`allocation_records/{研究编号}`、`meta/data_lock`、`analysis_export_log`、`process_export_log` | T30：Calvin 的序列上传日志（无种子、无组别）；阿珍/阿伯改动日志；整人删除后保留的一行分配记录；锁库记录；分析导出和过程导出的运行日志。都只有服务器 |
 | `meta/blinding_config` | 盲法开关：`enabled`、`includeBriefPr`、`includeUsageSummary`，都默认 false。客户端不能读写 |
 | `admin_runs` | 管理脚本的运行记录（T32）：`tool/purge_tester_data.js` 带 `--confirm` 跑完写一条——模式、时间、操作者、每个账号的 uid / 类别 / 删除是否复查通过、保留了谁和原因。只有数量，不存字段值、不存原话、不存电邮。`firestore.rules` 没有这个集合的规则 = 客户端不能读写，只有服务器（Admin SDK）能写 |
@@ -374,9 +377,9 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `blindedDataExport`（过程导出，T49c） | 同上 | 过程数据导出多 `event_counts.ndjson`：每位参与者每个 `COUNTED_EVENTS` 事件名一行（`researchId`、`arm`、`name`、`count`，现在只有 `s1a_fixed_reply`），只数不读内容；manifest 的 `eventCountsByArm` 按组合计 |
 | `dailyMoodReminder` | 周一至六 19:00 | 每日情绪提醒 |
 | `weeklySurveyReminder` | 周日 20:00 | 周问卷提醒。T24：`weeklyScheduleV2Enabled` 开时不再广播，按人发给不在研究周排程里的账号（第 6.2 节）；关时照旧广播 |
-| `dailyMoodReminder`（1020 F（5）起） | 每天 19:00（原周一至六；周日关时什么都不做） | `checkInChatV2Enabled` 关：周一至六照旧广播「今日過得點？…」，周日不发。开：按人发 P2，只给当天（香港日期）没做完 check-in、当天又没有每周问卷推送的登记参与者；两组相同（`functions/daily_checkin_push.js` `runEveningPush`） |
-| `dailyCheckInMorningPush` | 每天 08:30 | 1020 F（5）：`checkInChatV2Enabled` 开时按人发 P1 给所有登记参与者（PILOT、PB-、RCT-；测试员只有切过组的收到），安静时段内不发；关时什么都不做 |
-| `weeklyIncompleteEmail` | 每天 10:00 | 1020 G（3）：`weeklyReminderV2Enabled` 开时，把第 1–3 周开放第三天、第 4 周关闭当天仍未完成每周问卷的人（研究编号、研究第几天、第几周问卷）用 E1 发给 `meta/alert_config.primaryEmail`；没人不发；不含组别和答案（`functions/weekly_email.js`） |
+| `dailyMoodReminder`（1020 F（5）起） | 每天 19:00（原周一至六；周日关时什么都不做） | `checkInChatV2Enabled` 关：周一至六照旧广播「今日過得點？…」，周日不发。开：按人发 P2，只给当天（香港日期）没做完 check-in 的登记参与者，每周问卷推送日也发（1020e 第一节 (8)）；check-in 因危机中断算做过，被标「誤觸」（`falseAlarm: true`）的不算；两组相同（`functions/daily_checkin_push.js` `runEveningPush`） |
+| `dailyCheckInMorningPush` | 每天 08:30 | 1020 F（5）：`checkInChatV2Enabled` 开时按人发 P1 给登记参与者（PILOT、PB-、RCT-；测试员只有切过组的收到），08:30 前已做 check-in 的跳过（1020e 第二节 4），安静时段内不发；关时什么都不做 |
+| `weeklyIncompleteEmail` | 每天 10:00 | 1020 G（3）：`weeklyReminderV2Enabled` 开时，把第 9、16、23 天（第 1–3 周最后一天）和第 28 天（第 4 周）仍未完成每周问卷、问卷还开着的人（研究编号、研究第几天、第几周问卷）用 E1 发给 `meta/alert_config.primaryEmail`；没人不发；不含组别和答案（`functions/weekly_email.js`） |
 | `onWeeklyEmailTestRequested` | `meta/weekly_email_test` 写入 | 1020 G（3）手机测试：`send` 由别的值变成 true 时，发一封标题带【测试】、三个虚构编号的 E1 给同一收件人，然后写回 `send: false` |
 | `week2Push` | 每天 10:00 | 第二周推送（Phase A 的 DJG + 陪伴者比较）。`djgW2InAppEnabled` 开时跳过 Phase B 参与者，由 `djgW2Dispatch` 推 |
 | `djgW2Dispatch` | 每天 08:00–21:00，每小时 | Phase B 第 2 周 DJG（决策 0027）：W0 起第 14 天 10:00 推送一次、24 小时未交提醒一次、窗口（第 14–20 天）过后记缺失。只处理 Phase B 参与者，两组相同。开关 `app_config/phase_b.djgW2InAppEnabled` 默认关；推送文字带【占位】时不发。T24：`weeklyScheduleV2Enabled` 也开时本函数什么都不做（W2 DJG 归每周问卷） |
@@ -386,7 +389,7 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `onBriefPrWritten` | `brief_pr` 文档写入 | T24：开关开时按会话结束时间补 `studyWeek`、`studyDay`（T25 的 `sessionEndedAt`） |
 | `dispatchReminders` | 每天 08:00–21:45，每 15 分钟 | 发送到时间的行动计划提醒（两组相同，开关 `app_config/reminders.m7FollowupPushEnabled` 默认关；超时 12 小时不补发；失败最多重试 3 次；老人「安靜時段」内先不发、下个 15 分钟再看（`functions/quiet_hours.js`）；见 `functions/reminders.js`、决策 0022） |
 | `sendTestPush` | App 调用 | 测试推送（测试人员） |
-| `sendTestPush`（1020 第 4 批起） | App 调用 | `checkInChatV2Enabled` 开时「每日心情提醒」按钮发 P1；`weeklyReminderV2Enabled` 开时「每週問卷提醒」按钮发 W1；另收 `checkin_p1`、`checkin_p2`、`weekly_w1` … `weekly_w3_4`（App 现在没有这些按钮） |
+| `sendTestPush`（1020 第 4 批起） | App 调用 | `checkInChatV2Enabled` 开时旧的「每日心情提醒」kind 发 P1；`weeklyReminderV2Enabled` 开时「每週問卷提醒」kind 发第一週开放那条；另收 `checkin_p1`、`checkin_p2`、`weekly_pre`、`weekly_open`、`weekly_rem1`、`weekly_rem2`、`weekly4_pre`、`weekly4_open`、`weekly4_rem`（测试员工具「日程模擬／測試推送」有按钮） |
 
 **部署顺序**（新版本上线时）：
 
@@ -454,8 +457,8 @@ App 启动时同时读 `app_config/phase_a`、`app_config/feature_flags`、`app_
 | `pairingChangeServerLogEnabled` | 关 | T30：阿珍/阿伯改动由服务器写 `pairing_change_log` |
 | `usageEventsEnabled` | 关 | T40：App 进入前台 / 退到后台各写一条 `users/{uid}/usage_events`（第 8 节），只对已登记账号；两组相同，老人看不到。关 = 不写 |
 | `onboardingAfterEnrollmentFix` | 关 | T37：「介紹三個夥伴」要不要做改为看标记 `users/{uid}.onboardingCompletedAt`（第 4 节末）；先登记后引导时不再跳过；改配对记 `events`。建议第一位参与者登记前打开 |
-| `weeklyReminderV2Enabled` | 关 | 1020 G（第 4 批，服务器；按 1020，第 3 批 G (2) 首页的问卷一行也用这个开关）：每周问卷 W1–W4 的三天提醒和 10:00 给 Junyu 的未完成名单邮件（第 6.2 节）；要 `app_config/phase_b.weeklyScheduleV2Enabled` 也开。10/21 设 true |
-| `checkInChatV2Enabled`（服务器部分） | 关 | 1020 F（5）（第 4 批）：08:30 P1、19:00 P2 按人推送（第 9 节 `dailyCheckInMorningPush`、`dailyMoodReminder`）；关时 19:00 照旧广播。App 部分（小欣页对话式 check-in）见第 2 批。10/21 设 true |
+| `weeklyReminderV2Enabled` | 关 | 1020 G、1020e 第二节 1–3（第 4 批，App 和服务器都读）：每周问卷 W1–W4 的新窗口（第 1–3 周整日三天、第 4 周到录入 W4 或第 42 天）、10:00 推送和给 Junyu 的未完成名单邮件（第 6.2 节）；要 `app_config/phase_b.weeklyScheduleV2Enabled` 也开。App 读 `RemoteFeatureFlags.weeklyReminderV2Enabled`。10/21 设 true |
+| `checkInChatV2Enabled`（服务器部分） | 关 | 1020 F（5）（第 4 批）：08:30 P1、19:00 P2 按人推送，都跳过当天已做 check-in 的人（第 9 节 `dailyCheckInMorningPush`、`dailyMoodReminder`）；关时 19:00 照旧广播。App 部分（小欣页对话式 check-in）见第 2 批。10/21 设 true |
 
 > ⚠️ **重要功能：HREC 批准 STT 后开启 `voiceInputEnabled`。** T27 起不再有系统云端识别的选项：录音一律经研究服务器送 Google STT v2（asia-southeast1）。开之前在 Google Cloud 控制台核对 Speech-to-Text 的 data logging 没开（步骤见 `docs/dev-reports/T27-stt-server-20261014.md` 第 6 节）。打开属于行为改动，要在 `docs/STUDY_CHANGELOG.md` 写明生效日期和组别。
 

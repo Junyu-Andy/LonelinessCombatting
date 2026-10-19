@@ -1,18 +1,24 @@
 /**
- * dev-tasks-1020 batch 4 (F(5), G(1)(3)) against the Firestore emulator,
- * with a simulated clock, synthetic accounts only, a fake FCM sender and a
- * captured mailer (no real push, no real e-mail):
+ * dev-tasks-1020 batch 4 (F(5), G(1)(3)) as changed by 1020e (一.(8),
+ * 二.1–二.4) against the Firestore emulator, with a simulated clock,
+ * synthetic accounts only, a fake FCM sender and a captured mailer (no
+ * real push, no real e-mail):
  *
- *   1. weekly W1–W3: three people complete on day 1, 2 and 3 (and one
- *      never does) → W1 to all, W2 / W3 only to those not done, the 10:00
- *      e-mail on day 3 lists only research ID, study day and week;
- *   2. week 4: W1-4 / W2-4 / W3-4, the closing day moved by a late W4
- *      visit (weekly_status.w4VisitDate);
- *   3. P1 at 08:30 to both arms; P2 at 19:00 skips whoever finished
- *      today's check-in — old form rows, chat_v2 rows, the
- *      check_in_submitted event — and whoever gets a weekly push today;
+ *   1. weeks 1–3 (weeklyReminderV2Enabled): window day 7 00:00 → end of
+ *      day 9; 10:00 pushes — preview day 6 and open day 7 to all, day 8 and
+ *      day 9 only to those not done (three people done on day 7, 8, 9, one
+ *      never); 第N週 follows the week; the day-9 10:00 e-mail lists only
+ *      research ID, study day and week; outsideWindow and missed stamps;
+ *   2. week 4: opens day 26 00:00, preview day 25, open day 26, reminder
+ *      day 28 (not done), e-mail day 28; closes at the end of the day the
+ *      assessor records W4 (users/{uid}.w4RecordedOn, written by
+ *      assessor.submitEntry) — early, late, before opening, or never (end
+ *      of day 42);
+ *   3. P1 at 08:30 skips whoever already did today's check-in; P2 at 19:00
+ *      on weekly push days too; a crisis-stopped chat check-in counts as
+ *      done unless marked falseAlarm;
  *   4. switches off → today's behaviour (19:00 broadcast Mon–Sat only, no
- *      08:30, old weekly copy and 24-hour reminder, no e-mail);
+ *      08:30, T24 weekly windows / copy / 24-hour reminder, no e-mail);
  *   5. the console test e-mail and the sendTestPush mapping.
  *
  * Run from the repo root:
@@ -42,6 +48,7 @@ const piAlert = require("../pi_alert");
 const pc = require("../push_copy");
 const daily = require("../daily_checkin_push");
 const email = require("../weekly_email");
+const assessor = require("../assessor");
 
 const db = admin.firestore();
 const silent = () => {};
@@ -61,6 +68,8 @@ const PRIMARY = "junyu@test.invalid";
 const ASSESSOR = "assessor@test.invalid";
 const SMTP = {host: "smtp.test.invalid", user: "sender@test.invalid",
   pass: "x", piEmail: "legacy-pi@test.invalid"};
+const KERAN = {uid: "keranAssessor000000000000001", email: ASSESSOR,
+  role: "blinded"};
 let mails = [];
 piAlert.setMailerForTests(async (msg) => {
   mails.push(msg);
@@ -95,7 +104,8 @@ function fakeMessaging() {
 
 async function reset(flags, phaseB) {
   for (const p of ["users", "app_config", "weekly_status", "research_id_map",
-    "alert_audit_log", "meta"]) {
+    "research_ids", "enrollments", "outcome_entries", "alert_audit_log",
+    "meta"]) {
     await db.recursiveDelete(db.collection(p));
   }
   if (flags) await db.doc("app_config/feature_flags").set(flags);
@@ -114,6 +124,11 @@ async function seedUser(uid, data, researchId) {
   await db.doc(`users/${uid}/fcm_tokens/dev1`).set({token: `tok-${uid}`});
   if (researchId) {
     await db.doc(`research_id_map/${uid}`).set({researchId});
+    await db.doc(`research_ids/${researchId}`).set({uid,
+      via: "enrollment"});
+    await db.doc(`enrollments/${uid}`).set({uid, researchId,
+      studyPeriod: researchId.indexOf("PILOT-") === 0 ? "PILOT" : "B",
+      w0Date: data.w0Date || W0});
   }
 }
 
@@ -126,34 +141,48 @@ async function seedPeople() {
   await seedUser("r3", {arm: "A", cohort: sp.COHORT_PILOT,
     armAssignmentMode: sp.PILOT_MODE}, "PILOT-03");
   await seedUser("r4", {arm: "B", cohort: sp.COHORT_RCT}, "RCT-04");
-  await seedUser("t1", {arm: "B", cohort: sp.COHORT_RCT, isTester: true},
-      "RCT-T99");
+  await seedUser("t1", {arm: "B", cohort: sp.COHORT_RCT, isTester: true});
   await seedUser("t2", {arm: "A", cohort: sp.COHORT_PILOT, isTester: true,
     armAssignedBy: "tester_switch"});
   await seedUser("x1", {arm: "B"});
 }
 
 // Every part of a bundle submitted (social probe off → DJG on W1–W3,
-// Weekly PR, PGIC).
+// Weekly PR, PGIC), then stamped as the triggers would.
 async function complete(uid, bundleId, at) {
   const u = db.doc(`users/${uid}`);
   const when = ts(at);
   if (["W1", "W2", "W3"].indexOf(bundleId) >= 0) {
     await u.collection("djg_responses").doc(bundleId).set({
       timepoint: bundleId, bundle: bundleId, status: "submitted",
-      submittedAt: when});
+      submittedAt: when}, {merge: true});
+    await stamp(uid, "djg_responses", bundleId, at);
   }
   await u.collection("weekly_pr").doc(bundleId).set({bundle: bundleId,
-    status: "completed", answeredAt: when});
+    status: "completed", respondedAt: when}, {merge: true});
+  await stamp(uid, "weekly_pr", bundleId, at);
   await u.collection("pgic").doc(bundleId).set({bundle: bundleId, value: 6,
-    answeredAt: when});
+    answeredAt: when}, {merge: true});
+  await stamp(uid, "pgic", bundleId, at);
 }
+
+async function stamp(uid, col, id, at) {
+  const snap = await db.doc(`users/${uid}/${col}/${id}`).get();
+  return ws.stampPartRecord(db, uid, col, id, snap.data(), {now: at});
+}
+
+const part = async (uid, col, id) =>
+  (await db.doc(`users/${uid}/${col}/${id}`).get()).data();
+const status = async (uid) =>
+  ((await db.doc(`weekly_status/${uid}`).get()).data() || {}).bundles || {};
 
 const dispatch = (m, now) => ws.dispatchWeeklyBundles(db, m,
     {now, log: silent, quiet: qh.quietHoursConfigFrom({})});
 const runEmail = (now, extra) => email.sendDailyIncompleteEmail(db,
     Object.assign({now, smtp: SMTP, auth: null}, extra || {}));
-const ALL_ON = {checkInChatV2Enabled: true, weeklyReminderV2Enabled: true};
+const ALL_ON = {checkInChatV2Enabled: true, weeklyReminderV2Enabled: true,
+  assessorViewEnabled: true};
+const emailRows = (m) => m.text.split("\n").filter((l) => /^[A-Z]+-/.test(l));
 
 // What E1 must never carry: arms, cohort labels, answers, uids.
 function assertNoForbidden(text) {
@@ -164,118 +193,173 @@ function assertNoForbidden(text) {
   }
 }
 
+// The assessor records one W4 paper instrument at `at` (assessor.js).
+async function recordW4(researchId, at) {
+  return assessor.submitEntry(db, KERAN, {researchId, instrument: "DJG-ES",
+    timepoint: "W4", assessmentDate: sw.hkDateKey(at), mode: "in_person",
+    answers: {q1: "yes", q2: "mostly", q3: "no", q4: "yes", q5: "mostly",
+      q6: "no"}, confirmed: true}, {now: at});
+}
+
 const tests = [];
 const test = (name, fn) => tests.push({name, fn});
 
 // ---------------------------------------------------------------------------
-// 1. Weekly W1–W3
+// 1. Weeks 1–3
 // ---------------------------------------------------------------------------
 
-test("W1–W3: done on day 1 / 2 / 3 — W1 to all, W2 and W3 only to those " +
-    "not done, both arms and all three prefixes alike", async () => {
+test("weeks 1–3: preview day 6 and open day 7 to all at 10:00; day 8 / " +
+    "day 9 only to those not done (done on day 7, 8, 9, never); both " +
+    "arms, all three prefixes alike", async () => {
   await reset(ALL_ON);
   await seedPeople();
   const m = fakeMessaging();
+  const everyone = ["r1", "r2", "r3", "r4", "t2"];
+  const wk1 = (id) => pc.weeklyText(id, 1);
 
-  // Day 1 = study day 7.  Nothing before 20:00.
-  await dispatch(m, hk(7, 19));
+  // Day 5: nothing.  Day 6: nothing before 10:00, then the preview.
+  await dispatch(m, hk(5, 10));
+  await dispatch(m, hk(6, 9));
   assert.strictEqual(m.sent.length, 0);
-  const c1 = await dispatch(m, hk(7, 20));
-  assert.strictEqual(c1.reminderV2, true);
-  assert.deepStrictEqual(m.uids(), ["r1", "r2", "r3", "r4", "t2"]);
-  for (const uid of ["r1", "r2", "r3", "r4", "t2"]) {
-    assert.deepStrictEqual(m.to(uid), [pc.TEXT.W1], uid);
+  const c6 = await dispatch(m, hk(6, 10));
+  assert.strictEqual(c6.reminderV2, true);
+  assert.strictEqual(c6.previewed, 5);
+  assert.deepStrictEqual(m.uids(), everyone);
+  for (const uid of everyone) {
+    assert.deepStrictEqual(m.to(uid), ["聽日第一週問卷就開，記得聽日得閒入嚟答呀。"]);
   }
-  const st1 = (await db.doc("weekly_status/r1").get()).data();
-  assert.strictEqual(st1.bundles.W1.pushCopyId, "W1");
-  const ev = (await db.collection("users/r1/events")
-      .where("name", "==", "weekly_bundle_push_sent").get()).docs[0].data();
-  assert.strictEqual(ev.params.copyId, "W1");
-
-  // r1 completes on day 1 (21:00 run sends nothing new).
-  await complete("r1", "W1", hk(7, 20, 30));
   m.clear();
-  await dispatch(m, hk(7, 21));
-  assert.strictEqual(m.sent.length, 0);
+  await dispatch(m, hk(6, 11));
+  await dispatch(m, hk(6, 20));
+  assert.strictEqual(m.sent.length, 0, "preview once; nothing at 20:00");
 
-  // Day 2 = study day 8: nothing before the push hour; W2 at 20:00 to the
-  // three not done.  T18's 24-hour reminder text is never used.
-  await dispatch(m, hk(8, 10));
-  await dispatch(m, hk(8, 19));
+  // Day 7 (window open since 00:00): nothing before 10:00, then W-open.
+  await dispatch(m, hk(7, 9));
   assert.strictEqual(m.sent.length, 0);
-  await dispatch(m, hk(8, 20));
+  await dispatch(m, hk(7, 10));
+  assert.deepStrictEqual(m.uids(), everyone);
+  assert.deepStrictEqual(m.to("r1"), [wk1("W-open")]);
+  assert.deepStrictEqual(m.to("r1"), ["第一週問卷開咗，快啲入嚟答啦。"]);
+  const st1 = (await status("r1")).W1;
+  assert.strictEqual(st1.pushCopyId, "W-open");
+  assert.ok(st1.previewSentAt && st1.pushedAt);
+  assert.strictEqual(st1.windowStart.toDate().toISOString(),
+      hk(7, 0).toISOString());
+  assert.strictEqual(st1.windowEnd.toDate().toISOString(),
+      hk(10, 0).toISOString());
+  m.clear();
+  await dispatch(m, hk(7, 20));
+  assert.strictEqual(m.sent.length, 0, "no 20:00 push any more");
+
+  // r1 completes on the first day (day 7).
+  await complete("r1", "W1", hk(7, 11));
+  // Day 8: reminder 1 to the four not done.
+  await dispatch(m, hk(8, 9));
+  assert.strictEqual(m.sent.length, 0);
+  await dispatch(m, hk(8, 10));
   assert.deepStrictEqual(m.uids(), ["r2", "r3", "r4", "t2"]);
-  assert.deepStrictEqual(m.to("r2"), [pc.TEXT.W2]);
-  assert.ok(m.sent.every((x) => x.notification.body !== ws.REMINDER_BODY));
+  assert.deepStrictEqual(m.to("r2"),
+      ["第一週問卷聽日截止，開咗一日喇，得閒入嚟答埋佢。"]);
   m.clear();
   await dispatch(m, hk(8, 21));
-  assert.strictEqual(m.sent.length, 0, "W2 once only");
+  assert.strictEqual(m.sent.length, 0, "reminder 1 once only");
 
-  // r2 completes on day 2; r3 does DJG only (still incomplete).
-  await complete("r2", "W1", hk(8, 21, 30));
+  // r2 completes on the second day; r3 does the DJG only.
+  await complete("r2", "W1", hk(8, 15));
   await db.doc("users/r3/djg_responses/W1").set({timepoint: "W1",
-    bundle: "W1", status: "submitted"});
+    bundle: "W1", status: "submitted", submittedAt: ts(hk(8, 16))});
+  await stamp("r3", "djg_responses", "W1", hk(8, 16));
 
-  // Day 3 = study day 9, 10:00: the e-mail lists r3 and r4 only, plus
-  // nothing else (testers never; ID, study day, week only).
+  // Day 9, 10:00: the e-mail lists r3 and r4 only (testers never).
   const e = await runEmail(hk(9, 10));
   assert.strictEqual(e.status, "sent");
   assert.strictEqual(e.count, 2);
   assert.strictEqual(mails.length, 1);
-  const mail = mails[0];
-  assert.strictEqual(mail.subject, pc.E1_SUBJECT);
-  assert.strictEqual(mail.to, PRIMARY);
-  const rows = mail.text.split("\n").filter((l) => /^[A-Z]+-/.test(l));
-  assert.deepStrictEqual(rows, [
+  assert.strictEqual(mails[0].subject, pc.E1_SUBJECT);
+  assert.strictEqual(mails[0].to, PRIMARY);
+  assert.deepStrictEqual(emailRows(mails[0]), [
     "PILOT-03 ｜ 第 9 天 ｜ 第 1 周",
     "RCT-04 ｜ 第 9 天 ｜ 第 1 周",
   ]);
-  assert.ok(mail.text.indexOf("共 2 人。") >= 0);
-  assert.ok(mail.text.indexOf("RCT-T99") < 0, "tester never listed");
-  assertNoForbidden(mail.text);
-  const auditRow = (await db.doc(
-      `alert_audit_log/${email.AUDIT_PREFIX}${dayKey(9)}`).get()).data();
-  assert.strictEqual(auditRow.status, "sent");
-  assert.strictEqual(auditRow.count, 2);
-  assert.ok(JSON.stringify(auditRow).indexOf("RCT-04") < 0,
-      "the audit row holds no research ID");
-
-  // Same day again: once a day.
-  const again = await runEmail(hk(9, 10, 5));
-  assert.strictEqual(again.status, "already_done");
+  assertNoForbidden(mails[0].text);
+  assert.strictEqual((await runEmail(hk(9, 10, 5))).status, "already_done");
   assert.strictEqual(mails.length, 1);
-
-  // r3 completes on day 3 (15:00), so W3 at 20:00 goes to r4 (and the
-  // switched tester) only.
+  // Reminder 2 at 10:00 to r3, r4, t2.
+  m.clear();
+  await dispatch(m, hk(9, 10));
+  assert.deepStrictEqual(m.uids(), ["r3", "r4", "t2"]);
+  assert.deepStrictEqual(m.to("r4"),
+      ["今日係第一週問卷最後一日，記得今日一定要答埋佢。"]);
+  // r3 completes on the third day.
   await complete("r3", "W1", hk(9, 15));
-  m.clear();
-  await dispatch(m, hk(9, 20));
-  assert.deepStrictEqual(m.uids(), ["r4", "t2"]);
-  assert.deepStrictEqual(m.to("r4"), [pc.TEXT.W3]);
-  const st4 = (await db.doc("weekly_status/r4").get()).data().bundles.W1;
-  assert.ok(st4.w2PushSentAt && st4.w3PushSentAt);
-  assert.strictEqual(st4.reminderSentAt, undefined);
 
-  // Day 10, 10:00: not an e-mail day; window closes at 20:00 (unchanged).
-  mails = [];
-  assert.strictEqual((await runEmail(hk(10, 10))).status, "none");
-  assert.strictEqual(mails.length, 0);
+  // r4: Weekly PR at 23:30 on day 9 (inside), PGIC synced after midnight
+  // (outside); the DJG never.
+  await db.doc("users/r4/weekly_pr/W1").set({bundle: "W1",
+    status: "completed", respondedAt: ts(hk(9, 23, 30))});
+  await stamp("r4", "weekly_pr", "W1", hk(9, 23, 31));
+  await db.doc("users/r4/pgic/W1").set({bundle: "W1", value: 3,
+    answeredAt: ts(hk(10, 0, 30))});
+  await stamp("r4", "pgic", "W1", hk(10, 0, 31));
+  assert.strictEqual((await part("r4", "weekly_pr", "W1")).outsideWindow,
+      false);
+  assert.strictEqual((await part("r4", "pgic", "W1")).outsideWindow, true);
+  assert.strictEqual((await part("r1", "pgic", "W1")).outsideWindow, false);
+  assert.strictEqual((await part("r1", "pgic", "W1")).submittedStudyDay, 7);
+  // r3's DJG was stamped in progress? No: submitted on day 8 → false.
+  assert.strictEqual((await part("r3", "djg_responses", "W1")).outsideWindow,
+      false);
+
+  // Day 10, 08:00: the window closed at the end of day 9 → missed marks
+  // for what is still open (r4's DJG, everything of t2).
   m.clear();
-  await dispatch(m, hk(10, 19));
-  assert.strictEqual(m.sent.length, 0, "no push on day 4");
-  await dispatch(m, hk(10, 20));
-  assert.strictEqual((await db.doc("users/r4/pgic/W1").get()).data().status,
-      "missed");
-  assert.strictEqual((await db.doc("users/r1/pgic/W1").get()).data().value, 6);
+  await dispatch(m, hk(10, 8));
+  assert.strictEqual(m.sent.length, 0);
+  const missed = await part("r4", "djg_responses", "W1");
+  assert.strictEqual(missed.status, "missed");
+  assert.strictEqual(missed.missed, true);
+  assert.strictEqual(missed.outsideWindow, null);
+  assert.strictEqual(missed.windowEnd.toDate().toISOString(),
+      hk(10, 0).toISOString());
+  assert.strictEqual((await part("r4", "pgic", "W1")).value, 3,
+      "a late submission is kept, not overwritten as missed");
+  assert.deepStrictEqual((await status("r4")).W1.missedParts, ["djg"]);
+  assert.strictEqual((await status("r1")).W1.missedParts.length, 0);
+
+  // Week 2: the same, with 第二週.
+  m.clear();
+  await dispatch(m, hk(13, 10));
+  assert.deepStrictEqual(m.to("r1"), ["聽日第二週問卷就開，記得聽日得閒入嚟答呀。"]);
 });
 
-test("e-mail: nobody incomplete → no e-mail; blinded primary → nobody; " +
-    "switch off → nothing", async () => {
+test("in-progress record stamped first gets its outsideWindow on submit",
+    async () => {
+      await reset(ALL_ON);
+      await seedUser("r1", {arm: "A", cohort: sp.COHORT_RCT}, "RCT-01");
+      const ref = db.doc("users/r1/social_contact_probes/W2");
+      await ref.set({bundle: "W2", status: "in_progress", answers: {q1: 1}});
+      const first = await stamp("r1", "social_contact_probes", "W2",
+          hk(14, 9));
+      assert.strictEqual(first.outsideWindow, null);
+      assert.strictEqual(first.submittedStudyDay, null);
+      assert.strictEqual(await stamp("r1", "social_contact_probes", "W2",
+          hk(14, 9, 1)), null, "nothing to add yet");
+      await ref.set({status: "submitted", answers: {q1: 1, q2: 2},
+        submittedAt: ts(hk(16, 23))}, {merge: true});
+      const late = await stamp("r1", "social_contact_probes", "W2",
+          hk(16, 23, 1));
+      assert.strictEqual(late.outsideWindow, false);
+      assert.strictEqual(late.submittedStudyDay, 16);
+      assert.strictEqual(await stamp("r1", "social_contact_probes", "W2",
+          hk(16, 23, 2)), null, "once");
+    });
+
+test("e-mail: nobody incomplete → none; blinded primary → nobody; switch " +
+    "off → nothing", async () => {
   await reset(ALL_ON);
   await seedUser("r1", {arm: "A", cohort: sp.COHORT_RCT}, "RCT-01");
   await complete("r1", "W1", hk(7, 21));
-  const e = await runEmail(hk(9, 10));
-  assert.strictEqual(e.status, "none");
+  assert.strictEqual((await runEmail(hk(9, 10))).status, "none");
   assert.strictEqual(mails.length, 0);
 
   await reset(ALL_ON);
@@ -284,9 +368,8 @@ test("e-mail: nobody incomplete → no e-mail; blinded primary → nobody; " +
     primaryEmail: ASSESSOR});
   assert.strictEqual((await runEmail(hk(9, 10))).status, "no_recipients");
   assert.strictEqual(mails.length, 0);
-  const dropped = (await db.collection("alert_audit_log")
-      .where("type", "==", "recipient_dropped").get()).docs;
-  assert.strictEqual(dropped.length, 1);
+  assert.strictEqual((await db.collection("alert_audit_log")
+      .where("type", "==", "recipient_dropped").get()).size, 1);
 
   await reset({checkInChatV2Enabled: true});
   await seedUser("r1", {arm: "A", cohort: sp.COHORT_RCT}, "RCT-01");
@@ -298,113 +381,167 @@ test("e-mail: nobody incomplete → no e-mail; blinded primary → nobody; " +
 // 2. Week 4
 // ---------------------------------------------------------------------------
 
-test("week 4: W1-4 / W2-4 / W3-4; a late W4 visit moves the closing day, " +
-    "the reminders and the e-mail", async () => {
+test("week 4: preview 25, open 26, reminder 28, e-mail 28; closes when " +
+    "the assessor records W4 (before opening, early, late) or at the end " +
+    "of day 42", async () => {
   await reset(ALL_ON);
-  await seedUser("r1", {arm: "A", cohort: sp.COHORT_RCT}, "RCT-01");
-  await seedUser("r2", {arm: "B", cohort: sp.COHORT_RCT}, "RCT-02");
-  // W1–W3 already marked done / missed, so only W4 is in play.
-  for (const uid of ["r1", "r2"]) {
+  // n: never recorded; e: recorded day 27; l: recorded day 31; b: recorded
+  // day 25, before W4 opens.
+  await seedUser("n", {arm: "A", cohort: sp.COHORT_RCT}, "RCT-11");
+  await seedUser("e", {arm: "B", cohort: sp.COHORT_RCT}, "RCT-12");
+  await seedUser("l", {arm: "A", cohort: sp.COHORT_RUN_IN}, "PB-13");
+  await seedUser("b", {arm: "B", cohort: sp.COHORT_PILOT,
+    armAssignmentMode: sp.PILOT_MODE}, "PILOT-14");
+  for (const uid of ["n", "e", "l", "b"]) {
     for (const id of ["W1", "W2", "W3"]) await complete(uid, id, hk(7, 21));
   }
-  // r2's W4 visit (paper DJG-ES with the assessor) is on day 31.
-  await db.doc("weekly_status/r2").set({w4VisitDate: dayKey(31)});
   const m = fakeMessaging();
 
-  await dispatch(m, hk(26, 20));
-  assert.deepStrictEqual(m.to("r1"), [pc.TEXT["W1-4"]]);
-  assert.deepStrictEqual(m.to("r2"), [pc.TEXT["W1-4"]]);
+  // Day 25: b's visit is recorded in the morning; previews at 10:00.
+  await recordW4("PILOT-14", hk(25, 9));
+  assert.strictEqual((await db.doc("users/b").get()).get("w4RecordedOn"),
+      dayKey(25));
+  await dispatch(m, hk(25, 10));
+  assert.deepStrictEqual(m.uids(), ["b", "e", "l", "n"]);
+  assert.deepStrictEqual(m.to("n"),
+      ["聽日第四週問卷就開，記得聽日得閒入嚟答呀。"]);
   m.clear();
 
-  // Day 27: nothing.  Day 28: W2-4 to r1 only (r2 closes on day 31).
-  await dispatch(m, hk(27, 20));
-  assert.strictEqual(m.sent.length, 0);
-  await dispatch(m, hk(28, 20));
-  assert.deepStrictEqual(m.uids(), ["r1"]);
-  assert.deepStrictEqual(m.to("r1"), [pc.TEXT["W2-4"]]);
+  // Day 26: open push to all four (b's window still has day 26).
+  await dispatch(m, hk(26, 10));
+  assert.deepStrictEqual(m.uids(), ["b", "e", "l", "n"]);
+  assert.deepStrictEqual(m.to("e"), ["第四週嘅問卷開咗，記得喺見面之前答埋佢。"]);
+  assert.strictEqual((await status("b")).W4.windowEnd.toDate().toISOString(),
+      hk(27, 0).toISOString());
+  assert.strictEqual((await status("n")).W4.windowEnd.toDate().toISOString(),
+      hk(43, 0).toISOString());
   m.clear();
 
-  // Day 29: e-mail lists r1 (day 29, week 4); W3-4 to r1.
-  await runEmail(hk(29, 10));
+  // Day 27: b closed at the end of day 26 → missed.  e's visit recorded
+  // at 11:00 (a second instrument later the same day changes nothing).
+  await dispatch(m, hk(27, 8));
+  assert.strictEqual((await part("b", "pgic", "W4")).status, "missed");
+  await recordW4("RCT-12", hk(27, 11));
+  assert.strictEqual((await db.doc("users/e").get()).get("w4RecordedOn"),
+      dayKey(27));
+  // A second W4 instrument entered on day 29 does not move it.
+  await assessor.submitEntry(db, KERAN, {researchId: "RCT-12",
+    instrument: "PHQ-9", timepoint: "W4", assessmentDate: dayKey(27),
+    mode: "in_person", answers: {q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0,
+      q7: 0, q8: 0, q9: 0}, confirmed: true}, {now: hk(29, 9)});
+  assert.strictEqual((await db.doc("users/e").get()).get("w4RecordedOn"),
+      dayKey(27));
+  // e answers the PGIC at 20:00 on day 27 — still inside.
+  await db.doc("users/e/pgic/W4").set({bundle: "W4", value: 5,
+    answeredAt: ts(hk(27, 20))});
+  await stamp("e", "pgic", "W4", hk(27, 20, 1));
+  assert.strictEqual((await part("e", "pgic", "W4")).outsideWindow, false);
+
+  // Day 28: e closed at the end of day 27 → missed Weekly PR; 10:00
+  // e-mail lists n and l; reminder to n and l only.
+  await dispatch(m, hk(28, 8));
+  assert.strictEqual((await part("e", "weekly_pr", "W4")).status, "missed");
+  assert.strictEqual((await part("e", "pgic", "W4")).value, 5);
+  await runEmail(hk(28, 10));
   assert.strictEqual(mails.length, 1);
-  assert.deepStrictEqual(
-      mails[0].text.split("\n").filter((l) => /^RCT-/.test(l)),
-      ["RCT-01 ｜ 第 29 天 ｜ 第 4 周"]);
-  await dispatch(m, hk(29, 20));
-  assert.deepStrictEqual(m.uids(), ["r1"]);
-  assert.deepStrictEqual(m.to("r1"), [pc.TEXT["W3-4"]]);
+  assert.deepStrictEqual(emailRows(mails[0]), [
+    "PB-13 ｜ 第 28 天 ｜ 第 4 周",
+    "RCT-11 ｜ 第 28 天 ｜ 第 4 周",
+  ]);
+  await dispatch(m, hk(28, 10));
+  assert.deepStrictEqual(m.uids(), ["l", "n"]);
+  assert.deepStrictEqual(m.to("l"),
+      ["第四週嘅問卷仲未答完，得閒入嚟答埋佢；見面嗰日都可以補。"]);
   m.clear();
 
-  // Day 30, 08:00: r1's window closed at the end of day 29 → missed; r2's
-  // runs to the end of day 31.  W2-4 to r2 at 20:00.
-  await dispatch(m, hk(30, 8));
-  assert.strictEqual((await db.doc("users/r1/pgic/W4").get()).data().status,
-      "missed");
-  assert.strictEqual((await db.doc("users/r2/pgic/W4").get()).exists, false);
-  await dispatch(m, hk(30, 20));
-  assert.deepStrictEqual(m.uids(), ["r2"]);
-  assert.deepStrictEqual(m.to("r2"), [pc.TEXT["W2-4"]]);
-  m.clear();
-
-  // Day 31: e-mail lists r2 (day 31, week 4); W3-4 to r2.
-  mails = [];
-  await runEmail(hk(31, 10));
-  assert.deepStrictEqual(
-      mails[0].text.split("\n").filter((l) => /^RCT-/.test(l)),
-      ["RCT-02 ｜ 第 31 天 ｜ 第 4 周"]);
-  await dispatch(m, hk(31, 20));
-  assert.deepStrictEqual(m.to("r2"), [pc.TEXT["W3-4"]]);
-  // No 1–3 texts in week 4.
-  for (const id of ["W1", "W2", "W3"]) {
-    assert.ok(m.sent.every((x) => x.notification.body !== pc.TEXT[id]));
-  }
-  m.clear();
+  // Days 29–30: no more week-4 pushes.  l's visit recorded on day 31; l
+  // can still answer that day ("見面嗰日都可以補").
+  for (const d of [29, 30]) await dispatch(m, hk(d, 10));
+  assert.strictEqual(m.sent.length, 0);
+  await recordW4("PB-13", hk(31, 10));
+  await db.doc("users/l/weekly_pr/W4").set({bundle: "W4",
+    status: "completed", respondedAt: ts(hk(31, 21))});
+  await stamp("l", "weekly_pr", "W4", hk(31, 21, 1));
+  assert.strictEqual((await part("l", "weekly_pr", "W4")).outsideWindow,
+      false);
   await dispatch(m, hk(32, 8));
-  assert.strictEqual((await db.doc("users/r2/pgic/W4").get()).data().status,
-      "missed");
-  const w = (await db.doc("weekly_status/r2").get()).data().bundles.W4;
-  assert.strictEqual(w.windowEnd.toDate().toISOString(),
-      sw.hkEndOfDay(dayKey(31)).toISOString());
+  assert.strictEqual((await part("l", "pgic", "W4")).status, "missed");
+  assert.strictEqual((await status("l")).W4.windowEnd.toDate().toISOString(),
+      hk(32, 0).toISOString());
+
+  // n: never recorded → open to the end of day 42, missed on day 43.
+  await dispatch(m, hk(42, 8));
+  assert.strictEqual((await part("n", "pgic", "W4")), undefined);
+  await dispatch(m, hk(43, 8));
+  assert.strictEqual((await part("n", "pgic", "W4")).status, "missed");
+  assert.strictEqual((await part("n", "pgic", "W4")).windowEnd.toDate()
+      .toISOString(), hk(43, 0).toISOString());
+  // The e-mail never listed b or e.
+  assert.ok(mails.every((x) => x.text.indexOf("RCT-12") < 0 &&
+    x.text.indexOf("PILOT-14") < 0));
 });
 
-test("week 5–7 (PGIC only) keep the old copy and the 24-hour reminder",
-    async () => {
-      await reset(ALL_ON);
-      await seedUser("r1", {arm: "A", cohort: sp.COHORT_RCT}, "RCT-01");
-      const m = fakeMessaging();
-      await dispatch(m, hk(35, 20));
-      assert.deepStrictEqual(m.to("r1"), [ws.PUSH_BODY]);
-      m.clear();
-      await dispatch(m, hk(36, 20));
-      assert.deepStrictEqual(m.to("r1"), [ws.REMINDER_BODY]);
-      mails = [];
-      assert.strictEqual((await runEmail(hk(37, 10))).status, "none");
-    });
+test("w4RecordedOn is written whatever the switch; with it off the W4 " +
+    "window is T24's (day 26 20:00 → end of day 29)", async () => {
+  await reset({assessorViewEnabled: true});
+  await seedUser("r1", {arm: "A", cohort: sp.COHORT_RCT}, "RCT-01");
+  await recordW4("RCT-01", hk(27, 11));
+  assert.strictEqual((await db.doc("users/r1").get()).get("w4RecordedOn"),
+      dayKey(27));
+  const m = fakeMessaging();
+  await dispatch(m, hk(26, 10));
+  assert.strictEqual(m.sent.length, 0, "no 10:00 push with the switch off");
+  await dispatch(m, hk(26, 20));
+  assert.deepStrictEqual(m.to("r1"), [ws.PUSH_BODY]);
+  await dispatch(m, hk(29, 21));
+  assert.strictEqual((await part("r1", "pgic", "W4")), undefined,
+      "still open on day 29");
+  await dispatch(m, hk(30, 8));
+  assert.strictEqual((await part("r1", "pgic", "W4")).status, "missed");
+  assert.strictEqual("outsideWindow" in (await part("r1", "pgic", "W4")),
+      false);
+});
 
-test("weekly reminders switch off: exactly T24 (S14 copy, 24-hour " +
-    "reminder, day-29 close, no e-mail)", async () => {
+test("weeks 5–7 (PGIC only) keep the T24 window, S14 copy and the 24-hour " +
+    "reminder", async () => {
+  await reset(ALL_ON);
+  await seedUser("r1", {arm: "A", cohort: sp.COHORT_RCT}, "RCT-01");
+  await db.doc("users/r1").set({w4RecordedOn: dayKey(30)}, {merge: true});
+  const m = fakeMessaging();
+  await dispatch(m, hk(35, 10));
+  assert.strictEqual(m.sent.length, 0);
+  await dispatch(m, hk(35, 20));
+  assert.deepStrictEqual(m.to("r1"), [ws.PUSH_BODY]);
+  m.clear();
+  await dispatch(m, hk(36, 20));
+  assert.deepStrictEqual(m.to("r1"), [ws.REMINDER_BODY]);
+  assert.strictEqual((await runEmail(hk(37, 10))).status, "none");
+});
+
+test("weekly switch off: exactly T24 (20:00 S14, 24-hour reminder, " +
+    "72-hour window, no preview, no e-mail)", async () => {
   await reset({checkInChatV2Enabled: true});
   await seedUser("r1", {arm: "A", cohort: sp.COHORT_RCT}, "RCT-01");
-  await db.doc("weekly_status/r1").set({w4VisitDate: dayKey(31)});
   const m = fakeMessaging();
+  await dispatch(m, hk(6, 10));
+  await dispatch(m, hk(7, 10));
+  assert.strictEqual(m.sent.length, 0);
   const c = await dispatch(m, hk(7, 20));
   assert.strictEqual(c.reminderV2, undefined);
   assert.deepStrictEqual(m.to("r1"), [ws.PUSH_BODY]);
   const ev = (await db.collection("users/r1/events")
       .where("name", "==", "weekly_bundle_push_sent").get()).docs[0].data();
   assert.strictEqual(ev.params.copyId, undefined);
-  assert.strictEqual((await db.doc("weekly_status/r1").get()).data()
-      .bundles.W1.pushCopyId, undefined);
   m.clear();
   await dispatch(m, hk(8, 20));
   assert.deepStrictEqual(m.to("r1"), [ws.REMINDER_BODY]);
-  m.clear();
-  await dispatch(m, hk(9, 20));
-  assert.strictEqual(m.sent.length, 0, "no day-3 push with the switch off");
-  // W4 closes on day 29 whatever the visit date (T24 as before).
-  await dispatch(m, hk(30, 8));
-  assert.strictEqual((await db.doc("users/r1/pgic/W4").get()).data().status,
-      "missed");
+  await dispatch(m, hk(10, 8));
+  assert.strictEqual((await part("r1", "pgic", "W1")), undefined,
+      "still open on day 10 morning");
+  await dispatch(m, hk(10, 20));
+  const missed = await part("r1", "pgic", "W1");
+  assert.strictEqual(missed.status, "missed");
+  assert.strictEqual("outsideWindow" in missed, false);
   assert.strictEqual((await runEmail(hk(9, 10))).status, "disabled");
 });
 
@@ -412,36 +549,39 @@ test("weekly reminders switch off: exactly T24 (S14 copy, 24-hour " +
 // 3. P1 and P2
 // ---------------------------------------------------------------------------
 
-test("P1 08:30: every registered participant, both arms, per person; " +
-    "not testers or unregistered; once a day; quiet hours respected",
-async () => {
+test("P1 08:30: registered participants, both arms, per person; not " +
+    "testers or unregistered; skips whoever already did today's check-in; " +
+    "once a day; quiet hours respected", async () => {
   await reset(ALL_ON);
   await seedPeople();
+  // r2 (rule arm) did the old form at 07:50; r3 the chat at 08:10; r4 is
+  // only known by the check_in_submitted event.
+  await db.collection("users/r2/check_in_responses").add({arm: "B", mood: 4,
+    date_iso: dayKey(3), note: ""});
+  await db.collection("users/r3/check_in_responses").add({arm: "A",
+    flow: "chat_v2", date_iso: dayKey(3), completed: true});
+  await db.collection("users/r4/events").add({name: "check_in_submitted",
+    params: {mood: 3}, timestamp: ts(hk(3, 8, 5))});
   const m = fakeMessaging();
   const quiet = qh.quietHoursConfigFrom({});
   const c = await daily.sendMorningPush(db, m,
       {now: hk(3, 8, 30), log: silent, quiet});
-  assert.strictEqual(c.pushed, 5);
-  assert.deepStrictEqual(m.uids(), ["r1", "r2", "r3", "r4", "t2"]);
-  for (const uid of ["r1", "r2"]) { // arm A and arm B
-    assert.deepStrictEqual(m.to(uid), [pc.TEXT.P1], uid);
-  }
+  assert.strictEqual(c.pushed, 2);
+  assert.strictEqual(c.done_form_v1, 1);
+  assert.strictEqual(c.done_chat_v2, 1);
+  assert.strictEqual(c.done_event, 1);
+  assert.deepStrictEqual(m.uids(), ["r1", "t2"]);
+  assert.deepStrictEqual(m.to("r1"), [pc.TEXT.P1]);
   assert.ok(m.sent.every((x) => x.notification.title === "陪住"));
   assert.ok(m.sent.every((x) => !x.topic), "never a topic broadcast");
-  const ev = (await db.collection("users/r2/events")
-      .where("name", "==", daily.EVENT).get()).docs[0].data();
-  assert.deepStrictEqual(
-      {slot: ev.params.slot, dateKey: ev.params.dateKey},
-      {slot: "P1", dateKey: dayKey(3)});
   m.clear();
   const again = await daily.sendMorningPush(db, m,
       {now: hk(3, 8, 31), log: silent, quiet});
-  assert.strictEqual(again.already_sent, 5);
+  assert.strictEqual(again.already_sent, 2);
   assert.strictEqual(m.sent.length, 0);
-  // Next day it goes again.
+  // Next day nobody has checked in yet → all five (both arms).
   await daily.sendMorningPush(db, m, {now: hk(4, 8, 30), log: silent, quiet});
-  assert.strictEqual(m.sent.length, 5);
-  // Quiet hours that run past 08:30 → nothing.
+  assert.deepStrictEqual(m.uids(), ["r1", "r2", "r3", "r4", "t2"]);
   m.clear();
   const late = qh.quietHoursConfigFrom({quietHoursStart: "22:00",
     quietHoursEnd: "09:00"});
@@ -451,19 +591,19 @@ async () => {
   assert.strictEqual(m.sent.length, 0);
 });
 
-test("P2 19:00: only to those who have not finished today's check-in " +
-    "(old form row, chat_v2 row, check_in_submitted event; Hong Kong date)",
-async () => {
+test("P2 19:00: only to those who have not done today's check-in (old " +
+    "form, chat_v2, event; Hong Kong date); crisis-stopped counts as done " +
+    "unless falseAlarm", async () => {
   await reset(ALL_ON);
   const today = dayKey(3);
   const yesterday = dayKey(2);
   const people = {
-    // finished today
+    // done today
     v2done: {arm: "A"}, formDone: {arm: "B"}, eventDone: {arm: "A"},
     safetyStop: {arm: "B"},
-    // not finished today
+    // not done today
     v2open: {arm: "A"}, formYesterday: {arm: "B"}, nothing: {arm: "B"},
-    eventLateYesterday: {arm: "A"},
+    eventLateYesterday: {arm: "A"}, falseAlarm: {arm: "B"},
   };
   for (const uid of Object.keys(people)) {
     await seedUser(uid, Object.assign({cohort: sp.COHORT_RCT},
@@ -482,10 +622,13 @@ async () => {
   await rows("v2open").add({arm: "A", flow: "chat_v2", date_iso: today,
     completed: false});
   await rows("formYesterday").add({arm: "B", mood: 3, date_iso: yesterday});
-  // 23:30 yesterday in Hong Kong is 15:30 UTC yesterday: not today.
   await db.collection("users/eventLateYesterday/events").add({
     name: "check_in_submitted", params: {mood: 3},
     timestamp: ts(hk(2, 23, 30))});
+  // Marked a false alarm by the research lead (batch 2's action).
+  await rows("falseAlarm").add({arm: "B", flow: "chat_v2", date_iso: today,
+    completed: false, stopped_by_safety: true, falseAlarm: true,
+    markedBy: "junyuUid", markedAt: ts(hk(3, 12))});
 
   const m = fakeMessaging();
   let doorbell = 0;
@@ -494,9 +637,9 @@ async () => {
       doorbell++;
     }});
   assert.strictEqual(doorbell, 0, "no broadcast with the switch on");
-  assert.deepStrictEqual(m.uids(),
-      ["eventLateYesterday", "formYesterday", "nothing", "v2open"]);
-  assert.deepStrictEqual(m.to("v2open"), [pc.TEXT.P2]);
+  assert.deepStrictEqual(m.uids(), ["eventLateYesterday", "falseAlarm",
+    "formYesterday", "nothing", "v2open"]);
+  assert.deepStrictEqual(m.to("falseAlarm"), [pc.TEXT.P2]);
   assert.strictEqual(c.done_chat_v2, 2);
   assert.strictEqual(c.done_form_v1, 1);
   assert.strictEqual(c.done_event, 1);
@@ -506,47 +649,28 @@ async () => {
   assert.strictEqual(m.sent.length, 0, "once a day");
 });
 
-test("P2: Sunday per person, and never on a weekly-questionnaire push day",
-    async () => {
-      await reset(ALL_ON);
-      // a: day 6 = Sunday 2026-10-25, no weekly push → P2.
-      await seedUser("a", {arm: "A", cohort: sp.COHORT_RCT});
-      // b: W0 a day earlier → Sunday is its study day 7 (W1 at 20:00).
-      await seedUser("b", {arm: "B", cohort: sp.COHORT_RCT,
-        w0Date: dayKey(-1)});
-      const m = fakeMessaging();
-      const c = await daily.runEveningPush(db, m, {now: hk(6, 19),
-        log: silent, quiet: qh.quietHoursConfigFrom({})});
-      assert.strictEqual(daily.hkWeekday(hk(6, 19)), 0);
-      assert.deepStrictEqual(m.uids(), ["a"]);
-      assert.strictEqual(c.weekly_push_day, 1);
-
-      // b's W1 goes at 20:00 (the only push b gets that evening).
-      m.clear();
-      await dispatch(m, hk(6, 20));
-      assert.deepStrictEqual(m.uids(), ["b"]);
-      assert.deepStrictEqual(m.to("b"), [pc.TEXT.W1]);
-
-      // Monday 19:00: a's W1 opens tonight (its day 7); b's W2 goes
-      // tonight (its day 8, not done) → no P2 for either.
-      m.clear();
-      const mon = await daily.runEveningPush(db, m, {now: hk(7, 19),
-        log: silent, quiet: qh.quietHoursConfigFrom({})});
-      assert.strictEqual(m.sent.length, 0);
-      assert.strictEqual(mon.weekly_push_day, 2);
-      await dispatch(m, hk(7, 20));
-      assert.deepStrictEqual(m.to("a"), [pc.TEXT.W1]);
-      assert.deepStrictEqual(m.to("b"), [pc.TEXT.W2]);
-
-      // Tuesday: b finished the questionnaire in the morning → no W3, so
-      // P2 again; a is on its day 2, not done → W2 tonight, no P2.
-      await complete("b", "W1", hk(8, 9));
-      m.clear();
-      await daily.runEveningPush(db, m, {now: hk(8, 19), log: silent,
-        quiet: qh.quietHoursConfigFrom({})});
-      assert.deepStrictEqual(m.uids(), ["b"]);
-      assert.deepStrictEqual(m.to("b"), [pc.TEXT.P2]);
-    });
+test("P2 also on weekly-questionnaire push days and on Sunday", async () => {
+  await reset(ALL_ON);
+  await seedUser("a", {arm: "A", cohort: sp.COHORT_RCT});
+  await seedUser("b", {arm: "B", cohort: sp.COHORT_RCT});
+  const m = fakeMessaging();
+  // Day 6 = Sunday 2026-10-25, the preview day: 10:00 preview, 19:00 P2.
+  assert.strictEqual(daily.hkWeekday(hk(6, 19)), 0);
+  await dispatch(m, hk(6, 10));
+  m.clear();
+  await daily.runEveningPush(db, m, {now: hk(6, 19), log: silent,
+    quiet: qh.quietHoursConfigFrom({})});
+  assert.deepStrictEqual(m.uids(), ["a", "b"]);
+  // Day 7 (opening) and day 8 (reminder): P2 still goes.
+  for (const d of [7, 8]) {
+    await dispatch(m, hk(d, 10));
+    m.clear();
+    await daily.runEveningPush(db, m, {now: hk(d, 19), log: silent,
+      quiet: qh.quietHoursConfigFrom({})});
+    assert.deepStrictEqual(m.uids(), ["a", "b"], `day ${d}`);
+    assert.deepStrictEqual(m.to("b"), [pc.TEXT.P2]);
+  }
+});
 
 // ---------------------------------------------------------------------------
 // 4. Switch off: today's behaviour
@@ -564,7 +688,6 @@ test("check-in switch off: no 08:30 push; 19:00 is the old broadcast " +
   const bell = async () => {
     doorbell++;
   };
-  // Monday (W0) … Saturday: the broadcast; Sunday: nothing.
   for (let day = 0; day < 6; day++) {
     const r = await daily.runEveningPush(db, m, {now: hk(day, 19),
       log: silent, legacyDoorbell: bell});
@@ -590,23 +713,21 @@ test("console test e-mail: 【测试】 subject, three synthetic IDs, request " 
   assert.strictEqual(r, "sent");
   assert.strictEqual(mails.length, 1);
   assert.strictEqual(mails[0].subject, "【测试】" + pc.E1_SUBJECT);
-  const rows = mails[0].text.split("\n").filter((l) => /^[A-Z]+-/.test(l));
-  assert.deepStrictEqual(rows, [
+  assert.deepStrictEqual(emailRows(mails[0]), [
     "PILOT-TEST01 ｜ 第 9 天 ｜ 第 1 周",
     "PB-TEST02 ｜ 第 16 天 ｜ 第 2 周",
-    "RCT-TEST03 ｜ 第 29 天 ｜ 第 4 周",
+    "RCT-TEST03 ｜ 第 28 天 ｜ 第 4 周",
   ]);
   assertNoForbidden(mails[0].text);
   const doc = (await db.doc(email.TEST_DOC).get()).data();
   assert.strictEqual(doc.send, false);
   assert.strictEqual(doc.lastResult, "sent");
-  // The trigger's own write (send true → false) does nothing.
   assert.strictEqual(await email.handleTestRequest(db, {send: true},
       {send: false}, {smtp: SMTP}), null);
   assert.strictEqual(mails.length, 1);
 });
 
-test("sendTestPush: 每日心情提醒 sends P1 and 每週問卷提醒 sends W1 when " +
+test("sendTestPush: old buttons map to P1 / the week-1 opening push when " +
     "the switches are on; old texts when off; new kinds accepted",
 async () => {
   await reset(null, null);
@@ -621,14 +742,17 @@ async () => {
   out = await call("daily_mood_reminder");
   assert.strictEqual(out.copyId, "P1");
   out = await call("weekly_survey_reminder");
-  assert.strictEqual(out.copyId, "W1");
-  out = await call("weekly_w3_4");
-  assert.strictEqual(out.copyId, "W3-4");
+  assert.strictEqual(out.copyId, "W-open");
+  out = await call("weekly4_rem");
+  assert.strictEqual(out.copyId, "W4-rem");
+  out = await call("checkin_p2");
+  assert.strictEqual(out.copyId, "P2");
   await assert.rejects(call("nope"), /unknown kind/);
   const ev = (await db.collection("users/tt/events")
       .where("name", "==", "test_push_sent").get()).docs
       .map((d) => d.data().params.copyId || null).sort();
-  assert.deepStrictEqual(ev, [null, null, "P1", "W1", "W3-4"].sort());
+  assert.deepStrictEqual(ev, [null, null, "P1", "P2", "W-open", "W4-rem"]
+      .sort());
 });
 
 (async () => {

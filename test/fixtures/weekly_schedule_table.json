@@ -29,5 +29,35 @@
       {"id": "W4", "studyWeek": 1, "pushDay": 7, "parts": ["weekly_pr", "pgic"],        "open": "2026-10-26T20:00:00+08:00", "close": "2026-10-27T20:00:00+08:00"}
     ]
   },
-  "w0Weekdays": ["2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25"]
+  "w0Weekdays": ["2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25"],
+  "v2": {
+    "_comment": "1020e 二.1–二.3: app_config/feature_flags.weeklyReminderV2Enabled on. W1–W3 whole days (day 7 00:00 → end of day 9); W4 from day 26 00:00 to the end of the day the W4 visit was recorded (users/{uid}.w4RecordedOn; never before the end of day 26, never after the end of day 42); W5–W7 as T24. Same config as above.",
+    "w0": "2026-10-19",
+    "bundles": [
+      {"id": "W1", "open": "2026-10-26T00:00:00+08:00", "close": "2026-10-29T00:00:00+08:00"},
+      {"id": "W2", "open": "2026-11-02T00:00:00+08:00", "close": "2026-11-05T00:00:00+08:00"},
+      {"id": "W3", "open": "2026-11-09T00:00:00+08:00", "close": "2026-11-12T00:00:00+08:00"},
+      {"id": "W4", "open": "2026-11-14T00:00:00+08:00", "close": "2026-12-01T00:00:00+08:00"},
+      {"id": "W5", "open": "2026-11-23T20:00:00+08:00", "close": "2026-11-26T20:00:00+08:00"},
+      {"id": "W6", "open": "2026-11-30T20:00:00+08:00", "close": "2026-12-03T20:00:00+08:00"},
+      {"id": "W7", "open": "2026-12-07T20:00:00+08:00", "close": "2026-12-10T20:00:00+08:00"}
+    ],
+    "week4Close": [
+      {"case": "recorded on day 27 → end of day 27",                    "w4RecordedOn": "2026-11-15", "close": "2026-11-16T00:00:00+08:00"},
+      {"case": "recorded on day 25 (before it opens) → end of day 26",  "w4RecordedOn": "2026-11-13", "close": "2026-11-15T00:00:00+08:00"},
+      {"case": "recorded on day 31 → end of day 31",                    "w4RecordedOn": "2026-11-19", "close": "2026-11-20T00:00:00+08:00"},
+      {"case": "recorded on day 45 → capped at the end of day 42",      "w4RecordedOn": "2026-12-03", "close": "2026-12-01T00:00:00+08:00"},
+      {"case": "not recorded → end of day 42",                          "w4RecordedOn": null,         "close": "2026-12-01T00:00:00+08:00"}
+    ],
+    "referentRangeW2": {"start": "2026-10-27T00:00:00+08:00", "end": "2026-11-02T00:00:00+08:00"},
+    "pushes": [
+      {"bundle": "W1", "step": "preview", "date": "2026-10-25", "copyId": "W-pre",  "all": true},
+      {"bundle": "W1", "step": "open",    "date": "2026-10-26", "copyId": "W-open", "all": true},
+      {"bundle": "W1", "step": "remind1", "date": "2026-10-27", "copyId": "W-rem1", "all": false},
+      {"bundle": "W1", "step": "remind2", "date": "2026-10-28", "copyId": "W-rem2", "all": false, "email": true},
+      {"bundle": "W4", "step": "preview", "date": "2026-11-13", "copyId": "W4-pre",  "all": true},
+      {"bundle": "W4", "step": "open",    "date": "2026-11-14", "copyId": "W4-open", "all": true},
+      {"bundle": "W4", "step": "remind1", "date": "2026-11-16", "copyId": "W4-rem",  "all": false, "email": true}
+    ]
+  }
 }

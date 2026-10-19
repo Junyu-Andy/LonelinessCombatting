@@ -39,7 +39,11 @@
  *                `assessor_entry`.
  *                The W4 assessment date is written to
  *                weekly_status/{uid}.w4VisitDate for T24's week-4 close
- *                (w4VisitDateFor reads it back).
+ *                (w4VisitDateFor reads it back).  1020e 二.2: the first
+ *                W4 entry also writes users/{uid}.w4RecordedOn (the Hong
+ *                Kong day it was entered; App-readable, server-only), which
+ *                closes the in-App W4 questionnaire with
+ *                weeklyReminderV2Enabled on.
  */
 
 "use strict";
@@ -58,6 +62,8 @@ const ENTRIES = "outcome_entries";
 const CORRECTIONS = "outcome_entry_corrections";
 const WEEKLY_STATUS = "weekly_status";
 const TIMEPOINT = "W4";
+/** 1020e 二.2: users/{uid} field — the day the W4 visit was recorded. */
+const W4_RECORDED_FIELD = "w4RecordedOn";
 /**
  * Study periods whose W4 the assessors do (1014e §2.12).  The pooled
  * completion rate (completionSummary) stays Phase B only — the pilot is
@@ -255,12 +261,14 @@ async function submitEntry(db, caller, input, opts) {
   const scores = inst.score(v.answers);
 
   const entryRef = db.collection(ENTRIES).doc();
+  const userRef = db.collection("users").doc(uid);
   await db.runTransaction(async (tx) => {
     const dup = await tx.get(db.collection(ENTRIES)
         .where("researchId", "==", researchId)
         .where("timepoint", "==", TIMEPOINT)
         .where("instrument", "==", inst.id).limit(1));
     if (!dup.empty) throw assessorError("already_entered");
+    const userSnap = await tx.get(userRef);
     tx.create(entryRef, {
       researchId, uid,
       instrument: inst.id, instrumentVersion: inst.version,
@@ -280,6 +288,16 @@ async function submitEntry(db, caller, input, opts) {
       w4VisitDate: assessmentDate, w4EntryAt: now,
       w4EntryInstrument: inst.id,
     }, {merge: true});
+    // 1020e 二.2: the first W4 entry records the Hong Kong day the visit
+    // was recorded on the user doc, where the App can read it (server-only
+    // field, firestore.rules); with weeklyReminderV2Enabled the in-App W4
+    // questionnaire closes at the end of that day (weekly_schedule.js
+    // week4CloseV2, App WeeklySchedule).  Later entries leave it alone.
+    if (userSnap.exists && !userSnap.get(W4_RECORDED_FIELD)) {
+      const patch = {};
+      patch[W4_RECORDED_FIELD] = randomization.hkDateKey(now);
+      tx.set(userRef, patch, {merge: true});
+    }
   });
 
   // T34 hook: PHQ-9 item 9 ≠ 0 → safety event, alert whatever the level.
@@ -438,7 +456,8 @@ async function correctEntry(db, p, opts) {
 
 module.exports = {
   ASSESSOR_ROLE, UNBLINDED_ROLE, VIEW_FLAG, SUMMARY_FLAG, ENTRIES,
-  CORRECTIONS, WEEKLY_STATUS, TIMEPOINT, W4_WINDOW, MODES, MIN_N,
+  CORRECTIONS, WEEKLY_STATUS, TIMEPOINT, W4_RECORDED_FIELD, W4_WINDOW, MODES,
+  MIN_N,
   w4Window, phaseBParticipants, assessedParticipants, participantsOf,
   ASSESSED_PERIODS, dueList, submitEntry, w4VisitDateFor,
   completionSummary, summaryRow, correctEntry,

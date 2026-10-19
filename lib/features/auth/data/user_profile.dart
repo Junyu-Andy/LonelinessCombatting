@@ -263,6 +263,13 @@ class UserProfile {
   /// read-only on the client — never in toMap.  See w0DateFor.
   final String? w0Date;
 
+  /// 1020e 二.2: the Hong Kong day the W4 assessor recorded this person's
+  /// W4 visit, `YYYY-MM-DD` — server-written by functions/assessor.js on
+  /// the first W4 entry; read-only on the client (firestore.rules), never
+  /// in toMap.  With `weeklyReminderV2Enabled` the in-App W4 questionnaire
+  /// closes at the end of this day (`WeeklySchedule.windowFor`).
+  final String? w4RecordedOn;
+
   /// Timestamps of the first time each agent introduced itself to the
   /// user (Dev Req §3.3). Missing entries mean the intro has not been
   /// shown yet and must be played the next time the agent opens.
@@ -338,6 +345,7 @@ class UserProfile {
     this.armAssignmentMode,
     this.cohort,
     this.w0Date,
+    this.w4RecordedOn,
     this.firstIntroSeen = const {},
     this.avoidTopics,
     this.hasCompletedIntake = false,
@@ -431,6 +439,7 @@ class UserProfile {
       armAssignmentMode: armAssignmentMode ?? this.armAssignmentMode,
       cohort: cohort ?? this.cohort,
       w0Date: w0Date ?? this.w0Date,
+      w4RecordedOn: w4RecordedOn,
       firstIntroSeen: firstIntroSeen ?? this.firstIntroSeen,
       avoidTopics: avoidTopics ?? this.avoidTopics,
       hasCompletedIntake: hasCompletedIntake ?? this.hasCompletedIntake,
@@ -573,6 +582,7 @@ class UserProfile {
       armAssignmentMode: map['armAssignmentMode'] as String?,
       cohort: map['cohort'] as String?,
       w0Date: map['w0Date'] as String?,
+      w4RecordedOn: map['w4RecordedOn'] as String?,
       firstIntroSeen: intro,
       avoidTopics: map['avoidTopics'] as String?,
       hasCompletedIntake: (map['hasCompletedIntake'] as bool?) ?? false,
