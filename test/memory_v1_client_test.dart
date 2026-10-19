@@ -189,6 +189,11 @@ void main() {
         agentId: 'tung_tung', title: '2026-09-28', body: '傾咗飲茶');
 
     testWidgets('groups items and names the companion told', (tester) async {
+      // 10/19: the page has a count line and fold-out groups above the
+      // items, so a tall surface keeps every card built (lazy ListView).
+      tester.view.physicalSize = const Size(900, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(page(_FakeMemory([pending, fact, summary])));
       await tester.pumpAndSettle();
       expect(find.text('呢啲要唔要記住？'), findsOneWidget);

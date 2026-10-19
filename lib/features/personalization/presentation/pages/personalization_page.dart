@@ -258,9 +258,12 @@ class _ProfileCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(profile.displayName,
-                          style: theme.textTheme.titleLarge),
+                          style: theme.textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                      // 10/19: the address in small grey, whole (it is how
+                      // the researcher checks the account), never cut.
                       Text(profile.email,
-                          style: theme.textTheme.bodyMedium?.copyWith(
+                          style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           )),
                     ],
@@ -274,11 +277,27 @@ class _ProfileCard extends StatelessWidget {
               label: isEn ? 'Age group' : '年齡組別',
               value: profile.ageGroup ?? (isEn ? 'Not filled' : '未填'),
             ),
-            const SizedBox(height: 8),
-            _InfoRow(
-              icon: Icons.favorite_outline,
-              label: isEn ? 'Emergency contact' : '緊急聯絡',
-              value: emergencyText,
+            const SizedBox(height: 4),
+            // 10/19 (Junyu): folded into one line; tap to see who.
+            Theme(
+              data: theme.copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: const EdgeInsets.only(left: 32, bottom: 8),
+                leading: Icon(Icons.favorite_outline,
+                    size: 22, color: theme.colorScheme.onSurfaceVariant),
+                title: Text(isEn ? 'Emergency contact' : '緊急聯絡',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    )),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(emergencyText,
+                        style: theme.textTheme.bodyLarge),
+                  ),
+                ],
+              ),
             ),
             // 10/16: the language row only while English exists
             // (AppSettings.englishEnabled); otherwise it promised a switch

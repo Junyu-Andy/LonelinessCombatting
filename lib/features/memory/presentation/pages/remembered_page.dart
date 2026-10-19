@@ -88,10 +88,23 @@ class _Lists extends StatelessWidget {
                 children: [notice, empty],
               );
             }
+            // 10/19 (Junyu): the lists grow for weeks, so facts are grouped
+            // by category and past chats by day, each group a fold-out
+            // with its count; one line at the top says how much there is.
+            final factGroups = _groupFacts(active);
+            final dayGroups = _groupByDay(su);
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               children: [
                 if (notice != null) notice,
+                _Header(
+                  isEn
+                      ? '${active.length} things about you · '
+                          '${su.length} past chats'
+                      : '記住咗 ${active.length} 件關於你嘅嘢、'
+                          '${su.length} 次傾偈',
+                  null,
+                ),
                 if (pending.isNotEmpty) ...[
                   _Header(
                     isEn ? 'Should I remember these?' : '呢啲要唔要記住？',
@@ -105,8 +118,17 @@ class _Lists extends StatelessWidget {
                 ],
                 if (active.isNotEmpty) ...[
                   _Header(isEn ? 'About you' : '關於你嘅嘢', null),
-                  for (final i in active)
-                    _ItemCard(item: i, uid: uid, service: service),
+                  for (final g in factGroups)
+                    _Group(
+                      title: _categoryLabel(g.key, isEn),
+                      count: g.value.length,
+                      // Short groups stay open; long ones fold.
+                      initiallyExpanded: g.value.length <= 3,
+                      children: [
+                        for (final i in g.value)
+                          _ItemCard(item: i, uid: uid, service: service),
+                      ],
+                    ),
                 ],
                 if (fu.isNotEmpty) ...[
                   _Header(isEn ? 'Things to ask about' : '記住要關心嘅事', null),
@@ -115,8 +137,17 @@ class _Lists extends StatelessWidget {
                 ],
                 if (su.isNotEmpty) ...[
                   _Header(isEn ? 'Past chats' : '之前傾過', null),
-                  for (final i in su)
-                    _ItemCard(item: i, uid: uid, service: service),
+                  for (var k = 0; k < dayGroups.length; k++)
+                    _Group(
+                      title: _dayLabel(dayGroups[k].key, isEn),
+                      count: dayGroups[k].value.length,
+                      // Only the most recent day open.
+                      initiallyExpanded: k == 0,
+                      children: [
+                        for (final i in dayGroups[k].value)
+                          _ItemCard(item: i, uid: uid, service: service),
+                      ],
+                    ),
                 ],
               ],
             );
@@ -141,6 +172,105 @@ class _LayersNotice extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Text(MemoryLayersCopy.s7, style: theme.textTheme.bodyLarge),
+      ),
+    );
+  }
+}
+
+/// Server categories in display order (functions/memory.js CATEGORIES);
+/// anything unknown goes last under 其他.
+const _categoryOrder = <String>[
+  'name', 'family', 'living', 'routine', 'hobby', 'preference', 'event',
+  'health', 'feeling', 'story', 'grief',
+];
+
+/// S20 — the category names the page shows (the same words as the server's
+/// category list, memory.js).
+String _categoryLabel(String key, bool isEn) {
+  const zh = {
+    'name': '稱呼', 'family': '家人', 'living': '居住情況', 'routine': '日常',
+    'hobby': '興趣', 'preference': '其他喜好', 'event': '重要事件',
+    'health': '健康', 'feeling': '心事', 'story': '回憶', 'grief': '哀傷',
+  };
+  const en = {
+    'name': 'Name', 'family': 'Family', 'living': 'Living', 'routine': 'Routine',
+    'hobby': 'Hobbies', 'preference': 'Preferences', 'event': 'Events',
+    'health': 'Health', 'feeling': 'Feelings', 'story': 'Stories',
+    'grief': 'Grief',
+  };
+  return (isEn ? en : zh)[key] ?? (isEn ? 'Other' : '其他');
+}
+
+List<MapEntry<String, List<MemoryItem>>> _groupFacts(List<MemoryItem> facts) {
+  final by = <String, List<MemoryItem>>{};
+  for (final f in facts) {
+    final k = _categoryOrder.contains(f.category) ? f.category! : 'other';
+    (by[k] ??= []).add(f);
+  }
+  final keys = [..._categoryOrder, 'other'].where(by.containsKey);
+  return [for (final k in keys) MapEntry(k, by[k]!)];
+}
+
+/// Summaries by their day (title is the server's day key, YYYY-MM-DD),
+/// newest day first.
+List<MapEntry<String, List<MemoryItem>>> _groupByDay(List<MemoryItem> su) {
+  final by = <String, List<MemoryItem>>{};
+  for (final i in su) {
+    (by[i.title] ??= []).add(i);
+  }
+  final days = by.keys.toList()..sort((a, b) => b.compareTo(a));
+  return [for (final d in days) MapEntry(d, by[d]!)];
+}
+
+String _dayLabel(String dayKey, bool isEn) {
+  final now = DateTime.now();
+  String key(DateTime t) =>
+      '${t.year.toString().padLeft(4, '0')}-'
+      '${t.month.toString().padLeft(2, '0')}-'
+      '${t.day.toString().padLeft(2, '0')}';
+  if (dayKey == key(now)) return isEn ? 'Today' : '今日';
+  if (dayKey == key(now.subtract(const Duration(days: 1)))) {
+    return isEn ? 'Yesterday' : '昨日';
+  }
+  final parts = dayKey.split('-');
+  if (parts.length == 3) {
+    final m = int.tryParse(parts[1]);
+    final d = int.tryParse(parts[2]);
+    if (m != null && d != null) {
+      return isEn ? dayKey : '$m月$d日';
+    }
+  }
+  return dayKey;
+}
+
+/// A fold-out group: 「家人（3）」 or 「今日（2）」.
+class _Group extends StatelessWidget {
+  const _Group({
+    required this.title,
+    required this.count,
+    required this.initiallyExpanded,
+    required this.children,
+  });
+
+  final String title;
+  final int count;
+  final bool initiallyExpanded;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Theme(
+      data: theme.copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        key: PageStorageKey<String>('mem_group_$title'),
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        initiallyExpanded: initiallyExpanded,
+        title: Text('$title（$count）',
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700)),
+        children: children,
       ),
     );
   }

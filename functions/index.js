@@ -888,7 +888,10 @@ exports.transcribeAudio = onCall(
 
     const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
     const recognize = request.sttRecognize || stt.googleRecognize();
-    const req = stt.buildRecognizeRequest({projectId, content});
+    // 10/19: meta/stt_config.model (chirp_2 | chirp_3) picks the model;
+    // the request never does.
+    let model = await stt.loadModel(admin.firestore());
+    let req = stt.buildRecognizeRequest({projectId, content, model});
 
     // Best-effort usage row: counts and timings only — never audio, never
     // text (collection is excluded from exports, functions/blinding.js).
@@ -896,7 +899,7 @@ exports.transcribeAudio = onCall(
       try {
         await admin.firestore().collection("stt_usage").add(Object.assign({
           uid: request.auth.uid,
-          model: stt.STT_MODEL,
+          model,
           region: stt.STT_LOCATION,
           bytes: content.length,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -907,12 +910,29 @@ exports.transcribeAudio = onCall(
     };
 
     try {
-      const out = await stt.transcribeWithRetry(recognize, req);
+      let out;
+      try {
+        out = await stt.transcribeWithRetry(recognize, req);
+      } catch (first) {
+        // 10/19: a configured model Google will not serve here (not
+        // available in the region / for the language) must not take voice
+        // down — one more pass with the default model.  no_speech and
+        // too_long are the clip's fault, not the model's.
+        const retryable = first instanceof stt.SttError &&
+          first.category !== stt.CATEGORIES.noSpeech &&
+          first.category !== stt.CATEGORIES.tooLong;
+        if (model === stt.STT_MODEL || !retryable) throw first;
+        console.warn("stt model fallback", {from: model, to: stt.STT_MODEL,
+          category: first.category});
+        model = stt.STT_MODEL;
+        req = stt.buildRecognizeRequest({projectId, content, model});
+        out = await stt.transcribeWithRetry(recognize, req);
+      }
       await usage({ok: true, attempts: out.attempts, latencyMs: out.latencyMs});
       return {
         transcript: out.transcript,
         confidence: out.confidence,
-        model: stt.STT_MODEL,
+        model,
         region: stt.STT_LOCATION,
         latencyMs: out.latencyMs,
         attempts: out.attempts,

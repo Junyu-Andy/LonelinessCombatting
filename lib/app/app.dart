@@ -11,6 +11,7 @@ import '../core/core_services_scope.dart';
 import '../core/cross_referral/handoff_executor.dart';
 import '../core/cross_referral/referral_routing_service.dart';
 import '../core/fcm/fcm_service.dart';
+import '../core/feature_flags/remote_feature_flags.dart';
 import '../core/llm/agent_greeting_service.dart';
 import '../core/llm/llm_gateway.dart';
 import '../core/memory/cross_module_memory.dart';
@@ -253,9 +254,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               // still works on its own.
               // 10/19: five levels, same 1.30 cap (combinedTextScale).
               final base = MediaQuery.of(context);
+              // 10/19 (Junyu, switch appFontScaleOnlyEnabled): the phone's
+              // font size is ignored and only the App's 字號 (five levels)
+              // counts, so every page scales the same way.
+              final combined =
+                  RemoteFeatureFlags.current.appFontScaleOnlyEnabled
+                      ? widget.settings.fontScale.multiplier
+                      : combinedTextScale(
+                          base.textScaler.scale(1.0), widget.settings.fontScale);
               final scaled = base.copyWith(
-                textScaler: TextScaler.linear(combinedTextScale(
-                    base.textScaler.scale(1.0), widget.settings.fontScale)),
+                textScaler: TextScaler.linear(combined),
               );
               return MediaQuery(
                 data: scaled,

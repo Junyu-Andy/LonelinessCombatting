@@ -71,6 +71,27 @@ assert.ok(!/model:\s*"long"/.test(index) && !/model:\s*"long"/.test(sttSrc),
     "the long model is still referenced");
 assert.ok(!/payload\.model|payload\.languageCode|forcedModel/.test(index),
     "transcribeAudio must not take model / language from the request");
+
+// 10/19: the model may come from meta/stt_config (console), never from the
+// request; anything outside STT_MODELS means the default.
+assert.deepStrictEqual(stt.STT_MODELS, ["chirp_2", "chirp_3"]);
+assert.strictEqual(stt.buildRecognizeRequest(
+    {projectId: "p", content, model: "chirp_3"}).config.model, "chirp_3");
+assert.strictEqual(stt.buildRecognizeRequest(
+    {projectId: "p", content, model: "latest_long"}).config.model, "chirp_2");
+const fakeDb = (data) => ({doc: () => ({get: async () => ({
+  exists: data !== null, get: (k) => (data || {})[k]})})});
+(async () => {
+  assert.strictEqual(await stt.loadModel(fakeDb({model: "chirp_3"})),
+      "chirp_3");
+  assert.strictEqual(await stt.loadModel(fakeDb({model: "whatever"})),
+      "chirp_2");
+  assert.strictEqual(await stt.loadModel(fakeDb(null)), "chirp_2");
+  assert.strictEqual(await stt.loadModel({doc: () => ({get: async () => {
+    throw new Error("down");
+  }})}), "chirp_2");
+  console.log("ok  model from meta/stt_config only, allow-listed");
+})();
 const code = (src) => src.split("\n").filter((l) => !/^\s*(\/\/|\*)/.test(l))
     .join("\n");
 assert.ok(!/enableDataLogging|dataLogging/i.test(code(sttSrc)),
