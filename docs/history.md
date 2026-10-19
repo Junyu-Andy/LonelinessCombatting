@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-20 1020c「讀少少」小讀本（PR #130 草稿，分支 `claude/zealous-fermat-8rgqtg-readers`）
+
+- 先评估（`docs/dev-reports/webview-eval-20261020.md`）：官方 `webview_flutter` 4.13.1 能装进 Flutter 3.35.3，系统版本不用改，包约大 1 MB；再写决策草稿 `docs/decisions/NNNN-html-readers-webview.md`，再写代码。
+- 开关 `htmlReadersEnabled` 默认关；`assets/readers/manifest.json` 先是 `[]`。阅读页用 `loadHtmlString`，App 加 CSP、禁缩放 viewport、`--fs`、读节脚本；只放行首次载入和三个 `peizhu://cta/…`；WebView 放在 `ReaderSurface` 接口后，测试用替身。
+- 「問下通通」只 Hybrid（C08），沿用通通文章模式，内容用 `<id>.txt`，前面那段说明是读本专用草稿（电脑程式伙伴写法）；规则组用会报错的假模型测过，没有任何调用。
+- 使用事件 `reader_open/section/cta/close` 进 `usage_events`（规则白名单、服务器盖章；运营看板前台分钟只算前台／后台）。检查脚本 `tool/check_reader_html.js` 进 CI。测试单元只在 `READER_TEST_UNIT` 构建里，已验证正式构建里没有。
+- 这台机器编不了 APK 和 iOS 包（连不上 Google 下载站、没有 Mac）：合并前 Junyu 跑 Build APK 和 Codemagic，两台手机按报告第 10 节测。报告：`docs/dev-reports/readers-20261020.md`。
+
 ## 2026-10-19 W0 现场第三批（Junyu 定）：只认 App 字號、Brief PR 卡上首页、记忆页分组、资料卡和热线卡缩小（PR 草稿，分支 `feat/1019-ui-round3`，接 #122）
 
 - 两个开关默认关：`appFontScaleOnlyEnabled`（`app.dart` 只用 `settings.fontScale`，不乘系统 textScaler）、`briefPrHomeBannerEnabled`（`today_page.dart` 问候语下面放同一个 `BriefPrCardHost`，调度规则不变）。
