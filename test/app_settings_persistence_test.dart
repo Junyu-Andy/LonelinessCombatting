@@ -75,6 +75,37 @@ void main() {
     expect(s.quietHours, isTrue);
   });
 
+  // 1020c (appFontScaleOnlyEnabled): the first run with the switch on keeps
+  // the size the elder saw (phone × App, capped), never smaller, as the
+  // App's own 字號 — once; after that the phone's size no longer counts.
+  test('app-only 字號: settled once to the size the elder saw', () async {
+    final s = await AppSettings.restore();
+    expect(s.appOnlyScaleSettled, isFalse);
+    // Phone text 1.3 × 標準 showed 1.30 (the cap) until now.
+    expect(s.appOnlyScaleFor(1.3), AppFontScale.xLarge);
+    s.settleAppOnlyScale(1.3);
+    expect(s.fontScale, AppFontScale.xLarge);
+    expect(s.appOnlyScaleSettled, isTrue);
+    // Settled: the phone's size no longer moves it, and it runs once.
+    expect(s.appOnlyScaleFor(1.0), AppFontScale.xLarge);
+    s.fontScale = AppFontScale.large; // the elder picks a size later
+    s.settleAppOnlyScale(2.0);
+    expect(s.fontScale, AppFontScale.large);
+    await pumpEventQueue();
+
+    final reopened = await AppSettings.restore();
+    expect(reopened.appOnlyScaleSettled, isTrue);
+    expect(reopened.fontScale, AppFontScale.large);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('display.appOnlyScaleSettled'), isTrue);
+  });
+
+  test('app-only 字號: phone at normal size keeps 標準', () async {
+    final s = await AppSettings.restore();
+    s.settleAppOnlyScale(1.0);
+    expect(s.fontScale, AppFontScale.standard);
+  });
+
   test('no store at all (plugin unavailable): defaults, setters still work',
       () {
     final s = AppSettings.fromStore(null);

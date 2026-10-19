@@ -29,15 +29,17 @@ const CHECKS = [
     'T58 语音输入隐藏（10/21 关）'],
   ['app_config/feature_flags', 'transcriptRetentionToggleEnabled', false,
     'T51 不显示「保留對話紀錄」'],
-  // 1020b §2: #126's four switches stay off for 10/21.
+  // 1020b §2: two of #126's switches stay off for 10/21; 1020c 一: Junyu
+  // turns the other two on once the 10/20 phone test passes, before the
+  // first RCT- registration.
   ['app_config/feature_flags', 'homeMoodOpensCheckInEnabled', 'off',
     '#126，被第 3 批 E 节取代'],
   ['app_config/feature_flags', 'briefPrHomeBannerEnabled', 'off',
     '#126，被第 3 批 D 节取代'],
-  ['app_config/feature_flags', 'appFontScaleOnlyEnabled', 'off',
-    '#126，Junyu 10/21 第一位 RCT- 前定'],
-  ['app_config/feature_flags', 'suggestionsUseProfileEnabled', 'off',
-    '#126，Junyu 10/21 第一位 RCT- 前定'],
+  ['app_config/feature_flags', 'appFontScaleOnlyEnabled', true,
+    '#126，1020c 定开（10/20 手机测试过后、第一位 RCT- 前）'],
+  ['app_config/feature_flags', 'suggestionsUseProfileEnabled', true,
+    '#126，1020c 定开（同上）'],
   ['app_config/feature_flags', 'usageEventsEnabled', true, 'T40 使用事件'],
   ['app_config/feature_flags', 'opsDashboardEnabled', true, 'T39 运营看板'],
   ['app_config/feature_flags', 'enrollmentGateEnabled', true,
