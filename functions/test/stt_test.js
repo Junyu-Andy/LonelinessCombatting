@@ -100,6 +100,20 @@ assert.ok(!/transcript|content:|audioBase64/.test(usageBlock),
 console.log("ok  no console.* or usage row with audio / transcript");
 
 // ---------------------------------------------------------------------------
+// 3b. 10/19: no spaces between Chinese characters; Latin / digits keep theirs.
+// ---------------------------------------------------------------------------
+assert.strictEqual(stt.tidyCantonese("我 今日 去 咗 飲茶 ， 好 開心 。"),
+    "我今日去咗飲茶，好開心。");
+assert.strictEqual(stt.tidyCantonese("我 book 咗 3 點 去 睇 醫生"),
+    "我 book 咗 3 點去睇醫生");
+assert.strictEqual(stt.tidyCantonese("OK 冇 問題"), "OK 冇問題");
+assert.strictEqual(stt.readResponse({results: [
+  {alternatives: [{transcript: "今日 天氣 ", confidence: 0.8}]},
+  {alternatives: [{transcript: " 幾 好"}]},
+]}).transcript, "今日天氣幾好");
+console.log("ok  Chinese spaces removed; Latin / digit spacing kept");
+
+// ---------------------------------------------------------------------------
 // 4. Retry once on transient failure; categories.
 // ---------------------------------------------------------------------------
 const okResp = {

@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-19 W0 现场两处修正：签到页揀心情那屏溢出、语音转写空格（PR 草稿，分支 `fix/1019-field-issues`）
+
+- 小欣签到页 Decision A 的「揀心情」门：固定 Column 加 Spacer，iPhone 7 Plus 大字体下按钮被顶出屏幕。改为 `SingleChildScrollView`，和 10/15 行动计划页同一修法；UI 扫描加了这一屏（之前只测了带心情进来的路径）。为了能在没有 Firebase 的测试里走到这屏，`MoodRecorder` 改为用到时才取 Firestore，`CheckInArmA` 多一个只给测试用的 `moodRecorder` 参数。
+- `functions/stt.js` `readResponse` 去掉中文字之间的空格（`tidyCantonese`），单元测试加四条。识别准确率本身没动，要换模型另定。
+- 同日现场另三件待 Junyu 定：首页按表情是否直接进签到页；建议页要用上入组的人名和兴趣；语音是先关还是换模型。
+
 ## 2026-10-18 批次 #120：12 张 PR 一次合并前的 UI 扫描与两处修正（分支 `batch/1018-night`，PR 草稿）
 
 - 把 #108–#119 合成一个批次（三处一行冲突，两边都留），后端全套、Flutter 六套都在批次分支上重跑过。
