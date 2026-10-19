@@ -1,7 +1,7 @@
 /**
  * T40 (registry C23) — Firestore rules for users/{uid}/usage_events.
  *
- *   - An ENROLLED owner (cohort phase_b / pilot) may create a row with
+ *   - An ENROLLED owner (cohort phase_b / rct / pilot) may create a row with
  *     exactly the client fields (type, clientAt, receivedAt = server time,
  *     appVersion, buildNumber, platform, schemaVersion 1).
  *   - Not before registration: no cohort (even a tester) → refused.
@@ -76,7 +76,7 @@ function row(extra) {
 }
 
 describe('T40: users/{uid}/usage_events', () => {
-  for (const cohort of ['phase_b', 'pilot']) {
+  for (const cohort of ['phase_b', 'rct', 'pilot']) {
     it(`ALLOWS an enrolled owner (${cohort}) to append foreground and ` +
        'background rows', async () => {
       await seed('users/u1', { uid: 'u1', cohort, arm: 'A' });

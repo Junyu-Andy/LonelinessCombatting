@@ -126,7 +126,7 @@ service cloud.firestore {
 
     // T21 — enrolment gate (app_config/feature_flags.enrollmentGateEnabled,
     // off unless literally true; functions/study_period.js).  When on, an
-    // account that is not enrolled (no cohort phase_b / pilot) and is not
+    // account that is not enrolled (no registered cohort) and is not
     // a tester cannot write research data under users/{uid}/.  Its device
     // token (fcm_tokens) is not research data and stays writable.  The
     // profile doc itself (signup, consent) is not affected.
@@ -136,9 +136,17 @@ service cloud.firestore {
         && get(flags).data.get('enrollmentGateEnabled', false) == true;
     }
 
+    // 1020b §1(2): the ONE list of registered cohorts in the rules — run-in
+    // (PB-), RCT- and the pilot run; same as functions/study_period.js
+    // ENROLLED_COHORTS and lib/core/study/cohorts.dart.  Both rules below
+    // call it.
+    function enrolledCohort(u) {
+      return u.get('cohort', null) in ['phase_b', 'rct', 'pilot'];
+    }
+
     function enrolledOrTester(uid) {
       let u = get(/databases/$(database)/documents/users/$(uid)).data;
-      return u.get('cohort', null) in ['phase_b', 'pilot']
+      return enrolledCohort(u)
         || u.get('isTester', false) == true;
     }
 
@@ -318,7 +326,7 @@ service cloud.firestore {
     // T40 (registry C23) — usage events, users/{uid}/usage_events/{id}.
     // The App appends one row when it comes to the foreground and one
     // when it goes to the background (switch usageEventsEnabled, App
-    // side).  Only an ENROLLED account (cohort phase_b / pilot) may
+    // side).  Only an ENROLLED account (enrolledCohort) may
     // write — "not before registration" is enforced here as well as in
     // the App; testers without a cohort get nothing.  The owner only
     // creates: no read (the server stamps the research ID — decision
@@ -327,7 +335,7 @@ service cloud.firestore {
     // ============================================================
     function isEnrolledParticipant(uid) {
       let u = get(/databases/$(database)/documents/users/$(uid)).data;
-      return u.get('cohort', null) in ['phase_b', 'pilot'];
+      return enrolledCohort(u);
     }
 
     function usageEventClientKeys() {

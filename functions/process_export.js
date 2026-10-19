@@ -106,7 +106,8 @@ function switchesFromSnap(snap) {
 
 /**
  * Build the process export in memory.  Phase B participants only (cohort
- * phase_b, not testers), research ID instead of uid, real arm.
+ * phase_b = run-in or rct, not testers; blinding.isBlindedParticipant),
+ * research ID instead of uid, real arm.
  * @param {object} db admin.firestore()
  * @param {{dateKey: string}} opts
  * @return {Promise<{files: Object<string, Array<object>>, manifest: object}>}

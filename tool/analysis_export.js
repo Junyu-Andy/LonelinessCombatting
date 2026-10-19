@@ -9,7 +9,8 @@
  *   (export)    refuses without meta/data_lock.  Writes one NDJSON file per
  *               table below into --out=<dir> (default analysis-export/<stamp>)
  *               plus manifest.json: every Phase B participant (cohort
- *               phase_b, not pilot, not testers), research ID instead of
+ *               phase_b = run-in or rct, not pilot, not testers;
+ *               functions/study_period.js PHASE_B_COHORTS), research ID instead of
  *               uid, the real arm, NO conversation text (every table is an
  *               allowlist of columns; `turns` carries only metadata).
  *   --synthetic reads NOTHING from Firestore: generates 72 fake
@@ -43,6 +44,7 @@ const fs = require('fs');
 const path = require('path');
 const {parseArgs, checkTarget} = require('./firestore_target');
 const instruments = require('../functions/outcome_instruments');
+const studyPeriod = require('../functions/study_period');
 
 const LOCK_DOC = 'meta/data_lock';
 const LOG_COLLECTION = 'analysis_export_log';
@@ -191,21 +193,23 @@ async function lock(db, p) {
 function isPhaseB(u) {
   if (u.isTester === true) return false;
   if (u.arm !== 'A' && u.arm !== 'B') return false;
-  if (typeof u.cohort === 'string') return u.cohort === 'phase_b';
+  // 1020b §1: run-in (PB-) and RCT- (functions/study_period.js lists).
+  if (typeof u.cohort === 'string') return studyPeriod.isPhaseBCohort(u);
   return u.armAssignmentMode === 'randomise';
 }
 
 /**
- * dev-tasks-1020 §C(5).  10/19: PB-01…04 became the run-in; from 10/21 the
- * randomised analysis set registers with RCT- and the v2 sequence.
- * @param {?string} researchId
- * @return {?string} "rct" | "run_in" | null
+ * dev-tasks-1020 §C(5) / 1020b §1(1): the analysis set comes from the
+ * cohort (rct → "rct", phase_b → "run_in", pilot → "pilot").  A withdrawal
+ * record has no cohort; its research-ID prefix gives the same answer.
+ * @param {?string} cohort
+ * @param {?string=} researchId fallback when there is no cohort
+ * @return {?string}
  */
-function analysisSetOf(researchId) {
-  if (typeof researchId !== 'string') return null;
-  if (researchId.startsWith('RCT-')) return 'rct';
-  if (researchId.startsWith('PB-')) return 'run_in';
-  return null;
+function analysisSetOf(cohort, researchId) {
+  if (typeof cohort === 'string') return studyPeriod.analysisSetForCohort(cohort);
+  const p = studyPeriod.periodForResearchId(researchId);
+  return p ? studyPeriod.analysisSetForCohort(p.cohort) : null;
 }
 
 /**
@@ -268,8 +272,8 @@ async function collectReal(db, opts) {
       withdrawn: false,
       allocatedArm: allocatedArmOf(e), receivedArm: u.arm,
       sequenceVersion: sequenceVersionOf(e),
-      runIn: analysisSetOf(researchId) === 'run_in',
-      analysisSet: analysisSetOf(researchId),
+      runIn: analysisSetOf(u.cohort, researchId) === 'run_in',
+      analysisSet: analysisSetOf(u.cohort, researchId),
     })));
 
     for (const t of ['djg_responses', 'pgic', 'ucla3_responses', 'weekly_pr',
@@ -338,8 +342,8 @@ async function collectReal(db, opts) {
     const x = d.data();
     files.allocation_records.push(row('allocation_records',
         Object.assign({}, base, x, {sequenceVersion: sequenceVersionOf(x),
-          runIn: analysisSetOf(x.researchId) === 'run_in',
-          analysisSet: analysisSetOf(x.researchId)})));
+          runIn: analysisSetOf(null, x.researchId) === 'run_in',
+          analysisSet: analysisSetOf(null, x.researchId)})));
   }
   const safety = await db.collection('safety_events').get();
   for (const d of safety.docs) {

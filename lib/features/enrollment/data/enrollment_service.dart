@@ -17,20 +17,27 @@ bool isUnblindedClaims(Map<String, dynamic>? claims) =>
     claims?['role'] == unblindedRole;
 
 /// T21 (registry v8 C01): the study period from the research-ID prefix,
-/// the same rule as the server (functions/study_period.js): `PB-…` →
-/// `'B'` (Phase B), `PILOT-…` → `'PILOT'` (pilot run).  Null for `PA-…`
-/// (Phase A is paused, decision 0034), no prefix, or nothing after it.
-/// The server checks again; this only picks the fields to show.
+/// the same rule as the server (functions/study_period.js): `RCT-…` →
+/// `'B'` (Phase B, sequence v2, from 10/21), `PILOT-…` → `'PILOT'` (pilot
+/// run).  Null for `PB-…` (retired for new registrations on 10/19, see
+/// [enrollmentPrefixRetired]), `PA-…` (Phase A is paused, decision 0034),
+/// no prefix, or nothing after it.  The server checks again; this only
+/// picks the fields to show.
 String? enrollmentPeriodOf(String researchId) {
   final id = researchId.trim().toUpperCase();
   final rest = RegExp(r'^[A-Z0-9][A-Z0-9-]*$');
   if (id.length > 12) return null;
-  if (id.startsWith('PB-') && rest.hasMatch(id.substring(3))) return 'B';
+  if (id.startsWith('RCT-') && rest.hasMatch(id.substring(4))) return 'B';
   if (id.startsWith('PILOT-') && rest.hasMatch(id.substring(6))) {
     return 'PILOT';
   }
   return null;
 }
+
+/// 10/19 (dev-tasks-1020 §C): `PB-…` no longer registers anyone new (the
+/// server answers research_id_prefix_retired); PB-01…04 are the run-in.
+bool enrollmentPrefixRetired(String researchId) =>
+    researchId.trim().toUpperCase().startsWith('PB-');
 
 /// What the researcher types in.  T21: a `PB-` ID needs the W0 score
 /// and W0 date (Phase B, sequence allocation); a `PILOT-` ID needs the

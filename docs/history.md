@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-10-19 dev-tasks-1020b：C 定案做完（RCT- 标 rct、一份 cohort 清单、序列 v2）、给 Qingyang 的上传步骤、#126 开关、语音次数（#127）
+
+- 1020b 存进 `docs/dev-tasks/`。#127 先合了最新 main（#126）。
+- C：`study_period.js` 加 RCT-（cohort `rct`，序列 v2），PB- 标 `retired`（新登记拒，旧账号照认）；`ENROLLED_COHORTS`、`PHASE_B_COHORTS` 两份清单；App `lib/core/study/cohorts.dart`；规则 `enrolledCohort()`。`weekly_schedule`、`blinding`、`djg_w2`、`tester_arm`、`analysis_export`、App `isEnrolled`／周程改读清单。防漏测试 `cohort_list_guard_test.js`。
+- 序列版本：`sequence_upload.js` 重写（版本 v2、≥ 80、v2 已分配拒、同种子拒、`sequence_versions/` 记 v1 停用和 v2 使用中；读 v1 用字段过滤，不读组别）；`randomization.enrol` 从 `v2_low`／`v2_high` 取组，登记和日志加 `sequenceVersion`、`allocatedArm`；`tool/randomization_sequence.js` 要 `--version=v2`、默认 80；`check_prelaunch_values.js` 列 v1／v2 长度、已用、指纹。
+- 测试：`rct_cohort_emulator_test.js`（非测试员 RCT- 和 PB- 走完全周程和三个导出）；两个分配测试改 RCT-／v2；规则测试加 rct 和 `sequence_versions`。盲法导出没有 cohort 列（检查脚本禁止），靠编号前缀分。W8（T35）还没做，第 56 天只核对周数。
+- 给 Qingyang 的步骤：`docs/release/sequence-v2-upload-20261020.md`，接 prelaunch-checklist G 节。开发只写不跑。
+- #126 四个开关进开关表（10/21 false），上线检查期望「没有或 false」。两个开关的四个问题答在批 1 报告第十节；「想重新聯絡嘅人」传给 DeepSeek 时不看 `share`，待 Junyu 定。
+- 只读脚本加自 10/15 起每人语音转写次数（只计数）。
+- 决策记录 `NNNN-rct-cohort-and-sequence-v2.md`（已采纳），0037 顶上标部分取代。
+- 第 2 批（小欣页）同时开工，在另一个分支。
+
 ## 2026-10-19 dev-tasks-1020 第 1 批：设定页、安静时段固定开、今日休息取消、语音隐藏、导出加列、只读核对脚本；C 的序列版本方案待批（PR 草稿，分支 `claude/zealous-fermat-8rgqtg`）
 
 - #125 合并后分支从 main 重开（快进），按「一批一个 PR」做第 1 批。dev-tasks-1020 存进 `docs/dev-tasks/`，T 号 T50–T60。

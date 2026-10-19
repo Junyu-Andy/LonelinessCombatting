@@ -59,6 +59,8 @@ NODE_PATH=functions/node_modules node tool/prelaunch_config.js --phase=b \
 
 ## G. 分组准备（T19，决策 0029）
 
+> 2026-10-19：v1（PB-）已停用；10/21 起 RCT- 用 v2，由 Qingyang Li 生成上传，步骤见 `sequence-v2-upload-20261020.md`（命令要加 `--version=v2`，用新种子，每层 ≥ 80）。下表是 v1 当时的做法，留作记录。
+
 **T30 起只能由 Calvin（`sequence_uploader`）做 G1–G3，在他自己的电脑上、用他自己的 App 登录。Junyu 不生成、不看序列，不在场看屏幕；Junyu 只负责临时打开 / 关闭开关 `meta/randomization_config.sequenceUploadEnabled`（G2a）。**
 
 | # | 项目 | 怎么做 / 怎么核对 | 核对人 / 日期 |

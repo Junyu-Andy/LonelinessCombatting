@@ -5,6 +5,7 @@
 /// emergency contact), not just for analytics.
 
 import '../../../core/agents/agent_registry.dart';
+import '../../../core/study/cohorts.dart';
 
 /// RCT arm assignment. Determined once at signup by [AuthService] via a
 /// Firestore transaction that balances 1:1 across the cohort. Never shown to
@@ -248,13 +249,14 @@ class UserProfile {
   final String? armAssignmentMode;
 
   /// T21 (registry v8 C01): the study period, written by the server at
-  /// registration from the research-ID prefix — `phase_b` (PB-) or `pilot`
-  /// (PILOT-); decision 0011 labels.  Null until registered.  Read-only on
-  /// the client — never in toMap (firestore.rules refuses client writes).
+  /// registration from the research-ID prefix — `phase_b` (PB-, run-in),
+  /// `rct` (RCT-, from 10/21) or `pilot` (PILOT-); decision 0011 labels.
+  /// Null until registered.  Read-only on the client — never in toMap
+  /// (firestore.rules refuses client writes).
   final String? cohort;
 
-  /// T21: registered for Phase B or the pilot run.
-  bool get isEnrolled => cohort == 'phase_b' || cohort == 'pilot';
+  /// T21: registered (run-in, RCT- or pilot; lib/core/study/cohorts.dart).
+  bool get isEnrolled => Cohorts.isEnrolled(cohort);
 
   /// T19 (decision 0029): the W0 date the unblinded researcher entered at
   /// registration, `YYYY-MM-DD` (Hong Kong).  Server-written with the arm;

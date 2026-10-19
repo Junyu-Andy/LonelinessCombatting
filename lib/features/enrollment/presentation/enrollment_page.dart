@@ -9,7 +9,8 @@
 /// (StaffGate); the server checks the claim again.
 ///
 /// T21 (registry v8 C01, dev-tasks-1010b): the research-ID prefix picks
-/// the fields.  `PB-…` → the T19 flow above.  `PILOT-…` (pilot run) → no
+/// the fields.  `RCT-…` (10/19; `PB-…` before, now retired) → the T19
+/// flow above, sequence v2.  `PILOT-…` (pilot run) → no
 /// score and no W0 date; the researcher picks the version (Hybrid or
 /// rule-based) and picks it again in the confirmation dialog.  `PA-…`
 /// (Phase A paused) and IDs without a prefix cannot be checked.
@@ -95,7 +96,10 @@ String enrollmentErrorText(String code) => switch (code) {
       'account_not_found' => '搵唔到呢個電郵嘅老人家帳號。請檢查電郵，或者先幫老人家註冊。',
       'invalid_research_id' => '研究編號格式唔啱（2–12 個英文字母、數字或 -）。',
       'research_id_prefix' =>
-        '研究編號要以 PB-（Phase B）或者 PILOT-（試跑）開頭。Phase A 暫停，PA- 唔收。',
+        '研究編號要以 RCT-（Phase B）或者 PILOT-（試跑）開頭。Phase A 暫停，PA- 唔收。',
+      'research_id_prefix_retired' =>
+        'PB- 已經停用（PB-01 至 PB-04 係 run-in）。新參加者請用 RCT- 編號。',
+      'version_required' => '上載要寫明序列版本（v2）。',
       'invalid_pilot_arm' => '試跑要揀版本（Hybrid 或者規則組）。',
       'invalid_score' => '情感分要係 0、1、2 或 3。',
       'invalid_variant' => '請揀阿珍或者阿伯。',
@@ -273,14 +277,18 @@ class _EnrollmentPageState extends State<EnrollmentPage> {
               controller: _researchId,
               textCapitalization: TextCapitalization.characters,
               decoration: const InputDecoration(
-                  labelText: '研究編號（PB-… 或 PILOT-…）',
+                  labelText: '研究編號（RCT-… 或 PILOT-…）',
                   border: OutlineInputBorder()),
               onChanged: (_) => setState(() {}),
             ),
             if (_researchId.text.trim().isNotEmpty && _period == null)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text(enrollmentErrorText('research_id_prefix'),
+                child: Text(
+                    enrollmentErrorText(
+                        enrollmentPrefixRetired(_researchId.text)
+                            ? 'research_id_prefix_retired'
+                            : 'research_id_prefix'),
                     key: const Key('enroll_prefix_hint'),
                     style: TextStyle(color: theme.colorScheme.error)),
               ),

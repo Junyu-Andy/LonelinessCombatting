@@ -9,7 +9,7 @@
 /// Rules (dev-tasks-1014d T40):
 ///   1. Both arms, no UI, nothing the participant can see.
 ///   2. Not before registration: a row is written only while the signed-in
-///      account is enrolled (`users/{uid}.cohort` = `phase_b` / `pilot`).
+///      account is enrolled (`users/{uid}.cohort` in Cohorts.enrolled).
 ///      A foreground that happened before the profile was known (cold
 ///      start) is held and written with its ORIGINAL time once the enrolled
 ///      profile arrives; if the account turns out not to be enrolled it is

@@ -26,7 +26,7 @@ import '../../../core/scheduling/weekly_schedule.dart';
 import '../../auth/data/user_profile.dart';
 
 /// Is the study-week schedule on for this participant?  Switch on, Phase B
-/// build, and a registered cohort (`phase_b` / `pilot`, T21).
+/// build, and a registered cohort (`phase_b` / `rct` / `pilot`, T21; lib/core/study/cohorts.dart).
 class WeeklyBundleGate {
   WeeklyBundleGate._();
 

@@ -28,6 +28,7 @@
 "use strict";
 
 const crypto = require("crypto");
+const studyPeriod = require("./study_period");
 
 const CONFIG_DOC = "meta/blinding_config";
 const STABLE_KEY_DOC = "export_blind_keys/stable_v2";
@@ -318,7 +319,8 @@ function pick(data, fields) {
 function isBlindedParticipant(u) {
   if (u.arm !== "A" && u.arm !== "B") return false;
   if (u.isTester === true) return false;
-  if (typeof u.cohort === "string") return u.cohort === "phase_b";
+  // 1020b §1: run-in (PB-) and RCT- are both Phase B participants.
+  if (typeof u.cohort === "string") return studyPeriod.isPhaseBCohort(u);
   return u.armAssignmentMode === "randomise";
 }
 

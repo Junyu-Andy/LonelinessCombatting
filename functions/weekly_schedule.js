@@ -51,6 +51,7 @@
 const studyWeek = require("./study_week");
 const quietHours = require("./quiet_hours");
 const testerArm = require("./tester_arm");
+const studyPeriod = require("./study_period");
 
 const CONFIG_DOC = "app_config/phase_b";
 const STATUS_COLLECTION = "weekly_status";
@@ -186,10 +187,9 @@ async function readConfig(db) {
  * @return {?string} "standard" | null
  */
 function scheduleModeFor(user) {
-  const u = user || {};
-  if (u.cohort === "phase_b") return MODE_STANDARD;
-  if (u.cohort === "pilot") return MODE_STANDARD;
-  return null;
+  // 1020b §1: every registered cohort (run-in, RCT, pilot) runs the
+  // standard schedule; the list lives in study_period.js.
+  return studyPeriod.isEnrolled(user) ? MODE_STANDARD : null;
 }
 
 /**

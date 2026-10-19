@@ -29,6 +29,15 @@ const CHECKS = [
     'T58 语音输入隐藏（10/21 关）'],
   ['app_config/feature_flags', 'transcriptRetentionToggleEnabled', false,
     'T51 不显示「保留對話紀錄」'],
+  // 1020b §2: #126's four switches stay off for 10/21.
+  ['app_config/feature_flags', 'homeMoodOpensCheckInEnabled', 'off',
+    '#126，被第 3 批 E 节取代'],
+  ['app_config/feature_flags', 'briefPrHomeBannerEnabled', 'off',
+    '#126，被第 3 批 D 节取代'],
+  ['app_config/feature_flags', 'appFontScaleOnlyEnabled', 'off',
+    '#126，Junyu 10/21 第一位 RCT- 前定'],
+  ['app_config/feature_flags', 'suggestionsUseProfileEnabled', 'off',
+    '#126，Junyu 10/21 第一位 RCT- 前定'],
   ['app_config/feature_flags', 'usageEventsEnabled', true, 'T40 使用事件'],
   ['app_config/feature_flags', 'opsDashboardEnabled', true, 'T39 运营看板'],
   ['app_config/feature_flags', 'enrollmentGateEnabled', true,
@@ -78,6 +87,8 @@ function show(key, v) {
 function verdict(expected, v) {
   if (expected === null) return '—';
   if (expected === 'absent') return v === undefined ? '✓' : '✗';
+  // A switch that must be off: missing or literally false.
+  if (expected === 'off') return v === undefined || v === false ? '✓' : '✗';
   if (expected === 'set') return (typeof v === 'string' && v) ? '✓' : '✗';
   return v === expected ? '✓' : '✗';
 }
@@ -110,7 +121,8 @@ async function main() {
     const ok = verdict(expected, v);
     if (ok === '✗') bad++;
     const exp = expected === null ? '' : `（期望 ${expected === 'absent' ?
-      '没有' : expected === 'set' ? '已填' : JSON.stringify(expected)}）`;
+      '没有' : expected === 'off' ? '没有或 false' : expected === 'set' ?
+        '已填' : JSON.stringify(expected)}）`;
     console.log(`  ${ok} ${key} = ${show(key, v)} ${exp} ${note}`);
   }
   // Keys in these documents the checklist does not list (information).
@@ -124,21 +136,38 @@ async function main() {
     }
   }
 
-  // Allocation sequences: existence, length and the next unused position
-  // only — never the arms (functions/randomization.js: arms[] on
-  // randomization_sequences/{low|high}, next on randomization_state).
-  console.log('\nrandomization_sequences');
-  for (const s of ['low', 'high']) {
-    const snap = await db.doc(`randomization_sequences/${s}`).get();
-    if (!snap.exists) {
-      console.log(`  ✗ ${s}：没有`);
-      bad++;
-      continue;
+  // Allocation sequences (dev-tasks-1020 §C(4), 1020b §1(8)): per version
+  // and stratum the stored length, the used positions and the sha256 —
+  // read with a field mask, so the arms are never fetched.  v1 (PB-, the
+  // run-in) is retired; v2 (RCT-) must be there before the first RCT-
+  // registration (Qingyang uploads it 10/20 afternoon).
+  console.log('\nrandomization_sequences（只看长度、已用、指纹）');
+  for (const version of ['v1', 'v2']) {
+    for (const s of ['low', 'high']) {
+      const id = version === 'v1' ? s : `${version}_${s}`;
+      const [snap] = await db.getAll(db.doc(`randomization_sequences/${id}`),
+          {fieldMask: ['length', 'sha256']});
+      if (!snap.exists) {
+        const must = version === 'v2';
+        console.log(`  ${must ? '✗' : '·'} ${version} ${s}：没有` +
+          (must ? '（上传前没有是正常的）' : ''));
+        if (must) bad++;
+        continue;
+      }
+      const state = await db.doc(`randomization_state/${id}`).get();
+      const next = state.exists ? Number(state.get('next')) || 0 : 0;
+      const len = Number(snap.get('length')) || 0;
+      const short = version === 'v2' && len < 80;
+      if (short) bad++;
+      console.log(`  ${short ? '✗' : '✓'} ${version} ${s}：${len} 个位置` +
+        `${short ? '（少于 80）' : ''}，已用 ${next}，sha256 ` +
+        `${snap.get('sha256') || '—'}`);
     }
-    const arms = snap.get('arms') || [];
-    const state = await db.doc(`randomization_state/${s}`).get();
-    const next = state.exists ? Number(state.get('next')) || 0 : 0;
-    console.log(`  ✓ ${s}：${arms.length} 个位置，已用 ${next}`);
+  }
+  for (const version of ['v1', 'v2']) {
+    const v = await db.doc(`sequence_versions/${version}`).get();
+    console.log(`  sequence_versions/${version}：` +
+      (v.exists ? `${v.get('status')}` : '没有'));
   }
 
   // Tester accounts: count and masked ids only (G2).

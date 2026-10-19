@@ -29,7 +29,7 @@ const NODE_PATH = path.resolve(__dirname, "../node_modules");
 const at = (iso) => admin.firestore.Timestamp.fromDate(new Date(iso));
 
 async function reset() {
-  for (const p of ["users", "enrollments"]) {
+  for (const p of ["users", "enrollments", "stt_usage"]) {
     await db.recursiveDelete(db.collection(p));
   }
 }
@@ -75,6 +75,13 @@ async function seed() {
     dispatchedAt: at("2026-10-18T01:00:00Z")});
   await db.collection("users/u2/events").add({name: "m7_reminder_sent",
     params: {}, timestamp: at("2026-10-18T01:00:00Z")});
+
+  // Voice: two calls since 10/15 (one failed), one before — not counted.
+  for (const [ok, iso] of [[true, "2026-10-16T02:00:00Z"],
+    [false, "2026-10-17T02:00:00Z"], [true, "2026-10-14T02:00:00Z"]]) {
+    await db.collection("stt_usage").add({uid: "u1", ok, model: "chirp_2",
+      bytes: 100, createdAt: at(iso)});
+  }
 
   // A tester with no enrolment is not a participant.
   await db.doc("users/u3").set({isTester: true,
@@ -122,6 +129,9 @@ test("reports the four checks for PB- and PILOT- only; writes nothing",
       // H(3)
       assert.match(out, /PB-01: 1 次 \[10-19 09:00\]/);
       assert.match(out, /合计 1 次/);
+      // 1020b §3(3)
+      assert.match(out, /PB-01: 2 次（成功 1，失败 1）/);
+      assert.match(out, /PILOT-01: 0 次/);
       // §1(4)
       assert.match(out, /PB-01: \{"第二页（搵人傾）":1\}/);
       // Never an arm, a token or an e-mail.

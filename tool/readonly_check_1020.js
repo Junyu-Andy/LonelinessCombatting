@@ -12,6 +12,9 @@
  *          error such as "messaging/third-party-auth-error" (no APNs key).
  *   H(3)   「今日休息」: how often it was switched on
  *          (quiet_today_activated events, quietTodayActivatedAt).
+ *   1020b §3(3)  Voice transcription calls per research ID since 10/15
+ *          (Hong Kong), from stt_usage — numbers only (ok / failed), never
+ *          text or audio (the collection holds none).
  *   §1(4)  Brief PR invitations that expired without ever being shown,
  *          split by the page the session started from.  Sessions do not
  *          record that page, so it is inferred from the tab_view events
@@ -168,6 +171,33 @@ function tabAt(tabViews, at) {
   return null;
 }
 
+/** 1020b §3(3): stt_usage rows since 10/15 00:00 HKT, per participant. */
+const VOICE_SINCE = new Date('2026-10-15T00:00:00+08:00');
+
+async function voice(db, people) {
+  console.log('\n=== 1020b 第三节 (3) 自 10/15 起语音转写次数 ===');
+  const total = {ok: 0, failed: 0};
+  for (const p of people) {
+    const rows = await db.collection('stt_usage').where('uid', '==', p.uid)
+        .get();
+    let ok = 0;
+    let failed = 0;
+    for (const d of rows.docs) {
+      const r = d.data() || {};
+      const at = toDate(r.createdAt);
+      if (!at || at < VOICE_SINCE) continue;
+      if (r.ok === true) ok++;
+      else failed++;
+    }
+    total.ok += ok;
+    total.failed += failed;
+    console.log(`  ${p.researchId}: ${ok + failed} 次（成功 ${ok}，失败 ` +
+      `${failed}）`);
+  }
+  console.log(`  合计 ${total.ok + total.failed} 次（成功 ${total.ok}，` +
+    `失败 ${total.failed}）。只计数，不读文字。`);
+}
+
 /** §1(4) */
 async function briefPr(db, people) {
   console.log('\n=== 第 1 节 (4) Brief PR：过期且从未展示 ===');
@@ -224,6 +254,7 @@ async function main() {
   await retention(db, people);
   await reminders(db, people);
   await quietToday(db, people);
+  await voice(db, people);
   await briefPr(db, people);
   console.log('\n完。没有写入任何数据。');
 }

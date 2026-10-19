@@ -2129,8 +2129,9 @@ const _ENROL_ERRORS = {
   research_id_taken: "already-exists",
   account_has_other_research_id: "already-exists",
   own_account: "invalid-argument",
-  // T21: PB- / PILOT- only; the pilot needs a version.
+  // T21: RCT- / PILOT- only (PB- retired 10/19); the pilot needs a version.
   research_id_prefix: "invalid-argument",
+  research_id_prefix_retired: "failed-precondition",
   invalid_pilot_arm: "invalid-argument",
 };
 
@@ -2248,9 +2249,14 @@ const _UPLOAD_ERRORS = {
   invalid_sequences: "invalid-argument",
   already_uploaded: "already-exists",
   already_allocated: "failed-precondition",
+  // 10/19 (dev-tasks-1020 §C): versioned uploads.
+  version_required: "invalid-argument",
+  too_short: "invalid-argument",
+  same_seed_as_v1: "failed-precondition",
 };
 
-// Calvin (`sequence_uploader`) uploads the sequences he generated locally.
+// The `sequence_uploader` uploads the sequences they generated locally
+// (10/19: version v2, functions/sequence_upload.js).
 exports.uploadRandomizationSequence = onCall(
     {region: "asia-east2", enforceAppCheck: false, maxInstances: 1},
     async (request) => {

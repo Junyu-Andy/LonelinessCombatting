@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 /**
  * tool/randomization_sequence.js — T19 (decision 0029), reworked in T30
- * (dev-tasks-1010 §四 T30 §2.4; dev-tasks-1014 §二 rule 9).  Run by
- * CALVIN only, on his own machine.  Junyu does not generate, upload or
- * see the sequence; the seed never leaves Calvin's machine.
+ * (dev-tasks-1010 §四 T30 §2.4; dev-tasks-1014 §二 rule 9).  Run ONLY by
+ * the person holding the `sequence_uploader` role (the study member with
+ * no other role; 10/19: Qingyang Li for v2), on their own machine.  Junyu
+ * does not generate, upload or see the sequence; the seed never leaves
+ * that machine.  Steps for v2: docs/release/sequence-v2-upload-20261020.md.
  *
  * Generates one permuted-block sequence per stratum (low = W0 DJG
- * emotional 0–1, high = 2–3) from a seed Calvin chooses: 1:1, blocks of 2
- * and 4 mixed at random, at least 60 positions each
- * (functions/randomization.js generateSequences).  Same seed → same
- * sequences, so the offline copy can be re-checked.
+ * emotional 0–1, high = 2–3) from a seed the uploader chooses: 1:1,
+ * blocks of 2 and 4 mixed at random, at least 80 positions each by
+ * default (functions/randomization.js generateSequences).  Same seed →
+ * same sequences, so the offline copy can be re-checked — and v2 MUST use
+ * a NEW seed: the server refuses a v2 that repeats v1 (same_seed_as_v1).
  *
  * Steps
  *   1. generate  — writes ONE file with the seed and both sequences into
@@ -17,14 +20,16 @@
  *                  lengths and SHA-256 fingerprints, never the arms.
  *                  Hand that file to the supervisor's offline store, then
  *                  delete it from the laptop.
- *   2. --upload  — signs Calvin in with HIS OWN App login (e-mail +
- *                  password, Firebase Auth REST) and calls the
- *                  uploadRandomizationSequence Cloud Function with the two
- *                  sequences (arms, blocks, fingerprints — no seed).  The
- *                  server checks his role (`sequence_uploader`), the
- *                  switch meta/randomization_config.sequenceUploadEnabled,
- *                  that nobody has been allocated, and logs the upload.
- *                  NO service-account credentials are involved.
+ *   2. --upload --version=v2 — signs the uploader in with THEIR OWN App
+ *                  login (e-mail + password, Firebase Auth REST) and calls
+ *                  the uploadRandomizationSequence Cloud Function with the
+ *                  version and the two sequences (arms, blocks,
+ *                  fingerprints — no seed).  The server checks the role
+ *                  (`sequence_uploader`), the switch
+ *                  meta/randomization_config.sequenceUploadEnabled, the
+ *                  version (v2), ≥ 80 positions, that nobody has been
+ *                  allocated from v2 and that v2 does not repeat v1, and
+ *                  logs the upload.  NO service-account credentials.
  *
  * Targets
  *   emulator (default): FIREBASE_AUTH_EMULATOR_HOST and
@@ -34,14 +39,15 @@
  *
  * Usage
  *   NODE_PATH=functions/node_modules node tool/randomization_sequence.js \
- *     --seed-file=/path/to/my-seed.txt [--length=60] [--out=randomization-private]
- *   ... --seed-file=... --upload --email=calvin@example.org \
+ *     --seed-file=/path/to/new-seed.txt [--length=80] [--out=randomization-private]
+ *   ... --seed-file=... --upload --version=v2 --email=uploader@example.org \
  *       --password-file=/path/to/pw.txt [--replace]
  *   ... (real project) --project=loneliness-pilot-dev \
  *       --production-confirm=loneliness-pilot-dev [--api-key=<web API key>]
  *
  * --seed=<text> also works but leaves the seed in the shell history;
- * prefer --seed-file.  The seed must be at least 16 characters.  The web
+ * prefer --seed-file.  The seed must be at least 16 characters.  --length
+ * defaults to 80 (the v2 minimum).  The web
  * API key (public, not a secret) is read from android/app/google-services
  * .json when --api-key is not given.
  */
@@ -55,6 +61,8 @@ const randomization = require('../functions/randomization');
 
 const REGION = 'asia-east2';
 const CALLABLE = 'uploadRandomizationSequence';
+// 10/19 (dev-tasks-1020 §C): uploads name their version; v2 needs ≥ 80.
+const DEFAULT_LENGTH = 80;
 
 function readSeed(args) {
   if (typeof args['seed-file'] === 'string') {
@@ -80,7 +88,8 @@ function buildPayload(seqs, opts) {
     sequences[s] = {arms: seqs[s].arms, blocks: seqs[s].blocks,
       sha256: seqs[s].sha256};
   }
-  return {sequences, replace: !!(opts && opts.replace)};
+  return {sequences, replace: !!(opts && opts.replace),
+    version: (opts && opts.version) || null};
 }
 
 /**
@@ -170,11 +179,14 @@ async function uploadViaCallable(p) {
 /**
  * Admin-SDK upload — used ONLY by the emulator tests to seed sequences
  * (functions/test/randomization_emulator_test.js).  Not reachable from the
- * command line: Calvin uploads through the callable above.
+ * command line: the uploader goes through the callable above.
+ * opts.version: "v1" (default, the old low/high documents) or "v2"
+ * (v2_low / v2_high).
  */
 async function upload(db, seqs, opts) {
   const lines = [];
   const S = randomization;
+  const version = (opts && opts.version) || 'v1';
   for (const s of S.STRATA) {
     if (!S.sequenceValid(seqs[s])) {
       return {ok: false, lines: [`! ${s}: sequence failed validation`]};
@@ -185,8 +197,9 @@ async function upload(db, seqs, opts) {
     const snaps = {};
     for (const s of S.STRATA) {
       refs[s] = {
-        seq: db.collection(S.SEQ_COLLECTION).doc(s),
-        state: db.collection(S.STATE_COLLECTION).doc(s),
+        seq: db.collection(S.SEQ_COLLECTION).doc(S.sequenceDocId(version, s)),
+        state: db.collection(S.STATE_COLLECTION)
+            .doc(S.sequenceDocId(version, s)),
       };
       snaps[s] = {
         seq: await tx.get(refs[s].seq),
@@ -233,10 +246,10 @@ async function main() {
   let seqs;
   try {
     seqs = randomization.generateSequences(seed,
-        args.length ? Number(args.length) : undefined);
+        args.length ? Number(args.length) : DEFAULT_LENGTH);
   } catch (e) {
     console.error(`randomization_sequence: ${e.message} ` +
-      '(need --seed-file with at least 16 characters; --length ≥ 60)');
+      '(need --seed-file with at least 16 characters; --length ≥ 80)');
     process.exit(2);
   }
   console.log('Generated (arms not shown):\n' + summary(seqs));
@@ -258,6 +271,11 @@ async function main() {
     return;
   }
 
+  if (args.version !== 'v2') {
+    console.error('randomization_sequence: --upload needs --version=v2 ' +
+      '(v1 is retired; see docs/release/sequence-v2-upload-20261020.md)');
+    process.exit(2);
+  }
   const t = callableTarget(process.env, args);
   if (!t.ok) {
     console.error(`randomization_sequence: ${t.reason}`);
@@ -276,12 +294,14 @@ async function main() {
   const r = await uploadViaCallable({
     fetch: global.fetch, authUrl: t.authUrl, functionUrl: t.functionUrl,
     email, password, payload: buildPayload(seqs, {replace: args.replace ===
-      true}),
+      true, version: args.version}),
   });
   if (!r.ok) {
     const err = r.body && r.body.error;
-    console.error(`! upload refused (${r.status}): ` +
-      `${err && (err.message || err.status || err) || 'unknown error'}`);
+    const msg = err && (err.message || err.status || err) || 'unknown error';
+    console.error(`! upload refused (${r.status}): ${msg}` +
+      (msg === 'same_seed_as_v1' ? ' — this seed repeats v1; choose a ' +
+        'NEW seed and generate again' : ''));
     process.exit(1);
   }
   const result = r.body.result || {};
@@ -289,8 +309,9 @@ async function main() {
     const u = result.uploaded && result.uploaded[s];
     if (u) console.log(`+ ${s}: uploaded ${u.length} positions, sha256 ${u.sha256}`);
   }
-  console.log(result.replaced ? 'Replaced the earlier sequences.' :
-    'Done. The server logged the upload (sequence_upload_log).');
+  console.log(result.replaced ? `Replaced the earlier ${result.version || ''} sequences.` :
+    `Done (${result.version || 'v2'}). The server logged the upload ` +
+    '(sequence_upload_log) and marked v1 retired (sequence_versions).');
 }
 
 if (require.main === module) {
@@ -301,4 +322,4 @@ if (require.main === module) {
 }
 
 module.exports = {upload, readSeed, buildPayload, callableTarget,
-  uploadViaCallable, REGION, CALLABLE};
+  uploadViaCallable, REGION, CALLABLE, DEFAULT_LENGTH};

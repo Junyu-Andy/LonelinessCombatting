@@ -86,10 +86,11 @@ async function seed() {
   await mk(UID_A, "PB-101", "A", "low");
   await mk(UID_B, "PB-102", "B", "high");
   // dev-tasks-1020 §C(5): PB-102's arm was corrected after allocation (the
-  // drawn arm is then not known from enrollments); RCT-01 drew from v2.
+  // drawn arm is then not known from enrollments); RCT-01 (cohort rct,
+  // 1020b §1) drew from v2.
   await db.doc(`enrollments/${UID_B}`).set(
       {correctedAt: new Date("2026-11-04")}, {merge: true});
-  await db.doc(`users/${UID_RCT}`).set({arm: "B", cohort: "phase_b",
+  await db.doc(`users/${UID_RCT}`).set({arm: "B", cohort: "rct",
     armAssignmentMode: "randomise", w0Date: "2026-11-02", strataCell: 1});
   await db.doc(`enrollments/${UID_RCT}`).set({uid: UID_RCT,
     researchId: "RCT-01", studyPeriod: "B", stratum: "high", arm: "B",
