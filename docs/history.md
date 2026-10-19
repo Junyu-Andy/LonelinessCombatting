@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-19 W0 现场第二批：自我介绍卡配对错、字体大时按钮被顶出（PR 草稿，分支 `fix/1019-intro-variant-and-dialog`）
+
+- `first_intro_overlay.dart`：`_IntroDialog` 原来 `resolveVariant(null)`，揀阿伯也显示阿珍；现在用 profile 的配对，介绍句里的「阿珍／阿伯」换成所揀那位。卡最高占屏幕 80%，文字区 `Flexible` + `SingleChildScrollView`，按钮固定。`referral_suggestion_card.dart` 两处名字同样改按配对。
+- 其他仍 `resolveVariant(null)` 的地方只涉及小欣、通通或入组前的列表，不影响。
+- UI 扫描加「首次介紹卡（揀咗阿伯）」流程。
+- 同日 Junyu 另提的四件（iOS 系统字体放大后观感不统一、Brief PR 要更醒目的入口、记忆页按日期分组、个人资料页和首页热线卡收起）记在 backlog，要定了再做；热线卡按规矩不动。
+
 ## 2026-10-19 W0 现场两处修正：签到页揀心情那屏溢出、语音转写空格（PR 草稿，分支 `fix/1019-field-issues`）
 
 - 小欣签到页 Decision A 的「揀心情」门：固定 Column 加 Spacer，iPhone 7 Plus 大字体下按钮被顶出屏幕。改为 `SingleChildScrollView`，和 10/15 行动计划页同一修法；UI 扫描加了这一屏（之前只测了带心情进来的路径）。为了能在没有 Firebase 的测试里走到这屏，`MoodRecorder` 改为用到时才取 Firestore，`CheckInArmA` 多一个只给测试用的 `moodRecorder` 参数。

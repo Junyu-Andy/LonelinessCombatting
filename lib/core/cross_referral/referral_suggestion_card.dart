@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../app/app_settings_scope.dart';
 import '../../features/analytics/presentation/analytics_scope.dart';
 import '../agent_context/shared_context_service.dart';
 import '../agents/agent_avatar.dart';
@@ -107,9 +108,7 @@ class _ReferralSuggestionCardState extends State<ReferralSuggestionCard> {
                     style: theme.textTheme.titleSmall,
                   ),
                   Text(
-                    isEn
-                        ? target.resolveVariant(null).displayNameEn
-                        : target.resolveVariant(null).displayNameZh,
+                    _nameOf(context, target, isEn),
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: target.accentColor,
                       fontWeight: FontWeight.w800,
@@ -186,11 +185,8 @@ class ReferralArrivalBanner extends StatelessWidget {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     final from = AgentRegistry.tryById(referral.fromAgent);
-    final fromName = from == null
-        ? referral.fromAgent
-        : (isEn
-            ? from.resolveVariant(null).displayNameEn
-            : from.resolveVariant(null).displayNameZh);
+    final fromName =
+        from == null ? referral.fromAgent : _nameOf(context, from, isEn);
     return Container(
       width: double.infinity,
       color: theme.colorScheme.tertiaryContainer,
@@ -216,4 +212,16 @@ class ReferralArrivalBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 10/19 field test: the companion's name as the participant knows it —
+/// 阿珍 or 阿伯 by the pairing on the profile, never the default.
+String _nameOf(BuildContext context, AgentDefinition agent, bool isEn) {
+  if (agent.id == AgentRegistry.ahJanAhBakId) {
+    return AgentRegistry.ahJanAhBakName(
+        AppSettingsScope.read(context).profile?.ahJanAhBakVariant,
+        isEn: isEn);
+  }
+  final v = agent.resolveVariant(null);
+  return isEn ? v.displayNameEn : v.displayNameZh;
 }
