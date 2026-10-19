@@ -329,6 +329,9 @@ class _ProfileCard extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      // 1020e 一.(11): with the keyboard up the sheet is as tall as the
+      // room left; keep it below the status bar.
+      useSafeArea: true,
       showDragHandle: true,
       builder: (sheetContext) => Padding(
         padding: EdgeInsets.only(
@@ -437,54 +440,73 @@ class _ProfileEditorState extends State<_ProfileEditor> {
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
+    // 1020e 一.(11) (bug fix, both arms): with the keyboard open at a large
+    // font the four fields did not fit and the sheet could not scroll, so
+    // the lower fields and 儲存 were pushed off (overflow).  The fields
+    // now scroll; 儲存 stays under them, above the keyboard.  When
+    // everything fits the layout is the same as before.
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(isEn ? 'Update Profile' : '更新資料', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _name,
-            decoration: InputDecoration(
-              labelText: isEn ? 'Name' : '稱呼',
-              prefixIcon: const Icon(Icons.person_outline),
+          Flexible(
+            child: SingleChildScrollView(
+              key: const Key('profile_editor_scroll'),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(isEn ? 'Update Profile' : '更新資料',
+                      style: theme.textTheme.headlineSmall),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _name,
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'Name' : '稱呼',
+                      prefixIcon: const Icon(Icons.person_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _ageCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'Age' : '年齡',
+                      hintText: isEn ? 'e.g. 72' : '例：72',
+                      prefixIcon: const Icon(Icons.cake_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _emergencyName,
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'Emergency contact name' : '緊急聯絡人',
+                      prefixIcon: const Icon(Icons.favorite_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _emergencyPhone,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: isEn ? 'Contact phone' : '聯絡電話',
+                      prefixIcon: const Icon(Icons.phone_outlined),
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 10),
+                    Text(_error!,
+                        style: TextStyle(color: theme.colorScheme.error)),
+                  ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _ageCtrl,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: isEn ? 'Age' : '年齡',
-              hintText: isEn ? 'e.g. 72' : '例：72',
-              prefixIcon: const Icon(Icons.cake_outlined),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _emergencyName,
-            decoration: InputDecoration(
-              labelText: isEn ? 'Emergency contact name' : '緊急聯絡人',
-              prefixIcon: const Icon(Icons.favorite_outline),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _emergencyPhone,
-            keyboardType: TextInputType.phone,
-            decoration: InputDecoration(
-              labelText: isEn ? 'Contact phone' : '聯絡電話',
-              prefixIcon: const Icon(Icons.phone_outlined),
-            ),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 10),
-            Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-          ],
           const SizedBox(height: 18),
           FilledButton.icon(
+            key: const Key('profile_editor_save'),
             onPressed: _busy ? null : _save,
             icon: _busy
                 ? const SizedBox(

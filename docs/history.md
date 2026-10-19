@@ -12,6 +12,7 @@
 - 共用写法 `lib/shared/widgets/keyboard_compact.dart`（`KeyboardCompact.active`、`keyboardCompactAppBar`、`KeyboardScrollToLatest`）；`companionAppBar` 改用它，所以陪伴者页面两组一起变；表格页（望一望、行动计划两组、行动跟进、回忆总结修改、回忆详情）各改一行。
 - 页面清单、量出来的数字、截图（测试渲染，不是真机）和真机步骤：`docs/dev-reports/keyboard-20261020.md`。测试 `test/keyboard_compact_header_test.dart`（加进 CI 两套 Phase B）。
 - 待 Junyu：开不开开关、缩小后标题要不要一句新话、表格页要不要也缩、决策编号（草稿 `NNNN-keyboard-compact-header.md`）。另发现「個人資料 → 修改」弹出框键盘一出就溢出（另一个问题，没改）。
+- 10/20 跟进（1020e 一.(11)）：Junyu 接受以上做法，开关真机测过再开。同一 PR 修弹出框（不放开关，两组一样）：`personalization_page.dart` 四格放进 `SingleChildScrollView`（`Flexible`），「儲存」固定在下面，`useSafeArea: true`；新测试 `test/profile_editor_keyboard_test.dart`（360×640、1.30、键盘 300：无溢出、「儲存」按得到；旧代码 5 个全失败）。修前修后截图在同一截图夹。
 
 ## 2026-10-19 1020 第 2 批（A、F (1)–(4)、(6)）：小欣页一个聊天窗口，check-in 对话化，规则组小欣聊天（分支 `claude/zealous-fermat-8rgqtg-batch2`，PR #128 草稿）
 
