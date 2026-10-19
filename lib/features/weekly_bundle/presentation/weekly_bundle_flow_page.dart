@@ -48,6 +48,7 @@ class WeeklyBundleFlowPage extends StatefulWidget {
     required this.referentFor,
     required this.noReferent,
     this.initialStatus,
+    this.preview = false,
   });
 
   final WeeklyBundle bundle;
@@ -64,6 +65,31 @@ class WeeklyBundleFlowPage extends StatefulWidget {
 
   /// Statuses already loaded by the home card (saves one round trip).
   final Map<WeeklyPart, String?>? initialStatus;
+
+  /// 10/19 — tester preview ([WeeklyBundleFlowPage.previewFor]): the same
+  /// pages in the same order, nothing saved anywhere.
+  final bool preview;
+
+  /// Tester preview of [bundle] (測試員工具 → 每週問卷測試): every part as
+  /// a participant sees it, no record written, so it can be repeated.  The
+  /// Weekly PR part is anchored to 小欣 with three sessions.
+  static WeeklyBundleFlowPage previewFor(WeeklyBundle bundle, {Key? key}) =>
+      WeeklyBundleFlowPage(
+        key: key,
+        bundle: bundle,
+        store: const PreviewWeeklyBundleStore(),
+        djgStoreFor: (_) => PreviewDjgW2Store(),
+        socialStoreFor: (_) => PreviewSocialContactStore(),
+        referentFor: (_) async => WeeklyPrAgentUsage(
+          agentId: 'siu_yan',
+          displayName: '小欣',
+          sessionCount: 3,
+          firstUseAt: DateTime.now(),
+          referentRule: 'tester_preview',
+        ),
+        noReferent: (_) async {},
+        preview: true,
+      );
 
   /// Production wiring for a signed-in participant.
   static WeeklyBundleFlowPage forUser({
@@ -152,11 +178,13 @@ class _WeeklyBundleFlowPageState extends State<WeeklyBundleFlowPage> {
           return true;
         }
         return Navigator.of(context).push<bool>(MaterialPageRoute<bool>(
-          builder: (_) => WeeklyPrPage(agent: agent, bundle: b.id, part: pos),
+          builder: (_) => WeeklyPrPage(
+              agent: agent, bundle: b.id, part: pos, preview: widget.preview),
         ));
       case WeeklyPart.pgic:
         return Navigator.of(context).push<bool>(MaterialPageRoute<bool>(
-          builder: (_) => PgicPage(bundle: b.id, part: pos),
+          builder: (_) =>
+              PgicPage(bundle: b.id, part: pos, preview: widget.preview),
         ));
       case WeeklyPart.socialContact:
         return Navigator.of(context).push<bool>(MaterialPageRoute<bool>(

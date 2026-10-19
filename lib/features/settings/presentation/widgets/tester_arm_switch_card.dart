@@ -1,6 +1,6 @@
 /// 測試員工具 → 「切換組別（只限測試員帳號）」.
 ///
-/// Shown only when the tester tools are unlocked (TesterGate PIN) AND the
+/// Shown only when the tester tools are unlocked (TesterGate) AND the
 /// signed-in account is a tester (`isTester`) — the settings page checks
 /// both before building this.  Tester / researcher text only; elders never
 /// see it.

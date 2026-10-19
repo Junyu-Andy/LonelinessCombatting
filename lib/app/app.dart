@@ -251,13 +251,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               // the cards could not hold it.  The combined factor is now
               // capped at the App's own largest size; the App setting
               // still works on its own.
+              // 10/19: five levels, same 1.30 cap (combinedTextScale).
               final base = MediaQuery.of(context);
-              final combined = base.textScaler.scale(1.0) *
-                  widget.settings.fontScale.multiplier;
               final scaled = base.copyWith(
-                textScaler: TextScaler.linear(
-                  combined.clamp(0.8, AppFontScale.xLarge.multiplier),
-                ),
+                textScaler: TextScaler.linear(combinedTextScale(
+                    base.textScaler.scale(1.0), widget.settings.fontScale)),
               );
               return MediaQuery(
                 data: scaled,

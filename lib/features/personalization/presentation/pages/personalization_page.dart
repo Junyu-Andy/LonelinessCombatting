@@ -4,6 +4,7 @@ import '../../../../app/app_settings.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../follow_up/presentation/widgets/follow_up_section.dart';
@@ -114,11 +115,56 @@ class PersonalizationPage extends StatelessWidget {
                     _ProfileCard(profile: profile),
                   const SizedBox(height: 18),
                   const FollowUpSection(),
+                  // 10/19: 登出 moved here from the 自己 tab, so it sits
+                  // behind the 個人資料 tile instead of on the main page.
+                  if (profile != null) ...[
+                    const SizedBox(height: 24),
+                    const _SignOutButton(),
+                  ],
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SignOutButton extends StatelessWidget {
+  const _SignOutButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        key: const Key('profile_sign_out'),
+        style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+        onPressed: () async {
+          final auth = AuthServiceScope.of(context);
+          final settings = AppSettingsScope.read(context);
+          final navigator = Navigator.of(context);
+          final confirmed = await showAppConfirm(
+            context: context,
+            title: isEn ? 'Sign out?' : '登出？',
+            message: isEn
+                ? 'You will need to sign in again next time, and any '
+                    'unsynced session will stay in your account.'
+                : '下次要再登入。仲未同步嘅內容會留喺你個帳號入面。',
+            confirmLabel: isEn ? 'Sign out' : '登出',
+            destructive: true,
+          );
+          if (!confirmed) return;
+          // Back to the first screen first: the sign-in page replaces the
+          // App there, and this page must not stay on top of it.
+          navigator.popUntil((r) => r.isFirst);
+          await auth.signOut();
+          settings.profile = null;
+        },
+        icon: const Icon(Icons.logout_rounded, size: 22),
+        label: Text(isEn ? 'Sign out' : '登出'),
       ),
     );
   }
