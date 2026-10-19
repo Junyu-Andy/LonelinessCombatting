@@ -123,6 +123,15 @@
 ///                               SY / SN reply pool, no LLM).  Off: the
 ///                               Hybrid chat page and the rule arm's form,
 ///                               exactly as before.
+///   - [keyboardCompactHeaderEnabled] — 1020c item 二 (Junyu): while the
+///                               keyboard is open, the top bar of a page
+///                               the elder types on shrinks to one line
+///                               (48 px; the S9 / back button stays) and a
+///                               chat list goes back to the newest message;
+///                               the full bar returns when the keyboard
+///                               closes (lib/shared/widgets/
+///                               keyboard_compact.dart).  Both arms the
+///                               same.  Off: nothing changes.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -156,6 +165,7 @@ class RemoteFeatureFlags {
     this.testerToolsEnabled = false,
     this.transcriptRetentionToggleEnabled = false,
     this.checkInChatV2Enabled = false,
+    this.keyboardCompactHeaderEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -180,6 +190,7 @@ class RemoteFeatureFlags {
   final bool testerToolsEnabled;
   final bool transcriptRetentionToggleEnabled;
   final bool checkInChatV2Enabled;
+  final bool keyboardCompactHeaderEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -239,6 +250,8 @@ class RemoteFeatureFlags {
         transcriptRetentionToggleEnabled:
             map['transcriptRetentionToggleEnabled'] == true,
         checkInChatV2Enabled: map['checkInChatV2Enabled'] == true,
+        keyboardCompactHeaderEnabled:
+            map['keyboardCompactHeaderEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

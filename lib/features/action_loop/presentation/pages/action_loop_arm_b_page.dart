@@ -4,6 +4,7 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/reminders/reminder_service.dart';
 import '../../../../core/safety/safety_check.dart';
 import '../../../../core/voice/voice_input_button.dart';
+import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -153,7 +154,9 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
           ];
 
     return Scaffold(
-      appBar: AppBar(
+      // 1020c 二: one-line bar while the keyboard is open (switch
+      // keyboardCompactHeaderEnabled; off = the same AppBar as before).
+      appBar: keyboardCompactAppBar(context,
           title: Text(isEn ? 'Plan a small step' : '計劃一個小行動')),
       body: SafeArea(
         child: ListView(

@@ -10,6 +10,7 @@ import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/safety/distress_detector.dart';
 import '../../../../core/voice/voice_input_button.dart';
+import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/action_plan.dart';
@@ -146,7 +147,10 @@ counts. Do not suggest other modules or new plans.
     final p = widget.plan;
 
     return Scaffold(
-      appBar: AppBar(title: Text(isEn ? 'How did it go?' : '件事點呀？')),
+      // 1020c 二: one-line bar while the keyboard is open (switch
+      // keyboardCompactHeaderEnabled; off = the same AppBar as before).
+      appBar: keyboardCompactAppBar(context,
+          title: Text(isEn ? 'How did it go?' : '件事點呀？')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),

@@ -26,6 +26,7 @@ import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
+import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/data/user_profile.dart';
@@ -1095,7 +1096,11 @@ class _CheckInArmAState extends State<CheckInArmA> {
           child: Column(
             children: [
               Expanded(
-                child: ListView(
+                // 1020c 二: back to the newest message when the keyboard
+                // opens (switch keyboardCompactHeaderEnabled).
+                child: KeyboardScrollToLatest(
+                  keyboardOpen: KeyboardCompact.active(context),
+                  child: ListView(
                   // 10/15: newest message at the bottom edge; the list follows the
                   // keyboard up instead of leaving the last turn under the composer.
                   reverse: true,
@@ -1143,6 +1148,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
                             setState(() => _pendingReferral = null),
                       ),
                   ].reversed.toList(),
+                ),
                 ),
               ),
               if (_pendingOffline != null)

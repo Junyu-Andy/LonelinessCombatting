@@ -42,6 +42,7 @@ import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
+import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
@@ -819,10 +820,16 @@ class _TungTungPageState extends State<TungTungPage> {
         body: SafeArea(
           child: Column(
             children: [
-              if (widget.articleTitle != null)
+              // 1020c 二: the article line goes with the one-line top bar
+              // while the keyboard is open (switch keyboardCompactHeaderEnabled).
+              if (widget.articleTitle != null &&
+                  !KeyboardCompact.active(context))
                 _ArticleContextBanner(title: widget.articleTitle!),
               Expanded(
-                child: ListView(
+                // 1020c 二: back to the newest message when the keyboard opens.
+                child: KeyboardScrollToLatest(
+                  keyboardOpen: KeyboardCompact.active(context),
+                  child: ListView(
                   // 10/15: newest message at the bottom edge; the list follows the
                   // keyboard up instead of leaving the last turn under the composer.
                   reverse: true,
@@ -879,6 +886,7 @@ class _TungTungPageState extends State<TungTungPage> {
                       _SearchUnavailableHint(
                           reason: _searches.last.reason),
                   ].reversed.toList(),
+                ),
                 ),
               ),
               if (_pendingOffline != null)
