@@ -311,6 +311,15 @@ class UserProfile {
   /// T37 — see `ConsentGate.needsAgentOnboarding`.
   final DateTime? onboardingCompletedAt;
 
+  /// 1020e §2.14 — when the researcher unlocked the explanation gate in
+  /// front of the intake questions (three taps in the centre of the
+  /// waiting page).  Written only as the server time, once, by
+  /// `IntakeGateUnlockStore` (firestore.rules refuse any other value and
+  /// any later change), so it is never in [toMap]: a profile save can
+  /// neither erase it nor overwrite it with a phone time.  [copyWith] sets
+  /// it in memory so the gate moves on at once.
+  final DateTime? intakeGateUnlockedAt;
+
   const UserProfile({
     required this.uid,
     required this.email,
@@ -346,6 +355,7 @@ class UserProfile {
     this.isTester = false,
     this.baselineUclaScore,
     this.onboardingCompletedAt,
+    this.intakeGateUnlockedAt,
   });
 
   /// B.10 — true when the activation timestamp is for the current local day.
@@ -400,6 +410,7 @@ class UserProfile {
     bool? isTester,
     int? baselineUclaScore,
     DateTime? onboardingCompletedAt,
+    DateTime? intakeGateUnlockedAt,
   }) {
     return UserProfile(
       uid: uid,
@@ -440,6 +451,7 @@ class UserProfile {
       baselineUclaScore: baselineUclaScore ?? this.baselineUclaScore,
       onboardingCompletedAt:
           onboardingCompletedAt ?? this.onboardingCompletedAt,
+      intakeGateUnlockedAt: intakeGateUnlockedAt ?? this.intakeGateUnlockedAt,
     );
   }
 
@@ -493,6 +505,8 @@ class UserProfile {
         // T37: omitted while null so a stale profile write can't erase it.
         if (onboardingCompletedAt != null)
           'onboardingCompletedAt': onboardingCompletedAt!.toIso8601String(),
+        // 1020e §2.14: `intakeGateUnlockedAt` is never written from here —
+        // see the field.
       };
 
   factory UserProfile.fromMap(String uid, Map<String, dynamic> map) {
@@ -581,6 +595,7 @@ class UserProfile {
       isTester: (map['isTester'] as bool?) ?? false,
       baselineUclaScore: (map['baselineUclaScore'] as num?)?.toInt(),
       onboardingCompletedAt: parseDate(map['onboardingCompletedAt']),
+      intakeGateUnlockedAt: parseDate(map['intakeGateUnlockedAt']),
     );
   }
 }

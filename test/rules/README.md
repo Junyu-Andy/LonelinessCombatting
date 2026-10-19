@@ -44,3 +44,10 @@ owner-only.
 with synthetic data: the owner saves a draft per screen and submits once;
 afterwards the doc is frozen; no client deletes; uid / timepoint / status
 must match; other participants can't read or write.
+
+`intake_gate_rules.test.js` — 1020e §2.14 `users/{uid}.intakeGateUnlockedAt`
+(the researcher unlocked the explanation gate before the intake): the owner
+writes it once, as the server time only (both arms, enrolment gate on or
+off); a phone time, null, a second write, a change or a removal → denied;
+ordinary profile saves that leave it out still pass; no assignment field or
+`isTester` rides along.

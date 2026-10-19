@@ -7,6 +7,8 @@
 #   2. PHASE_B=true           — arm gating / parity tests; the safety
 #                               classifier (T26: same in every build)
 #   3. PHASE_B + FORCE_ARM=B  — Arm B pages (rule-based Tung Tung)
+#      (1020e §2.14: the researcher intake gate runs in 1, 2 and 3 — the
+#      same page and flow for both arms)
 #   4. MEMORY_V1=true         — memory v1 client tests (memory branch)
 #   5. RULE_TEMPLATE_REPLIES=true — final templates on (T33: no placeholder
 #      left, so the switch alone turns them on)
@@ -41,11 +43,13 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/tester_arm_switch_test.dart test/tester_weekly_bundle_page_test.dart \
   test/reminiscence_avoid_topics_test.dart \
   test/memory_handover_pages_test.dart \
+  test/researcher_intake_gate_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
   test/tung_tung_arm_b_test.dart test/my_story_arm_test.dart \
   test/memory_handover_pages_test.dart \
+  test/researcher_intake_gate_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \
   --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart

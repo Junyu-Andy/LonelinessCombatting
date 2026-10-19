@@ -113,8 +113,16 @@
 ///                               「保留對話紀錄」 switch in 自己 (decision
 ///                               0020).  Off (default) = the row is hidden;
 ///                               the stored consent value is untouched.
+///   - [researcherIntakeGateEnabled] — 1020e §2.14: after sign-up the elder
+///                               stops on a waiting page before the intake
+///                               questions; the researcher taps the centre
+///                               of the screen three times within 2 s to go
+///                               on (`ResearcherIntakeGate`).  Both arms
+///                               identical.  Off = the flow is as before.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
+/// [lastKnown] is for a gate that must not decide on a failed read (1020e
+/// §2.14): it is null while no read has reached the document.
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -145,6 +153,7 @@ class RemoteFeatureFlags {
     this.briefPrHomeBannerEnabled = false,
     this.testerToolsEnabled = false,
     this.transcriptRetentionToggleEnabled = false,
+    this.researcherIntakeGateEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -168,28 +177,64 @@ class RemoteFeatureFlags {
   final bool briefPrHomeBannerEnabled;
   final bool testerToolsEnabled;
   final bool transcriptRetentionToggleEnabled;
+  final bool researcherIntakeGateEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
+
+  /// The flags from the last read that reached the document (server or
+  /// the phone's cache); null until one has.
+  static RemoteFeatureFlags? _lastRead;
+
+  /// Whether [load] has tried Firestore at least once in this process.
+  static bool _attempted = false;
+
+  /// Bumped after every read that reached the document, so a gate can
+  /// rebuild when a re-read (e.g. `ResearcherIntakeGate`'s retry) lands.
+  static final ValueNotifier<int> reads = ValueNotifier<int>(0);
 
   /// The active flags (all off until [load] reads the document).
   static RemoteFeatureFlags get current => _current;
 
-  /// Test / tooling hook.
+  /// 1020e §2.14: the flags as last actually read, or null when every
+  /// read in this process failed.  Unlike [current] a failed re-read does
+  /// not turn this back to "all off".  Without Firebase (guest mode,
+  /// tests) nothing is read and this is [current].
+  static RemoteFeatureFlags? get lastKnown =>
+      _lastRead ?? (_attempted ? null : _current);
+
+  /// Test / tooling hook.  Counts as a successful read.
   @visibleForTesting
-  static set current(RemoteFeatureFlags value) => _current = value;
+  static set current(RemoteFeatureFlags value) {
+    _current = value;
+    _lastRead = value;
+  }
+
+  /// Test hook: back to "nothing read yet" ([attempted] true = every read
+  /// failed so far).
+  @visibleForTesting
+  static void resetForTest({bool attempted = false}) {
+    _current = const RemoteFeatureFlags();
+    _lastRead = null;
+    _attempted = attempted;
+  }
 
   /// Firestore document holding the flags.  Read-only for clients.
   static const String remotePath = 'app_config/feature_flags';
 
   /// Read the flags.  Never throws; on any failure every flag is off.
-  static Future<RemoteFeatureFlags> load({bool available = true}) async {
+  /// [timeout] defaults to the startup value (3 s); a retry may wait longer.
+  static Future<RemoteFeatureFlags> load({
+    bool available = true,
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
     if (!available) return _current = const RemoteFeatureFlags();
+    _attempted = true;
     try {
-      final snap = await FirebaseFirestore.instance
-          .doc(remotePath)
-          .get()
-          .timeout(const Duration(seconds: 3));
+      final snap =
+          await FirebaseFirestore.instance.doc(remotePath).get().timeout(timeout);
       _current = fromMap(snap.data() ?? const {});
+      _lastRead = _current;
+      reads.value++;
     } catch (e) {
       if (kDebugMode) debugPrint('[RemoteFeatureFlags] load failed: $e');
       _current = const RemoteFeatureFlags();
@@ -226,6 +271,8 @@ class RemoteFeatureFlags {
         testerToolsEnabled: map['testerToolsEnabled'] == true,
         transcriptRetentionToggleEnabled:
             map['transcriptRetentionToggleEnabled'] == true,
+        researcherIntakeGateEnabled:
+            map['researcherIntakeGateEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply
