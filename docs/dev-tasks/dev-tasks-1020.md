@@ -142,8 +142,8 @@
 | `enrollmentGateEnabled` | true |
 | `homeMoodOpensCheckInEnabled`（#126，开发窗口按 1020b 第二节补） | false |
 | `briefPrHomeBannerEnabled`（#126，同上） | false |
-| `appFontScaleOnlyEnabled`（#126，同上；Junyu 10/21 第一位 RCT- 登记前定） | false |
-| `suggestionsUseProfileEnabled`（#126，同上；同上） | false |
+| `appFontScaleOnlyEnabled`（#126，同上；1020c 定开：10/20 手机测试过后、第一位 RCT- 登记前） | true |
+| `suggestionsUseProfileEnabled`（#126，同上；同上） | true |
 | 其余 | 照 10/15 第 8 条的正式状态 |
 
 ## 4. 验收清单（按批次记录；第 10 项在四批都过后做）

@@ -1007,7 +1007,10 @@ async function injectMemory(db,
     const userTurns = messages.filter((m) => m.role === "user").length;
     // Follow-ups go in on the first user turn of a real chat only: a
     // pre-generated greeting may never be seen, so it must not use one up.
-    const sessionStart = userTurns <= 1 && !moduleId.startsWith("greeting_");
+    // 1020c: nor may 今日嘅小邀請 (m6_suggestions) — it is not a chat, and
+    // marking the follow-up asked there would stop 小欣 asking it.
+    const sessionStart = userTurns <= 1 &&
+      !moduleId.startsWith("greeting_") && moduleId !== "m6_suggestions";
     const mem = await loadMemory(db, uid);
     const sel = selectForInjection(mem, {
       agentId, policy: active.policy, todayKey, sessionStart,

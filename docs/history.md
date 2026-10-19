@@ -15,6 +15,13 @@
 - 文字草稿 `functions/push_copy.js` ＝ `docs/spec/copy/push-and-email-1020.md`（`push_copy_test.js` 逐字比对）。`sendTestPush` 开关开时「每日心情提醒」发 P1、「每週問卷提醒」发 W1，供手机测试。
 - 测试：`pushes_email_1020_emulator_test.js` 11 项（模拟时钟）；整套后端测试通过。决策草稿 `NNNN-daily-and-weekly-pushes-1020.md`。
 - 发现：第 1–3 周 W2／W3 文字比实际窗口早一天；W4 面访日期只能事后录入、App 读不到，面访延后其实延不了。都列给 Junyu 定。
+## 2026-10-20 dev-tasks-1020c 第一节：#126 两个开关定开，开之前修两处
+
+- Junyu 定开 `appFontScaleOnlyEnabled`、`suggestionsUseProfileEnabled`（10/20 手机测试过后、10/21 第一位 RCT- 登记前）。开关表、`tool/check_prelaunch_values.js` 改为期望 true。
+- 查代码时发现：建议页带小欣的 agentId 请求记忆，服务器把它当一次新聊天，会放进到期「跟进」并标成已问，小欣之后就不会问。改为 `m6_suggestions` 和问候一样不放跟进（`memory.js`），加 emulator 测试（先确认改前失败）。
+- 字号开关一开只看 App 字号，手机字号大的人会从 1.30 变回 1.06。改为开关打开后第一次按当时大小取不比它小的一档，只做一次（`app_settings.dart`、`app.dart`），加单元测试。
+- 新测试 `test/suggestions_use_profile_test.dart`：Hybrid 开关开时传哪些字段；规则组开或关一字不差、零 LLM 调用。
+- 报告第十节重写：逐项列出传给 DeepSeek 的内容和是否本来就在记忆里；「想重新聯絡嘅人」记忆和建议页都不看「可以讲」，待 Junyu 定；登记表两行草稿。
 
 ## 2026-10-19 dev-tasks-1020b：C 定案做完（RCT- 标 rct、一份 cohort 清单、序列 v2）、给 Qingyang 的上传步骤、#126 开关、语音次数（#127）
 
