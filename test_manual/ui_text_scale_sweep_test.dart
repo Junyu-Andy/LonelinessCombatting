@@ -536,6 +536,24 @@ final _flows = <String, _Flow>{
     await c.shot('reminiscence_chat');
     await _back(c);
   },
+  '首次介紹卡（揀咗阿伯）': (c) async {
+    // 10/19 field test: the card named 阿珍 for an 阿伯 user and, at a
+    // large font, grew past the screen.  Hybrid pages only.
+    if (_armB) return;
+    final p = _profile();
+    await _pushPage(c, const ReflectiveDialoguePage(),
+        profile: p.copyWith(
+          ahJanAhBakVariant: AgentGenderVariant.masculine,
+          firstIntroSeen: {'siu_yan': DateTime(2026, 10, 1)},
+        ));
+    expect(find.text('阿伯'), findsWidgets, reason: 'the card names 阿伯');
+    expect(find.textContaining('阿珍'), findsNothing,
+        reason: 'no 阿珍 anywhere on the card');
+    await c.shot('first_intro_ah_bak');
+    await _tap(c, find.byKey(const Key('first_intro_start')));
+    expect(find.byKey(const Key('first_intro_start')), findsNothing);
+    await _back(c);
+  },
   '阿珍／阿伯自由对话页': (c) async {
     await _pushPage(c, const ReflectiveDialoguePage());
     await _dismissIntro(c);

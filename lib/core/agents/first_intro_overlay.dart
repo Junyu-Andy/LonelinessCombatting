@@ -59,11 +59,22 @@ class _FirstIntroOverlayState extends State<FirstIntroOverlay> {
       localeCode: localeCode,
     );
 
+    // 10/19 field test: a participant who chose 阿伯 saw 阿珍's name and
+    // face here.  The chosen pairing drives the name, the avatar and the
+    // 「阿珍／阿伯」 in the intro line.
+    final variant = profile.ahJanAhBakVariant;
+    final text = agent.id == AgentRegistry.ahJanAhBakId && variant != null
+        ? introText
+            .replaceAll('阿珍／阿伯',
+                AgentRegistry.ahJanAhBakName(variant))
+            .replaceAll('Ah Jan / Ah Bak',
+                AgentRegistry.ahJanAhBakName(variant, isEn: true))
+        : introText;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogCtx) {
-        return _IntroDialog(agent: agent, text: introText);
+        return _IntroDialog(agent: agent, text: text, variant: variant);
       },
     );
 
@@ -80,63 +91,78 @@ class _FirstIntroOverlayState extends State<FirstIntroOverlay> {
 class _IntroDialog extends StatelessWidget {
   final AgentDefinition agent;
   final String text;
-  const _IntroDialog({required this.agent, required this.text});
+  final AgentGenderVariant? variant;
+  const _IntroDialog(
+      {required this.agent, required this.text, required this.variant});
 
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
-    final variant = agent.resolveVariant(null);
+    final shown = agent.resolveVariant(variant);
+    // 10/19 field test: at a large font the card grew past the screen and
+    // 好，開始 landed off the bottom.  The card is capped at 80% of the
+    // screen; the intro text scrolls inside it, the button stays put.
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.8;
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AgentAvatar(agent: agent, size: 84),
-            const SizedBox(height: 12),
-            Text(
-              isEn ? variant.displayNameEn : variant.displayNameZh,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                color: agent.accentColor,
-                fontWeight: FontWeight.w800,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AgentAvatar(agent: agent, selectedVariant: variant, size: 84),
+              const SizedBox(height: 12),
+              Text(
+                isEn ? shown.displayNameEn : shown.displayNameZh,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: agent.accentColor,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              isEn ? agent.tileSubtitleEn : agent.tileSubtitleZh,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              const SizedBox(height: 4),
+              Text(
+                isEn ? agent.tileSubtitleEn : agent.tileSubtitleZh,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: agent.accentColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                text,
-                style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-              ),
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Text(
-                    isEn ? 'OK, let\'s begin' : '好，開始',
-                    style: const TextStyle(fontSize: 17),
+              const SizedBox(height: 16),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: agent.accentColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: SingleChildScrollView(
+                    child: Text(
+                      text,
+                      style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  key: const Key('first_intro_start'),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      isEn ? 'OK, let\'s begin' : '好，開始',
+                      style: const TextStyle(fontSize: 17),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
