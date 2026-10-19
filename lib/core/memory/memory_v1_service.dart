@@ -41,6 +41,11 @@ class MemoryItem {
   final bool sensitive;
   final DateTime? createdAt;
 
+  /// A fact's server category (name / family / living / routine / hobby /
+  /// event / health / preference / feeling / story / grief); null for the
+  /// other layers.  10/19: the page groups facts by it.
+  final String? category;
+
   const MemoryItem({
     required this.id,
     required this.layer,
@@ -50,6 +55,7 @@ class MemoryItem {
     this.pendingConfirmation = false,
     this.sensitive = false,
     this.createdAt,
+    this.category,
   });
 
   static DateTime? _ts(Object? v) => v is Timestamp ? v.toDate() : null;
@@ -68,6 +74,7 @@ class MemoryItem {
           pendingConfirmation: data['status'] == 'pending_confirmation',
           sensitive: sensitive,
           createdAt: _ts(data['created_at']),
+          category: data['category'] as String?,
         );
       case MemoryLayer.followup:
         return MemoryItem(

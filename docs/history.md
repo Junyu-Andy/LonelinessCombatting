@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-19 W0 现场第三批（Junyu 定）：只认 App 字號、Brief PR 卡上首页、记忆页分组、资料卡和热线卡缩小（PR 草稿，分支 `feat/1019-ui-round3`，接 #122）
+
+- 两个开关默认关：`appFontScaleOnlyEnabled`（`app.dart` 只用 `settings.fontScale`，不乘系统 textScaler）、`briefPrHomeBannerEnabled`（`today_page.dart` 问候语下面放同一个 `BriefPrCardHost`，调度规则不变）。
+- 记忆页：`MemoryItem` 多 `category`（事实的服务器类目）；页面按类目和日期用 `ExpansionTile` 分组，页顶汇总一句。类目中文名照 `functions/memory.js` 的注释，记 S20 待产品窗口核。
+- 资料卡 `_ProfileCard`：名字 headlineSmall、电邮 bodySmall、緊急聯絡 `ExpansionTile`。`safety_footer_card.dart` 只缩字号、图标和留白，文字号码不动。
+- UI 扫描加「我記得嘅嘢（分組）」流程（假的 `MemoryV1Service` 喂合成条目）。
+
 ## 2026-10-19 W0 现场三件（Junyu 定）：首页表情直进签到页、建议页用入组资料、语音模型可切 chirp_3（PR 草稿，分支 `feat/1019-home-mood-suggestions-chirp3`，接 `fix/1019-field-issues`）
 
 - 两个新开关都默认关：`homeMoodOpensCheckInEnabled`（首页第一次按表情直接进签到页，两组；规则组表格页新增 `initialMoodValue`，同一张脸不重复写 daily_mood）、`suggestionsUseProfileEnabled`（Hybrid 建议页把重要嘅人、想重新聯絡嘅人、兴趣、唔想提起给模型，并带 `agentId` 让服务器注入小欣记忆；`functions/memory.js` 的 `INJECT_MODULES` 加 `m6_suggestions`，没带 agentId 时服务器不注入，所以开关关着行为不变）。
