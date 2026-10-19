@@ -1332,7 +1332,7 @@ class _Composer extends StatelessWidget {
                           ? (isEn
                               ? 'What should I look up?'
                               : '想查咩？')
-                          : (isEn ? 'Type or speak…' : '寫或者講都得…'),
+                          : (isEn ? 'Type what you want to say.' : '寫低你想講嘅嘢。'),
                     ),
                   ),
                 ),

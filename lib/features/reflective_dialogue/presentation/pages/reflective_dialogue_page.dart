@@ -854,7 +854,7 @@ class _Composer extends StatelessWidget {
                 maxLines: 5,
                 style: const TextStyle(fontSize: 17),
                 decoration: InputDecoration(
-                  hintText: isEn ? 'Type or speak…' : '寫或者講都得…',
+                  hintText: isEn ? 'Type what you want to say.' : '寫低你想講嘅嘢。',
                 ),
               ),
             ),

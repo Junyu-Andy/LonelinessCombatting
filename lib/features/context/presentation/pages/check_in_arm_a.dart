@@ -317,8 +317,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
     final mood = _resolvedMoodValue;
     if (mood == null) {
       return isEn
-          ? 'Hi — how are you today? Write a few words or speak whenever you\'re ready.'
-          : '你好啊。你今日點？寫幾句、或者用咪都得。';
+          ? 'Hi — how are you today? A few words are enough.'
+          : '你好啊。你今日點？寫幾句都得。';
     }
     if (_resolvedMoodIsToday) {
       if (isEn) {
@@ -1258,7 +1258,7 @@ class _Composer extends StatelessWidget {
                 maxLines: 4,
                 style: const TextStyle(fontSize: 17),
                 decoration: InputDecoration(
-                  hintText: isEn ? 'Type or speak…' : '寫或者講都得…',
+                  hintText: isEn ? 'Type what you want to say.' : '寫低你想講嘅嘢。',
                 ),
               ),
             ),

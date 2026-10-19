@@ -12,6 +12,8 @@
 - 回忆页两组的输入框提示改为「記得幾多寫幾多。」，英文提示同步去掉讲话的半句。
 - App 端 8 处中文提示词「AI 機械人」改为「電腦程式夥伴」，每处加一条「唔好用「AI」「模型」「機械人」呢啲字」，和 #118 的服务器提示词、#126 的建议页新版一致。
 - 回忆 v2（第二节起）另由两个分支做（App、服务器），合在一个 PR。
+- 1020e：#134 加两处语音字样（旧小欣签到开场「寫幾句都得。」；旧小欣签到、通通、反思对话输入框「寫低你想講嘅嘢。」）。
+- 1020e 一.(9)「决策编号由开发编」：main 上 8 份 NNNN 草稿编为 0043–0050（文件名只把 NNNN 换成号码，英文名不变，旧文档里的 `NNNN-<名字>` 仍按名字找得到）：0043 clear-raw-output-on-delete、0044 companion-prompts-v2-tone-slot、0045 five-font-levels、0046 hide-transcript-retention-switch、0047 home-mood-entry-and-suggestions-profile、0048 home-safety-card-simplified、0049 tester-arm-self-switch、0050 tester-tools-unlock-without-pin。各 PR 里的草稿从 0051 起，合并前改名。
 
 ## 2026-10-19 W0 现场第三批（Junyu 定）：只认 App 字號、Brief PR 卡上首页、记忆页分组、资料卡和热线卡缩小（PR 草稿，分支 `feat/1019-ui-round3`，接 #122）
 
