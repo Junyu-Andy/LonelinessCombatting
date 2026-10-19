@@ -25,9 +25,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// }
 /// ```
 class MoodRecorder {
-  final FirebaseFirestore _db;
-  MoodRecorder({FirebaseFirestore? db})
-      : _db = db ?? FirebaseFirestore.instance;
+  final FirebaseFirestore? _dbOverride;
+
+  /// [db] is for tests; Firestore is otherwise resolved on first use, so a
+  /// subclass that overrides the reads can be built without Firebase.
+  MoodRecorder({FirebaseFirestore? db}) : _dbOverride = db;
+
+  FirebaseFirestore get _db => _dbOverride ?? FirebaseFirestore.instance;
 
   static String dateIsoFor(DateTime t) {
     final y = t.year.toString().padLeft(4, '0');

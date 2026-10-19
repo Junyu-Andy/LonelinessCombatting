@@ -60,7 +60,11 @@ class CheckInArmA extends StatefulWidget {
     super.key,
     this.initialMoodValue,
     this.previousMoodValue,
+    this.moodRecorder,
   });
+
+  /// Tests only: a [MoodRecorder] that answers without Firestore.
+  final MoodRecorder? moodRecorder;
 
   @override
   State<CheckInArmA> createState() => _CheckInArmAState();
@@ -103,6 +107,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// gate) when it isn't already known, then opens the conversation; the
   /// end-of-session sheet no longer re-asks.  A mood already logged today
   /// (home pad / earlier) skips the gate entirely.
+  MoodRecorder get _moodRecorder => widget.moodRecorder ?? MoodRecorder();
+
   bool _resolvingMood = true; // true until we know if today's mood exists
   bool _moodGateResolved = false;
   MoodFace? _gateFace; // selection inside the mood gate
@@ -232,7 +238,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
     int? moodValue;
     bool fromToday = true;
     if (profile != null) {
-      final recorder = MoodRecorder();
+      final recorder = _moodRecorder;
       final today = await recorder.latestForDate(
         uid: profile.uid,
         dateIso: MoodRecorder.dateIsoFor(DateTime.now()),
@@ -286,7 +292,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
       // conversation is abandoned right after.
       unawaited(() async {
         try {
-          await MoodRecorder().record(
+          await _moodRecorder.record(
             uid: profile.uid,
             mood: v,
             arm: 'A',
@@ -879,7 +885,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
       _moodValueAlreadyInDailyMood = moodToRecord;
       unawaited(() async {
         try {
-          await MoodRecorder().record(
+          await _moodRecorder.record(
             uid: profile.uid,
             mood: moodToRecord,
             arm: 'A',
@@ -1010,7 +1016,11 @@ class _CheckInArmAState extends State<CheckInArmA> {
       appBar: AppBar(
           title: const CompanionTitle(agentId: AgentRegistry.siuYanId)),
       body: SafeArea(
-        child: Padding(
+        // 10/19 field test: this was a fixed Column with a Spacer, so on a
+        // short screen × large font the faces' labels pushed 開始傾偈 off
+        // the bottom (overflow stripes, no button).  Scrolls now; the
+        // button sits right under the faces.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1026,10 +1036,11 @@ class _CheckInArmAState extends State<CheckInArmA> {
                 value: _gateFace,
                 onChanged: (v) => setState(() => _gateFace = v),
               ),
-              const Spacer(),
+              const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
+                  key: const Key('check_in_mood_gate_start'),
                   onPressed: _gateFace == null ? null : _onGatePicked,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),

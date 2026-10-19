@@ -56,6 +56,7 @@ import 'package:app_demo/features/brief_pr/data/brief_pr_store.dart';
 import 'package:app_demo/features/brief_pr/data/brief_pr_v2.dart';
 import 'package:app_demo/features/brief_pr/presentation/widgets/session_close_hint.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_arm_a.dart';
+import 'package:app_demo/features/context/presentation/pages/check_in_shared.dart';
 import 'package:app_demo/features/curious_companion/presentation/pages/tung_tung_page.dart';
 import 'package:app_demo/features/education/data/education_library.dart';
 import 'package:app_demo/features/education/presentation/pages/education_article_page.dart';
@@ -72,6 +73,7 @@ import 'package:app_demo/features/settings/data/tester_arm_switch.dart';
 import 'package:app_demo/features/settings/presentation/pages/faq_page.dart';
 import 'package:app_demo/features/settings/presentation/pages/settings_page.dart';
 import 'package:app_demo/features/settings/presentation/widgets/tester_arm_switch_card.dart';
+import 'package:app_demo/features/today/data/mood_recorder.dart';
 import 'package:app_demo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -122,6 +124,17 @@ class _MemRepo extends IntakeRepository {
   Future<void> savePeople(String uid,
       {required List<PersonEntry> important,
       required List<PersonEntry> reconnect}) async {}
+}
+
+/// No mood today and none before: the check-in page shows its mood gate.
+class _NoMoodYet extends MoodRecorder {
+  @override
+  Future<MoodEntry?> latestForDate(
+          {required String uid, required String dateIso}) async =>
+      null;
+
+  @override
+  Future<MoodEntry?> mostRecent({required String uid}) async => null;
 }
 
 class _TesterBackend implements TesterArmBackend {
@@ -379,6 +392,20 @@ final _flows = <String, _Flow>{
     await _send(c, '我今日飲咗早茶');
     await c.shot('tung_chat');
     if (!_armB) _expectWideBubble(c, _reply);
+  },
+  '小欣签到页（先揀心情嗰屏）': (c) async {
+    // 10/19 field test: the mood gate overflowed on a short screen × large
+    // font and 開始傾偈 was off the bottom.  Pick a face, start, back.
+    await _pushPage(c, CheckInArmA(moodRecorder: _NoMoodYet()));
+    await c.shot('checkin_gate');
+    await _tap(c, find.descendant(
+        of: find.byType(MoodFacePicker), matching: find.byType(InkWell)));
+    await _scrollTap(c, find.byKey(const Key('check_in_mood_gate_start')));
+    await _dismissIntro(c);
+    await c.shot('checkin_after_gate');
+    expect(find.byType(TextField), findsWidgets,
+        reason: 'the chat opened after the gate');
+    await _back(c);
   },
   '小欣签到页': (c) async {
     await _pushPage(c, const CheckInArmA(initialMoodValue: 4));

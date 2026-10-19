@@ -121,6 +121,23 @@ function categoriseError(err) {
   return CATEGORIES.serverError;
 }
 
+// 10/19 field test: chirp_2 returns Cantonese word-segmented with spaces
+// (「我 今日 去 咗 飲茶」).  Drop whitespace that sits between two CJK
+// characters or CJK punctuation; a space next to Latin letters or digits
+// (「我 book 咗 3 點」) stays.
+const CJK = "\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff" +
+  "\uff00-\uffef";
+const CJK_GAP = new RegExp(`(?<=[${CJK}])\\s+(?=[${CJK}])`, "g");
+
+/**
+ * Remove the spaces Google puts between Chinese words.
+ * @param {string} s transcript
+ * @return {string}
+ */
+function tidyCantonese(s) {
+  return s.replace(CJK_GAP, "");
+}
+
 /**
  * Join the alternatives Google returned into one transcript.
  * @param {object} resp RecognizeResponse
@@ -128,11 +145,11 @@ function categoriseError(err) {
  */
 function readResponse(resp) {
   const results = (resp && resp.results) || [];
-  const transcript = results
+  const transcript = tidyCantonese(results
       .map((r) => (r.alternatives && r.alternatives[0] &&
         r.alternatives[0].transcript) || "")
       .join("")
-      .trim();
+      .trim());
   const first = results[0] && results[0].alternatives &&
     results[0].alternatives[0];
   const confidence = first && typeof first.confidence === "number" ?
@@ -223,6 +240,7 @@ module.exports = {
   buildRecognizeRequest,
   categoriseError,
   readResponse,
+  tidyCantonese,
   transcribeWithRetry,
   googleRecognize,
   sizeProblem,
