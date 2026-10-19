@@ -256,6 +256,8 @@ const SAFETY_FIELDS = [
   // T34: questionnaire rows name the instrument and item (never the other
   // answers); participant-input rows leave these empty.
   "instrument", "item", "crisisPageShown",
+  // 1020e 二.9: the 「誤觸」 mark (no text, no arm, not who marked).
+  "falseAlarm", "markedAt",
 ];
 
 // Held back until unblinding.  Listed so the manifest says so explicitly.

@@ -34,9 +34,23 @@
 /// response2_id    R4a | R4b (rule arm; Hybrid 唔講住 also R4b) | llm |
 ///                 llm_fallback | none_safety
 /// stopped_by_safety  true when an acute hit ended the check-in early
+/// stopped_at      the question it stopped at (Q3b / Q4), else null
+/// resumed_from    on a check-in resumed after a 誤觸 mark: the id of the
+///                 stopped row it continues (that row is left as it was)
 /// completed       true once Q5 is answered
 /// created_at / updated_at / completed_at   server timestamps
+///
+/// 1020e 二.9 — server-only (markSafetyFalseAlarm; firestore.rules lets no
+/// client write them), on the stopped row:
+/// falseAlarm      true once the researcher marked the alert 誤觸
+/// markedBy        the researcher's uid
+/// markedAt        server time of the mark
 /// ```
+///
+/// A stopped row with `falseAlarm: true` and `completed` not true is
+/// resumed on the elder's next visit the same day ([SiuYanChatPage]): a
+/// new row (`resumed_from`) carries the earlier answers and asks the
+/// stopped question again.  The next day nothing is resumed.
 ///
 /// The Q3b / Q4 words are stored here only.  In the rule arm they never
 /// go to the model; like every other input they pass the shared safety
@@ -59,6 +73,13 @@ abstract class CheckInResponseStore {
     required String id,
     required Map<String, dynamic> data,
     required bool first,
+  });
+
+  /// 1020e 二.9 — the rows of one day (`date_iso`), id → data; empty when
+  /// unavailable.
+  Future<Map<String, Map<String, dynamic>>> rowsForDay({
+    required String uid,
+    required String dateIso,
   });
 }
 
@@ -103,6 +124,27 @@ class FirestoreCheckInResponseStore implements CheckInResponseStore {
       // answers' codes.
     }
   }
+
+  @override
+  Future<Map<String, Map<String, dynamic>>> rowsForDay({
+    required String uid,
+    required String dateIso,
+  }) async {
+    if (!available) return const {};
+    try {
+      // Single-field query: no composite index needed.
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('check_in_responses')
+          .where('date_iso', isEqualTo: dateIso)
+          .get()
+          .timeout(const Duration(seconds: 3));
+      return {for (final d in snap.docs) d.id: d.data()};
+    } catch (_) {
+      return const {};
+    }
+  }
 }
 
 /// Test / offline double: keeps the merged documents in memory.
@@ -124,6 +166,17 @@ class InMemoryCheckInResponseStore implements CheckInResponseStore {
     writes++;
     docs[id] = {...?docs[id], ...data, 'uid': uid};
   }
+
+  @override
+  Future<Map<String, Map<String, dynamic>>> rowsForDay({
+    required String uid,
+    required String dateIso,
+  }) async =>
+      {
+        for (final e in docs.entries)
+          if (e.value['uid'] == uid && e.value['date_iso'] == dateIso)
+            e.key: Map.of(e.value),
+      };
 }
 
 /// The live record of one chat check-in; [toMap] is what [CheckInResponseStore]
@@ -149,7 +202,67 @@ class CheckInChatRecord {
   String? response1Id;
   String? response2Id;
   bool stoppedBySafety = false;
+
+  /// 1020e 二.9 — Q3b / Q4 when an acute hit stopped the check-in there.
+  String? stoppedAt;
+
+  /// 1020e 二.9 — the stopped row this one resumes after a 誤觸 mark.
+  String? resumedFrom;
   bool completed = false;
+
+  /// Question ids in check-in order (Q0 and Q6 carry no answer).
+  static const List<String> questionOrder = ['Q1', 'Q2', 'Q3', 'Q3b', 'Q4'];
+
+  /// 1020e 二.9 — which question a stopped row stopped at: `stopped_at`,
+  /// or (older rows) the reply marked `none_safety`.  Null when it cannot
+  /// be told.
+  static String? stoppedQuestionOf(Map<String, dynamic> row) {
+    final at = row['stopped_at'];
+    if (at == 'Q3b' || at == 'Q4') return at as String;
+    if (row['response2_id'] == 'none_safety') return 'Q4';
+    if (row['response1_id'] == 'none_safety') return 'Q3b';
+    return null;
+  }
+
+  /// 1020e 二.9 — a new record continuing the stopped row [id] / [row]: the
+  /// answers and questions before [stoppedAt] are carried over; the
+  /// stopped question is asked again.
+  factory CheckInChatRecord.resumeOf({
+    required String id,
+    required Map<String, dynamic> row,
+    required String stoppedAt,
+    required String arm,
+    required String dateIso,
+    required String copyVersion,
+  }) {
+    int? asInt(Object? v) => v is num ? v.toInt() : null;
+    final r = CheckInChatRecord(
+      arm: arm,
+      dateIso: dateIso,
+      copyVersion: copyVersion,
+      studyDay: asInt(row['study_day']),
+      studyWeek: asInt(row['study_week']),
+    );
+    final before =
+        questionOrder.sublist(0, questionOrder.indexOf(stoppedAt));
+    final answers = row['answers'];
+    if (answers is Map) {
+      for (final q in before) {
+        final a = answers[q];
+        if (a is Map) r.answers[q] = Map<String, dynamic>.from(a);
+      }
+    }
+    final shown = row['questions_shown'];
+    if (shown is List) {
+      for (final q in shown.whereType<String>()) {
+        if (q == stoppedAt) break;
+        r.questionsShown.add(q);
+      }
+    }
+    if (stoppedAt == 'Q4') r.response1Id = row['response1_id'] as String?;
+    r.resumedFrom = id;
+    return r;
+  }
 
   Map<String, dynamic> toMap() => {
         'arm': arm,
@@ -167,6 +280,8 @@ class CheckInChatRecord {
         'response1_id': response1Id,
         'response2_id': response2Id,
         'stopped_by_safety': stoppedBySafety,
+        'stopped_at': stoppedAt,
+        'resumed_from': resumedFrom,
         'completed': completed,
       };
 }

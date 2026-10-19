@@ -60,6 +60,8 @@ import 'package:app_demo/features/context/presentation/pages/siu_yan_chat_page.d
 import 'package:app_demo/features/crisis/presentation/pages/emergency_support_page.dart';
 import 'package:app_demo/features/rule_replies/data/rule_reply_history_store.dart';
 import 'package:app_demo/features/rule_replies/data/rule_reply_pool.dart';
+import 'package:app_demo/features/researcher_dashboard/presentation/widgets/safety_alerts_section.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -79,8 +81,11 @@ final bool _bothTestable = FeatureFlags.phaseB && _forced.isEmpty;
 /// Fake model.  The rule arm must never get here: [forbid] makes any call
 /// a test failure (also counted, in case a page swallows the throw).
 class _FakeLlm implements LlmClient {
-  _FakeLlm({this.forbid = false});
+  _FakeLlm({this.forbid = false, this.failSkip = false});
   final bool forbid;
+
+  /// 1020e 二.8: answer `[簽到·唔講住]` with nothing (→ R4b fallback).
+  final bool failSkip;
   final calls = <({String moduleId, String? promptKey, String suffix,
       String input})>[];
 
@@ -88,6 +93,7 @@ class _FakeLlm implements LlmClient {
   static const reply2 = '可以去附近公園行下，慢慢嚟。';
   static const opener = '今日想傾咩都得，我喺度。';
   static const chat = '好呀，再同我講多啲。';
+  static const skip = '好，今日就慢慢嚟。';
 
   @override
   Future<LlmRawResponse> complete({
@@ -114,6 +120,9 @@ class _FakeLlm implements LlmClient {
     }
     if (suffix.contains('[簽到·回應一]')) return const LlmRawResponse(text: reply1);
     if (suffix.contains('[簽到·回應二]')) return const LlmRawResponse(text: reply2);
+    if (suffix.contains('[簽到·唔講住]')) {
+      return LlmRawResponse(text: failSkip ? '' : skip);
+    }
     if (suffix.contains('[開場·check-in 已做]')) {
       return const LlmRawResponse(text: opener);
     }
@@ -158,6 +167,9 @@ class _Run {
   final navKey = GlobalKey<NavigatorState>();
   int actionPlans = 0;
 
+  /// 1020e 二.8: the fake model fails the Q4 唔講住 call.
+  bool failSkip = false;
+
   bool get rule => arm == ArmAssignment.b;
 
   Map<String, dynamic> get record {
@@ -170,7 +182,7 @@ class _Run {
 }
 
 Widget _harness(_Run run, {Widget? home}) {
-  run.llm = _FakeLlm(forbid: run.rule);
+  run.llm = _FakeLlm(forbid: run.rule, failSkip: run.failSkip);
   final llm = LlmGateway(client: run.llm);
   final agentContext = AgentContextService(available: false);
   final sharedContext = SharedContextService(available: false);
@@ -351,14 +363,17 @@ void main() {
         for (final o in CheckInChatCopy.q1Options)
           RuleReplyPool.checkInChatSubPool(o.code).map((e) => e.id).toList(),
       ];
+      // 1020e 二.12: buttons low → high (好唔開心 … 好開心), scores 1–5.
       expect(bands, [
-        ['X1-1', 'X1-2', 'X1-3', 'X1-4'],
-        ['X2-1', 'X2-2', 'X2-3', 'X2-4'],
-        ['X3-1', 'X3-2', 'X3-3', 'X3-4'],
-        ['X4-1', 'X4-2', 'X4-3', 'X4-4'],
         ['X5-1', 'X5-2', 'X5-3', 'X5-4'],
+        ['X4-1', 'X4-2', 'X4-3', 'X4-4'],
+        ['X3-1', 'X3-2', 'X3-3', 'X3-4'],
+        ['X2-1', 'X2-2', 'X2-3', 'X2-4'],
+        ['X1-1', 'X1-2', 'X1-3', 'X1-4'],
         <String>[],
       ]);
+      expect([for (final o in CheckInChatCopy.q1Options) o.score],
+          [1, 2, 3, 4, 5, null]);
     });
 
     test('SY / SN go round the whole group; never a repeat within the '
@@ -771,19 +786,38 @@ void main() {
       expect(briefStore.records.values.single.sessionType, 'check_in');
     }, skip: !_hybridTestable);
 
-    testWidgets('Q3b and Q4 唔講住: reply 1 from the LLM, reply 2 = R4b '
-        '(no LLM, no advice)', (tester) async {
+    testWidgets('Q3b and Q4 唔講住: reply 1 from the LLM; reply 2 = one '
+        'sentence from the LLM ([簽到·唔講住], 1020e 二.8)', (tester) async {
       final run = _Run(ArmAssignment.a);
       await _open(tester, run, _page(run));
       await _checkIn(tester, q3: 'small', q3b: null, q4: null);
-      expect(run.llm.calls, hasLength(1), reason: 'reply 1 only');
-      expect(run.llm.calls.single.input, '唔講住');
-      expect(run.llm.calls.single.suffix,
+      expect(run.llm.calls, hasLength(2), reason: 'reply 1 and reply 2');
+      expect(run.llm.calls.first.input, '唔講住');
+      expect(run.llm.calls.first.suffix,
           contains('Q3b 係咩事：（用戶揀咗「唔講住」）'));
+      final skip = run.llm.calls.last;
+      expect(skip.promptKey, 'siu_yan_v3');
+      expect(skip.input, '唔講住');
+      expect(skip.suffix, contains('[簽到·唔講住]'));
+      expect(skip.suffix, contains('Q4 今日有咩打算：（用戶揀咗「唔講住」）'));
+      expect(skip.suffix, isNot(contains('[簽到·回應二]')));
       expect(_says(_FakeLlm.reply1), findsOneWidget);
-      expect(_says(CheckInChatCopy.r4b), findsOneWidget);
+      expect(_says(_FakeLlm.skip), findsOneWidget);
+      expect(_says(CheckInChatCopy.r4b), findsNothing);
       expect(_says(_FakeLlm.reply2), findsNothing);
-      expect(run.record['response2_id'], 'R4b');
+      expect(run.record['response2_id'], 'llm');
+      expect(_says(CheckInChatCopy.q5), findsOneWidget);
+    }, skip: !_hybridTestable);
+
+    testWidgets('Q4 唔講住, model fails → the fixed R4b, logged llm_fallback',
+        (tester) async {
+      final run = _Run(ArmAssignment.a)..failSkip = true;
+      await _open(tester, run, _page(run));
+      await _checkIn(tester, q3: 'none', q4: null);
+      expect(run.llm.calls.last.suffix, contains('[簽到·唔講住]'));
+      expect(_says(CheckInChatCopy.r4b), findsOneWidget);
+      expect(run.record['response2_id'], 'llm_fallback');
+      expect(_says(CheckInChatCopy.q5), findsOneWidget);
     }, skip: !_hybridTestable);
 
     testWidgets('Q1 唔想答: LLM reply 1 (no XG), answers in the prompt',
@@ -850,7 +884,7 @@ void main() {
       expect(b[i].$2, a[i].$2, reason: a[i].$1);
       expect(b[i].$3, a[i].$3, reason: a[i].$1);
     }
-    expect(a[1].$3, ['好開心', '幾好', '一般般', '唔係幾好', '好唔開心', '唔想答']);
+    expect(a[1].$3, ['好唔開心', '唔係幾好', '一般般', '幾好', '好開心', '唔想答']);
     expect(a[2].$3, ['冇', '少少', '幾多', '好多']);
     expect(a[3].$3, ['冇', '一啲小事', '一件大事']);
     expect(a[6].$3, ['好呀', '唔使喇']);
@@ -862,5 +896,332 @@ void main() {
         tester, run, _page(run, now: DateTime(2026, 10, 21, 15, 0)));
     expect(_says('你好！想問下你尋日嘅情況，幾條就得。'), findsOneWidget);
     expect(_says('早晨！'), findsNothing);
+  });
+
+  // 1020e 二.10 — rule arm: moderate_review (grief, past hardship; logged,
+  // no pop-up) gets an SN line; moderate_interrupt / acute get none.
+  group('rule arm, moderate_review → SN', () {
+    const grief = '老伴走咗之後好難過';
+
+    test('the grief example is a moderate_review hit', () {
+      expect(const DistressDetector().analyze(grief).level,
+          DistressLevel.moderateReview);
+    });
+
+    testWidgets('free chat: an SN line (even on a good-mood day), no sheet',
+        (tester) async {
+      final run = _Run(ArmAssignment.b);
+      await _open(tester, run, _page(run, doneToday: true, moodToday: 5));
+      await _type(tester, grief);
+      expect(_says(SiuYanRuleChatPool.low[0].zh), findsOneWidget);
+      expect(_says(SiuYanRuleChatPool.general[0].zh), findsNothing);
+      expect(find.text('我冇事，繼續'), findsNothing, reason: 'no pop-up');
+      await _type(tester, '今日天氣幾好');
+      expect(_says(SiuYanRuleChatPool.general[0].zh), findsOneWidget,
+          reason: 'a plain message is back to SY');
+      expect(await run.history.recent(uid: 'u1', agentId: 'siu_yan_chat'),
+          ['SN1', 'SY1']);
+      expect(run.llm.calls, isEmpty);
+    }, skip: !_ruleTestable);
+
+    testWidgets('free chat: moderate_interrupt still gets no line',
+        (tester) async {
+      final run = _Run(ArmAssignment.b);
+      await _open(tester, run, _page(run, doneToday: true));
+      await _type(tester, '冇人理我');
+      await tester.tap(find.text('我冇事，繼續'));
+      await _settle(tester);
+      for (final e in [...SiuYanRuleChatPool.general,
+        ...SiuYanRuleChatPool.low]) {
+        expect(_says(e.zh), findsNothing);
+      }
+      expect(run.llm.calls, isEmpty);
+    }, skip: !_ruleTestable);
+
+    testWidgets('check-in Q3b / Q4: an SN line instead of X / R4a, then on',
+        (tester) async {
+      final run = _Run(ArmAssignment.b);
+      await _open(tester, run, _page(run));
+      await _checkIn(tester, q1: 'very_happy', q3: 'big', q3b: grief,
+          q4: '$grief，今日唔知做咩好');
+      expect(_says(SiuYanRuleChatPool.low[0].zh), findsOneWidget);
+      expect(_says(SiuYanRuleChatPool.low[1].zh), findsOneWidget);
+      for (final e in RuleReplyPool.checkInChatSubPool('very_happy')) {
+        expect(_says(e.zh), findsNothing, reason: 'no X1 after grief');
+      }
+      expect(_says(CheckInChatCopy.r4a), findsNothing);
+      expect(run.record['response1_id'], 'SN1');
+      expect(run.record['response2_id'], 'SN2');
+      expect(run.record['completed'], isTrue);
+      expect(run.llm.calls, isEmpty);
+    }, skip: !_ruleTestable);
+  });
+
+  // 1020e 二.9 — acute stops the check-in; once the researcher marks the
+  // alert 誤觸 (server writes falseAlarm on the row) the same day's next
+  // visit resumes at the stopped question; the next day it does not.
+  group('false alarm (誤觸) resume', () {
+    Map<String, dynamic> stoppedRow({
+      String date = '2026-10-21',
+      String at = 'Q3b',
+      bool marked = true,
+    }) =>
+        {
+          'uid': 'u1',
+          'arm': 'B',
+          'flow': 'chat_v2',
+          'schema_version': 2,
+          'date_iso': date,
+          'study_day': 7,
+          'study_week': 1,
+          'session_id': 's_old',
+          'answers': {
+            'Q1': {'question_id': 'Q1', 'value': 'not_good',
+              'label': '唔係幾好', 'score': 2},
+            'Q2': {'question_id': 'Q2', 'value': 'none', 'label': '冇',
+              'index': 0},
+            'Q3': {'question_id': 'Q3', 'value': 'big', 'label': '一件大事',
+              'index': 2},
+            if (at == 'Q4')
+              'Q3b': {'question_id': 'Q3b', 'skipped': true, 'text': null},
+            at: {'question_id': at, 'skipped': false, 'text': '（停低嗰句）'},
+          },
+          'questions_shown': [
+            'Q0', 'Q1', 'Q2', 'Q3', 'Q3b', if (at == 'Q4') 'Q4',
+          ],
+          'response1_id': at == 'Q4' ? 'X4-1' : 'none_safety',
+          'response2_id': null,
+          'stopped_by_safety': true,
+          'stopped_at': at,
+          'completed': false,
+          if (marked) 'falseAlarm': true,
+          if (marked) 'markedBy': 'r1',
+          if (marked) 'markedAt': '2026-10-21T02:00:00Z',
+        };
+
+    for (final arm in [ArmAssignment.b, ArmAssignment.a]) {
+      final tag = arm == ArmAssignment.b ? 'rule' : 'Hybrid';
+      testWidgets('$tag: stopped at Q3b, marked → resumes at Q3b and '
+          'finishes; a new row, the old one untouched', (tester) async {
+        final run = _Run(arm);
+        run.store.docs['ci_old'] = stoppedRow();
+        await _open(tester, run, _page(run));
+        expect(_says(CheckInChatCopy.q3b), findsOneWidget);
+        expect(_says(CheckInChatCopy.q1), findsNothing, reason: 'no restart');
+        expect(_says('早晨！'), findsNothing);
+        expect(run.prompts.map((p) => p.$1).first, 'Q3b');
+        await _type(tester, '同阿女去咗飲茶');
+        expect(_says(CheckInChatCopy.q4), findsOneWidget);
+        await _type(tester, '下晝去公園行下');
+        await _tapAnswer(tester, 'Q5', 'no');
+        expect(_says(CheckInChatCopy.q6), findsOneWidget);
+        expect(run.store.docs, hasLength(2));
+        final fresh = run.store.docs.entries
+            .firstWhere((e) => e.key != 'ci_old')
+            .value;
+        expect(fresh['resumed_from'], 'ci_old');
+        expect(fresh['completed'], isTrue);
+        expect(fresh['stopped_by_safety'], isFalse);
+        expect(fresh.containsKey('falseAlarm'), isFalse,
+            reason: 'the App never writes the mark');
+        final answers = Map<String, dynamic>.from(fresh['answers'] as Map);
+        expect(answers['Q1']['value'], 'not_good', reason: 'carried over');
+        expect(answers['Q3']['value'], 'big');
+        expect(answers['Q3b']['text'], '同阿女去咗飲茶');
+        expect(fresh['questions_shown'],
+            ['Q0', 'Q1', 'Q2', 'Q3', 'Q3b', 'Q4', 'Q5', 'Q6']);
+        expect(run.store.docs['ci_old']!['completed'], isFalse);
+        expect(run.store.docs['ci_old']!['falseAlarm'], isTrue);
+        if (arm == ArmAssignment.b) {
+          expect(_says(_x('X4-1')), findsOneWidget, reason: 'Q1 band kept');
+          expect(run.llm.calls, isEmpty);
+        } else {
+          expect(run.llm.calls.first.suffix,
+              contains('Q1 尋日成日整體過得點：唔係幾好'));
+        }
+        // Valid session: the invitation card is scheduled.
+        await tester.tap(find.text('今日傾到呢度'));
+        await _settle(tester);
+        expect(briefStore.records, hasLength(1));
+      }, skip: arm == ArmAssignment.b ? !_ruleTestable : !_hybridTestable);
+
+      testWidgets('$tag: stopped at Q4, marked → resumes at Q4',
+          (tester) async {
+        final run = _Run(arm);
+        run.store.docs['ci_old'] = stoppedRow(at: 'Q4');
+        await _open(tester, run, _page(run));
+        expect(_says(CheckInChatCopy.q4), findsOneWidget);
+        expect(_says(CheckInChatCopy.q3b), findsNothing);
+        await _skip(tester);
+        expect(_says(CheckInChatCopy.q5), findsOneWidget);
+        await _tapAnswer(tester, 'Q5', 'no');
+        final fresh = run.store.docs.entries
+            .firstWhere((e) => e.key != 'ci_old')
+            .value;
+        expect(fresh['response1_id'], 'X4-1', reason: 'reply 1 carried');
+        expect(fresh['completed'], isTrue);
+        if (arm == ArmAssignment.b) expect(run.llm.calls, isEmpty);
+      }, skip: arm == ArmAssignment.b ? !_ruleTestable : !_hybridTestable);
+    }
+
+    testWidgets('the next day: no resume, a fresh check-in', (tester) async {
+      final run = _Run(_ruleTestable ? ArmAssignment.b : ArmAssignment.a);
+      run.store.docs['ci_old'] = stoppedRow(date: '2026-10-20');
+      await _open(tester, run, _page(run));
+      expect(_says('早晨！想問下你尋日嘅情況，幾條就得。'), findsOneWidget);
+      expect(_says(CheckInChatCopy.q1), findsOneWidget);
+      expect(_says(CheckInChatCopy.q3b), findsNothing);
+    });
+
+    testWidgets('not marked (a real crisis stop): no resume', (tester) async {
+      final run = _Run(_ruleTestable ? ArmAssignment.b : ArmAssignment.a);
+      run.store.docs['ci_old'] = stoppedRow(marked: false);
+      await _open(tester, run, _page(run));
+      expect(_says(CheckInChatCopy.q1), findsOneWidget);
+      expect(_says(CheckInChatCopy.q3b), findsNothing);
+    });
+
+    testWidgets('already resumed once today: no second resume',
+        (tester) async {
+      final run = _Run(_ruleTestable ? ArmAssignment.b : ArmAssignment.a);
+      run.store.docs['ci_old'] = stoppedRow();
+      run.store.docs['ci_new'] = {'uid': 'u1', 'flow': 'chat_v2',
+        'date_iso': '2026-10-21', 'resumed_from': 'ci_old',
+        'completed': false};
+      await _open(tester, run, _page(run));
+      expect(_says(CheckInChatCopy.q1), findsOneWidget);
+      expect(_says(CheckInChatCopy.q3b), findsNothing);
+    });
+
+    testWidgets('rule arm end to end: acute at Q3b stops (stopped_at Q3b); '
+        'after the server mark, reopening resumes there', (tester) async {
+      final run = _Run(ArmAssignment.b);
+      await _open(tester, run, _page(run));
+      await _tapAnswer(tester, 'Q1', 'so_so');
+      await _tapAnswer(tester, 'Q2', 'none');
+      await _tapAnswer(tester, 'Q3', 'small');
+      await _type(tester, '我真係想死');
+      expect(find.byType(EmergencySupportPage), findsOneWidget);
+      run.navKey.currentState!.pop();
+      await _settle(tester);
+      final id = run.store.docs.keys.single;
+      expect(run.store.docs[id]!['stopped_by_safety'], isTrue);
+      expect(run.store.docs[id]!['stopped_at'], 'Q3b');
+      expect(run.store.docs[id]!['completed'], isFalse);
+      // Leave; the researcher marks 誤觸 (markSafetyFalseAlarm, server).
+      run.navKey.currentState!.pop();
+      await _settle(tester);
+      run.store.docs[id] = {...run.store.docs[id]!, 'falseAlarm': true,
+        'markedBy': 'r1', 'markedAt': 'now'};
+      ChatSessionRecorder.resetProcessStateForTest();
+      run.navKey.currentState!
+          .push(MaterialPageRoute<void>(builder: (_) => _page(run)));
+      await _settle(tester);
+      expect(_says(CheckInChatCopy.q3b), findsOneWidget);
+      expect(_says(CheckInChatCopy.q1), findsNothing);
+      expect(run.llm.calls, isEmpty);
+    }, skip: !_ruleTestable);
+
+    test('a marked check-in alone never counts as done (no event)', () {
+      // Done today = a `check_in_submitted` event (status chip, banner,
+      // this page).  A stopped check-in never logs it; only a completed
+      // one does (_finishCheckIn).  The row-level rule for P2 is batch 4.
+      expect(CheckInChatRecord.stoppedQuestionOf(stoppedRow()), 'Q3b');
+      expect(CheckInChatRecord.stoppedQuestionOf(
+          {'response2_id': 'none_safety'}), 'Q4');
+      expect(CheckInChatRecord.stoppedQuestionOf({}), isNull);
+    });
+  });
+
+  // 1020e 二.9 — the dashboard's 「標記誤觸」 (unblinded researcher tool).
+  group('dashboard 標記誤觸', () {
+    final created = DateTime.utc(2026, 10, 21, 2, 0);
+    SafetyAlertView alert({Map<String, dynamic> extra = const {}}) =>
+        SafetyAlertView.fromData('AL1', {
+          'researchId': 'RCT-01',
+          'level': 'acute',
+          'alertVersion': 3,
+          'sourceGroup': 'participant_input',
+          'agentId': 'siu_yan',
+          'createdAt': Timestamp.fromDate(created),
+          ...extra,
+        });
+
+    Future<void> pumpRow(WidgetTester tester, SafetyAlertView a,
+        MarkFalseAlarm? mark) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: SafetyAlertRow(
+            alert: a,
+            isEn: false,
+            acknowledge: (_) async {},
+            markFalseAlarm: mark,
+          ),
+        ),
+      ));
+    }
+
+    test('the switch decides whether the list offers it', () {
+      Future<void> mark(String _) async {}
+      RemoteFeatureFlags.current = const RemoteFeatureFlags();
+      expect(SafetyAlertsSection.offeredMark(mark), isNull);
+      RemoteFeatureFlags.current = RemoteFeatureFlags.fromMap(
+          const {'safetyFalseAlarmMarkEnabled': true});
+      expect(SafetyAlertsSection.offeredMark(mark), isNotNull);
+      expect(RemoteFeatureFlags.fromMap(
+              const {'safetyFalseAlarmMarkEnabled': 'true'})
+          .safetyFalseAlarmMarkEnabled, isFalse);
+    });
+
+    testWidgets('switch off: no button', (tester) async {
+      await pumpRow(tester, alert(), null);
+      expect(find.text('標記誤觸'), findsNothing);
+      expect(find.text('確認處理'), findsOneWidget, reason: 'T34 unchanged');
+    });
+
+    testWidgets('confirm → the callable gets the alert id; row shows the mark',
+        (tester) async {
+      final calls = <String>[];
+      await pumpRow(tester, alert(), (id) async => calls.add(id));
+      await tester.tap(find.text('標記誤觸'));
+      await tester.pumpAndSettle();
+      expect(find.text('標記為誤觸？'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('false_alarm_cancel')));
+      await tester.pumpAndSettle();
+      expect(calls, isEmpty, reason: 'cancel does nothing');
+      await tester.tap(find.text('標記誤觸'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('false_alarm_confirm')));
+      await tester.pumpAndSettle();
+      expect(calls, ['AL1']);
+      expect(find.textContaining('已標記誤觸'), findsOneWidget);
+      expect(find.text('標記誤觸'), findsNothing);
+    });
+
+    testWidgets('a stored mark shows with its time; no button',
+        (tester) async {
+      await pumpRow(
+          tester,
+          alert(extra: {
+            'falseAlarm': true,
+            'markedAt': Timestamp.fromDate(created.add(
+                const Duration(hours: 1))),
+          }),
+          (_) async => fail('must not be offered again'));
+      expect(find.textContaining('已標記誤觸 · 2026-10-21 11:00'),
+          findsOneWidget);
+      expect(find.text('標記誤觸'), findsNothing);
+    });
+
+    testWidgets('a failed call is shown, no mark', (tester) async {
+      await pumpRow(
+          tester, alert(), (_) async => throw Exception('permission-denied'));
+      await tester.tap(find.text('標記誤觸'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('false_alarm_confirm')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('標記失敗'), findsOneWidget);
+      expect(find.textContaining('已標記誤觸'), findsNothing);
+    });
   });
 }
