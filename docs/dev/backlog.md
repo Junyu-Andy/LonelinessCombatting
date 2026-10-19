@@ -26,6 +26,7 @@
 > 2026-10-19 第二轮（切页跳回、标题跳动、「自己」页精简、首页安全卡、首页字放大、字号五档）PR 草稿；待定：首页安全卡 PI 审核；两份新决策编号；字号最小档是 1.06 还是保留 1.0（Junyu 定）。
 > 2026-10-19 测试员免打包解锁、每週問卷測試页、Brief PR 横排、注册跳错处、人生回顧去锁、隐藏保留对话开关 PR 草稿；待定：两份决策编号；「保留對話紀錄」不开放要 Junyu 确认并改 ICF（若写了 App 内可关）；要用测试员工具时在控制台开 `testerToolsEnabled`。
 > 2026-10-19 1020 第 2 批（A、F (1)–(4)、(6)）小欣页 check-in 对话化 + 规则组小欣聊天，分支 `claude/zealous-fermat-8rgqtg-batch2`（开关 `checkInChatV2Enabled` 默认关）；待定：决策编号；1020b 第四节全部文字和 `siu_yan.v3` 提示词措辞（Junyu 看截图定）；Hybrid 唔講住用 R4b 固定句、acute 后 check-in 停止、规则组聊天命中 moderate_review 时没有任何回应句，三点要 Junyu 确认；首页周小结图的心情改由 Q1 分数顶上（以后改读 `daily_mood`）；过程数据导出加 `sessions.checkInCompleted`；`homeMoodOpensCheckInEnabled` 仍直开旧页面（第 3 批处理）；开开关前先部署 Functions。
+> 2026-10-20 1020d 回忆 v2 服务器端（提示词 `ah_jan_ah_bak.v3`、小篇章生成 `onReminiscenceChapterWritten`、规则、导出、看板计数），分支 `claude/zealous-fermat-8rgqtg-reminiscence-server`（开关 `reminiscenceV2Enabled` 默认关）；待定：三份提示词措辞、推送文字、「太口语」代码剔除、核对失败照交、删句后不再顺稿、评分算过程还是结局、短于 300 字、借用追问场景、决策编号（报告 `docs/dev-reports/reminiscence-v2-server-20261020.md` 第 11 节）；待做：运营看板页面显示 `chapters` 计数（`lib/features/ops_dashboard/`）、卡在 generating 的自动清理（可选）；开开关前先部署 Functions 和规则。
 > 2026-10-20 1020c 第二项键盘遮挡 PR 草稿（开关 `keyboardCompactHeaderEnabled` 默认关）；待定：开不开、缩小后标题要不要新句子、表格页要不要也缩、决策编号；新待办：「個人資料 → 修改」弹出框键盘打开时溢出（不能滚）、Phase A 的 ADA／第 7 日／旧夥伴評估页同样被顶栏挤（Phase B 不显示）、1.30 字体下输入框本身偏高（对话区仍只有约 5 行）。
 
 ## 1. 已决定、待开发
