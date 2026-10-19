@@ -36,10 +36,10 @@ class IntakeShortCopy {
   static const title = '傾偈之前，想問你五樣嘢';
   static const intro = '答唔答都得，答咗夥伴會更加了解你。';
   static const q1 = '你最想呢個 app 幫到你啲乜？';
-  static const q1Hint = '最多揀兩項';
+  static const q1Hint = '揀幾多項都得';
   static const q2 = '有冇邊幾位屋企人或者朋友，想夥伴知道？講個稱呼同關係就得。';
   static const q3 = '你平時鍾意做啲咩？';
-  static const q3Hint = '最多揀三項';
+  static const q3Hint = '揀幾多項都得';
   static const q4 = '有冇咩話題你唔想夥伴提起？';
   static const q5 = '你打字多定係講多？';
   static const done = '完成';
@@ -49,6 +49,7 @@ class IntakeShortCopy {
   static const relationLabel = '關係';
   static const otherLabel = '其他';
   static const optionalLabel = '可以留空';
+  static const addPerson = '加多一位';
 
   /// 「第 N 題，共 5 題」 (S16; dev draft, product window to check).
   static String stepLabel(int step, int total) => '第 $step 題，共 $total 題';
@@ -66,9 +67,8 @@ class IntakeShortCopy {
     (IntakeOptions.inputVoice, '講'),
     (IntakeOptions.inputBoth, '都得'),
   ];
-  static const maxGoals = 2;
-  static const maxPeople = 3;
-  static const maxInterests = 3;
+  /// Rows shown at first; 「加多一位」 adds more (no caps anywhere, 10/16).
+  static const initialPeople = 3;
 }
 
 /// The five screens, in the order shown (concrete first, free text last).
@@ -90,7 +90,7 @@ class _IntakeShortPageState extends State<IntakeShortPage> {
   late final IntakeRepository _repo = widget.repository ?? IntakeRepository();
   final _goals = <String>{};
   final _people = List.generate(
-      IntakeShortCopy.maxPeople,
+      IntakeShortCopy.initialPeople,
       (_) => (name: TextEditingController(), rel: TextEditingController()));
   final _interests = <String>{};
   final _interestsOther = TextEditingController();
@@ -148,6 +148,7 @@ class _IntakeShortPageState extends State<IntakeShortPage> {
       final settings = AppSettingsScope.read(context);
       final updated = profile.copyWith(
         hasCompletedIntake: true,
+        intakePeopleDone: true, // the people were asked on this page
         interests: _interests.toList(),
         closeContacts: [
           for (final p in people)
@@ -325,9 +326,7 @@ class _IntakeShortPageState extends State<IntakeShortPage> {
                 selected: _interests.contains(id),
                 onSelected: (on) => setState(() {
                   if (on) {
-                    if (_interests.length < IntakeShortCopy.maxInterests) {
-                      _interests.add(id);
-                    }
+                    _interests.add(id);
                   } else {
                     _interests.remove(id);
                   }
@@ -372,6 +371,14 @@ class _IntakeShortPageState extends State<IntakeShortPage> {
                 ),
               ]),
             ),
+          OutlinedButton.icon(
+            key: const Key('intake_short_person_add'),
+            onPressed: () => setState(() => _people.add(
+                (name: TextEditingController(), rel: TextEditingController()))),
+            icon: const Icon(Icons.person_add_alt),
+            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 52)),
+            label: const Text(IntakeShortCopy.addPerson),
+          ),
         ];
       case IntakeShortStep.goals:
         return [
@@ -384,9 +391,7 @@ class _IntakeShortPageState extends State<IntakeShortPage> {
                 selected: _goals.contains(id),
                 onSelected: (on) => setState(() {
                   if (on) {
-                    if (_goals.length < IntakeShortCopy.maxGoals) {
-                      _goals.add(id);
-                    }
+                    _goals.add(id);
                   } else {
                     _goals.remove(id);
                   }

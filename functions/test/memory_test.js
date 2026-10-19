@@ -294,6 +294,39 @@ test("empty memory renders nothing", () => {
   assert.strictEqual(m.renderMemoryBlock(sel).text, "");
 });
 
+test("T49a: the intake's per-companion copies show once, own copy first",
+    () => {
+      const copy = (agent, category) => fact(`${category}_${agent}`, agent,
+          category, "normal", {key: category, value: "同一句",
+            source_session_id: "intake", sourceAgent: agent,
+            layer: m.layerFor(category, "normal")});
+      const chat = (id, agent) => fact(id, agent, "living", "normal",
+          {key: "住", value: "同一句", source_session_id: "sess"});
+      const facts = [
+        copy("siu_yan", "living"), copy("tung_tung", "living"),
+        copy("ah_jan_ah_bak", "living"),
+        copy("siu_yan", "preference"), copy("tung_tung", "preference"),
+        chat("c1", "siu_yan"), chat("c2", "tung_tung"),
+      ];
+      const pick = (agentId, layers) => m.selectForInjection(
+          {facts, summaries: [], followups: []},
+          {agentId, policy: "C", todayKey: TODAY, sessionStart: false,
+            layers}).facts.map((f) => f.id);
+      // Layers off: living is shared visibility → one line, tung_tung's own;
+      // preference stays agent-only.  Chat facts untouched.
+      assert.deepStrictEqual(pick("tung_tung", false).sort(),
+          ["c1", "c2", "living_tung_tung", "preference_tung_tung"]);
+      // Layers on: both categories shared → one line each.
+      assert.deepStrictEqual(pick("ah_jan_ah_bak", true).sort(),
+          ["c1", "c2", "living_ah_jan_ah_bak", "preference_siu_yan"]);
+      // Policy B: own copies only, nothing collapses.
+      const b = m.selectForInjection({facts, summaries: [], followups: []},
+          {agentId: "siu_yan", policy: "B", todayKey: TODAY,
+            sessionStart: false, layers: true}).facts.map((f) => f.id);
+      assert.deepStrictEqual(b.sort(),
+          ["c1", "living_siu_yan", "preference_siu_yan"]);
+    });
+
 test("only chat surfaces get memory", () => {
   for (const id of ["m2_check_in", "reflective_dialogue", "tung_tung_chat",
     "m3_reminiscence_w2", "greeting_tung_tung"]) {
@@ -354,7 +387,7 @@ test("T10 flags: fixes on unless false, confirmation reply off", () => {
   for (const k of ["excludeSafetyTurns", "omitSensitiveSummary",
     "honourForgetRequests", "deleteSummaryWithItem",
     "honourMemoryWithdrawal", "sensitiveFactQuota",
-    "strictFactValidation"]) {
+    "strictFactValidation", "clearRawOutputOnDelete"]) {
     assert.strictEqual(d[k], true, k);
     assert.strictEqual(m.t10Flags({[k]: false})[k], false, k);
   }

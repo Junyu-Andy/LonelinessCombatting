@@ -31,6 +31,7 @@ import '../../features/auth/data/user_profile.dart';
 import '../agent_context/agent_context_service.dart';
 import 'llm_gateway.dart';
 import '../memory/memory_mode.dart';
+import '../../features/onboarding/data/interest_labels.dart';
 
 class AgentGreetingService {
   AgentGreetingService(this._llm, {AgentContextService? agentContext})
@@ -217,7 +218,11 @@ class AgentGreetingService {
   }) {
     final interests = profile.interests.isEmpty
         ? (isEn ? '(none captured)' : '(未有記錄)')
-        : profile.interests.take(8).join(isEn ? ', ' : '、');
+        : profile.interests
+            .take(8)
+            // 10/18 sweep: ids (yum_cha) → labels, or the model echoes the id.
+            .map((i) => InterestLabels.label(i, isEn))
+            .join(isEn ? ', ' : '、');
     final avoid = (profile.avoidTopics ?? '').trim().isEmpty
         ? (isEn ? '(none)' : '冇')
         : profile.avoidTopics!.trim();

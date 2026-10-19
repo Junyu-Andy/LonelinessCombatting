@@ -9,6 +9,7 @@ import 'llm/agent_greeting_service.dart';
 import 'llm/llm_gateway.dart';
 import 'memory/cross_module_memory.dart';
 import 'memory/memory_store.dart';
+import 'memory/memory_v1_service.dart';
 import 'safety/distress_detector.dart';
 import 'safety/distress_router.dart';
 import 'safety/distress_state.dart';
@@ -37,6 +38,10 @@ class CoreServicesScope extends InheritedWidget {
   /// detect-only instance (no writes) when not supplied, e.g. in tests.
   final SafetyService safety;
 
+  /// T49e-3 — memory v1 client (hands a finished chat session to the
+  /// server).  Defaults to the real service; tests pass a fake.
+  final MemoryV1Service memoryV1;
+
   const CoreServicesScope({
     super.key,
     required this.llm,
@@ -52,6 +57,7 @@ class CoreServicesScope extends InheritedWidget {
     required this.handoffExecutor,
     required this.agentGreeting,
     SafetyService? safety,
+    this.memoryV1 = const MemoryV1Service(),
     required super.child,
   }) : safety = safety ?? const SafetyService();
 
@@ -75,5 +81,6 @@ class CoreServicesScope extends InheritedWidget {
       referralRouting != oldWidget.referralRouting ||
       handoffExecutor != oldWidget.handoffExecutor ||
       agentGreeting != oldWidget.agentGreeting ||
-      safety != oldWidget.safety;
+      safety != oldWidget.safety ||
+      memoryV1 != oldWidget.memoryV1;
 }

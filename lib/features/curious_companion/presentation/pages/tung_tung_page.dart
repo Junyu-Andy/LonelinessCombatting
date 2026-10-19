@@ -125,6 +125,21 @@ class _TungTungPageState extends State<TungTungPage> {
         TungTungSearchIntent.matches(text);
   }
 
+  /// T49c — one `users/{uid}/events` row each time S1a is actually shown
+  /// (called right after the bubble is added, once per shown line, both
+  /// arms).  Switch `s1aEventLogEnabled`, default off: off writes nothing.
+  /// Only ids, the arm, the keyword-set version and the phone time —
+  /// never the elder's words or the matched keyword.  The recorder adds
+  /// `agentId` and `sessionId`.
+  void _logS1aShown({required String arm}) {
+    if (!RemoteFeatureFlags.current.s1aEventLogEnabled) return;
+    _recorder?.logEvent(TungTungSearchIntent.fixedReplyEvent, {
+      'arm': arm,
+      'matchedVersion': TungTungSearchIntent.version,
+      'clientTime': DateTime.now().toIso8601String(),
+    });
+  }
+
   /// Map of search query → result snippets, accumulated this session.
   /// Tung Tung's next LLM call appends a `[SEARCH_RESULTS]` block
   /// composed from the most recent successful query.
@@ -241,7 +256,9 @@ class _TungTungPageState extends State<TungTungPage> {
     }
 
     final interests = profile?.interests ?? const <String>[];
-    final highlight = interests.isNotEmpty ? interests.first : null;
+    // 10/18 sweep: the stored value is an id (yum_cha); show its label.
+    final highlight =
+        interests.isNotEmpty ? InterestLabels.label(interests.first, isEn) : null;
     final opener = highlight != null
         ? (isEn
             ? 'Hi — you mentioned $highlight when we first met. '
@@ -397,7 +414,8 @@ class _TungTungPageState extends State<TungTungPage> {
               'user opens a chitchat thread; do NOT push them]'
           : '[onboarding 時話過嘅興趣 — 只有用戶主動講開閒聊先可以引用，唔好硬推]');
       for (final i in profile.interests.take(10)) {
-        suffix.writeln('- $i');
+        // 10/18 sweep: labels, not ids (yum_cha), or the model echoes them.
+        suffix.writeln('- ${InterestLabels.label(i, isEn)}');
       }
       suffix.writeln();
     }
@@ -587,6 +605,7 @@ class _TungTungPageState extends State<TungTungPage> {
       _busy = false;
       _turns.add(_Turn.bot(replyText));
     });
+    _logS1aShown(arm: 'A');
     await _recorder?.logTurn(TurnRecord(
       agentId: AgentRegistry.tungTungId,
       moduleId: 'tung_tung_chat',
@@ -740,6 +759,7 @@ class _TungTungPageState extends State<TungTungPage> {
       _turns.add(_Turn.bot(replyText));
       if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
     });
+    if (searchOff) _logS1aShown(arm: 'B');
     final turnDocId = await _recorder
         ?.logTurn(record(replyText, acute: false, ack: moderateAck != null));
     unawaited(analytics.logEvent('tung_tung_rule_reply', {
@@ -806,7 +826,7 @@ class _TungTungPageState extends State<TungTungPage> {
                   // 10/15: newest message at the bottom edge; the list follows the
                   // keyboard up instead of leaving the last turn under the composer.
                   reverse: true,
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
                   children: <Widget>[
                     for (int i = 0; i < _turns.length; i++) ...[
                       _TurnBubble(turn: _turns[i]),
@@ -831,7 +851,7 @@ class _TungTungPageState extends State<TungTungPage> {
                         profile != null &&
                         profile.interests.isNotEmpty)
                       _InterestChips(
-                        interests: profile.interests.take(6).toList(),
+                        interests: profile.interests.toList(),
                         onTap: (label) {
                           _inputCtrl.text = isEn
                               ? 'Let\'s talk about $label'
@@ -991,24 +1011,47 @@ class _Welcome extends StatelessWidget {
   }
 }
 
-class _InterestChips extends StatelessWidget {
+/// 10/16 — two interests at a time plus 「換一換」 (S18) that rotates
+/// through the rest; a long list used to spill over several lines.
+class _InterestChips extends StatefulWidget {
   final List<String> interests;
   final ValueChanged<String> onTap;
 
   const _InterestChips({required this.interests, required this.onTap});
 
+  static const shown = 2;
+
+  @override
+  State<_InterestChips> createState() => _InterestChipsState();
+}
+
+class _InterestChipsState extends State<_InterestChips> {
+  int _offset = 0;
+
+  List<String> get _visible {
+    final all = widget.interests;
+    if (all.length <= _InterestChips.shown) return all;
+    return [
+      for (var i = 0; i < _InterestChips.shown; i++)
+        all[(_offset + i) % all.length],
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
+    final more = widget.interests.length > _InterestChips.shown;
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          for (final i in interests)
+          for (final i in _visible)
             ActionChip(
+              key: Key('tung_interest_chip_$i'),
               label: Text(
                 InterestLabels.label(i, isEn),
                 style: TextStyle(
@@ -1017,12 +1060,23 @@ class _InterestChips extends StatelessWidget {
                   color: theme.colorScheme.onSurface,
                 ),
               ),
-              onPressed: () => onTap(i),
+              // The label, not the id: the draft used to read 「我想傾下
+              // yum_cha」 (fixed 10/16).
+              onPressed: () => widget.onTap(InterestLabels.label(i, isEn)),
               backgroundColor: theme.colorScheme.surface,
               side: BorderSide(
                 color: theme.colorScheme.outline,
                 width: 1,
               ),
+            ),
+          if (more)
+            TextButton.icon(
+              key: const Key('tung_interest_shuffle'),
+              onPressed: () => setState(() =>
+                  _offset = (_offset + _InterestChips.shown) %
+                      widget.interests.length),
+              icon: const Icon(Icons.refresh, size: 20),
+              label: Text(isEn ? 'More' : '換一換'),
             ),
         ],
       ),
@@ -1054,7 +1108,7 @@ class _TurnBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.78),
+            maxWidth: MediaQuery.of(context).size.width * 0.88),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(18),

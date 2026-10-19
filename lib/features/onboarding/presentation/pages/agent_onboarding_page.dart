@@ -25,6 +25,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/config/phase_a_config.dart';
@@ -36,7 +37,12 @@ import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 
 class AgentOnboardingPage extends StatefulWidget {
-  const AgentOnboardingPage({super.key});
+  /// 10/16 — the researcher records the interests (intake Q2) when the
+  /// `researcherIntakeEnabled` switch is on, so the 通通 slide only
+  /// introduces 通通 and asks nothing.  Null reads the remote switch.
+  final bool? researcherIntakeOn;
+
+  const AgentOnboardingPage({super.key, this.researcherIntakeOn});
 
   @override
   State<AgentOnboardingPage> createState() => _AgentOnboardingPageState();
@@ -154,6 +160,18 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
 
   int get _pageCount => _usageAdvice ? 5 : 4;
 
+  /// Whether the 通通 slide shows the interest chips: no while the
+  /// researcher records the intake (Q2 writes `interests`), and no when
+  /// the profile already carries interests (the elder answered the short
+  /// intake page just before; the slide must not overwrite them).
+  bool get _pickInterests {
+    final researcher = widget.researcherIntakeOn ??
+        RemoteFeatureFlags.current.researcherIntakeEnabled;
+    final have =
+        AppSettingsScope.read(context).profile?.interests.isNotEmpty == true;
+    return !researcher && !have;
+  }
+
   Future<void> _finish() async {
     final auth = AuthServiceScope.of(context);
     final settings = AppSettingsScope.read(context);
@@ -169,7 +187,10 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
     final updated = profile.copyWith(
       ahJanAhBakVariant: chosen,
       // Filter escape hatch before saving — "__skip__" is UI-only.
-      interests: _selectedInterests.where((id) => id != '__skip__').toList(),
+      // 10/16: when the slide asked nothing, keep what is there.
+      interests: _pickInterests
+          ? _selectedInterests.where((id) => id != '__skip__').toList()
+          : profile.interests,
       consent: profile.consent.copyWith(
         transcriptRetentionByAgent: _transcriptRetentionByAgent,
       ),
@@ -272,6 +293,7 @@ class _AgentOnboardingPageState extends State<AgentOnboardingPage> {
                   ),
                   _TungTungSlide(
                     isEn: isEn,
+                    pickInterests: _pickInterests,
                     seeds: _shuffledSeeds,
                     selected: _selectedInterests,
                     onToggle: (id) => setState(() {
@@ -748,6 +770,8 @@ class _UsageAdviceSlide extends StatelessWidget {
 
 class _TungTungSlide extends StatelessWidget {
   final bool isEn;
+  /// False: introduction only, no chips (interests come from the intake).
+  final bool pickInterests;
   final List<_InterestSeed> seeds;
   final Set<String> selected;
   final ValueChanged<String> onToggle;
@@ -756,6 +780,7 @@ class _TungTungSlide extends StatelessWidget {
 
   const _TungTungSlide({
     required this.isEn,
+    this.pickInterests = true,
     required this.seeds,
     required this.selected,
     required this.onToggle,
@@ -791,6 +816,7 @@ class _TungTungSlide extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
+          if (pickInterests) ...[
           const SizedBox(height: 22),
           Text(
             isEn ? 'What do you like?' : '你鍾意啲咩？',
@@ -857,6 +883,7 @@ class _TungTungSlide extends StatelessWidget {
             ],
           ),
           // T33: with the S5 screen on, the hint moves there.
+          ],
           if (showDoneHint) ..._finishFooter(context, isEn, errorMessage),
         ],
       ),

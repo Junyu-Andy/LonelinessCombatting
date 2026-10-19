@@ -68,13 +68,11 @@ try again in the afternoon." No extra encouragement or suggestions.
   String _whereText = '';
   String _whoWith = '';
 
-  /// T48: contacts the elder agreed to share (profile.closeContacts).
-  List<CloseContact> _sharedContacts(BuildContext context) => [
-        for (final c
-            in AppSettingsScope.read(context).profile?.closeContacts ??
-                const <CloseContact>[])
-          if (c.share) c,
-      ];
+  /// T48: contacts the elder agreed to share (profile.closeContacts);
+  /// T49a: plus 想重新聯絡嘅人 (profile.reconnectContacts), one per name.
+  List<CloseContact> _sharedContacts(BuildContext context) =>
+      AppSettingsScope.read(context).profile?.planContacts ??
+      const <CloseContact>[];
   String _fallback = '';
   String _summary = '';
   bool _busy = false;

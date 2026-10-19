@@ -597,7 +597,11 @@ class _EngagementSummary extends StatelessWidget {
       stream: stream,
       builder: (context, snap) {
         if (!snap.hasData) return const _Loading();
-        final docs = snap.data!.docs;
+        // Tester accounts (isTester) are not participants and may switch
+        // their own arm (tester arm switch): left out of every count.
+        final docs = snap.data!.docs
+            .where((d) => d.data()['isTester'] != true)
+            .toList();
         var armA = 0, armB = 0, withVariant = 0;
         for (final d in docs) {
           final data = d.data();

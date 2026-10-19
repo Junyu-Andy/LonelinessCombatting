@@ -8,7 +8,9 @@ import '../../../../core/memory/memory_mode.dart';
 import '../../../../core/privacy/transcript_retention.dart';
 import '../../../../core/testing/tester_gate.dart';
 import '../../../../core/version/build_info.dart';
+import '../../data/tester_arm_switch.dart';
 import '../../data/tester_tools.dart';
+import '../widgets/tester_arm_switch_card.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
@@ -38,7 +40,13 @@ import 'tester_schedule_page.dart';
 enum _AppLanguage { cantonese, english }
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({
+    super.key,
+    this.testerArmBackend = const CloudTesterArmBackend(),
+  });
+
+  /// The `setTesterArm` call behind the tester arm switch (tests: a fake).
+  final TesterArmBackend testerArmBackend;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -364,6 +372,11 @@ class _SettingsPageState extends State<SettingsPage> {
                         : '唔係測試員。只有管理員可以改（tool/set_tester.js 或控制台）。')),
               ),
             ),
+            // Tester arm switch: tester accounts only (functions/tester_arm.js).
+            if (settings.profile?.isTester ?? false) ...[
+              const SizedBox(height: 12),
+              TesterArmSwitchCard(backend: widget.testerArmBackend),
+            ],
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,

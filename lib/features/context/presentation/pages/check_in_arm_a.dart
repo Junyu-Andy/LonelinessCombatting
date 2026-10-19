@@ -8,6 +8,7 @@ import '../../../../core/agent_context/agent_context_service.dart';
 import '../../../../core/agent_context/rolling_summary_compiler.dart';
 import '../../../../core/agent_context/shared_context_service.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/agents/companion_app_bar.dart';
 import '../../../../core/agents/first_intro_overlay.dart';
 import '../../../../core/connectivity/connectivity_service.dart';
@@ -27,6 +28,7 @@ import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
@@ -153,6 +155,18 @@ class _CheckInArmAState extends State<CheckInArmA> {
   ChatSessionRecorder? _recorder;
   bool _briefPrSurfaced = false;
 
+  /// T49e-3 — this session was already handed to memory.  Every session
+  /// end hands it over once; the next message starts a new session and
+  /// clears the flag.
+  bool _memoryHandedOver = false;
+  bool _disposed = false;
+
+  /// T49e-3 — what the hand-over needs, captured while the element is
+  /// live: `switch_agent` can close this session after the page is gone.
+  CoreServicesScope? _memCore;
+  UserProfile? _memProfile;
+  bool _memRuleArm = true;
+
   /// T25 — set by the S9 close button before popping; otherwise the pop
   /// is a back key / gesture.  Pre-T25 behaviour keeps `user_left`.
   String? _closeReason;
@@ -164,7 +178,10 @@ class _CheckInArmAState extends State<CheckInArmA> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _analytics = AnalyticsScope.of(context);
+    _captureMemoryDeps();
     if (_recorder == null) {
+      // Fixed for the page's life, like Tung Tung's `_ruleBased`.
+      _memRuleArm = !Arm.isA(context);
       final profile = AppSettingsScope.read(context).profile;
       _recorder = ChatSessionRecorder(
         uid: profile?.uid,
@@ -403,10 +420,48 @@ class _CheckInArmAState extends State<CheckInArmA> {
 
   @override
   void dispose() {
+    // T49e-3 — leaving by any route not covered below still hands the
+    // session over (no-op when an end already did).  Uses the captured
+    // services only: no context lookups in dispose.
+    _disposed = true;
+    _handOverMemory();
     _connSub?.cancel();
     _recorder?.dispose();
     _inputCtrl.dispose();
     super.dispose();
+  }
+
+  void _captureMemoryDeps() {
+    if (!mounted || _disposed) return;
+    _memCore = CoreServicesScope.of(context);
+    _memProfile = AppSettingsScope.read(context).profile;
+  }
+
+  /// T49e-3 — hand this session to memory right away (Phase B Hybrid: the
+  /// server's `memoryEndSession`), once per session, at every end: leaving
+  /// the page (S9 / back), the idle timeout and `switch_agent`.  The same
+  /// call Tung Tung makes.  Needs no message count: the server answers
+  /// "empty" when the buffer is.  Arm B has no memory.
+  void _handOverMemory() {
+    _captureMemoryDeps();
+    if (_memoryHandedOver) return;
+    final core = _memCore;
+    final profile = _memProfile;
+    if (core == null || profile == null || _memRuleArm) return;
+    _memoryHandedOver = true;
+    // §1C — fold / hand over Siu Yan's buffer.  Fire-and-forget
+    // (context-free); no-ops in guest mode / when retention is off.
+    unawaited(RollingSummaryCompiler(
+      agentContext: core.agentContext,
+      llm: core.llm,
+      memoryV1Service: core.memoryV1,
+    ).compileAtSessionEnd(
+      uid: profile.uid,
+      agentId: AgentRegistry.siuYanId,
+      retentionOn:
+          profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId),
+      memoryV1: MemoryModes.of(profile).isV1,
+    ));
   }
 
   /// M-7 — the 10-minute idle clock closed the session while the page is
@@ -414,6 +469,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// again starts a fresh session.
   void _onIdleTimeout() {
     if (!mounted) return;
+    _handOverMemory();
     final uid = AppSettingsScope.read(context).profile?.uid;
     if (uid == null) return;
     _briefPrSurfaced = false;
@@ -422,6 +478,9 @@ class _CheckInArmAState extends State<CheckInArmA> {
 
   /// T25 v2 — another companion's session closed this one (`switch_agent`).
   void _onSwitchedAway() {
+    // Before the mounted check: this can arrive after dispose (a session
+    // left open when the page closed), and the hand-over is context-free.
+    _handOverMemory();
     if (!mounted) return;
     final uid = AppSettingsScope.read(context).profile?.uid;
     if (uid == null) return;
@@ -489,6 +548,9 @@ class _CheckInArmAState extends State<CheckInArmA> {
     final profile = AppSettingsScope.read(context).profile;
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     await _recorder?.ensureStarted();
+    // T49e-3 — a new session (or the same one, still open): its turns are
+    // not handed over yet.
+    _memoryHandedOver = false;
 
     // Cross-module callback (Layer 3): on the user's *first* turn,
     // ask the budget service whether M2 may lightly reference recent
@@ -846,22 +908,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
       }());
     }
 
-    // §1C — fold this session into Siu Yan's rolling summary and clear the
-    // verbatim buffer. Fire-and-forget (context-free) so the save stays
-    // snappy; no-ops in guest mode / when transcript retention is off.
-    if (profile != null) {
-      final compiler = RollingSummaryCompiler(
-        agentContext: core.agentContext,
-        llm: core.llm,
-      );
-      unawaited(compiler.compileAtSessionEnd(
-        uid: profile.uid,
-        agentId: AgentRegistry.siuYanId,
-        retentionOn:
-            profile.consent.transcriptRetentionFor(AgentRegistry.siuYanId),
-        memoryV1: MemoryModes.of(profile).isV1,
-      ));
-    }
+    // §1C — memory is handed over by _finalizeOnExit (T49e-3), for every
+    // exit, not only a completed check-in.
     _analytics?.logCheckIn(
       mood: _face.numericScore,
       loneliness: 3,
@@ -877,6 +925,9 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// the check-in automatically (toast confirms) and the chat stays just a
   /// chat — no 完成 button whose meaning collided with 阿伯's.
   Future<void> _finalizeOnExit() async {
+    // T49e-3 — memory goes first and needs no turn count; the ≥1-message
+    // rule below is only for completing the check-in and the Brief PR.
+    _handOverMemory();
     final userTurnCount = _turns.where((t) => t.fromUser).length;
     if (_saved || userTurnCount < 1) {
       unawaited(_recorder?.end(_exitReason));
@@ -920,7 +971,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
     if (_facePicked) rec.markMoodRecorded();
     if (rec.isOpen) await rec.end(_exitReason);
     // T25 v2 — no popup: the scheduler decides, the card shows on the
-    // companion list page.  Memory was handed over in _saveSession.
+    // companion list page.  Memory was handed over (_handOverMemory).
     if (BriefPrV2.enabled) {
       await BriefPrV2.endSession(rec, endReason: _exitReason, arm: 'A');
       return;
@@ -1037,7 +1088,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
                   // 10/15: newest message at the bottom edge; the list follows the
                   // keyboard up instead of leaving the last turn under the composer.
                   reverse: true,
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
                   children: <Widget>[
                     for (int i = 0; i < _turns.length; i++) ...[
                       _TurnBubble(turn: _turns[i]),
@@ -1143,7 +1194,7 @@ class _TurnBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.78),
+            maxWidth: MediaQuery.of(context).size.width * 0.88),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(18),

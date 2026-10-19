@@ -6,6 +6,70 @@
 
 ---
 
+## 2026-10-18 批次 #120：12 张 PR 一次合并前的 UI 扫描与两处修正（分支 `batch/1018-night`，PR 草稿）
+
+- 把 #108–#119 合成一个批次（三处一行冲突，两边都留），后端全套、Flutter 六套都在批次分支上重跑过。
+- 新增 `test_manual/ui_text_scale_sweep_test.dart`：这次动过的 13 个老人页面，在 320 / 360 / 375 / 390 逻辑像素宽和字体 1.0 / 1.3（App 封顶）下渲染并做基本交互，任何溢出都算失败；带 `SWEEP_SHOTS` 时存截图。CI 只在两套 Phase B 构建里跑它（约一分钟），默认构建那套不跑。
+- 扫描结果：三种构建 13 页 × 4 宽 × 2 档全过。中途行动计划页「第 N 步 / 共 6 步」那一行在 320 / 360 宽 × 1.3 报过 34 / 13 像素右侧溢出，查明是测试默认字体把数字和斜杠都画成全宽所致（换真字体就不溢出），仍把 `app_stepper.dart` 那一行改成两边都可伸缩，窄屏大字也稳。
+- 扫描发现并修了两处：通通开场白把兴趣代号 `yum_cha` 直接显示给老人（改中文标签，模型看到的也改标签）；乙部页「關係（例如：女兒、舊朋友）」并排时在所有宽度都被截断（改为每格一行）。
+- 真机上系统字体调到最大也只会到 1.3 倍，10/19 真机测试按「系统标准 + App 標準」和「系统最大 + App 特大」两档走。
+
+## 2026-10-18 T49a 入组资料按 1018 任务单 §A 收尾（PR #111 同一分支 `feat/t47-intake-v2`，PR 草稿）
+
+- 按 `dev-tasks-1018.md` §A：人数上限每组 10；服务器入组记忆按 §A3 表重分类（孤單时段 feeling、人生阶段 story），去掉「唔想主動提起」「鍾意人點樣講嘢」两条；层和可见范围改用 `memory.layerFor` / `visibilityFor`；想重新聯絡嘅人写进新字段 `reconnectContacts`，行动计划两组都显示；旧 6 页数据加了 emulator 用例；W0 SOP 第 5、6 步后加定稿一句。
+- 顺带：入组每位陪伴者各一份，改了可见范围后同一句会重复，`selectForInjection` 对入组来源去重；研究员录入的 `completedParts` 改为追加；导出去掉 `reconnectContacts`。
+- 读代码答 §A4、§A5（T47 报告第 10 节）：分析用的配对在登记前改过时只有 App 事件留着第一次选择；规则组读 `interests`（通通兴趣按钮）和行动计划的人名，`inputMode` 两组都没人读。待 Junyu 定的 7 条在报告第 10 节第 6 条。
+
+## 2026-10-16 入组资料按修订任务单重做：甲部研究员 14 题、乙部老人填重要嘅人（PR 草稿，分支 `feat/t47-intake-v2`，接 #109）
+
+- 研究侧 10/16 把 `dev-tasks-1015-intake.md` 改版：字段全保留、不限数、新加四题、乙部由老人自填。按此重做服务器录入函数、研究员表单、老人乙部页（S19）和 Hybrid 组记忆播种（从合并后的整份文档生成，谁先录都行）。第 0 节第 5、6 题答在 T47 报告第 9 节。
+- 语气槽位（第 2 节第 7 条）先按弱版做：写成一条记忆「鍾意人點樣講嘢」；提示词新版草稿已单独给 Junyu，PI 审后再切。
+
+## 2026-10-16 研究员备注、通通一页不再问兴趣、兴趣按钮换一换、气泡加宽（PR 草稿，分支 `feat/intake-note-tung-chips`，接 #108）
+
+- Junyu 10/16 看了五题的限制和提示词路径后定：加「研究員備註」给三位夥伴做记忆；通通在引导里再让老人揀兴趣太累，改为研究员录入时不问、老人答过也不问；通通聊天页兴趣按钮一次两个加「換一換」；聊天气泡太窄改宽。顺带发现兴趣按钮把英文代号写进输入框（「我想傾下 yum_cha」），一并修了。
+- 答过的问题记在 T47 报告第 8 节：五题的选择上限是研究侧 10/15 定的，不是技术限制；自由栏照字面进固定句子，写观察类的话要用研究员备注。
+## 2026-10-16 FAQ 删英文条目；iPhone 更新改走 TestFlight（PR 草稿，分支 `fix/faq-english-testflight`）
+
+- Junyu 10/16 定 iPhone 以后走 TestFlight 外部测试公开链接，测试员可在 TestFlight「先前的版本」自己换版本。流程写在 `docs/release/ios-testflight.md`。
+- FAQ 里「我可唔可以用英文？」连同「我嘅資料」页的语言一行删干净（英文开关一直是关的）。
+## 2026-10-18 记忆机制核对报告（只读，不改代码；分支 `docs/memory-mechanism-1018`）
+
+- 按 main @ d6c38d9 把 Hybrid 组跨会话记忆从写入、抽取提示词、注入、「唔好記住」、删除、首次记忆到隐私记录逐条对照代码写成 `docs/dev-reports/memory-mechanism-20261018.md`，给 PI 读。主要发现：两层开关 `layersEnabled` 没开，所以分层过滤和 S6 分层剂量现在都没有；抽取仍是 v2；小欣签到页和回忆页在切换／超时／返回时不叫 `memoryEndSession`，只靠 30 分钟扫描；`mem_extractions.raw_output` 删条目后仍保留；陪伴者提示词末尾的 rolling_summary／named_entities 槽位服务器从不填。十项要 Junyu 定的列在报告第 10 节。
+- 订正：10/16 对话里说「`avoidTopics` 没有进提示词」不对——小欣签到、通通、阿珍／阿伯自由对话三页和开场白都由 App 在提示词末尾加一行「⛔ 用戶要求唔好提起呢啲話題」；只有回忆页没有。
+## 2026-10-18 T49 任务单落盘；两层开关 emulator 六步核对全过（PR 草稿，分支 `test/layers-sixstep-1018`）
+
+- 研究侧 10/18 晚的 `dev-tasks-1018.md` 进仓库，编号 T49（A 入组后续、B 提示词语气槽位、C S1a 日志、E 两层开关和两处修 bug）。
+- E1 (a)：`layersEnabled: true` 下六步加规则组全过，脚本 `functions/test/memory_layers_sixstep_emulator_test.js`，报告 `docs/dev-reports/memory-layers-sixstep-20261018.md`。按 E1 (b) 交 Junyu 10/19 早上开开关。
+## 2026-10-18 10/19 前配置只读核对脚本（PR 草稿，分支 `tool/check-prelaunch-values`）
+
+- dev-tasks-1018 §G4：`tool/check_prelaunch_values.js` 只读，把 `app_config/feature_flags`、`phase_b`、`phase_a` 残留、`meta/memory_config`、`randomization_config`、`alert_config`、分配序列长度和已用位置、`isTester` 帐号数、已登记人数逐项和核对表的期望值并排打出来，✓／✗ 一目了然。不打印组别、序列和完整电邮。Junyu 跑一次贴结果。
+## 2026-10-18 T49e-4 删一条记忆时清服务器审计里的模型原文（PR 草稿，分支 `fix/t49e4-raw-output`）
+
+- #113 核对报告第 6 节发现：老人删了条目，`mem_extractions.raw_output` 里还有模型当时的原文。Junyu 10/18 晚定修（1018 §E4）。
+- 做了：页面删事实／待跟进（`deleteSummaryForItem`）、页面删摘要（新触发器 `memorySummaryDeleted`）、「唔好記住」（`forgetRelated`）三处，都把来源那次整理的 `raw_output` 改成「已清除」，审计字段保留。开关 `clearRawOutputOnDelete` 默认开。`tool/delete_memory.js` 本来就整个删，不用改。
+- 报告 `docs/dev-reports/T49e4-raw-output-20261018.md`；决策草稿 `docs/decisions/NNNN-clear-raw-output-on-delete.md`（补充 0024 第 4 条）。待定：部署前已删条目的原文。
+## 2026-10-16 测试员自切组别（PR 草稿，分支 `claude/gifted-bardeen-yhizmk`）
+
+- 要做的：测试员在同一部手机上把 Hybrid 组和规则组都完整走一遍，包括记忆。做了：服务器 `setTesterArm`（只认 `isTester`，开关 `testerArmSwitchEnabled` 默认关），测试员不吃分组缓存，Arm A 测试员有记忆 v1，切过组的测试员收每周问卷推送；App 测試員工具加「切換組別」。参与者一律不变。
+- 查到的缺口和处理见报告 `docs/dev-reports/tester-arm-switch-20261016.md`；决策草稿 `docs/decisions/NNNN-tester-arm-self-switch.md`，编号待 Junyu 给。
+## 2026-10-18 T49c 通通 S1a 固定回复记一条事件（PR 草稿，分支 `feat/t49c-s1a-event`）
+
+- 10/18 §C：搜一搜维持关闭，只加记录。通通显示 S1a 时写 `users/{uid}/events` 的 `s1a_fixed_reply`（`agentId`、`sessionId`、`arm`、`matchedVersion`、`clientTime`，不含原话和关键词），两组相同，开关 `s1aEventLogEnabled` 默认关。每周过程数据导出加 `event_counts`（按人、按组次数）；锁库分析导出本来按事件名通用导出，不用改。
+- 待核答了：代码里 Hybrid 组 S1a 是逐字显示，命中后 `return`，不调用 LLM；prompt 模式 B 第 5 条只在没出 S1a 时起作用。报告 `docs/dev-reports/T49c-s1a-event-20261018.md`。
+## 2026-10-18 三位陪伴者提示词 v2/v2/v3 + 语气槽位 + 回忆页禁区行（T49b，PR 草稿，分支 `feat/t49b-prompts-tone-slot`）
+
+- 结论：小欣、阿珍／阿伯、通通的提示词各开一个新版本文件，旧文件不动。服务器按老人入组时的「鍾意人直接啲定溫和啲講」在提示词里加一句语气；没录入的人只看到默认句，行为不变。只有 Hybrid 组。
+- 文字改动（任务单 1018 §B）：自称「電腦程式夥伴」，被问起老实说是电脑程式；不用「AI」「模型」「機械人」，不说版本；删通通「幫佢搵資料」和「+ 搜尋」，小欣改说「過去同通通傾下」；删末尾从来没填过的「Context injection 格式」。
+- 回忆页是 Hybrid 组唯一没把「唔想提起的话题」告诉陪伴者的聊天页，补上，和签到页同一句。
+- 服务器：提示词登记表搬到 `functions/prompt_registry.js`，好做不连 Firestore 的测试；语气从服务器读的资料来，App 改不了；规则组第一步就被拒绝。
+- `encouragementStyle` 要等 PR #111 合并才有人写。10/19 冻结后合并算偏离，STUDY_CHANGELOG 已记。决策记录草稿 `docs/decisions/NNNN-companion-prompts-v2-tone-slot.md`。Junyu 要看三份最终文本再合。
+## 2026-10-18 T49e-3 小欣签到页、回忆页每种结束都马上交记忆（PR 草稿，分支 `fix/t49e3-memory-handover`）
+
+- 10/18 记忆机制报告（PR #113 第 2.2 节）发现：小欣签到页在切换陪伴者、30 分钟超时时不叫服务器整理记忆；回忆页只在按「儲存」时叫。Junyu 10/18 晚定按 bug 修（任务单 §E3）。
+- 做了：两页各加 `_handOverMemory()`，四种结束都调，每次会话一次；小欣页不再要求「至少讲过一句」才交（那个条件只管签到完成和 Brief PR）；回忆页从小结页按返回也交。`switch_agent` 可能在页面关闭后才到，交接用页面活着时存下的资料，不碰 context。没改服务器、`compileAtSessionEnd`、`MemoryV1Service`。
+- 测试 `test/memory_handover_pages_test.dart` 12 项，三种构建都过；改动前的代码在 Phase B 下 8 项不过，正好是报告列的几种情况。报告 `docs/dev-reports/T49e3-memory-handover-20261018.md`。
+
 ## 2026-10-16 注册页：密码输两次、电邮换行、显示密码（PR 草稿，分支 `fix/signup-email-password`，并入 `batch/1016-morning`）
 
 - 10/15 试跑一位老人注册后发现电邮打错，但格子只显示尾巴看不全。改：电邮格自动换行、去空格；建立帐号时密码输两次，不一样不让提交；密码格加眼睛按钮。文字见 S17，待产品窗口核。

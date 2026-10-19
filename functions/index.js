@@ -33,6 +33,8 @@ const weeklySchedule = require("./weekly_schedule");
 const usageEvents = require("./usage_events");
 const opsDashboard = require("./ops_dashboard");
 const researcherIntake = require("./researcher_intake");
+const testerArm = require("./tester_arm");
+const promptRegistry = require("./prompt_registry");
 
 admin.initializeApp();
 
@@ -55,37 +57,13 @@ const DEEPSEEK_THINKING = {type: "disabled"};
 // Prompt resolution (Dev Req §3.2, §8 – prompts live server-side so the
 // client cannot tamper with them).
 //
-// Files under functions/prompts/{key}.txt are loaded once at cold-start
-// and cached in-memory. The Ah Jan / Ah Bak prompt contains a
-// `{{VARIANT_NAME}}` placeholder which we substitute per request.
+// The registry (PROMPT_FILES: key the app sends → versioned file), the
+// file cache and the version label live in prompt_registry.js (T49b).
+// Per request we fill {{VARIANT_NAME}} (Ah Jan / Ah Bak) and {{TONE_RULE}}
+// (users/{uid}.encouragementStyle, T49b).
 // ---------------------------------------------------------------------------
 
-const PROMPT_DIR = path.join(__dirname, "prompts");
-const _promptCache = {};
-
-// Prompt registry (memory-and-entry-spec 3.10): the key the app sends →
-// the versioned file the server loads.  Installed apps keep sending the
-// old key, so the swap happens here.  Old files are never overwritten.
-//   tung_tung_v1 → tung_tung.v2: no "幫你查" invitation (decision 0019).
-const PROMPT_FILES = {
-  tung_tung_v1: "tung_tung.v2",
-};
-
-function promptFileFor(key) {
-  return Object.prototype.hasOwnProperty.call(PROMPT_FILES, key) ?
-    PROMPT_FILES[key] : key;
-}
-
-function loadPrompt(key) {
-  if (_promptCache[key] !== undefined) return _promptCache[key];
-  try {
-    const file = path.join(PROMPT_DIR, `${promptFileFor(key)}.txt`);
-    _promptCache[key] = fs.readFileSync(file, "utf8");
-  } catch (err) {
-    _promptCache[key] = null;
-  }
-  return _promptCache[key];
-}
+const {PROMPT_DIR, loadPrompt, promptVersionFor} = promptRegistry;
 
 let _safetyCache = null;
 function loadSafetyAcks() {
@@ -97,23 +75,6 @@ function loadSafetyAcks() {
     _safetyCache = {};
   }
   return _safetyCache;
-}
-
-// L-2 — prompt version label derived from the prompt file header, e.g.
-// "## 小欣 — … · v1 (rev 2026-06)" → "siu_yan_v1@2026-06".  Cached with the
-// prompt text; null for raw systemPrompt callers (no server-side file).
-const _promptVersionCache = {};
-function promptVersionFor(key) {
-  if (!key) return null;
-  if (_promptVersionCache[key] !== undefined) return _promptVersionCache[key];
-  const text = loadPrompt(key);
-  let label = null;
-  if (text) {
-    const m = text.split("\n")[0].match(/v(\d+)\s*\(rev\s*([0-9-]+)\)/);
-    if (m) label = `${key.replace(/[._]v\d+$/, "")}_v${m[1]}@${m[2]}`;
-  }
-  _promptVersionCache[key] = label;
-  return label;
 }
 
 // S-4 — crisis resources (hotline names / numbers) are a single JSON that
@@ -143,20 +104,29 @@ function fillHotline(text, locale) {
       .split("{{HOTLINE_NUMBER}}").join(res.number || "");
 }
 
-function resolvePrompt(payload) {
+/**
+ * Persona prompt for a request: the server-side file for payload.promptKey
+ * with its slots filled and the client's context suffix appended (or the
+ * legacy raw payload.systemPrompt).
+ * @param {!Object} payload Callable payload.
+ * @param {*=} encouragementStyle users/{uid}.encouragementStyle as read
+ *     by the server; omitted → the default tone line.
+ * @return {?string} System prompt, or null.
+ */
+function resolvePrompt(payload, encouragementStyle) {
   const promptKey = payload.promptKey;
   const rawPrompt = payload.systemPrompt;
   if (!promptKey && rawPrompt) return rawPrompt;
   if (!promptKey) return null;
   const template = loadPrompt(promptKey);
   if (!template) return rawPrompt || null;
-  let out = template;
-  // Default variant: feminine (阿珍).  An earlier auto-formatter
-  // mangled this to "阿Jan" — do not regress.  The two real variants
-  // are 阿珍 (feminine, sage green) and 阿伯 (masculine, teal-blue);
-  // both are AI-disclosed peer-aged listeners.
-  const variantName = payload.variantName || "阿珍／阿伯";
-  out = out.split("{{VARIANT_NAME}}").join(variantName);
+  // {{VARIANT_NAME}} (default 阿珍／阿伯) and {{TONE_RULE}}.  The tone
+  // comes from the server-read profile (`encouragementStyle`, set by the
+  // caller after assertLlmAllowed), never from the client payload.
+  let out = promptRegistry.fillSlots(template, {
+    variantName: payload.variantName,
+    encouragementStyle: encouragementStyle,
+  });
   const contextSuffix = payload.contextSuffix;
   if (contextSuffix && typeof contextSuffix === "string") {
     // P-2 (2026-09): the suffix carries the rolling summary + named
@@ -281,6 +251,9 @@ function temperatureFor(agentId) {
 // ---------------------------------------------------------------------------
 // T19: entries expire after 10 minutes, so an arm changed by
 // tool/correct_arm_assignment.js reaches every instance within that time.
+// Tester accounts (isTester true) are never cached: they may switch their
+// own arm (setTesterArm, functions/tester_arm.js), and the next call must
+// see it on every instance.  Participants are unchanged.
 const _armCache = new Map();
 const _ARM_CACHE_MS = 10 * 60 * 1000;
 
@@ -294,8 +267,28 @@ async function armFor(uid) {
   if (hit && Date.now() - hit.at < _ARM_CACHE_MS) return hit.arm;
   const snap = await admin.firestore().collection("users").doc(uid).get();
   const arm = snap.exists ? (snap.get("arm") || null) : null;
-  if (arm) _armCache.set(uid, {arm, at: Date.now()});
+  const tester = snap.exists && snap.get("isTester") === true;
+  if (arm && !tester) _armCache.set(uid, {arm, at: Date.now()});
   return arm;
+}
+
+/**
+ * T49b — `users/{uid}.encouragementStyle` (direct / gentle / either, set
+ * by researcher_intake.js), read fresh per call so a new intake applies at
+ * once.  Only called after assertLlmAllowed, i.e. never for the rule arm.
+ * A failed read falls back to the default tone (null), logged.
+ * @param {string} uid Firebase auth uid.
+ * @return {Promise<?string>} The stored value, or null.
+ */
+async function encouragementStyleFor(uid) {
+  try {
+    const snap = await admin.firestore().collection("users").doc(uid).get();
+    const v = snap.exists ? snap.get("encouragementStyle") : null;
+    return typeof v === "string" ? v : null;
+  } catch (err) {
+    console.error("encouragementStyle read failed:", err.message);
+    return null;
+  }
 }
 
 /**
@@ -401,7 +394,11 @@ exports.proxyDeepSeek = onCall(
       throw new HttpsError("invalid-argument", "bad payload: messages");
     }
 
-    let systemPrompt = resolvePrompt(payload);
+      // T49b — tone slot; Arm B was refused by assertLlmAllowed above.
+      // Raw systemPrompt callers have no slot, so no read for them.
+      const encouragementStyle = payload.promptKey ?
+        await encouragementStyleFor(request.auth.uid) : null;
+    let systemPrompt = resolvePrompt(payload, encouragementStyle);
     if (!systemPrompt) {
       throw new HttpsError(
         "invalid-argument",
@@ -657,10 +654,12 @@ exports.referralJudgement = onCall(
       );
     }
 
-    const sourcePrompt = resolvePrompt({
-      promptKey: `${sourceAgentId}_v1`,
-      variantName: payload.variantName,
-    });
+      // T49b — same tone slot as the chat call, so the suggestion is
+      // phrased in the voice the participant gets.
+      const sourcePrompt = resolvePrompt({
+        promptKey: `${sourceAgentId}_v1`,
+        variantName: payload.variantName,
+      }, await encouragementStyleFor(request.auth.uid));
     if (!sourcePrompt) {
       throw new HttpsError("internal", "source persona prompt missing");
     }
@@ -1551,7 +1550,8 @@ function blindRow(row, {armMapping, salt, includeUid}) {
         k === "displayName" ||
         k === "emergencyContactName" ||
         k === "emergencyContactPhone" ||
-        k === "closeContacts") {
+        k === "closeContacts" ||
+        k === "reconnectContacts") { // T49a: names too
       continue; // strip PII
     }
     if (k === "uid") {
@@ -1851,6 +1851,10 @@ exports.memorySweep = onSchedule(
       queries.push(db.collection("users")
           .where("arm", "==", "A")
           .where("armAssignmentMode", "in", studyPeriod.PHASE_B_MODES).get());
+      // Tester accounts in Arm A (memory.js inScope; tester arm switch).
+      queries.push(db.collection("users")
+          .where("arm", "==", "A")
+          .where("isTester", "==", true).get());
     }
     const byId = new Map();
     for (const snap of await Promise.all(queries)) {
@@ -1917,6 +1921,22 @@ for (const [name, col] of [["memoryFactDeleted", "mem_facts"],
         }
       });
 }
+
+// T49e-4 (clearRawOutputOnDelete): deleting a summary clears the model's
+// verbatim output kept for that session (mem_extractions, same id).
+// Nothing else is deleted with it (decision 0024).
+exports.memorySummaryDeleted = onDocumentDeleted(
+    {document: "users/{uid}/mem_summaries/{summaryId}", region: "asia-east2"},
+    async (event) => {
+      const summary = event.data ? event.data.data() : null;
+      try {
+        await memory.clearRawOutputForSummary(admin.firestore(),
+            event.params.uid, event.params.summaryId, summary);
+      } catch (err) {
+        console.error("raw output clear after summary delete failed",
+            {uid: event.params.uid, err: String(err)});
+      }
+    });
 
 exports.dailyMoodReminder = onSchedule(
   {
@@ -2651,6 +2671,42 @@ exports.dispatchReminders = onSchedule(
   },
   async (_event) => {
     await reminders.dispatchDueReminders(admin.firestore(), admin.messaging());
+  },
+);
+
+// ---------------------------------------------------------------------------
+// setTesterArm — a tester switches their OWN account between the Hybrid arm
+// (A) and the rule arm (B) from 測試員工具 (functions/tester_arm.js).
+// Guard as sendTestPush: signed in AND users/{uid}.isTester == true; plus
+// the switch app_config/feature_flags.testerArmSwitchEnabled (default
+// off).  Participants are refused and nothing is written for them.
+// ---------------------------------------------------------------------------
+const _TESTER_ARM_ERRORS = {
+  not_tester: ["permission-denied", "tester accounts only"],
+  disabled: ["failed-precondition", "feature disabled: " + testerArm.FLAG],
+  invalid_arm: ["invalid-argument", "arm must be A or B"],
+};
+
+exports.setTesterArm = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 3},
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required");
+    }
+    const uid = request.auth.uid;
+    const data = request.data || {};
+    try {
+      const out = await testerArm.switchArm(admin.firestore(), uid, data.arm);
+      // This instance forgets the uid at once (testers are not cached
+      // anyway; this covers a participant flagged tester since).
+      _armCache.delete(uid);
+      return out;
+    } catch (err) {
+      const mapped = err && _TESTER_ARM_ERRORS[err.testerArmCode];
+      if (mapped) throw new HttpsError(mapped[0], mapped[1]);
+      console.error("setTesterArm failed", {err: String(err)});
+      throw new HttpsError("internal", "tester_arm_switch_failed");
+    }
   },
 );
 

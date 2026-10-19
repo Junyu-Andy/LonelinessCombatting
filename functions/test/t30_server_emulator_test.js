@@ -164,6 +164,16 @@ async function seedProcessParticipants() {
       answers: {q1: "yes"}, scores: {total: 3}, status: "submitted"});
     await u.collection("pgic").add({value: 5});
     await u.collection("daily_mood").add({mood: 2});
+    // T49c — two S1a rows for the Hybrid elder, one for the rule elder,
+    // plus an unrelated event that must not be counted.
+    const s1a = (n) => u.collection("events").add({name: "s1a_fixed_reply",
+      arm, params: {agentId: "tung_tung", sessionId: `s${n}`, arm,
+        matchedVersion: "2026-10-10-s1a",
+        clientTime: "2026-11-04T10:00:00.000"}});
+    await s1a(1);
+    if (arm === "A") await s1a(2);
+    await u.collection("events").add({name: "tung_tung_search_off_reply",
+      arm, params: {arm, version: "2026-10-10-s1a"}});
     await db.collection("safety_events").add({uid, source: arm === "A" ?
       "ai_output_scan" : "rule_turn", level: "acute", tier: "acute",
     matchedTerm: "唔想活", textHash: "h", crisisPageShown: true,
@@ -219,6 +229,14 @@ test("process export: research ID + real arm, T25 fields, sources; no " +
   assert.ok(!json.includes("x.test"), "email leaked");
   assert.ok(!json.includes("陳太"), "name leaked");
   assert.ok(built.manifest.neverHere.includes("outcome_entries"));
+  // T49c — S1a counts per person and per arm; counts only.
+  assert.deepStrictEqual(f.event_counts, [
+    {researchId: "PB-101", arm: "A", name: "s1a_fixed_reply", count: 2},
+    {researchId: "PB-102", arm: "B", name: "s1a_fixed_reply", count: 1},
+  ]);
+  assert.deepStrictEqual(built.manifest.eventCountsByArm,
+      {s1a_fixed_reply: {A: 2, B: 1}});
+  assert.ok(!json.includes("2026-10-10-s1a"), "event params leaked");
 });
 
 test("switches: processExportEnabled and outcomeExportPaused default off, " +
