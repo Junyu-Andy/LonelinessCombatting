@@ -65,6 +65,7 @@ import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
 import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
+import '../../../action_loop/data/action_plan.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_a_page.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_b_page.dart';
 import '../../../adherence/data/adherence_check.dart';
@@ -531,9 +532,10 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => ToolSessionScope(
         toolId: 'action_loop',
+        // 1020e: `source` is stored only with actionPlanSimplifiedEnabled.
         child: _ruleArm
-            ? const ActionLoopArmBPage()
-            : const ActionLoopArmAPage(),
+            ? const ActionLoopArmBPage(source: ActionPlanSource.checkInQ5)
+            : const ActionLoopArmAPage(source: ActionPlanSource.checkInQ5),
       ),
     ));
   }

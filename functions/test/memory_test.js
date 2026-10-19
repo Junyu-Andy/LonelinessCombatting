@@ -340,6 +340,19 @@ test("only chat surfaces get memory", () => {
   }
 });
 
+test("1020e: the action plan's two calls get memory but no follow-ups", () => {
+  for (const id of ["m7_action_loop_summary", "m7_action_loop_followup"]) {
+    assert.ok(m.INJECT_MODULES.test(id), id);
+    assert.ok(m.NO_FOLLOWUP_MODULES.test(id), id);
+  }
+  assert.ok(m.NO_FOLLOWUP_MODULES.test("m6_suggestions"));
+  for (const id of ["m7_action_loop", "m7_action_loop_summary_x",
+    "m2_check_in", "reflective_dialogue", "greeting_siu_yan"]) {
+    assert.ok(!m.NO_FOLLOWUP_MODULES.test(id), id);
+  }
+  assert.ok(!m.INJECT_MODULES.test("m7_action_loop"));
+});
+
 // ------------------------------------------------------------------ scope
 test("scope: Phase B Arm A is in without opting in; Phase A Arm A is not",
     () => {

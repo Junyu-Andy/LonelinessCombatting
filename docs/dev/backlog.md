@@ -27,6 +27,7 @@
 > 2026-10-19 测试员免打包解锁、每週問卷測試页、Brief PR 横排、注册跳错处、人生回顧去锁、隐藏保留对话开关 PR 草稿；待定：两份决策编号；「保留對話紀錄」不开放要 Junyu 确认并改 ICF（若写了 App 内可关）；要用测试员工具时在控制台开 `testerToolsEnabled`。
 > 2026-10-19 1020 第 2 批（A、F (1)–(4)、(6)）小欣页 check-in 对话化 + 规则组小欣聊天，分支 `claude/zealous-fermat-8rgqtg-batch2`（开关 `checkInChatV2Enabled` 默认关）；待定：决策编号；1020b 第四节全部文字和 `siu_yan.v3` 提示词措辞（Junyu 看截图定）；Hybrid 唔講住用 R4b 固定句、acute 后 check-in 停止、规则组聊天命中 moderate_review 时没有任何回应句，三点要 Junyu 确认；首页周小结图的心情改由 Q1 分数顶上（以后改读 `daily_mood`）；过程数据导出加 `sessions.checkInCompleted`；`homeMoodOpensCheckInEnabled` 仍直开旧页面（第 3 批处理）；开开关前先部署 Functions。
 > 2026-10-20 1020c 第二项键盘遮挡 PR 草稿（开关 `keyboardCompactHeaderEnabled` 默认关）；待定：开不开、缩小后标题要不要新句子、表格页要不要也缩、决策编号；新待办：「個人資料 → 修改」弹出框键盘打开时溢出（不能滚）、Phase A 的 ADA／第 7 日／旧夥伴評估页同样被顶栏挤（Phase B 不显示）、1.30 字体下输入框本身偏高（对话区仍只有约 5 行）。
+> 2026-10-20 1020e 二.7 行动计划少填、可改可删、Hybrid 计划用小欣记忆 PR 草稿（开关 `actionPlanSimplifiedEnabled`、`actionPlanMemoryEnabled` 默认关）；待定：全部新文字、两个开关开不开、Hybrid 从建议进来先显示「做咩」一步、改计划页「幾時」用文字框（规则组改过后可能是自由文字）、记忆部分两段提示词、决策编号；留到 Phase B 之后：「幾時」改成日期钟点、提醒跟着时间走；`tool/check_prelaunch_values.js` 未加这两个开关。
 
 ## 1. 已决定、待开发
 

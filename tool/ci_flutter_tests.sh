@@ -43,12 +43,14 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/memory_handover_pages_test.dart \
   test/check_in_chat_v2_test.dart \
   test/keyboard_compact_header_test.dart \
+  test/action_plan_simplified_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
   test/tung_tung_arm_b_test.dart test/my_story_arm_test.dart \
   test/memory_handover_pages_test.dart \
   test/keyboard_compact_header_test.dart \
+  test/action_plan_simplified_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \
   --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart

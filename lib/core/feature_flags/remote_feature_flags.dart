@@ -132,6 +132,25 @@
 ///                               closes (lib/shared/widgets/
 ///                               keyboard_compact.dart).  Both arms the
 ///                               same.  Off: nothing changes.
+///   - [actionPlanSimplifiedEnabled] — 1020e 二.7 (1) (Junyu): one rule for
+///                               the action plan in both arms: 做咩 (the
+///                               suggestion, pre-filled and editable) and
+///                               幾時 are the only required items; 邊度 /
+///                               同邊個 / 唔得點 may be left out; a plan
+///                               waiting for follow-up can have 做咩 and
+///                               幾時 changed, or be deleted (soft:
+///                               `deletedAt`, its unsent reminders go).
+///                               New plan fields and m7_* events only when
+///                               on.  Off: the planners, the list and the
+///                               stored fields are exactly as before.
+///   - [actionPlanMemoryEnabled] — 1020e 二.7 (2) (Junyu, 10/19 item 36(a)):
+///                               the Hybrid planner's two model calls
+///                               (m7_action_loop_summary, m7_action_loop_
+///                               followup) send agentId siu_yan, so the
+///                               server adds 小欣's memory block (never her
+///                               due follow-ups), with prompts that say
+///                               「電腦程式夥伴」.  Rule arm: no model call,
+///                               on or off.  Off: no agentId, old prompts.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -166,6 +185,8 @@ class RemoteFeatureFlags {
     this.transcriptRetentionToggleEnabled = false,
     this.checkInChatV2Enabled = false,
     this.keyboardCompactHeaderEnabled = false,
+    this.actionPlanSimplifiedEnabled = false,
+    this.actionPlanMemoryEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -191,6 +212,8 @@ class RemoteFeatureFlags {
   final bool transcriptRetentionToggleEnabled;
   final bool checkInChatV2Enabled;
   final bool keyboardCompactHeaderEnabled;
+  final bool actionPlanSimplifiedEnabled;
+  final bool actionPlanMemoryEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -252,6 +275,9 @@ class RemoteFeatureFlags {
         checkInChatV2Enabled: map['checkInChatV2Enabled'] == true,
         keyboardCompactHeaderEnabled:
             map['keyboardCompactHeaderEnabled'] == true,
+        actionPlanSimplifiedEnabled:
+            map['actionPlanSimplifiedEnabled'] == true,
+        actionPlanMemoryEnabled: map['actionPlanMemoryEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply
