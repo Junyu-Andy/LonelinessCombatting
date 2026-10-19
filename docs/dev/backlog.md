@@ -28,6 +28,8 @@
 > 2026-10-19 1020 第 2 批（A、F (1)–(4)、(6)）小欣页 check-in 对话化 + 规则组小欣聊天，分支 `claude/zealous-fermat-8rgqtg-batch2`（开关 `checkInChatV2Enabled` 默认关）；待定：决策编号；1020b 第四节全部文字和 `siu_yan.v3` 提示词措辞（Junyu 看截图定）；Hybrid 唔講住用 R4b 固定句、acute 后 check-in 停止、规则组聊天命中 moderate_review 时没有任何回应句，三点要 Junyu 确认；首页周小结图的心情改由 Q1 分数顶上（以后改读 `daily_mood`）；过程数据导出加 `sessions.checkInCompleted`；`homeMoodOpensCheckInEnabled` 仍直开旧页面（第 3 批处理）；开开关前先部署 Functions。
 > 2026-10-20 1020c 第二项键盘遮挡 PR 草稿（开关 `keyboardCompactHeaderEnabled` 默认关）；待定：开不开、缩小后标题要不要新句子、表格页要不要也缩、决策编号；新待办：「個人資料 → 修改」弹出框键盘打开时溢出（不能滚）、Phase A 的 ADA／第 7 日／旧夥伴評估页同样被顶栏挤（Phase B 不显示）、1.30 字体下输入框本身偏高（对话区仍只有约 5 行）。
 > 2026-10-20 1020e 二.7 行动计划少填、可改可删、Hybrid 计划用小欣记忆 PR 草稿（开关 `actionPlanSimplifiedEnabled`、`actionPlanMemoryEnabled` 默认关）；待定：全部新文字、两个开关开不开、Hybrid 从建议进来先显示「做咩」一步、改计划页「幾時」用文字框（规则组改过后可能是自由文字）、记忆部分两段提示词、决策编号；留到 Phase B 之后：「幾時」改成日期钟点、提醒跟着时间走；`tool/check_prelaunch_values.js` 未加这两个开关。
+> 2026-10-20 1020c 第二项键盘遮挡 PR #131 草稿（开关 `keyboardCompactHeaderEnabled` 默认关）；Junyu 10/20（1020e 一.(11)）接受现做法、不加新文字、表格页也缩，**真机测过再开开关**；「個人資料 → 修改」弹出框溢出已在同一 PR 修（不放开关）。待定：开开关的日期、决策编号；待办：Phase A 的 ADA／第 7 日／旧夥伴評估页同样被顶栏挤（Phase B 不显示）、1.30 字体下输入框本身偏高（对话区仍只有约 5 行）。
+> 2026-10-19 第 2 批跟进（1020e 二.5、二.8、二.9、二.10、二.12）已做（PR #128）：Hybrid 唔講住改叫模型、规则组中度复核用 SN、误触标记和当天续问、Q1 按钮顺序、输入框提示；上一行的三个待确认点由 1020e 定了。新开关 `safetyFalseAlarmMarkEnabled`（研究员工具，默认关，10/21 前定开关）；待定：P2 按 `falseAlarm` 判断归第 4 批；误触标记暂不能撤销（要撤销另做）；续问另存新行，分析按 `resumed_from` 合并同一天两行。
 
 ## 1. 已决定、待开发
 

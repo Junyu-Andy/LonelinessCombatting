@@ -79,14 +79,20 @@ test("the section covers reply 1, reply 2, the opener, today's answers",
       const section = v3.slice(v3.indexOf(SECTION),
           v3.indexOf("# Cross-referral"));
       for (const marker of ["[簽到·回應一]", "[簽到·回應二]",
-        "[開場·check-in 已做]", "[今日 check-in]"]) {
+        "[簽到·唔講住]", "[開場·check-in 已做]", "[今日 check-in]"]) {
         assert.ok(section.includes(marker), marker);
       }
       assert.ok(section.includes("唔好重複問"), "never asks the questions");
       assert.ok(section.includes("最多提一兩個"), "reply 2: at most one or two");
       assert.ok(section.includes("唔好催促"), "reply 2: no pushing");
       assert.ok(section.includes("唔好俾建議"), "reply 1: no advice");
-      assert.ok(section.includes("唔使俾建議"), "唔講住: no advice");
+      // 1020e 二.8: Q4 唔講住 — one sentence, no advice, no question.
+      const skip = section.slice(section.indexOf("`[簽到·唔講住]`"),
+          section.indexOf("`[開場·check-in 已做]`"));
+      assert.ok(skip.includes("只回一句"), "唔講住: one sentence");
+      assert.ok(skip.includes("唔好俾任何建議"), "唔講住: no advice");
+      assert.ok(skip.includes("唔好問問題"), "唔講住: no question");
+      assert.ok(!section.includes("App 用固定句回應"), "old fixed-line rule gone");
       assert.ok(section.includes("Q1 揀「唔想答」"), "Q1 prefer-not");
       // The App strings it must match (lib/.../siu_yan_chat_page.dart).
       assert.ok(section.includes("尋日成日整體過得點？"));

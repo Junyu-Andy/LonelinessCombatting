@@ -73,6 +73,8 @@ const SAFETY_FIELDS = [
   "source", "level", "tier", "category", "lexiconVersion", "agentId",
   "inputPoint", "createdAt", "instrument", "item", "crisisPageShown",
   "isDuplicate", "escalatedBy",
+  // 1020e 二.9: the researcher's 「誤觸」 mark (no text; not who marked).
+  "falseAlarm", "markedAt",
 ];
 
 const SOURCE_GROUP = {

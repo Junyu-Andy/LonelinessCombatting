@@ -151,6 +151,15 @@
 ///                               due follow-ups), with prompts that say
 ///                               「電腦程式夥伴」.  Rule arm: no model call,
 ///                               on or off.  Off: no agentId, old prompts.
+///   - [safetyFalseAlarmMarkEnabled] — 1020e 二.9: the researcher
+///                               dashboard's safety-alert list offers
+///                               「標記誤觸」 (false alarm) to the
+///                               `unblinded` role; the `markSafetyFalseAlarm`
+///                               callable checks the same switch.  A marked
+///                               crisis stop lets the elder resume that
+///                               day's chat check-in.  Researcher tool only;
+///                               nothing changes for participants until a
+///                               researcher marks an alert.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -187,6 +196,7 @@ class RemoteFeatureFlags {
     this.keyboardCompactHeaderEnabled = false,
     this.actionPlanSimplifiedEnabled = false,
     this.actionPlanMemoryEnabled = false,
+    this.safetyFalseAlarmMarkEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -214,6 +224,7 @@ class RemoteFeatureFlags {
   final bool keyboardCompactHeaderEnabled;
   final bool actionPlanSimplifiedEnabled;
   final bool actionPlanMemoryEnabled;
+  final bool safetyFalseAlarmMarkEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -278,6 +289,8 @@ class RemoteFeatureFlags {
         actionPlanSimplifiedEnabled:
             map['actionPlanSimplifiedEnabled'] == true,
         actionPlanMemoryEnabled: map['actionPlanMemoryEnabled'] == true,
+        safetyFalseAlarmMarkEnabled:
+            map['safetyFalseAlarmMarkEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply
