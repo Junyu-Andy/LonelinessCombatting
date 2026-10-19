@@ -25,6 +25,13 @@
 - 文字草稿 `functions/push_copy.js` ＝ `docs/spec/copy/push-and-email-1020.md`（`push_copy_test.js` 逐字比对）。`sendTestPush` 开关开时「每日心情提醒」发 P1、「每週問卷提醒」发 W1，供手机测试。
 - 测试：`pushes_email_1020_emulator_test.js` 11 项（模拟时钟）；整套后端测试通过。决策草稿 `NNNN-daily-and-weekly-pushes-1020.md`。
 - 发现：第 1–3 周 W2／W3 文字比实际窗口早一天；W4 面访日期只能事后录入、App 读不到，面访延后其实延不了。都列给 Junyu 定。
+## 2026-10-20 dev-tasks-1020e 二.13：「想重新聯絡嘅人」只传勾了「可以講」的人
+
+- 1020e 是 Junyu 对第 1 至 4 批和 #129–#131、#134 待定事项的回复。各项按 PR 分派；本段只记 #127 里这一项。
+- `researcher_intake.intakeFactsFor`：「想重新聯絡嘅人」和「重要嘅人」一样只取 `share` 为真的人；建议页同样过滤。旧资料没有 `share`，当作不传。
+- 新脚本 `tool/rewrite_reconnect_memory.js`：按入组文档重新写录入事实（和重新录入同一个函数），只动录入来的事实；默认预演，不打名字。emulator 测试 3 项。
+- 测试改动：`researcher_intake_emulator_test` 的合成资料加一个不分享的人；`suggestions_use_profile_test` 改为只传分享的人。
+
 ## 2026-10-20 dev-tasks-1020c 第一节：#126 两个开关定开，开之前修两处
 
 - Junyu 定开 `appFontScaleOnlyEnabled`、`suggestionsUseProfileEnabled`（10/20 手机测试过后、10/21 第一位 RCT- 登记前）。开关表、`tool/check_prelaunch_values.js` 改为期望 true。

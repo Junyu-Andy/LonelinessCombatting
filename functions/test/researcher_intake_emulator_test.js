@@ -52,6 +52,7 @@ const PART_B = {
     share: true}, {name: "黃太", relationship: "鄰居", extra: null,
     share: true}],
   reconnectPeople: [{name: "舊同事阿強", relationship: "舊同事", extra: null,
+    share: true}, {name: "陳生", relationship: "舊街坊", extra: null,
     share: false}],
   completedParts: [2],
   peopleSource: "elder",
@@ -303,6 +304,7 @@ test("intakeFactsFor: routing per companion (§A3, 10/18), only shared " +
       "飲茶／一盅兩件、打牌／打麻雀、行山、新聞時事、聽粵曲");
   assert.strictEqual(v("鍾意傾嘅話題").value, "飲食煮餸、香港舊時嘅嘢香港歷史、馬經");
   assert.strictEqual(v("重要嘅人").value, "阿女（女）"); // 黃太 not shared
+  // 1020e 二.13: 陳生 not shared → left out.
   assert.strictEqual(v("想重新聯絡嘅人").value, "舊同事阿強（舊同事）");
   assert.strictEqual(v("想傾嘅人生階段").value, "細個嘅時候、出嚟做嘢返工嘅日子");
   assert.strictEqual(v("研究員觀察").value, "老人家健談，咩都想講");
@@ -453,14 +455,15 @@ async () => {
     assert.deepStrictEqual(d.itemTimestamps, OLD.itemTimestamps);
     assert.strictEqual(d.createdAt, OLD.createdAt);
     assert.strictEqual(d.schemaVersion, 3);
-    // Facts: old people not shared → no 重要嘅人; reconnect kept.
+    // Facts: old people rows have no `share` → no 重要嘅人, and (1020e
+    // 二.13) no 想重新聯絡嘅人 either.
     const facts = (await db.collection(`users/${uid}/mem_facts`)
         .where("status", "==", "active").get()).docs.map((x) => x.data());
     assert.strictEqual(r.memoryFacts, facts.length);
     const keys = facts.map((f) => `${f.agent_id}:${f.key}`).sort();
     assert.deepStrictEqual(keys, [
       "ah_jan_ah_bak:喺邊度長大", "ah_jan_ah_bak:嚟呢度主要想",
-      "siu_yan:喺邊度長大", "siu_yan:嚟呢度主要想", "siu_yan:想重新聯絡嘅人",
+      "siu_yan:喺邊度長大", "siu_yan:嚟呢度主要想",
       "tung_tung:喺邊度長大", "tung_tung:嚟呢度主要想",
     ].sort());
     assert.strictEqual(r.people, 1); // the empty old row is not counted

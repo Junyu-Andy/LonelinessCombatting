@@ -1,6 +1,7 @@
 // 1020c 一 — 今日嘅小邀請 with the #126 switch `suggestionsUseProfileEnabled`:
-//   - Hybrid, switch on: the model gets the elder's shared 重要嘅人, every
-//     想重新聯絡嘅人, up to ten interests and 唔想提起嘅話題, and the request
+//   - Hybrid, switch on: the model gets the elder's shared 重要嘅人 and
+//     shared 想重新聯絡嘅人 (1020e 二.13: 「可以講」 only, as in the memory),
+//     up to ten interests and 唔想提起嘅話題, and the request
 //     carries agentId siu_yan (the server adds 小欣's memory block);
 //     switch off: none of these, no agentId (as before);
 //   - rule arm: the page is exactly the same with the switch on or off —
@@ -78,6 +79,7 @@ UserProfile _profile(ArmAssignment arm) => UserProfile(
       ],
       reconnectContacts: const [
         CloseContact(name: '陳太', relation: '舊鄰居', share: false),
+        CloseContact(name: '阿強', relation: '舊同事', share: true),
       ],
       interests: const ['yum_cha', 'gardening'],
       avoidTopics: '老伴',
@@ -150,8 +152,9 @@ void main() {
     expect(c.systemPrompt, contains('電腦程式夥伴'));
     expect(c.input, contains('重要嘅人：阿玲（女兒）'));
     expect(c.input, isNot(contains('何生')), reason: 'not shared');
-    expect(c.input, contains('想重新聯絡嘅人：陳太（舊鄰居）'),
-        reason: 'every reconnect name, share or not (as in the memory)');
+    expect(c.input, contains('想重新聯絡嘅人：阿強（舊同事）'));
+    expect(c.input, isNot(contains('陳太')),
+        reason: '1020e: not ticked 「可以講」 → not sent');
     expect(c.input, contains('鍾意做嘅嘢：'));
     expect(c.input, contains('唔想提起嘅話題：老伴'));
   }, skip: !_hybridTestable);
@@ -162,7 +165,7 @@ void main() {
     expect(llm.calls, hasLength(1));
     final c = llm.calls.single;
     expect(c.agentId, isNull);
-    for (final s in ['阿玲', '陳太', '老伴', '鍾意做嘅嘢']) {
+    for (final s in ['阿玲', '陳太', '阿強', '老伴', '鍾意做嘅嘢']) {
       expect(c.input, isNot(contains(s)));
     }
   }, skip: !_hybridTestable);
