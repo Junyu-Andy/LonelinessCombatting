@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../shared/widgets/app_loading_indicator.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_a_page.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_b_page.dart';
+import '../../../onboarding/data/interest_labels.dart';
 import '../../data/suggestion_pool.dart';
 
 /// M6 — Social Activity Suggestions. Both arms share the same screen
@@ -56,6 +59,24 @@ Output format: one suggestion per line, each starting with "- ". No
 other text.
 ''';
 
+  // 10/19 (Junyu, switch suggestionsUseProfileEnabled): same rules, the
+  // identity wording of the v2 companion prompts (#118), and the people
+  // the elder named come first.  Used only when the switch is on.
+  static const _systemPromptZhV2 = '''
+你係小欣（一個電腦程式夥伴），幫一位香港長者諗一兩件可以今日或聽日做嘅小社交活動。
+規矩：
+- 用粵語/口語繁體中文。
+- 出 1 或 2 個建議，每個 1 句，唔超過 35 字。
+- 下面會列出用戶講過嘅重要嘅人、想重新聯絡嘅人同鍾意做嘅嘢。建議要用返呢啲人同嘢：有想重新聯絡嘅人就優先建議聯絡佢；有具體名字就叫名。冇列出嘅人（例如鄰居）唔好作。
+- 唔好建議要花錢、要長途、要報名嘅活動。
+- 唔好提用戶話過唔想提起嘅話題。
+- 唔好用「應該」、「必須」、「你需要」呢類字眼。
+- 唔好教訓、唔好提其他 app 功能。
+- 唔好講「我會諗起你」/「我擔心你」呢類依附語言。
+- 唔好用「AI」「模型」「機械人」呢啲字。
+輸出格式：每個建議一行，用 - 開頭。唔好其他文字。
+''';
+
   List<String>? _personalised; // Arm A only
   bool _busy = false;
 
@@ -91,17 +112,65 @@ other text.
       );
       memorySnips.addAll(entries.map((e) => '- ${e.summary}'));
     }
-    final userInput = memorySnips.isEmpty
-        ? (isEn
-            ? 'No prior memory yet. Suggest gentle starting actions.'
-            : '冇之前嘅記憶。請建議溫和嘅起步行動。')
-        : (isEn
-            ? 'Prior memory snippets from this user:\n${memorySnips.join('\n')}'
-            : '呢位用戶之前提過嘅內容：\n${memorySnips.join('\n')}');
+    final useProfile =
+        RemoteFeatureFlags.current.suggestionsUseProfileEnabled && !isEn;
+    final String userInput;
+    if (useProfile && profile != null) {
+      // 10/19: what the elder told us at intake (and later), in words the
+      // model can use; the server adds Siu Yan's memory block (agentId).
+      final shared = [
+        for (final c in profile.closeContacts)
+          if (c.share && c.name.trim().isNotEmpty)
+            c.relation == null || c.relation!.trim().isEmpty
+                ? c.name.trim()
+                : '${c.name.trim()}（${c.relation!.trim()}）',
+      ];
+      final reconnect = [
+        for (final c in profile.reconnectContacts)
+          if (c.name.trim().isNotEmpty)
+            c.relation == null || c.relation!.trim().isEmpty
+                ? c.name.trim()
+                : '${c.name.trim()}（${c.relation!.trim()}）',
+      ];
+      final interests = [
+        for (final i in profile.interests.take(10)) InterestLabels.label(i, false),
+      ];
+      final avoid = (profile.avoidTopics ?? '').trim();
+      final b = StringBuffer('用戶嘅資料：\n');
+      b.writeln(shared.isEmpty
+          ? '- 重要嘅人：未講'
+          : '- 重要嘅人：${shared.join('、')}');
+      b.writeln(reconnect.isEmpty
+          ? '- 想重新聯絡嘅人：未講'
+          : '- 想重新聯絡嘅人：${reconnect.join('、')}');
+      b.writeln(interests.isEmpty
+          ? '- 鍾意做嘅嘢：未講'
+          : '- 鍾意做嘅嘢：${interests.join('、')}');
+      if (avoid.isNotEmpty) b.writeln('- ⛔ 唔想提起嘅話題：$avoid');
+      if (memorySnips.isNotEmpty) {
+        b.writeln('之前傾過嘅內容：');
+        b.writeln(memorySnips.join('\n'));
+      }
+      b.write('請按上面嘅人同嘢，建議 1 至 2 件今日或聽日可以做嘅小社交活動。');
+      userInput = b.toString();
+    } else {
+      userInput = memorySnips.isEmpty
+          ? (isEn
+              ? 'No prior memory yet. Suggest gentle starting actions.'
+              : '冇之前嘅記憶。請建議溫和嘅起步行動。')
+          : (isEn
+              ? 'Prior memory snippets from this user:\n${memorySnips.join('\n')}'
+              : '呢位用戶之前提過嘅內容：\n${memorySnips.join('\n')}');
+    }
 
     final response = await core.llm.send(
       moduleId: 'm6_suggestions',
-      systemPrompt: isEn ? _systemPromptEn : _systemPromptZh,
+      systemPrompt: isEn
+          ? _systemPromptEn
+          : (useProfile ? _systemPromptZhV2 : _systemPromptZh),
+      // With the switch on the server injects Siu Yan's memory block for
+      // this module (functions/memory.js INJECT_MODULES).
+      agentId: useProfile ? AgentRegistry.siuYanId : null,
       history: const [],
       userInput: userInput,
       uid: AppSettingsScope.read(context).profile?.uid,

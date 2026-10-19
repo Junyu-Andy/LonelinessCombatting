@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-19 W0 现场三件（Junyu 定）：首页表情直进签到页、建议页用入组资料、语音模型可切 chirp_3（PR 草稿，分支 `feat/1019-home-mood-suggestions-chirp3`，接 `fix/1019-field-issues`）
+
+- 两个新开关都默认关：`homeMoodOpensCheckInEnabled`（首页第一次按表情直接进签到页，两组；规则组表格页新增 `initialMoodValue`，同一张脸不重复写 daily_mood）、`suggestionsUseProfileEnabled`（Hybrid 建议页把重要嘅人、想重新聯絡嘅人、兴趣、唔想提起给模型，并带 `agentId` 让服务器注入小欣记忆；`functions/memory.js` 的 `INJECT_MODULES` 加 `m6_suggestions`，没带 agentId 时服务器不注入，所以开关关着行为不变）。
+- 建议页的提示词仍在 App 里（历史遗留），新版只在开关开着时用；要搬到 `functions/prompts/` 另排。
+- `functions/stt.js`：`meta/stt_config.model` 二选一（`chirp_2` 默认、`chirp_3`），Google 拒绝时该次退回默认；`stt_usage` 和返回值记实际用的模型。
+- 待 Junyu：决策编号；建议页提示词搬服务器；PPT 乙部铺垫句已加（见 scratchpad 两份 deck）。
+
 ## 2026-10-19 W0 现场两处修正：签到页揀心情那屏溢出、语音转写空格（PR 草稿，分支 `fix/1019-field-issues`）
 
 - 小欣签到页 Decision A 的「揀心情」门：固定 Column 加 Spacer，iPhone 7 Plus 大字体下按钮被顶出屏幕。改为 `SingleChildScrollView`，和 10/15 行动计划页同一修法；UI 扫描加了这一屏（之前只测了带心情进来的路径）。为了能在没有 Firebase 的测试里走到这屏，`MoodRecorder` 改为用到时才取 Firestore，`CheckInArmA` 多一个只给测试用的 `moodRecorder` 参数。

@@ -30,6 +30,13 @@
 
 const STT_LOCATION = "asia-southeast1";
 const STT_MODEL = "chirp_2";
+
+// 10/19 (Junyu): the model can be switched in the console to compare —
+// meta/stt_config.model, one of STT_MODELS; anything else means STT_MODEL.
+// The App still cannot choose.  A configured model that Google rejects
+// falls back to STT_MODEL for that call (index.js).
+const STT_MODELS = ["chirp_2", "chirp_3"];
+const STT_CONFIG_DOC = "meta/stt_config";
 const STT_API_ENDPOINT = "asia-southeast1-speech.googleapis.com";
 const STT_LANGUAGE = "yue-Hant-HK";
 
@@ -81,7 +88,7 @@ class SttError extends Error {
 /**
  * The exact request object sent to Google.  Pure, so the unit test can
  * inspect every field.
- * @param {{projectId: string, content: Buffer}} p
+ * @param {{projectId: string, content: Buffer, model: (string|undefined)}} p
  * @return {object} RecognizeRequest
  */
 function buildRecognizeRequest(p) {
@@ -91,7 +98,7 @@ function buildRecognizeRequest(p) {
     config: {
       autoDecodingConfig: {},
       languageCodes: [STT_LANGUAGE],
-      model: STT_MODEL,
+      model: STT_MODELS.indexOf(p.model) !== -1 ? p.model : STT_MODEL,
       features: {enableAutomaticPunctuation: true},
     },
     content: p.content,
@@ -217,6 +224,22 @@ function googleRecognize() {
 }
 
 /**
+ * The model to use: meta/stt_config.model when it is one of STT_MODELS,
+ * else STT_MODEL.  A failed read also means STT_MODEL.
+ * @param {object} db Firestore
+ * @return {Promise<string>}
+ */
+async function loadModel(db) {
+  try {
+    const snap = await db.doc(STT_CONFIG_DOC).get();
+    const m = snap.exists ? snap.get("model") : null;
+    return STT_MODELS.indexOf(m) !== -1 ? m : STT_MODEL;
+  } catch (e) {
+    return STT_MODEL;
+  }
+}
+
+/**
  * Validate the clip size.  Returns a category or null.
  * @param {Buffer} content
  * @return {(string|null)}
@@ -241,6 +264,8 @@ module.exports = {
   categoriseError,
   readResponse,
   tidyCantonese,
+  loadModel,
+  STT_MODELS,
   transcribeWithRetry,
   googleRecognize,
   sizeProblem,
