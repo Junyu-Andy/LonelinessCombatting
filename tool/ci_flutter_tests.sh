@@ -44,6 +44,7 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/check_in_chat_v2_test.dart \
   test/keyboard_compact_header_test.dart \
   test/reminiscence_v2_test.dart \
+  test/profile_editor_keyboard_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \

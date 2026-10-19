@@ -41,12 +41,14 @@ class CheckInChatCopy {
 
   /// Q1 code `prefer_not` (唔想答) has no band: reply 1 is XG.
   static const String q1PreferNot = 'prefer_not';
+  /// 1020e 二.12: the five faces read 好唔開心／唔係幾好／一般般／幾好／好開心
+  /// (low to high, as on the home mood row); scores stay 1–5.
   static const List<CheckInOption> q1Options = [
-    CheckInOption('very_happy', '好開心', score: 5),
-    CheckInOption('good', '幾好', score: 4),
-    CheckInOption('so_so', '一般般', score: 3),
-    CheckInOption('not_good', '唔係幾好', score: 2),
     CheckInOption('very_unhappy', '好唔開心', score: 1),
+    CheckInOption('not_good', '唔係幾好', score: 2),
+    CheckInOption('so_so', '一般般', score: 3),
+    CheckInOption('good', '幾好', score: 4),
+    CheckInOption('very_happy', '好開心', score: 5),
     CheckInOption(q1PreferNot, '唔想答'),
   ];
 
@@ -90,4 +92,8 @@ class CheckInChatCopy {
   /// Opener when today's check-in is already done (rule arm; the Hybrid
   /// arm's LLM opener falls back to it).
   static const String sy0 = '今日 check-in 做咗喇，想再講啲咩都得。';
+
+  /// Input box hint (1020e 二.5, #134): typing only, no voice wording.
+  static const String inputHint = '寫低你想講嘅嘢。';
+  static const String inputHintEn = 'Type what you want to say.';
 }

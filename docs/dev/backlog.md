@@ -29,6 +29,8 @@
 > 2026-10-20 1020d 回忆 v2 服务器端（提示词 `ah_jan_ah_bak.v3`、小篇章生成 `onReminiscenceChapterWritten`、规则、导出、看板计数），分支 `claude/zealous-fermat-8rgqtg-reminiscence-server`（开关 `reminiscenceV2Enabled` 默认关）；待定：三份提示词措辞、推送文字、「太口语」代码剔除、核对失败照交、删句后不再顺稿、评分算过程还是结局、短于 300 字、借用追问场景、决策编号（报告 `docs/dev-reports/reminiscence-v2-server-20261020.md` 第 11 节）；待做：运营看板页面显示 `chapters` 计数（`lib/features/ops_dashboard/`）、卡在 generating 的自动清理（可选）；开开关前先部署 Functions 和规则。
 > 2026-10-20 1020c 第二项键盘遮挡 PR 草稿（开关 `keyboardCompactHeaderEnabled` 默认关）；待定：开不开、缩小后标题要不要新句子、表格页要不要也缩、决策编号；新待办：「個人資料 → 修改」弹出框键盘打开时溢出（不能滚）、Phase A 的 ADA／第 7 日／旧夥伴評估页同样被顶栏挤（Phase B 不显示）、1.30 字体下输入框本身偏高（对话区仍只有约 5 行）。
 > 2026-10-20 1020d 回忆 v2 App 部分 PR 草稿（开关 `reminiscenceV2Enabled`、`leaveButtonV2Enabled` 默认关）；待定：全部草稿文字（开场、固定句、规则组小标题、评分题、按钮、「再講多啲」那句）Junyu 在截图里定；有效会话 3 题；规则组整理好不推送；`moderate_review` 不停题；同意关时小篇章请求仍带对话（建议服务器生成后清 `input`）；决策编号；开开关前先合并部署服务器分支并确认 Firestore 规则；两个开关建议一起开（只开离开按钮时旧回忆页的 S9 也会叫「離開」）。
+> 2026-10-20 1020c 第二项键盘遮挡 PR #131 草稿（开关 `keyboardCompactHeaderEnabled` 默认关）；Junyu 10/20（1020e 一.(11)）接受现做法、不加新文字、表格页也缩，**真机测过再开开关**；「個人資料 → 修改」弹出框溢出已在同一 PR 修（不放开关）。待定：开开关的日期、决策编号；待办：Phase A 的 ADA／第 7 日／旧夥伴評估页同样被顶栏挤（Phase B 不显示）、1.30 字体下输入框本身偏高（对话区仍只有约 5 行）。
+> 2026-10-19 第 2 批跟进（1020e 二.5、二.8、二.9、二.10、二.12）已做（PR #128）：Hybrid 唔講住改叫模型、规则组中度复核用 SN、误触标记和当天续问、Q1 按钮顺序、输入框提示；上一行的三个待确认点由 1020e 定了。新开关 `safetyFalseAlarmMarkEnabled`（研究员工具，默认关，10/21 前定开关）；待定：P2 按 `falseAlarm` 判断归第 4 批；误触标记暂不能撤销（要撤销另做）；续问另存新行，分析按 `resumed_from` 合并同一天两行。
 
 ## 1. 已决定、待开发
 

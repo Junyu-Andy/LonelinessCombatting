@@ -206,6 +206,23 @@ service cloud.firestore {
                    .hasAny(serverOnlyWeekFields()));
     }
 
+    // 1020e 二.9 — the 「誤觸」 (false alarm) mark on a chat check-in row
+    // (users/{uid}/check_in_responses) is written by the markSafetyFalseAlarm
+    // Cloud Function only: a client create may not carry the three fields
+    // and a client update may not touch them.
+    function falseAlarmFields() {
+      return ['falseAlarm', 'markedBy', 'markedAt'];
+    }
+
+    function leavesFalseAlarmAlone(collection) {
+      return collection != 'check_in_responses'
+        || request.method == 'delete'
+        || (request.method == 'create'
+              ? !request.resource.data.keys().hasAny(falseAlarmFields())
+              : !request.resource.data.diff(resource.data).affectedKeys()
+                   .hasAny(falseAlarmFields()));
+    }
+
     // 1020d: reminiscence_chapters has its own rule below (client and
     // server fields; the runs/ archive under it is server only).  The
     // other reminiscence v2 collections — reminiscence_v2 and
@@ -224,7 +241,8 @@ service cloud.firestore {
         && collection != 'reminiscence_chapters'
         && !(collection in phaseASurveyCollections())
         && researchWriteOpen(uid, collection)
-        && leavesWeekStampsAlone(collection);
+        && leavesWeekStampsAlone(collection)
+        && leavesFalseAlarmAlone(collection);
     }
 
     // ============================================================
@@ -567,6 +585,9 @@ service cloud.firestore {
         // `alwaysAlert` (T34, alert whatever the level) is the server's.
         && !request.resource.data.keys().hasAny(['dedup_key', 'isDuplicate',
             'duplicateOf', 'escalatedBy', 'alwaysAlert'])
+        // 1020e 二.9: the 「誤觸」 mark is the server's (markSafetyFalseAlarm).
+        && !request.resource.data.keys().hasAny(['falseAlarm', 'markedBy',
+            'markedAt'])
         // T34: `crisisPageShown` (both arms, SafetyEventWriter) is a
         // boolean when present.
         && (!('crisisPageShown' in request.resource.data)

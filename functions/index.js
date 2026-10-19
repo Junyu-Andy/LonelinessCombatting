@@ -11,6 +11,7 @@ const path = require("path");
 const {computeLlmFlags} = require("./llm_flags");
 const arm = require("./arm");
 const piAlert = require("./pi_alert");
+const falseAlarm = require("./false_alarm");
 const randomization = require("./randomization");
 const studyPeriod = require("./study_period");
 const memory = require("./memory");
@@ -1306,6 +1307,36 @@ exports.acknowledgeAlert = onCall(
       if (code) throw new HttpsError(_ACK_ERRORS[code] || "internal", err.message);
       console.error("acknowledgeAlert failed", {err: String(err)});
       throw new HttpsError("internal", "acknowledge_failed");
+    }
+  },
+);
+
+// 1020e 二.9 — the dashboard's 標記誤觸 button.  Only `role: unblinded`
+// and the switch safetyFalseAlarmMarkEnabled; stamps falseAlarm / markedBy
+// / markedAt on the safety event, the alert and that day's stopped chat
+// check-in row (functions/false_alarm.js).
+const _MARK_ERRORS = {
+  "unauthenticated": "unauthenticated",
+  "permission-denied": "permission-denied",
+  "failed-precondition": "failed-precondition",
+  "invalid-argument": "invalid-argument",
+  "not-found": "not-found",
+};
+exports.markSafetyFalseAlarm = onCall(
+  {region: "asia-east2", enforceAppCheck: false, maxInstances: 5},
+  async (request) => {
+    try {
+      return await falseAlarm.markFalseAlarm(admin.firestore(),
+          request.data || {}, request.auth, {
+            serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+          });
+    } catch (err) {
+      const code = err && err.markCode;
+      if (code) {
+        throw new HttpsError(_MARK_ERRORS[code] || "internal", err.message);
+      }
+      console.error("markSafetyFalseAlarm failed", {err: String(err)});
+      throw new HttpsError("internal", "mark_failed");
     }
   },
 );

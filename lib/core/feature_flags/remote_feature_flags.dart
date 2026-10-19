@@ -152,6 +152,15 @@
 ///                               on the v2 reminiscence page.  Same end-of-
 ///                               session rules and Brief PR.  Both arms.
 ///                               Off: the old label and note.
+///   - [safetyFalseAlarmMarkEnabled] — 1020e 二.9: the researcher
+///                               dashboard's safety-alert list offers
+///                               「標記誤觸」 (false alarm) to the
+///                               `unblinded` role; the `markSafetyFalseAlarm`
+///                               callable checks the same switch.  A marked
+///                               crisis stop lets the elder resume that
+///                               day's chat check-in.  Researcher tool only;
+///                               nothing changes for participants until a
+///                               researcher marks an alert.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -188,6 +197,7 @@ class RemoteFeatureFlags {
     this.keyboardCompactHeaderEnabled = false,
     this.reminiscenceV2Enabled = false,
     this.leaveButtonV2Enabled = false,
+    this.safetyFalseAlarmMarkEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -215,6 +225,7 @@ class RemoteFeatureFlags {
   final bool keyboardCompactHeaderEnabled;
   final bool reminiscenceV2Enabled;
   final bool leaveButtonV2Enabled;
+  final bool safetyFalseAlarmMarkEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -278,6 +289,8 @@ class RemoteFeatureFlags {
             map['keyboardCompactHeaderEnabled'] == true,
         reminiscenceV2Enabled: map['reminiscenceV2Enabled'] == true,
         leaveButtonV2Enabled: map['leaveButtonV2Enabled'] == true,
+        safetyFalseAlarmMarkEnabled:
+            map['safetyFalseAlarmMarkEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply
