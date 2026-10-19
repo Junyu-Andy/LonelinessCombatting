@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-10-20 1020 第 3 批（D、E、G (2)）：首页分两页、心情一行不弹窗、M7／M8 进小欣聊天、问卷一行、做啲嘢工具图（分支 `claude/zealous-fermat-8rgqtg-batch3`，PR 草稿）
+
+- 结论：两个新开关 `homeLayoutV2Enabled`、`moodRowV2Enabled` 默认关，关时一切照旧。开时第一页「睇今日」只放今天的事（问候、心情一行、「今日要做嘅事」、「去搵人傾」、本周小结、危机卡），第二页「搵人傾」放邀请卡、继续聊天卡、第一周提示和三位伙伴；心情一行没有任何弹窗；M7／M8 进小欣聊天，规则组用 O／C 模板开场（零 LLM），Hybrid 组 LLM 开场（新提示词 `siu_yan.v4`）。
+- 第一页：`today_page.dart` 按开关建新版面；新文件 `today_todo_rows.dart`（check-in 一行并入三天提醒、问卷一行 W4／W5、「去搵人傾」）、`home_v2_scope.dart`（刷新信号和测试接口）；`lib/app/home_tab_switcher.dart` 让大按钮切到第二个 tab。`PendingPromptsBanner` 多一个 `hideWeeklyBundle`，问卷一行出现时不再出每周问卷卡。
+- 心情一行：`mood_row_v2.dart`（状态 M1–M8），文字 `mood_row_copy.dart`、`home_v2_copy.dart`（照 `docs/spec/copy/home-v2.md`），存储 `mood_row_store.dart`（`daily_mood` 照旧经 `MoodRecorder`；「遲啲先答」和 M7 用过的日子存手机本地）。`greeting_hero.dart` 开关开时用新一行，旧表情板、小条、对话框不建。
+- 1020b 第二节：`RemoteFeatureFlags.homeMoodOpensCheckInActive`（心情一行开时恒为假）、`briefPrHomeBannerActive`（新版面开时恒为假）、`dailyMoodPopupActive`；测试覆盖。
+- 小欣聊天窗口：新参数 `moodEntry`（`MoodChatEntry`），进来直接是聊天；`activePromptKey` 在心情一行开时用 `siu_yan_v4`。新提示词 `siu_yan.v4.txt` = v3 + 「從首頁心情入嚟（開場）」一节，`prompt_registry.js`、`build_info.g.dart`、指纹测试都加上；v3 不动。
+- 做啲嘢：`assets/tools/` 四张定稿图，`MeListItem` 多 `image`、`tileColor`，开关开时用。
+- 测试：`test/home_v2_test.dart`、`test/mood_row_v2_test.dart`（加进 CI 两套 Phase B 构建）、`final_copy_test.dart` 加 `home-v2.md`、文字扫描加五个流程、Functions 加 `prompt_siu_yan_v4_test.js`、`prompt_siu_yan_v4_emulator_test.js`。报告 `docs/dev-reports/T53-T54-batch3-20261020.md`，截图 `docs/dev-reports/batch3-20261020-shots/`。
+- 待 Junyu：文字定稿（5.1、5.2、5.5 和 D1–D4）、v4 新一节措辞、表情下的字要不要改成 Q1 的说法、W5 天数算法、决策编号（草稿 `NNNN-home-two-pages-mood-row.md`）。
+
 ## 2026-10-19 1020 第 2 批（A、F (1)–(4)、(6)）：小欣页一个聊天窗口，check-in 对话化，规则组小欣聊天（分支 `claude/zealous-fermat-8rgqtg-batch2`，PR #128 草稿）
 
 - 结论：开关 `checkInChatV2Enabled` 开时，两组撳小欣都进同一个聊天窗口；当天未做 check-in 就自动按 Q0–Q6 一问一答，问题和按钮两组一样，不由 LLM 写；规则组回应全部来自模板（零 LLM 调用），Hybrid 组两句回应由 LLM 写。开关关时旧页面一字不变。

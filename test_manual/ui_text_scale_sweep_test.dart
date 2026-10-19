@@ -95,6 +95,14 @@ import 'package:app_demo/features/settings/presentation/pages/faq_page.dart';
 import 'package:app_demo/features/settings/presentation/pages/settings_page.dart';
 import 'package:app_demo/features/settings/presentation/widgets/tester_arm_switch_card.dart';
 import 'package:app_demo/features/today/data/mood_recorder.dart';
+import 'package:app_demo/features/today/data/mood_row_copy.dart';
+import 'package:app_demo/features/today/data/mood_row_store.dart';
+import 'package:app_demo/features/today/presentation/home_v2_scope.dart';
+import 'package:app_demo/features/today/presentation/pages/today_page.dart';
+import 'package:app_demo/features/today/presentation/widgets/mood_row_v2.dart';
+import 'package:app_demo/features/talk/presentation/pages/talk_page.dart';
+import 'package:app_demo/features/me/presentation/pages/me_page.dart';
+import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
 import 'package:app_demo/features/today/presentation/widgets/agent_tile_row.dart';
 import 'package:app_demo/features/today/presentation/widgets/facts_recap_row.dart';
 import 'package:app_demo/features/today/presentation/widgets/home_tool_shortcuts.dart';
@@ -224,7 +232,8 @@ class _TesterBackend implements TesterArmBackend {
   Future<void> setArm(String arm) async {}
 }
 
-UserProfile _profile({List<String>? interests, bool tester = false}) =>
+UserProfile _profile(
+        {List<String>? interests, bool tester = false, String? w0Date}) =>
     UserProfile(
       uid: 'u1',
       email: 'synthetic@example.com',
@@ -232,6 +241,7 @@ UserProfile _profile({List<String>? interests, bool tester = false}) =>
       arm: _armB ? ArmAssignment.b : ArmAssignment.a,
       armAssignmentMode: 'pilot_designated',
       cohort: 'pilot',
+      w0Date: w0Date,
       isTester: tester,
       hasCompletedIntake: true,
       ahJanAhBakVariant: AgentGenderVariant.feminine,
@@ -444,6 +454,39 @@ void _expectWideBubble(_Ctx c, String text) {
       reason: 'bubble text uses the width (not squeezed)');
 }
 
+
+/// 1020 batch 3 — runs [body] with the two-page layout, the mood row and
+/// the chat window on (and the study-week schedule), then restores.
+Future<void> _withHomeV2(Future<void> Function() body) async {
+  final flags = RemoteFeatureFlags.current;
+  final cfg = PhaseBConfig.current;
+  RemoteFeatureFlags.current = const RemoteFeatureFlags(
+    homeLayoutV2Enabled: true,
+    moodRowV2Enabled: true,
+    checkInChatV2Enabled: true,
+  );
+  PhaseBConfig.current = const PhaseBConfig(
+      sessionBriefPrV2Enabled: true, weeklyScheduleV2Enabled: true);
+  MoodRowV2.resetForTest();
+  try {
+    await body();
+  } finally {
+    RemoteFeatureFlags.current = flags;
+    PhaseBConfig.current = cfg;
+    MoodRowV2.resetForTest();
+  }
+}
+
+/// Page 1 with fakes: questionnaire W1 open (W5), 3 days without a
+/// check-in (D3 line), mood row in memory.
+Widget _page1(MoodRowStore store) => HomeV2Scope(
+      checkedInToday: (_) async => false,
+      daysSinceLastCheckIn: (_) async => 3,
+      moodStore: store,
+      clock: () => DateTime(2026, 10, 21, 21, 0),
+      child: const Scaffold(body: TodayPage()),
+    );
+
 typedef _Flow = Future<void> Function(_Ctx c);
 
 final _flows = <String, _Flow>{
@@ -571,6 +614,78 @@ final _flows = <String, _Flow>{
     await c.shot('siu_yan_v2_chat');
     await _back(c);
   },
+  '第一页（1020 D 两页重排 + E 心情一行；组别按构建）': (c) => _withHomeV2(() async {
+        final store = InMemoryMoodRowStore()
+          ..clock = () => DateTime(2026, 10, 21, 21, 0);
+        await _pumpHome(c, _page1(store),
+            profile: _profile(w0Date: '2026-10-14'));
+        await c.tester.pump(const Duration(seconds: 1));
+        await c.tester.pumpAndSettle();
+        expect(find.text(MoodRowCopy.m1), findsOneWidget);
+        await c.shot('home_v2_page1_m1');
+        expect(await _tap(c, find.byKey(const ValueKey('mood_row_face_2'))),
+            isTrue);
+        await c.tester.pump(const Duration(seconds: 3));
+        await c.tester.pumpAndSettle();
+        expect(find.text(MoodRowCopy.m7), findsOneWidget);
+        await c.shot('home_v2_page1_m5_m7');
+        await _tap(c, find.byKey(const ValueKey('mood_row_change')));
+        await c.shot('home_v2_page1_m6_faces');
+        await _tap(c, find.byKey(const ValueKey('mood_row_face_4')));
+        await c.tester.pump(const Duration(seconds: 3));
+        await c.tester.pumpAndSettle();
+        expect(find.text(MoodRowCopy.m8), findsOneWidget);
+        await c.shot('home_v2_page1_m8');
+        await _scrollInto(c, find.text('問卷開咗，仲有 3 日。'));
+        expect(find.text('問卷開咗，仲有 3 日。'), findsOneWidget);
+        await c.shot('home_v2_page1_todo');
+        await _scrollTap(c, find.byKey(const Key('safety_footer_call_18111')));
+        await c.shot('home_v2_page1_bottom');
+      }),
+  '第一页 M4（1020 E 遲啲先答）': (c) => _withHomeV2(() async {
+        await _pumpHome(c, _page1(InMemoryMoodRowStore()),
+            profile: _profile(w0Date: '2026-10-14'));
+        await c.tester.pump(const Duration(seconds: 1));
+        await c.tester.pumpAndSettle();
+        expect(await _tap(c, find.byKey(const ValueKey('mood_row_later'))),
+            isTrue);
+        expect(find.text(MoodRowCopy.m4), findsOneWidget);
+        await c.shot('home_v2_page1_m4');
+      }),
+  '第二页（1020 D 搵人傾）': (c) => _withHomeV2(() async {
+        await _pumpHome(c, const Scaffold(body: TalkPage()));
+        expect(find.byKey(const ValueKey('talk_v2')), findsOneWidget);
+        await c.shot('home_v2_page2');
+      }),
+  '做啲嘢（工具图，1020 batch 3）': (c) => _withHomeV2(() async {
+        await _pumpHome(c, const Scaffold(body: MePage()));
+        expect(find.byType(Image), findsNWidgets(4));
+        await c.shot('home_v2_tools');
+      }),
+  '小欣 M7、M8 开场（1020 E；组别按构建）': (c) => _withHomeV2(() async {
+        for (final entry in const [
+          MoodChatEntry(mood: 1),
+          MoodChatEntry(mood: 2, previousMood: 4),
+        ]) {
+          await _pushPage(
+              c,
+              SiuYanChatPage(
+                moodEntry: entry,
+                lowMoodEntry: entry.lowOpener,
+                checkedInToday: (_) async => false,
+                latestMoodToday: (_) async => entry.mood,
+                responseStore: InMemoryCheckInResponseStore(),
+                replyHistory: InMemoryRuleReplyHistoryStore(),
+                onOpenActionPlan: (_) async {},
+              ));
+          await c.tester.pump(const Duration(seconds: 1));
+          await c.tester.pumpAndSettle();
+          await c.shot('home_v2_${entry.promptId}_opener');
+          await _send(c, '今朝起身成身骨痛，冇乜心機');
+          await c.shot('home_v2_${entry.promptId}_chat');
+          await _back(c);
+        }
+      }),
   '阿珍／阿伯回忆页': (c) async {
     await _pushPage(c, ReminiscenceArmAPage(theme: ReminiscenceTheme.all.first));
     await _dismissIntro(c);

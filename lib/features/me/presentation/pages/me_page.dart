@@ -12,16 +12,35 @@
 /// Filename retained as `me_page.dart` to avoid touching every import
 /// site; the class name [MePage] is kept as a stable alias.  Internally
 /// this is the "Do" tab.
+///
+/// 1020 batch 3 (`homeLayoutV2Enabled`): each tool gets Junyu's final
+/// picture on a coloured tile ([MeToolArt]); labels unchanged; both arms
+/// identical.  Off: the Material icons as before.
 library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../action_loop/presentation/pages/action_loop_landing.dart';
 import '../../../education/presentation/pages/education_library_page.dart';
 import '../../../social_suggestions/presentation/pages/social_suggestions_page.dart';
 import '../../../thought_exercise/presentation/thought_exercise_page.dart';
 import '../widgets/me_list_item.dart';
+
+/// The four tool pictures (assets/tools/, 512×512 transparent PNG) and
+/// their tile colours.  Only these four; older names are void.
+class MeToolArt {
+  MeToolArt._();
+
+  static const thought = ('assets/tools/tool_thought.png', Color(0xFFEFE9F8));
+  static const plan = ('assets/tools/tool_plan.png', Color(0xFFFCEEE0));
+  static const reading = ('assets/tools/tool_reading.png', Color(0xFFE3F4EC));
+  static const smallAction =
+      ('assets/tools/tool_small_action.png', Color(0xFFFBE9E4));
+
+  static const all = [thought, plan, reading, smallAction];
+}
 
 class MePage extends StatelessWidget {
   const MePage({super.key});
@@ -31,6 +50,7 @@ class MePage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final art = RemoteFeatureFlags.current.homeLayoutV2Enabled;
 
     return SafeArea(
       child: ListView(
@@ -49,7 +69,10 @@ class MePage extends StatelessWidget {
             ),
           ),
           MeListItem(
+            key: const ValueKey('me_tool_thought'),
             icon: Icons.lightbulb_outline,
+            image: art ? MeToolArt.thought.$1 : null,
+            tileColor: art ? MeToolArt.thought.$2 : null,
             // Phase A spec §5.2 — locked label "望一望心入面".
             // Research Review v2 Item 5: subtitle = "了解吓自己嘅心情".
             label: isEn ? 'Look at a thought' : '望一望心入面',
@@ -64,7 +87,10 @@ class MePage extends StatelessWidget {
           ),
           _Divider(theme: theme),
           MeListItem(
+            key: const ValueKey('me_tool_plan'),
             icon: Icons.checklist_outlined,
+            image: art ? MeToolArt.plan.$1 : null,
+            tileColor: art ? MeToolArt.plan.$2 : null,
             label: l10n.meItemActionLoop,
             subtitle: l10n.meItemActionLoopSubtitle,
             onTap: () => Navigator.of(context).push(
@@ -75,7 +101,10 @@ class MePage extends StatelessWidget {
           ),
           _Divider(theme: theme),
           MeListItem(
+            key: const ValueKey('me_tool_reading'),
             icon: Icons.menu_book_outlined,
+            image: art ? MeToolArt.reading.$1 : null,
+            tileColor: art ? MeToolArt.reading.$2 : null,
             label: l10n.meItemArticles,
             subtitle: l10n.meItemArticlesSubtitle,
             onTap: () => Navigator.of(context).push(
@@ -86,7 +115,10 @@ class MePage extends StatelessWidget {
           ),
           _Divider(theme: theme),
           MeListItem(
+            key: const ValueKey('me_tool_small_action'),
             icon: Icons.people_outline,
+            image: art ? MeToolArt.smallAction.$1 : null,
+            tileColor: art ? MeToolArt.smallAction.$2 : null,
             label: isEn ? 'Social suggestions' : '一啲社交小行動',
             subtitle: isEn
                 ? "Small things to try with people you already know"

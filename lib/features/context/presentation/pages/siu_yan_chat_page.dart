@@ -18,6 +18,13 @@
 /// line and keeps the existing Siu Yan chat (thought-exercise offer,
 /// cross-referral, cross-module callback, memory buffer).
 ///
+/// 1020 E (batch 3, `moodRowV2Enabled`): opened from the mood row's M7 / M8
+/// ([moodEntry]) → always the plain chat, never the check-in: the rule arm
+/// opens with O1–O5 (by the mood) or C1 / C2 (the mood got better / worse)
+/// and then answers from the same SY / SN pool (SN after O4, O5, C2); the
+/// Hybrid arm's LLM opens, told the mood (and for M8 the change) and asked
+/// to start by asking what happened (prompt `siu_yan.v4`, `[開場·心情]`).
+///
 /// Safety: Q3b, Q4 and every later message go through the same shared
 /// check as any chat input (input point `chat_check_in` in both arms —
 /// the Hybrid gateway uses it for `m2_check_in`).  A hit gets no template;
@@ -50,6 +57,7 @@ import '../../../../core/connectivity/offline_pending_banner.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/cross_referral/referral_routing_service.dart';
 import '../../../../core/cross_referral/referral_suggestion_card.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
 import '../../../../core/memory/cross_module_memory.dart';
@@ -82,6 +90,7 @@ import '../../../rule_replies/rule_reply_safety.dart';
 import '../../../thought_exercise/presentation/naming_thought_card.dart';
 import '../../../thought_exercise/presentation/thought_exercise_page.dart';
 import '../../../today/data/mood_recorder.dart';
+import '../../../today/data/mood_row_copy.dart';
 import '../../data/check_in_chat_copy.dart';
 import '../../data/check_in_response_store.dart';
 import '../../data/siu_yan_rule_chat_pool.dart';
@@ -90,6 +99,7 @@ class SiuYanChatPage extends StatefulWidget {
   const SiuYanChatPage({
     super.key,
     this.lowMoodEntry = false,
+    this.moodEntry,
     this.checkedInToday,
     this.latestMoodToday,
     this.responseStore,
@@ -102,6 +112,10 @@ class SiuYanChatPage extends StatefulWidget {
   /// Opened from a low-mood opener (O4 / O5 / C2 — batch 3, 1020 E (5)):
   /// the rule arm answers from SN1–SN4.
   final bool lowMoodEntry;
+
+  /// Opened from the mood row's M7 / M8 (1020 E (5)): the chat with a
+  /// mood opener, not the check-in.
+  final MoodChatEntry? moodEntry;
 
   /// Whether today's check-in is already done.  Default: the
   /// `check_in_submitted` event ([AdherenceCheck], as the status chip).
@@ -125,6 +139,13 @@ class SiuYanChatPage extends StatefulWidget {
   /// The prompt key the Hybrid calls send (functions/prompt_registry.js →
   /// `siu_yan.v3.txt`).
   static const String promptKey = 'siu_yan_v3';
+
+  /// 1020 E: while `moodRowV2Enabled` is on, every Hybrid call of this
+  /// window sends v4 (= v3 + the mood-opener section); off, v3 as before.
+  static const String promptKeyMoodRow = 'siu_yan_v4';
+
+  static String get activePromptKey =>
+      RemoteFeatureFlags.current.moodRowV2Enabled ? promptKeyMoodRow : promptKey;
 
   /// Session moduleIds: the check-in session (type check-in), and a plain
   /// chat once today's check-in is done (type free chat, ≥3 replied
@@ -265,9 +286,16 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       } catch (_) {}
     }
     if (!mounted) return;
+    final entry = widget.moodEntry;
     _lowMood = SiuYanRuleChatPool.isLow(
-        latestMoodToday: mood, lowMoodEntry: widget.lowMoodEntry);
-    if (done) {
+        // From M7 / M8 the pick just made counts (its write may still be
+        // on its way).
+        latestMoodToday: entry?.mood ?? mood,
+        lowMoodEntry: widget.lowMoodEntry || (entry?.lowOpener ?? false));
+    if (entry != null) {
+      setState(() => _stage = _Stage.chat);
+      await _seedMoodOpener(entry);
+    } else if (done) {
       setState(() => _stage = _Stage.chat);
       await _seedChatOpener();
     } else {
@@ -333,6 +361,41 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       _busy = false;
       _bubbles.add(_Bubble.bot(text, copyId: id));
     });
+  }
+
+  /// 1020 E (5) — from M7 / M8.  Rule arm: O1–O5 / C1 / C2 (5.2), no LLM.
+  /// Hybrid: one LLM line from the mood (and the change); the same 5.2
+  /// line when the model fails.
+  Future<void> _seedMoodOpener(MoodChatEntry entry) async {
+    if (_ruleArm) {
+      setState(() => _say(entry.openerId, entry.openerText));
+      _logTemplate(entry.openerId, MoodRowCopy.version,
+          theme: 'mood_opener', moduleId: SiuYanChatPage.chatModule);
+      return;
+    }
+    setState(() => _busy = true);
+    var text = entry.openerText;
+    var id = entry.openerId;
+    try {
+      final r = await _callLlm(
+        moduleId: 'greeting_$_siuYan',
+        userInput: '（用戶喺首頁揀咗心情之後打開咗同小欣嘅對話。）',
+        history: const [],
+        block: entry.contextBlock,
+      );
+      if (!r.isFallback && !r.hasEscalation && r.text.trim().isNotEmpty) {
+        text = r.text.trim();
+        id = 'llm_opener';
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('[siu_yan_chat] mood opener failed: $e');
+    }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _bubbles.add(_Bubble.bot(text, copyId: id));
+    });
+    widget.onPromptShown?.call(id, text, const []);
   }
 
   // ---------------------------------------------------------------------
@@ -812,10 +875,12 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       );
 
   void _logTemplate(String id, String version,
-      {required String theme, String? band}) {
+      {required String theme, String? band, String? moduleId}) {
     unawaited(_analytics?.logEvent('rule_template_reply', {
           'agent_id': _siuYan,
-          'module_id': _recorder?.moduleId ?? SiuYanChatPage.checkInModule,
+          'module_id': moduleId ??
+              _recorder?.moduleId ??
+              SiuYanChatPage.checkInModule,
           'template_id': id,
           'pool_version': version,
           'theme': theme,
@@ -897,7 +962,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     ].join('\n\n').trim();
     return core.llm.send(
       moduleId: moduleId,
-      promptKey: SiuYanChatPage.promptKey,
+      promptKey: SiuYanChatPage.activePromptKey,
       agentId: _siuYan,
       systemPrompt: persona == null ? _fallbackPersonaPrompt : null,
       contextSuffix: suffix.isEmpty ? null : suffix,

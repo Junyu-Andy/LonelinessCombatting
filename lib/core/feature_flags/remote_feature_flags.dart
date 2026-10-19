@@ -123,6 +123,23 @@
 ///                               SY / SN reply pool, no LLM).  Off: the
 ///                               Hybrid chat page and the rule arm's form,
 ///                               exactly as before.
+///   - [homeLayoutV2Enabled]   — 1020 D (batch 3): 睇今日 becomes page 1
+///                               (greeting, mood row, 「今日要做嘅事」 rows,
+///                               「去搵人傾」, the week's recap, crisis card)
+///                               and 搵人傾 page 2 (header, Brief PR card,
+///                               continue card, first-week nudge, the three
+///                               companions); the 做啲嘢 tools get their
+///                               picture tiles.  With it on, the old
+///                               [briefPrHomeBannerEnabled] banner is never
+///                               shown (1020b §2 (2)).  Both arms identical.
+///   - [moodRowV2Enabled]      — 1020 E (batch 3): the mood row on page 1
+///                               (M1–M8, no pop-ups: no daily mood sheet, no
+///                               Hybrid-only snackbar or dialog); M7 / M8
+///                               open 小欣's chat with an opener (rule arm
+///                               O1–O5 / C1–C2, Hybrid the LLM).  With it
+///                               on, [homeMoodOpensCheckInEnabled] cannot
+///                               take effect (1020b §2 (1)).  Both arms
+///                               identical apart from who writes the opener.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -156,6 +173,8 @@ class RemoteFeatureFlags {
     this.testerToolsEnabled = false,
     this.transcriptRetentionToggleEnabled = false,
     this.checkInChatV2Enabled = false,
+    this.homeLayoutV2Enabled = false,
+    this.moodRowV2Enabled = false,
   });
 
   final bool webSearchEnabled;
@@ -180,6 +199,23 @@ class RemoteFeatureFlags {
   final bool testerToolsEnabled;
   final bool transcriptRetentionToggleEnabled;
   final bool checkInChatV2Enabled;
+  final bool homeLayoutV2Enabled;
+  final bool moodRowV2Enabled;
+
+  /// 1020b §2 (1): the 10/19 "first mood pick opens the check-in" path is
+  /// unreachable while the mood row v2 is on, whatever its own field says.
+  bool get homeMoodOpensCheckInActive =>
+      homeMoodOpensCheckInEnabled && !moodRowV2Enabled;
+
+  /// 1020b §2 (2): with the two-page layout on, the Brief PR card lives in
+  /// 「今日要做嘅事」; the old banner under the greeting is never shown, so
+  /// page 1 never has two cards.
+  bool get briefPrHomeBannerActive =>
+      briefPrHomeBannerEnabled && !homeLayoutV2Enabled;
+
+  /// 1020 D / E (1): the M-3 daily mood sheet (DailyMoodPrompt) pops up only
+  /// while both the new layout and the mood row are off.
+  bool get dailyMoodPopupActive => !homeLayoutV2Enabled && !moodRowV2Enabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -239,6 +275,8 @@ class RemoteFeatureFlags {
         transcriptRetentionToggleEnabled:
             map['transcriptRetentionToggleEnabled'] == true,
         checkInChatV2Enabled: map['checkInChatV2Enabled'] == true,
+        homeLayoutV2Enabled: map['homeLayoutV2Enabled'] == true,
+        moodRowV2Enabled: map['moodRowV2Enabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

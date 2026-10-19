@@ -10,6 +10,7 @@ import '../features/today/presentation/pages/today_page.dart';
 import '../l10n/app_localizations.dart';
 import '../shared/widgets/app_app_bar.dart';
 import 'app_theme.dart';
+import 'home_tab_switcher.dart';
 
 /// Top-level shell.  Four bottom-nav tabs per Product Overview §3.2:
 ///
@@ -122,14 +123,18 @@ class _MainShellState extends State<MainShell> {
 
     return Scaffold(
       appBar: AppAppBar(title: titles[_current]!),
-      body: IndexedStack(
-        index: _current.index,
-        children: const [
-          TodayPage(),
-          TalkPage(),     // ← was MyStoryPage; now 搵人傾 (3 agent rooms)
-          MePage(),       // ← repurposed as 做啲嘢 (tools)
-          SettingsPage(), // ← repurposed as 自己 (Progress + Profile + admin)
-        ],
+      // 1020 D (4): page 1's 「去搵人傾」 switches to the 搵人傾 tab.
+      body: HomeTabSwitcher(
+        goToTalk: () => _switchTab(AppTab.myStory.index),
+        child: IndexedStack(
+          index: _current.index,
+          children: const [
+            TodayPage(),
+            TalkPage(),     // ← was MyStoryPage; now 搵人傾 (3 agent rooms)
+            MePage(),       // ← repurposed as 做啲嘢 (tools)
+            SettingsPage(), // ← repurposed as 自己 (Progress + Profile + admin)
+          ],
+        ),
       ),
       bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(
