@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-10-19 W0 现场第三批（Junyu 定）：只认 App 字號、Brief PR 卡上首页、记忆页分组、资料卡和热线卡缩小（PR 草稿，分支 `feat/1019-ui-round3`，接 #122）
+
+- 两个开关默认关：`appFontScaleOnlyEnabled`（`app.dart` 只用 `settings.fontScale`，不乘系统 textScaler）、`briefPrHomeBannerEnabled`（`today_page.dart` 问候语下面放同一个 `BriefPrCardHost`，调度规则不变）。
+- 记忆页：`MemoryItem` 多 `category`（事实的服务器类目）；页面按类目和日期用 `ExpansionTile` 分组，页顶汇总一句。类目中文名照 `functions/memory.js` 的注释，记 S20 待产品窗口核。
+- 资料卡 `_ProfileCard`：名字 headlineSmall、电邮 bodySmall、緊急聯絡 `ExpansionTile`。`safety_footer_card.dart` 的缩小在并入 main 时放弃，改用 #125 的两部分新卡。
+- UI 扫描加「我記得嘅嘢（分組）」流程（假的 `MemoryV1Service` 喂合成条目）。
+
+## 2026-10-19 W0 现场三件（Junyu 定）：首页表情直进签到页、建议页用入组资料、语音模型可切 chirp_3（PR 草稿，分支 `feat/1019-home-mood-suggestions-chirp3`，接 `fix/1019-field-issues`）
+
+- 两个新开关都默认关：`homeMoodOpensCheckInEnabled`（首页第一次按表情直接进签到页，两组；规则组表格页新增 `initialMoodValue`，同一张脸不重复写 daily_mood）、`suggestionsUseProfileEnabled`（Hybrid 建议页把重要嘅人、想重新聯絡嘅人、兴趣、唔想提起给模型，并带 `agentId` 让服务器注入小欣记忆；`functions/memory.js` 的 `INJECT_MODULES` 加 `m6_suggestions`，没带 agentId 时服务器不注入，所以开关关着行为不变）。
+- 建议页的提示词仍在 App 里（历史遗留），新版只在开关开着时用；要搬到 `functions/prompts/` 另排。
+- `functions/stt.js`：`meta/stt_config.model` 二选一（`chirp_2` 默认、`chirp_3`），Google 拒绝时该次退回默认；`stt_usage` 和返回值记实际用的模型。
+- 待 Junyu：决策编号；建议页提示词搬服务器；PPT 乙部铺垫句已加（见 scratchpad 两份 deck）。
 ## 2026-10-19 W0 现场第二批：自我介绍卡配对错、字体大时按钮被顶出（PR 草稿，分支 `fix/1019-intro-variant-and-dialog`）
 
 - `first_intro_overlay.dart`：`_IntroDialog` 原来 `resolveVariant(null)`，揀阿伯也显示阿珍；现在用 profile 的配对，介绍句里的「阿珍／阿伯」换成所揀那位。卡最高占屏幕 80%，文字区 `Flexible` + `SingleChildScrollView`，按钮固定。`referral_suggestion_card.dart` 两处名字同样改按配对。

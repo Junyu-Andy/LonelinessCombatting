@@ -84,6 +84,27 @@
 ///                               matchedVersion, clientTime — never the
 ///                               elder's words or the matched keyword).
 ///                               Both arms identical, nothing visible.
+///   - [homeMoodOpensCheckInEnabled] — 10/19 (Junyu): the first mood pick
+///                               of the day on the home pad opens the
+///                               check-in page itself (Hybrid: Siu Yan,
+///                               rule arm: the form) with that face chosen,
+///                               instead of the 5-second snackbar.  Both
+///                               arms; the pick is still one daily_mood row.
+///   - [suggestionsUseProfileEnabled] — 10/19 (Junyu): 今日嘅小邀請 (Hybrid)
+///                               gives the model the people the elder
+///                               shared, the ones to reconnect with, the
+///                               interests and 唔想提起, and asks the server
+///                               for Siu Yan's memory block.  Rule arm
+///                               unchanged (static pool).
+///   - [appFontScaleOnlyEnabled] — 10/19 (Junyu): the App's own 字號 (標準 /
+///                               大 / 特大) is the only text scale; the
+///                               phone's system font size is ignored, so
+///                               every page scales the same way.  Off: the
+///                               two multiply, capped at 特大 (app.dart).
+///   - [briefPrHomeBannerEnabled] — 10/19 (Junyu): the Brief PR invitation
+///                               card also sits at the top of 睇今日, under
+///                               the greeting, not only on the companion
+///                               list page.  Same card, same scheduler.
 ///   - [testerToolsEnabled]    — 10/19: a tester account (`isTester`, set
 ///                               by the admin only) unlocks 測試員工具 by
 ///                               tapping the version line 7× — no PIN, no
@@ -118,6 +139,10 @@ class RemoteFeatureFlags {
     this.researcherIntakeEnabled = false,
     this.testerArmSwitchEnabled = false,
     this.s1aEventLogEnabled = false,
+    this.homeMoodOpensCheckInEnabled = false,
+    this.suggestionsUseProfileEnabled = false,
+    this.appFontScaleOnlyEnabled = false,
+    this.briefPrHomeBannerEnabled = false,
     this.testerToolsEnabled = false,
     this.transcriptRetentionToggleEnabled = false,
   });
@@ -137,6 +162,10 @@ class RemoteFeatureFlags {
   final bool researcherIntakeEnabled;
   final bool testerArmSwitchEnabled;
   final bool s1aEventLogEnabled;
+  final bool homeMoodOpensCheckInEnabled;
+  final bool suggestionsUseProfileEnabled;
+  final bool appFontScaleOnlyEnabled;
+  final bool briefPrHomeBannerEnabled;
   final bool testerToolsEnabled;
   final bool transcriptRetentionToggleEnabled;
 
@@ -188,6 +217,12 @@ class RemoteFeatureFlags {
         researcherIntakeEnabled: map['researcherIntakeEnabled'] == true,
         testerArmSwitchEnabled: map['testerArmSwitchEnabled'] == true,
         s1aEventLogEnabled: map['s1aEventLogEnabled'] == true,
+        homeMoodOpensCheckInEnabled:
+            map['homeMoodOpensCheckInEnabled'] == true,
+        suggestionsUseProfileEnabled:
+            map['suggestionsUseProfileEnabled'] == true,
+        appFontScaleOnlyEnabled: map['appFontScaleOnlyEnabled'] == true,
+        briefPrHomeBannerEnabled: map['briefPrHomeBannerEnabled'] == true,
         testerToolsEnabled: map['testerToolsEnabled'] == true,
         transcriptRetentionToggleEnabled:
             map['transcriptRetentionToggleEnabled'] == true,

@@ -328,12 +328,14 @@ test("T49a: the intake's per-companion copies show once, own copy first",
     });
 
 test("only chat surfaces get memory", () => {
+  // 10/19: m6_suggestions joined (the App sends agentId for it only when
+  // suggestionsUseProfileEnabled is on).
   for (const id of ["m2_check_in", "reflective_dialogue", "tung_tung_chat",
-    "m3_reminiscence_w2", "greeting_tung_tung"]) {
+    "m3_reminiscence_w2", "greeting_tung_tung", "m6_suggestions"]) {
     assert.ok(m.INJECT_MODULES.test(id), id);
   }
   for (const id of ["rolling_summary_fold", "m3_reminiscence_w2_summary",
-    "m6_suggestions", "brief_pr", "m9_progress_summary"]) {
+    "brief_pr", "m9_progress_summary"]) {
     assert.ok(!m.INJECT_MODULES.test(id), id);
   }
 });

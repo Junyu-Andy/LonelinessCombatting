@@ -7,6 +7,8 @@ import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../adherence/presentation/widgets/missed_checkin_banner.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
+import '../../../brief_pr/presentation/widgets/brief_pr_card_host.dart';
 import '../../../crisis/presentation/widgets/safety_footer_card.dart';
 import '../widgets/active_plan_banner.dart';
 import '../widgets/agent_tile_row.dart';
@@ -102,26 +104,34 @@ class _TodayPageState extends State<TodayPage> {
     return SafeArea(
       child: ListView(
         padding: EdgeInsets.zero,
-        children: const [
+        children: [
           // Tester-only: visible whenever the schedule simulator is active.
-          SimulatedClockStrip(),
-          GreetingHero(),
+          const SimulatedClockStrip(),
+          const GreetingHero(),
+          // 10/19 (Junyu, switch briefPrHomeBannerEnabled): the Brief PR
+          // invitation right under the greeting, so it is seen without
+          // going to the companion list.  Renders nothing when none is due.
+          if (RemoteFeatureFlags.current.briefPrHomeBannerEnabled)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, 4),
+              child: BriefPrCardHost(),
+            ),
           // B05 — always-visible "did today's check-in happen?" status.
-          CheckInStatusChip(),
-          ContinueChatCard(),
+          const CheckInStatusChip(),
+          const ContinueChatCard(),
           // Compliance banners — each hides itself when nothing is due,
           // so the happy path matches the spec's seven-item layout but
           // study-critical nudges still surface when the protocol calls
           // for them.
-          PendingPromptsBanner(),
+          const PendingPromptsBanner(),
           // P-1 — first-week "try {agent}" nudge (days 3 and 6).
-          Week1NudgeBanner(),
-          MissedCheckInBanner(),
-          ActivePlanBanner(),
-          AgentTileRow(),
-          FactsRecapRow(),
-          HomeToolShortcuts(),
-          Padding(
+          const Week1NudgeBanner(),
+          const MissedCheckInBanner(),
+          const ActivePlanBanner(),
+          const AgentTileRow(),
+          const FactsRecapRow(),
+          const HomeToolShortcuts(),
+          const Padding(
             padding: EdgeInsets.fromLTRB(20, 0, 20, 72),
             child: SafetyFooterCard(analyticsTag: 'today_safety_footer'),
           ),

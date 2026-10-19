@@ -9,7 +9,9 @@ import '../../../../core/agent_context/shared_context_service.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../context/presentation/pages/check_in_arm_a.dart';
+import '../../../context/presentation/pages/check_in_arm_b.dart';
 import '../../../context/presentation/pages/check_in_shared.dart';
 import '../../data/mood_recorder.dart';
 
@@ -93,7 +95,12 @@ class _GreetingHeroState extends State<GreetingHero> {
         } catch (_) {}
       }());
     }
-    _showRecordedToast(isEn);
+    // 10/19 (Junyu, switch homeMoodOpensCheckInEnabled): the first pick of
+    // the day goes straight into the check-in page, so no toast then.
+    final openCheckIn =
+        RemoteFeatureFlags.current.homeMoodOpensCheckInEnabled &&
+            !wasSupplementary;
+    if (!openCheckIn) _showRecordedToast(isEn);
     // Sprint logging: mood is now a stream of entries — the first-of-
     // day still feeds the existing daily_mood_submitted analytics event
     // so existing dashboards stay accurate; supplementary entries get
@@ -115,6 +122,17 @@ class _GreetingHeroState extends State<GreetingHero> {
       });
     } else {
       analytics.logDailyMoodSubmitted(mood: value);
+    }
+    if (openCheckIn && mounted) {
+      // The pick is already in daily_mood; both pages know not to write it
+      // again (initialMoodValue).  Hybrid: Siu Yan's chat; rule arm: the
+      // form with the face chosen.
+      Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => isArmA
+            ? CheckInArmA(initialMoodValue: value)
+            : CheckInArmB(initialMoodValue: value),
+      ));
+      return;
     }
     if (isArmA && mounted) {
       if (!wasSupplementary) {

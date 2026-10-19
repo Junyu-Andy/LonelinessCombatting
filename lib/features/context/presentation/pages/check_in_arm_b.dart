@@ -33,7 +33,13 @@ class CheckInArmB extends StatefulWidget {
   /// Test hook for the template-reply history; defaults to Firestore.
   final RuleReplyHistoryStore? replyHistory;
 
-  const CheckInArmB({super.key, this.replyHistory});
+  const CheckInArmB({super.key, this.replyHistory, this.initialMoodValue});
+
+  /// 10/19: set when the home pad opens this page (switch
+  /// homeMoodOpensCheckInEnabled): that face is pre-chosen and, since the
+  /// pad already wrote it to daily_mood, saving the same face writes no
+  /// second row (a changed face does, as a supplementary entry).
+  final int? initialMoodValue;
 
   @override
   State<CheckInArmB> createState() => _CheckInArmBState();
@@ -42,7 +48,9 @@ class CheckInArmB extends StatefulWidget {
 class _CheckInArmBState extends State<CheckInArmB> {
   // B14-aligned: no pre-selected face — a prefilled neutral midpoint
   // anchors the mood measurement, so the user must actively pick one.
-  MoodFace? _face;
+  late MoodFace? _face = widget.initialMoodValue == null
+      ? null
+      : MoodFace.values[widget.initialMoodValue!.clamp(1, 5) - 1];
   int? _talkedAnswer;
   int? _socialDayAnswer;
   int? _significantEventAnswer;
@@ -230,7 +238,10 @@ class _CheckInArmBState extends State<CheckInArmB> {
     // locally and syncs when the connection returns.
     if (profile != null) {
       unawaited(_persistResponses(profile.uid, face, note));
-      unawaited(_recordMood(profile.uid, face));
+      // 10/19: the home pad already recorded this exact face today.
+      if (widget.initialMoodValue != face.rank) {
+        unawaited(_recordMood(profile.uid, face));
+      }
     }
     unawaited(_analytics?.logCheckIn(
           mood: face.numericScore,
