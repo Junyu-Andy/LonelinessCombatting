@@ -1,5 +1,6 @@
 "use strict";
-// 10/14 — 安靜時段: users/{uid}.quietHoursEnabled + app_config/reminders window.
+// 10/14 — 安靜時段: app_config/reminders window.  10/20 (dev-tasks-1020
+// §H(2)): fixed on for everyone; users/{uid}.quietHoursEnabled is ignored.
 const assert = require("assert");
 const qh = require("../quiet_hours");
 
@@ -44,10 +45,12 @@ t("daytime never blocks with the default window", () => {
         qh.inQuietHours({}, hk(h, 15), c), false, `hour ${h}`);
   }
 });
-t("toggle off = never blocks", () => {
+t("10/20: an old 'off' is ignored — quiet hours are fixed on", () => {
   const c = qh.quietHoursConfigFrom({});
   assert.strictEqual(
-      qh.inQuietHours({quietHoursEnabled: false}, hk(23, 0), c), false);
+      qh.inQuietHours({quietHoursEnabled: false}, hk(23, 0), c), true);
+  assert.strictEqual(
+      qh.inQuietHours({quietHoursEnabled: false}, hk(12, 0), c), false);
 });
 t("toggle true behaves like missing", () => {
   const c = qh.quietHoursConfigFrom({});

@@ -160,7 +160,8 @@ test("overdue ≤ 12 h (overnight) is sent; overdue > 12 h is skipped",
       assert.strictEqual((await rem("u1", "r2")).delivered, false);
     });
 
-test("今日休息 today → skipped; followed-up or deleted plan → skipped",
+test("今日休息 is ignored since 10/20 (dev-tasks-1020 §H(3)); followed-up " +
+    "or deleted plan → skipped",
     async () => {
       await reset({enabled: true});
       await seedUser("uq", {quiet: "2026-10-08T08:15:00.000"});
@@ -176,11 +177,11 @@ test("今日休息 today → skipped; followed-up or deleted plan → skipped",
       const m = fakeMessaging();
       const r = await reminders.dispatchDueReminders(db, m,
           {now: NOW, log: silent});
-      assert.strictEqual(r.skipped_quiet_today, 1);
+      assert.strictEqual(r.skipped_quiet_today, undefined);
       assert.strictEqual(r.skipped_followed_up, 1);
       assert.strictEqual(r.skipped_plan_missing, 1);
-      assert.strictEqual(r.sent, 1); // uy: 今日休息 was yesterday
-      assert.strictEqual(m.sent.length, 1);
+      assert.strictEqual(r.sent, 2); // uq (今日休息 today, ignored) and uy
+      assert.strictEqual(m.sent.length, 2);
     });
 
 test("send failure retries on later runs, then gives up after 3", async () => {

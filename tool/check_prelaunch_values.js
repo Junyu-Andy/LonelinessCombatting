@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * tool/check_prelaunch_values.js — READ-ONLY.  Prints the current value of
- * every switch and config document the 10/19 launch depends on, next to
+ * every switch and config document the 10/19 launch depends on (10/21
+ * values per dev-tasks-1020 §3 where it changed them), next to
  * the value the checklist expects, so Junyu can run it once and paste the
  * result (dev-tasks-1018 §G4).  Writes nothing.  Never prints an arm, a
  * sequence or a full e-mail address.
@@ -23,7 +24,11 @@ const {parseArgs, checkTarget} = require('./firestore_target');
 const CHECKS = [
   ['app_config/feature_flags', 'onboardingAfterEnrollmentFix', true,
     'T37 登记后先走引导'],
-  ['app_config/feature_flags', 'voiceInputEnabled', true, 'T27 语音'],
+  // dev-tasks-1020 §3: the 10/21 values.
+  ['app_config/feature_flags', 'voiceInputEnabled', false,
+    'T58 语音输入隐藏（10/21 关）'],
+  ['app_config/feature_flags', 'transcriptRetentionToggleEnabled', false,
+    'T51 不显示「保留對話紀錄」'],
   ['app_config/feature_flags', 'usageEventsEnabled', true, 'T40 使用事件'],
   ['app_config/feature_flags', 'opsDashboardEnabled', true, 'T39 运营看板'],
   ['app_config/feature_flags', 'enrollmentGateEnabled', true,

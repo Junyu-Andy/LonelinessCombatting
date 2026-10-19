@@ -293,6 +293,9 @@ async function allocationRecordFor(db, uid, now) {
     stratum: d.stratum || null,
     arm: d.arm || null,
     sequencePosition: d.sequencePosition == null ? null : d.sequencePosition,
+    // dev-tasks-1020 §C: which sequence (v1 = PB-, v2 = RCT-).
+    sequenceVersion: d.sequenceVersion ||
+      ((d.studyPeriod || 'B') === 'B' ? 'v1' : null),
     allocatedAt: d.enrolledAt || null,
     withdrawnAt: now,
     writtenBy: 'tool/delete_participant.js',

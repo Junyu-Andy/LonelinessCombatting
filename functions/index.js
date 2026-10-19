@@ -1451,23 +1451,12 @@ exports.weeklyLonelinessProbe = onSchedule(
     const usersSnap = await db.collection("users").get();
     const writes = [];
     const now = admin.firestore.FieldValue.serverTimestamp();
-    const todayKey = new Date()
-        .toLocaleDateString("en-CA", {timeZone: "Asia/Hong_Kong"});
     for (const userDoc of usersSnap.docs) {
       const data = userDoc.data() || {};
       const enabled = data.weeklyProbeEnabled === true;
       if (!enabled) continue;
-      // B.10 — respect 今日休息.  If the user activated quiet-today
-      // (HK local day matches today), skip enqueueing the probe.
-      const quietRaw = data.quietTodayActivatedAt;
-      if (quietRaw) {
-        const quietDate = typeof quietRaw === "string" ?
-          quietRaw.slice(0, 10) :
-          (quietRaw.toDate ? quietRaw.toDate()
-              .toLocaleDateString("en-CA", {timeZone: "Asia/Hong_Kong"}) :
-              null);
-        if (quietDate === todayKey) continue;
-      }
+      // 10/20 (dev-tasks-1020 §H(3)): 今日休息 (quietTodayActivatedAt) is
+      // ignored — the App no longer offers it.
       writes.push(
         db.collection("pending_loneliness_probes").doc(userDoc.id).set({
           uid: userDoc.id,

@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-10-19 dev-tasks-1020 第 1 批：设定页、安静时段固定开、今日休息取消、语音隐藏、导出加列、只读核对脚本；C 的序列版本方案待批（PR 草稿，分支 `claude/zealous-fermat-8rgqtg`）
+
+- #125 合并后分支从 main 重开（快进），按「一批一个 PR」做第 1 批。dev-tasks-1020 存进 `docs/dev-tasks/`，T 号 T50–T60。
+- H：`settings_page.dart` 去掉「通知」节，新 `MySettingsPage`（我的設定 → 顯示 → 高對比）；`quiet_hours.js` 不再看 `quietHoursEnabled`；`reminders.js`、`weeklyLonelinessProbe`、App `reminder_service.dart` 不再看 `quietTodayActivatedAt`。三个 emulator 测试按新规则改。
+- I：麦克风本来就全经 `VoiceInputButton` 一个开关，代码不用改；要在控制台关开关。`check_prelaunch_values.js` 期望值改成 10/21 的。
+- J：研究员录入页两句说明按代码改（记忆和鼓励方式下一句就用到；兴趣和唔想提起嘅话题要重开 App）。
+- C(5)：`analysis_export.js` 加五列，`delete_participant.js` 留下的分配记录加 `sequenceVersion`；合成数据编号改 `RCT-S…`。
+- C(2) 方案（v2 另存为 `v2_low`/`v2_high`、`sequence_versions/` 记停用、cohort 建议仍用 `phase_b` 加 `analysisSet`）写在 `docs/dev-reports/T50-T60-batch1-20261019.md`，等 Junyu 批。
+- 只读核对：`tool/readonly_check_1020.js`（保留开关、行动计划推送、今日休息、过期未展示的 Brief PR）。开发没有生产权限，要 Junyu 跑。代码能答的两题已答：保留开关关掉时 `turns`／`sessions` 照写（本来无原文）；服务器不把 `shortTermBuffer` 给聊天模型。
+- 顺带：#123 的冲突已由另一窗口合 main 解决，本地扫描确认无误。
+
 ## 2026-10-19 Junyu 第二轮核对：切页跳回、标题跳动、「自己」页精简、首页安全卡、首页字放大、字号五档（同一 PR 草稿，分支 `claude/zealous-fermat-8rgqtg`）
 
 - 登录后第一次点「自己」跳回「睇今日」：`AuthGate` 每次 build 都新建 `profileChanges()` 流，登录后重读开关的 `setState` 让 `StreamBuilder` 回到等待状态，整个 `MainShell` 被换掉。改为流只建一次，重读开关后只把 `configRevision` 加一交给 `StaffGate`（它据此重查评估员身份，重查时不再显示转圈）。测试 `test/auth_gate_stream_test.dart`，去掉修复会失败。

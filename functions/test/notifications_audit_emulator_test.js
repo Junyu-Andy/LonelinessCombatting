@@ -335,7 +335,8 @@ async () => {
 });
 
 test("A10, A11: a push due inside quiet hours (22:30) is postponed to the " +
-    "next tick (08:00), not dropped; quietHoursEnabled=false sends at 22:30",
+    "next tick (08:00), not dropped; since 10/20 an old " +
+    "quietHoursEnabled=false is ignored",
 async () => {
   await reset(ALL_ON);
   await seedUser("pq", {arm: "A", cohort: "pilot", w0Date: PILOT_W0});
@@ -344,21 +345,21 @@ async () => {
   const m = fakeMessaging();
   // Skip the 20:00 and 21:00 ticks of day 7; first look at 22:30.
   const c = await run(m, hk(7, 22, 30));
-  assert.strictEqual(c.quiet_hours, 1);
-  assert.strictEqual(c.pushed, 1);
-  assert.strictEqual(m.sent[0].token, "tok-pn");
+  assert.strictEqual(c.quiet_hours, 2);
+  assert.strictEqual(c.pushed, undefined);
+  assert.strictEqual(m.sent.length, 0);
   assert.strictEqual((await status("pq")).exists, false);
-  // 07:30 still quiet; 08:00 goes out.
+  // 07:30 still quiet; 08:00 both go out.
   const c730 = await run(m, hk(8, 7, 30));
-  assert.strictEqual(c730.quiet_hours, 1);
+  assert.strictEqual(c730.quiet_hours, 2);
   const c8 = await run(m, hk(8, 8));
-  assert.strictEqual(c8.pushed, 1);
-  assert.strictEqual(m.sent[1].token, "tok-pq");
+  assert.strictEqual(c8.pushed, 2);
+  assert.deepStrictEqual(m.sent.map((x) => x.token).sort(),
+      ["tok-pn", "tok-pq"]);
   assert.strictEqual((await status("pq")).data().bundles.W1.pushedAt
       .toDate().toISOString(), hk(8, 8).toISOString());
-  // Reminders come 24 h after the push that actually went out: pn's is due
-  // day 8 22:25 (after the last 21:00 tick), pq's day 9 07:55 — so both go
-  // out at the day 9 08:00 tick, none at day 8 20:00 / 21:00.
+  // Reminders come 24 h after the push that actually went out (day 9
+  // 08:00), so none at day 8 20:00 / 21:00.
   for (const hour of [20, 21]) {
     const c = await run(m, hk(8, hour));
     assert.strictEqual(c.reminded, undefined, `day 8 ${hour}:00`);
