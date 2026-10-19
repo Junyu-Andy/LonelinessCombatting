@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-10-19 Junyu 核对后六处：测试员免打包解锁、每週問卷測試页、Brief PR 横排、注册跳到错处、人生回顧去锁、做啲嘢用词与保留对话开关（PR 草稿，分支 `claude/zealous-fermat-8rgqtg`）
+
+- 测试员工具：`TesterGate.tryUnlockAsTester`——`isTester` 且 `testerToolsEnabled` 时 7 次点击直接解锁；旧的 `TESTER_PIN` 照旧可用；非测试员不弹任何提示。决策草稿 `NNNN-tester-tools-unlock-without-pin.md`。
+- 新页 `tester_weekly_bundle_page.dart`：W1–W7 预览（`WeeklyBundleFlowPage.previewFor`，各部分 `preview: true` 不写 Firestore）和「模擬到嗰日」（`AppClock` 拨到推送后 30 分钟，回首页）。模拟要帐号有 cohort 和 W0（切换组别一次会补上）。
+- Brief PR 第二版问卷：七个选项横排（`_HorizontalScale`，键名 `brief_pr_option_N` 不变），小屏大字测试不溢出。
+- 注册页：每格 `GlobalKey` + `FocusNode`，验证失败滚到第一格错处再聚焦（先滚完再聚焦，否则光标的滚动会打断动画）；服务器错误按代码对到电邮或密码格，用 `forceErrorText` 显示，改了就消失。
+- 人生回顧时间线：去掉锁和灰色，未完成的主题白底加播放图标，点开对应主题（同 `reminiscence_landing.dart`）。人生點滴本来就不限次序，这里只是界面跟上。
+- 「做啲嘢」页去掉「agent」；「保留對話紀錄」开关加 `transcriptRetentionToggleEnabled`（默认关），决策 0020 第 5 条标取代。仓库里没找到更早「不开放」的书面记录，待 Junyu 确认并核对 ICF。
+
 ## 2026-10-19 W0 现场两处修正：签到页揀心情那屏溢出、语音转写空格（PR 草稿，分支 `fix/1019-field-issues`）
 
 - 小欣签到页 Decision A 的「揀心情」门：固定 Column 加 Spacer，iPhone 7 Plus 大字体下按钮被顶出屏幕。改为 `SingleChildScrollView`，和 10/15 行动计划页同一修法；UI 扫描加了这一屏（之前只测了带心情进来的路径）。为了能在没有 Firebase 的测试里走到这屏，`MoodRecorder` 改为用到时才取 Firestore，`CheckInArmA` 多一个只给测试用的 `moodRecorder` 参数。

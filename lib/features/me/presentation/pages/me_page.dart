@@ -40,8 +40,8 @@ class MePage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
             child: Text(
               isEn
-                  ? 'Small tools you can use on your own — no agent walks you through them.'
-                  : '幾個小工具，自己用都得，唔需要 agent 陪。',
+                  ? 'Small tools you can use on your own — no companion walks you through them.'
+                  : '幾個小工具，自己用都得，唔需要夥伴陪。',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 height: 1.4,

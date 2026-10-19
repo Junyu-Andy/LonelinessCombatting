@@ -158,16 +158,48 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    testWidgets('scale row fits a small phone with large text (no overflow)',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: const TextScaler.linear(1.6)),
+          child: child!,
+        ),
+        home: BriefPrFlowPage(record: store.records['u1/s1']!, scheduler: scheduler),
+      ));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byKey(const Key('brief_pr_option_7')));
+      await tester.pump();
+      expect(tester.widget<FilledButton>(find.byKey(const Key('brief_pr_next'))).onPressed,
+          isNotNull);
+    });
+
     testWidgets('one question per screen with N/4, next until the last, then 完成',
         (tester) async {
       await open(tester);
       expect(find.text('1/4'), findsOneWidget);
       expect(find.text(BriefPrFlowPage.stem), findsOneWidget);
       expect(find.text('通通 明白我。'), findsOneWidget);
-      // Full-text anchors on the rows.
+      // Full-text anchors under the scale.
       expect(find.text('完全唔係咁'), findsOneWidget);
       expect(find.text('一半半'), findsOneWidget);
       expect(find.text('完全係咁'), findsOneWidget);
+      // 10/19: the seven points sit side by side in one row, 1 → 7 left to
+      // right, with the anchors underneath.
+      final y1 = tester.getCenter(find.byKey(const Key('brief_pr_option_1'))).dy;
+      for (var v = 2; v <= 7; v++) {
+        final c = tester.getCenter(find.byKey(Key('brief_pr_option_$v')));
+        expect(c.dy, y1, reason: 'option $v on the same row');
+        expect(c.dx,
+            greaterThan(tester.getCenter(find.byKey(Key('brief_pr_option_${v - 1}'))).dx));
+      }
+      expect(tester.getCenter(find.text('完全唔係咁')).dy, greaterThan(y1));
       // Next is disabled until an option is tapped.
       expect(tester.widget<FilledButton>(find.byKey(const Key('brief_pr_next'))).onPressed,
           isNull);

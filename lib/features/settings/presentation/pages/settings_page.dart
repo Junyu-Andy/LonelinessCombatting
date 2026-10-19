@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/feature_flags/feature_flags.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../../core/privacy/transcript_retention.dart';
 import '../../../../core/testing/tester_gate.dart';
@@ -36,6 +37,7 @@ import '../../../weekly_pr/data/weekly_pr_trigger.dart';
 import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
 import 'support_about_page.dart';
 import 'tester_schedule_page.dart';
+import 'tester_weekly_bundle_page.dart';
 
 enum _AppLanguage { cantonese, english }
 
@@ -145,29 +147,33 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           // C20 / decision 0020: the participant's own off switch for
-          // transcript retention (both arms; default stays on).
-          const SizedBox(height: 10),
-          _TranscriptRetentionTile(
-            isEn: isEn,
-            value: TranscriptRetention.isOn(settings.profile),
-            onChanged: settings.profile == null
-                ? null
-                : (value) async {
-                    final profile = settings.profile!;
-                    final updated = profile.copyWith(
-                      consent:
-                          TranscriptRetention.set(profile.consent, value),
-                    );
-                    settings.profile = updated;
-                    try {
-                      await AuthServiceScope.of(context)
-                          .updateProfile(updated);
-                    } catch (_) {
-                      // Offline / guest: the local value stands; the SDK
-                      // syncs later.
-                    }
-                  },
-          ),
+          // transcript retention (both arms; default stays on).  10/19:
+          // hidden unless app_config/feature_flags.
+          // transcriptRetentionToggleEnabled; the stored value is untouched.
+          if (RemoteFeatureFlags.current.transcriptRetentionToggleEnabled) ...[
+            const SizedBox(height: 10),
+            _TranscriptRetentionTile(
+              isEn: isEn,
+              value: TranscriptRetention.isOn(settings.profile),
+              onChanged: settings.profile == null
+                  ? null
+                  : (value) async {
+                      final profile = settings.profile!;
+                      final updated = profile.copyWith(
+                        consent:
+                            TranscriptRetention.set(profile.consent, value),
+                      );
+                      settings.profile = updated;
+                      try {
+                        await AuthServiceScope.of(context)
+                            .updateProfile(updated);
+                      } catch (_) {
+                        // Offline / guest: the local value stands; the SDK
+                        // syncs later.
+                      }
+                    },
+            ),
+          ],
 
           // Memory v1: Phase B Arm A has it (no toggle); testers on a
           // MEMORY_V1 build can switch it on. Everyone else: no section.
@@ -342,9 +348,10 @@ class _SettingsPageState extends State<SettingsPage> {
           // researcher dashboard return here when those instruments are
           // ready to expose to participants again.
 
-          // T6 — tester tools.  Since 2026-09-23 hidden from EVERYONE (debug
-          // builds and isTester accounts included) until the build's
-          // TESTER_PIN is entered: 關於同支援 → tap the version line 7×.
+          // T6 — tester tools.  Hidden from everyone until unlocked on
+          // 關於同支援 → tap the version line 7×: an isTester account with
+          // app_config/feature_flags.testerToolsEnabled gets straight in
+          // (10/19), otherwise the build's TESTER_PIN (core/testing).
           if (TesterGate.unlocked.value) ...[
             const SizedBox(height: 28),
             _SectionHeader(
@@ -396,6 +403,21 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 8),
             _SurveyPreviewButtons(isEn: isEn),
+            const SizedBox(height: 12),
+            // 10/19: the weekly questionnaire (T24) on demand — preview any
+            // bundle at once, or jump the in-app clock to its day.
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                key: const Key('settings_tester_weekly_bundle'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                      builder: (_) => const TesterWeeklyBundlePage()),
+                ),
+                icon: const Icon(Icons.assignment_outlined, size: 26),
+                label: const Text('每週問卷測試'),
+              ),
+            ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
