@@ -41,6 +41,7 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/tester_arm_switch_test.dart test/tester_weekly_bundle_page_test.dart \
   test/reminiscence_avoid_topics_test.dart \
   test/memory_handover_pages_test.dart \
+  test/check_in_chat_v2_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \

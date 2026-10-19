@@ -23,8 +23,14 @@ const _promptCache = {};
 //   T49b (2026-10-18, 10/16 item 5): 小欣 v2, 阿珍／阿伯 v2, 通通 v3 —
 //   identity wording "電腦程式夥伴", the search-era lines and the dead
 //   "Context injection" section removed, {{TONE_RULE}} slot added.
+//   1020 F (2026-10-19): 小欣 v3 = v2 plus one section, 「每日 check-in
+//   （App 對話形式）」 (the two check-in replies and the opener once the
+//   check-in is done).  Only the chat window behind the App switch
+//   checkInChatV2Enabled sends `siu_yan_v3`; every other 小欣 call still
+//   sends `siu_yan_v1` and gets v2.
 const PROMPT_FILES = {
   siu_yan_v1: "siu_yan.v2",
+  siu_yan_v3: "siu_yan.v3",
   ah_jan_ah_bak_v1: "ah_jan_ah_bak.v2",
   tung_tung_v1: "tung_tung.v3",
 };

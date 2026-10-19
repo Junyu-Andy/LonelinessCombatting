@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-10-19 1020 第 2 批（A、F (1)–(4)、(6)）：小欣页一个聊天窗口，check-in 对话化，规则组小欣聊天（分支 `claude/zealous-fermat-8rgqtg-batch2`，未推、未开 PR）
+
+- 结论：开关 `checkInChatV2Enabled` 开时，两组撳小欣都进同一个聊天窗口；当天未做 check-in 就自动按 Q0–Q6 一问一答，问题和按钮两组一样，不由 LLM 写；规则组回应全部来自模板（零 LLM 调用），Hybrid 组两句回应由 LLM 写。开关关时旧页面一字不变。
+- 新页 `siu_yan_chat_page.dart`；文字 `check_in_chat_copy.dart`（照 `docs/spec/copy/check-in-chat.md`）；规则组聊天池 `siu_yan_rule_chat_pool.dart`；记录 `check_in_response_store.dart`。`CheckInPage` 按开关选新页或旧 `ArmGate`。
+- F (6)：`rule-templates.md` 的 X1–X5 换成 5.4（按 Q1 尋日整體分档）；旧 10/10 文字移到文末，只给开关关时的旧表单用（代码 `RuleReplyPool.entries` 不动，新文字在 `checkInChatEntries`）。
+- 提示词：新文件 `siu_yan.v3.txt`（= v2 + 「每日 check-in（App 對話形式）」一节），key `siu_yan_v3` 只由新窗口发；`siu_yan_v1` 仍是 v2。`build_info.g.dart` 重新生成。
+- A：(1) 新窗口里规则组模板不再看编译开关 `RULE_TEMPLATE_REPLIES`，一定出现；(2) v2 下 Brief PR 只在列表页出卡，两组的问卷都有「唔評住」（测试覆盖），签到后不弹问卷；(3) 通通规则组照旧由回应池回复（`tung_tung_arm_b_test.dart` 覆盖）；(4) 规则组小欣聊天新建。
+- 会话：`ChatSessionRecorder.markCheckInCompleted()` / `SessionTally.checkInCompleted`（只在为 true 时写进 `sessions`），`SessionRules.isValid` 把答完的 check-in 当有效。
+- 测试：`test/check_in_chat_v2_test.dart`（加进 CI 的 Phase B 一套）、`final_copy_test.dart` 加 check-in 文字和旧 X、文字扫描加新窗口一个流程、Functions 加 `prompt_siu_yan_v3_test.js` 和 `prompt_siu_yan_v3_emulator_test.js`。报告 `docs/dev-reports/T50-T55-batch2-20261019.md`，截图在 `docs/dev-reports/batch2-20261019-shots/`。
+- 待 Junyu：文字定稿、v3 提示词措辞、Hybrid 唔講住用 R4b、acute 后停止 check-in、决策编号（草稿 `NNNN-check-in-chat-v2.md`）。
+
 ## 2026-10-19 W0 现场第三批（Junyu 定）：只认 App 字號、Brief PR 卡上首页、记忆页分组、资料卡和热线卡缩小（PR 草稿，分支 `feat/1019-ui-round3`，接 #122）
 
 - 两个开关默认关：`appFontScaleOnlyEnabled`（`app.dart` 只用 `settings.fontScale`，不乘系统 textScaler）、`briefPrHomeBannerEnabled`（`today_page.dart` 问候语下面放同一个 `BriefPrCardHost`，调度规则不变）。

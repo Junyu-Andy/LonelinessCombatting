@@ -12,6 +12,8 @@ import 'package:app_demo/core/config/usage_copy.dart';
 import 'package:app_demo/core/voice/voice_copy.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
 import 'package:app_demo/features/auth/presentation/auth_service_scope.dart';
+import 'package:app_demo/features/context/data/check_in_chat_copy.dart';
+import 'package:app_demo/features/context/data/siu_yan_rule_chat_pool.dart';
 import 'package:app_demo/features/curious_companion/data/tung_tung_search_intent.dart';
 import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_landing.dart';
 import 'package:app_demo/features/rule_replies/data/rule_reply_pool.dart';
@@ -46,12 +48,45 @@ void main() {
     for (final r in templateRows)
       if (idPattern.hasMatch(r[0])) r[0]: r,
   };
-  final pool = {for (final e in RuleReplyPool.entries) e.id: e};
+  // 1020 F (6): the X rows of the main tables are the 5.4 texts (by Q1,
+  // 尋日), used by the chat check-in; Z and G-1 are unchanged.
+  final pool = {
+    for (final e in RuleReplyPool.entries)
+      if (!e.id.startsWith('X')) e.id: e,
+    for (final e in RuleReplyPool.checkInChatEntries) e.id: e,
+  };
+  // The 10/10 X texts, kept for the old form (switch off): rows `L-X…`.
+  final legacySpec = {
+    for (final r in templateRows)
+      if (r[0].startsWith('L-X')) r[0].substring(2): r,
+  };
 
   group('rule-templates.md', () {
     test('41 entries, same ids', () {
       expect(spec.length, 41);
       expect(pool.keys.toSet(), spec.keys.toSet());
+    });
+
+    test('1020 F (6): X1–X5 are labelled 「按 Q1 尋日整體分档」, 4 per band',
+        () {
+      final doc = File('docs/spec/copy/rule-templates.md').readAsStringSync();
+      expect(doc, contains('## 小欣：check-in 回应一（按 Q1 尋日整體分档）'));
+      expect(RuleReplyPool.checkInChatEntries, hasLength(20));
+      for (final band in _moodBand.values) {
+        expect(RuleReplyPool.checkInChatSubPool(band), hasLength(4),
+            reason: band);
+      }
+    });
+
+    test('old form (switch off): the 10/10 X texts, verbatim, unchanged',
+        () {
+      expect(legacySpec.length, 20);
+      for (final MapEntry(key: id, value: row) in legacySpec.entries) {
+        final e = RuleReplyPool.entries.firstWhere((x) => x.id == id);
+        expect(e.zh, row[2], reason: id);
+        expect(e.band, _moodBand[row[1]], reason: id);
+      }
+      expect(RuleReplyPool.version, '2026-10-10-final');
     });
 
     test('every text is verbatim, in the right agent and mood group', () {
@@ -73,7 +108,10 @@ void main() {
       expect(RuleReplyPool.hasPlaceholders, isFalse);
       // The 「已更正的字」 table: none of the old characters remain.
       for (final old in ['侾', '傳', '諦', '゗', '捣', '鐘意']) {
-        for (final e in RuleReplyPool.entries) {
+        for (final e in [
+          ...RuleReplyPool.entries,
+          ...RuleReplyPool.checkInChatEntries,
+        ]) {
           expect(e.zh.contains(old), isFalse, reason: '${e.id} $old');
         }
       }
@@ -123,6 +161,53 @@ void main() {
 
     test('S5: onboarding usage advice', () {
       expect(UsageCopy.onboardingUsageAdviceS5, short['S5']);
+    });
+  });
+
+  // 1020 F — the chat check-in and the rule arm's Siu Yan chat (drafts,
+  // 1020b §4 5.2b / 5.3).
+  group('check-in-chat.md', () {
+    final rows = {for (final r in _rows('check-in-chat.md')) r[0]: r};
+    List<String> buttons(String cell) => cell.split('／');
+
+    test('questions Q0–Q6 and their buttons, verbatim', () {
+      expect(CheckInChatCopy.q0Morning, rows['Q0']![2]);
+      expect(CheckInChatCopy.q1, rows['Q1']![2]);
+      expect(CheckInChatCopy.q2, rows['Q2']![2]);
+      expect(CheckInChatCopy.q3, rows['Q3']![2]);
+      expect(CheckInChatCopy.q3b, rows['Q3b']![2]);
+      expect(CheckInChatCopy.q4, rows['Q4']![2]);
+      expect(CheckInChatCopy.q5, rows['Q5']![2]);
+      expect(CheckInChatCopy.q6, rows['Q6']![2]);
+      String labels(List<CheckInOption> o) => o.map((x) => x.label).join('／');
+      expect(labels(CheckInChatCopy.q1Options), rows['Q1']![3]);
+      expect(labels(CheckInChatCopy.q2Options), rows['Q2']![3]);
+      expect(labels(CheckInChatCopy.q3Options), rows['Q3']![3]);
+      expect(labels(CheckInChatCopy.q5Options), rows['Q5']![3]);
+      expect(buttons(rows['Q1']!.last), hasLength(6));
+      for (final q in ['Q3b', 'Q4']) {
+        expect(rows[q]![3], '输入框；${CheckInChatCopy.skipLabel}');
+      }
+    });
+
+    test('rule arm fixed lines XG, R4a, R4b, SY0', () {
+      expect(CheckInChatCopy.xg, rows['XG']![2]);
+      expect(CheckInChatCopy.r4a, rows['R4a']![2]);
+      expect(CheckInChatCopy.r4b, rows['R4b']![2]);
+      expect(CheckInChatCopy.sy0, rows['SY0']![2]);
+    });
+
+    test('rule arm chat pool SY1–SY6, SN1–SN4', () {
+      for (final e in [
+        ...SiuYanRuleChatPool.general,
+        ...SiuYanRuleChatPool.low,
+      ]) {
+        expect(e.zh, rows[e.id]![2], reason: e.id);
+      }
+      expect(SiuYanRuleChatPool.general.map((e) => e.id),
+          ['SY1', 'SY2', 'SY3', 'SY4', 'SY5', 'SY6']);
+      expect(SiuYanRuleChatPool.low.map((e) => e.id),
+          ['SN1', 'SN2', 'SN3', 'SN4']);
     });
   });
 }

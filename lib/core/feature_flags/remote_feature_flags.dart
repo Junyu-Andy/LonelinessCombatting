@@ -113,6 +113,16 @@
 ///                               「保留對話紀錄」 switch in 自己 (decision
 ///                               0020).  Off (default) = the row is hidden;
 ///                               the stored consent value is untouched.
+///   - [checkInChatV2Enabled]  — 1020 F (batch 2): the 小欣 card opens one
+///                               chat window in both arms.  Today's
+///                               check-in runs inside it as chat bubbles
+///                               with button replies (Q0–Q6, same words
+///                               and order in both arms, never written by
+///                               the LLM); once it is done the window is a
+///                               plain chat (rule arm: SY0 opener and the
+///                               SY / SN reply pool, no LLM).  Off: the
+///                               Hybrid chat page and the rule arm's form,
+///                               exactly as before.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -145,6 +155,7 @@ class RemoteFeatureFlags {
     this.briefPrHomeBannerEnabled = false,
     this.testerToolsEnabled = false,
     this.transcriptRetentionToggleEnabled = false,
+    this.checkInChatV2Enabled = false,
   });
 
   final bool webSearchEnabled;
@@ -168,6 +179,7 @@ class RemoteFeatureFlags {
   final bool briefPrHomeBannerEnabled;
   final bool testerToolsEnabled;
   final bool transcriptRetentionToggleEnabled;
+  final bool checkInChatV2Enabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -226,6 +238,7 @@ class RemoteFeatureFlags {
         testerToolsEnabled: map['testerToolsEnabled'] == true,
         transcriptRetentionToggleEnabled:
             map['transcriptRetentionToggleEnabled'] == true,
+        checkInChatV2Enabled: map['checkInChatV2Enabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

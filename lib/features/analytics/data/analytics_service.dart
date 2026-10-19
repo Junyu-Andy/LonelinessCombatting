@@ -203,6 +203,18 @@ class AnalyticsService {
     }
   }
 
+  /// 1020 F — the chat check-in (`checkInChatV2Enabled`, both arms) emits
+  /// the same two names as [logCheckIn] (the status chip, the missed-
+  /// check-in banner and the weekly recap read them).  [params] carries
+  /// the answer codes; `mood` there is Q1 (yesterday overall, 5 … 1) and
+  /// is absent for 唔想答.  No free text.
+  Future<void> logCheckInChat(Map<String, dynamic> params) async {
+    await logEvent('check_in_submitted', params);
+    if (_arm != null) {
+      await logEvent('m2_check_in_submitted', params);
+    }
+  }
+
   Future<void> logSocialLogEntry({
     required bool hasPerson,
     required int summaryLength,
