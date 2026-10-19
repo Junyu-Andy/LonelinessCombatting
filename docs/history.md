@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-20 研究员讲解闸门（1020e 第二节第 14 条；PR 草稿，分支 `claude/zealous-fermat-8rgqtg-intake-gate`）
+
+- 新开关 `researcherIntakeGateEnabled`（默认关）。`ConsentGate` 把两种入组问卷页（`IntakeShortPage`、`IntakePeoplePage`）包在 `ResearcherIntakeGate` 里：开着、帐号没解锁、也没做完引导（T37 规则，`needsAgentOnboarding(fixOn: true)`）时显示等候页，正中一格（九宫格中间）2 秒内点 3 下解锁，写 `users/{uid}.intakeGateUnlockedAt`（服务器时间）。两组同一页。
+- 开关读取：`RemoteFeatureFlags.lastKnown`（最后一次真正读到的值；一次都没读到为 null）。为 null 时先「等一陣…」、后台重读（`load(timeout:)` 6–20 秒），8 秒后显示等候页（不跳过、可放行），读到关自动进问卷；`RemoteFeatureFlags.reads` 计数让 `ConsentGate` 重读后重新决定。
+- `firestore.rules`：这个字段老人只能写一次、只能是服务器时间。新测试 `test/researcher_intake_gate_test.dart`（42 项，三种构建）、`test/rules/intake_gate_rules.test.js`（10 项）。报告 `docs/dev-reports/intake-gate-20261020.md`，决策草稿 `docs/decisions/NNNN-researcher-intake-gate.md`。
+- 待 Junyu：等候页文字、位置（「開始之前」前还是后）、点击范围、读不到时宁可等、开关在第一位 `PB-` 前定好、W0 步骤加一句、决策编号。
+
 ## 2026-10-19 W0 现场第三批（Junyu 定）：只认 App 字號、Brief PR 卡上首页、记忆页分组、资料卡和热线卡缩小（PR 草稿，分支 `feat/1019-ui-round3`，接 #122）
 
 - 两个开关默认关：`appFontScaleOnlyEnabled`（`app.dart` 只用 `settings.fontScale`，不乘系统 textScaler）、`briefPrHomeBannerEnabled`（`today_page.dart` 问候语下面放同一个 `BriefPrCardHost`，调度规则不变）。
