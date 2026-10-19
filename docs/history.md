@@ -14,6 +14,14 @@
 - 服务器部分（小篇章 Cloud Function、`ah_jan_ah_bak.v3` 提示词、推送、Firestore 规则）由另一个开发窗口做，两边按报告里的约定拼接。第一节的两个 bug 不在这个分支。
 - 报告、截图（测试渲染，Hybrid 组的回应是假模型的句子）和真机步骤：`docs/dev-reports/reminiscence-v2-app-20261020.md`。测试 `test/reminiscence_v2_test.dart`（加进 CI「phase B arm gating」）、`test/reminiscence_v2_copy_test.dart`。
 - 待 Junyu：全部草稿文字；有效会话 3 题；规则组整理好不推送；`moderate_review` 不停题、规则组用 Z5；第 8 题后规则组不出固定句；同意关时小篇章请求仍带对话；看过旧说明的人再看一次新说明；决策编号（草稿 `NNNN-reminiscence-v2-app.md`）。
+## 2026-10-20 1020d 回忆 v2 服务器端：阿珍／阿伯提示词 v3、小篇章生成、规则、导出和看板（分支 `claude/zealous-fermat-8rgqtg-reminiscence-server`，未推送、未开 PR）
+
+- 结论：开关 `reminiscenceV2Enabled`（默认关）开时，新回忆页发 `ah_jan_ah_bak_v3`，模型每题问一条具体追问、再回一两句不提问；老人撳「完成今個禮拜」后，Hybrid 组的小篇章由服务器触发器 `onReminiscenceChapterWritten` 生成（Pro 思考写稿 → Flash 核对 → 最多改两轮 → 删仍无出处的句子），规则组不调任何模型。App 那一半由另一个窗口做，约定写在报告第 6 节。
+- 真实模型名 10/19 核对过：`deepseek-flash`、`deepseek-v4-pro` 都在 DeepSeek `/models` 里。
+- 合成老人试运行改了提示词四次：追问漏问、离世仍追问、Flash 把粤语词当「太口语」、改写把老人原话改成普通话、Pro 偶尔交空稿；定稿后一般追问 29/32 有一条问题、回应 33/34 不提问、离世只承认、没假设香港；三篇小篇章逐句都有出处，植入的「五歲」被 Flash 拦下并删去。代码另加两道保护（无口语语法字的「太口语」剔走、空稿重试）。
+- 规则、过程／分析导出、盲法导出清单、运营看板计数一并做了；看板页面显示要改 `lib/`，留给 App 窗口。
+- 全部后端测试（换端口跑）和钉版本 Flutter 测试通过。报告 `docs/dev-reports/reminiscence-v2-server-20261020.md`；决策草稿 `NNNN-reminiscence-chapter-generation.md`。
+- 待 Junyu：三份提示词措辞、推送文字、「太口语」代码剔除、核对失败照交、评分算过程还是结局等（报告第 11 节）。
 
 ## 2026-10-20 1020c 第二项：键盘遮挡，打字时顶栏缩成一行（分支 `claude/zealous-fermat-8rgqtg-keyboard`，接第 2 批，PR 草稿）
 

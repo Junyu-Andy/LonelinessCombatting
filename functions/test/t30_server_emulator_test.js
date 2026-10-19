@@ -178,6 +178,24 @@ async function seedProcessParticipants() {
       "ai_output_scan" : "rule_turn", level: "acute", tier: "acute",
     matchedTerm: "唔想活", textHash: "h", crisisPageShown: true,
     createdAt: new Date("2026-11-05T02:00:00Z")});
+    // 1020d — one weekly 小篇章 each; text everywhere it can be.
+    const ch = u.collection("reminiscence_chapters").doc("week_1");
+    const common = {weekIndex: 1, requestId: "r1",
+      requestedAt: new Date("2026-11-08T02:00:00Z"),
+      input: {themeZh: "童年同屋企", items: [{questionIndex: 1,
+        question: "q", answer: "我細個住喺潮州鄉下", skipped: false,
+        followups: [], reply: null}], extras: []},
+      editedText: "我細個住喺潮州鄉下（改）", editRatio: 0.12,
+      savedAt: new Date("2026-11-08T03:00:00Z")};
+    const hybrid = {source: "hybrid", status: "ready", version: 2,
+      finalText: "我細個住在潮州鄉下。", flags: ["太书面"],
+      deletedSentences: ["我七歲那年跌落河。"],
+      generatedAt: new Date("2026-11-08T02:01:00Z")};
+    const rule = {source: "rule", status: "ready", version: 1,
+      ruleText: "細個住嘅地方\n我細個住喺潮州鄉下"};
+    await ch.set(Object.assign(common, arm === "A" ? hybrid : rule));
+    await ch.collection("runs").doc("r1").set({rounds: [{draft:
+      {text: "我細個住在潮州鄉下。"}}]});
   };
   await mk("hybridUid0000000000000000001", "PB-101", "A");
   await mk("ruleUid000000000000000000002", "PB-102", "B");
@@ -237,6 +255,23 @@ test("process export: research ID + real arm, T25 fields, sources; no " +
   assert.deepStrictEqual(built.manifest.eventCountsByArm,
       {s1a_fixed_reply: {A: 2, B: 1}});
   assert.ok(!json.includes("2026-10-10-s1a"), "event params leaked");
+  // 1020d — chapter metadata, both arms; no text of any kind.
+  assert.deepStrictEqual(f.reminiscence_chapters.find((r) =>
+    r.researchId === "PB-101"), {researchId: "PB-101", arm: "A",
+    weekIndex: 1, source: "hybrid", status: "ready", version: 2,
+    editRatio: 0.12, flagsCount: 1, deletedCount: 1, failReason: null,
+    edited: true, requestedAt: "2026-11-08T02:00:00.000Z",
+    generatedAt: "2026-11-08T02:01:00.000Z",
+    savedAt: "2026-11-08T03:00:00.000Z"});
+  const rule = f.reminiscence_chapters.find((r) => r.researchId === "PB-102");
+  assert.strictEqual(rule.source, "rule");
+  assert.strictEqual(rule.flagsCount, 0);
+  assert.strictEqual(rule.generatedAt, null);
+  for (const t of ["潮州鄉下", "七歲", "細個住嘅地方"]) {
+    assert.ok(!json.includes(t), `chapter text leaked: ${t}`);
+  }
+  assert.strictEqual(f.reminiscence_chapter_ratings, undefined,
+      "ratings only in the post-lock analysis export");
 });
 
 test("switches: processExportEnabled and outcomeExportPaused default off, " +
