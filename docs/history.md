@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-20 dev-tasks-1020e 二.13：「想重新聯絡嘅人」只传勾了「可以講」的人
+
+- 1020e 是 Junyu 对第 1 至 4 批和 #129–#131、#134 待定事项的回复。各项按 PR 分派；本段只记 #127 里这一项。
+- `researcher_intake.intakeFactsFor`：「想重新聯絡嘅人」和「重要嘅人」一样只取 `share` 为真的人；建议页同样过滤。旧资料没有 `share`，当作不传。
+- 新脚本 `tool/rewrite_reconnect_memory.js`：按入组文档重新写录入事实（和重新录入同一个函数），只动录入来的事实；默认预演，不打名字。emulator 测试 3 项。
+- 测试改动：`researcher_intake_emulator_test` 的合成资料加一个不分享的人；`suggestions_use_profile_test` 改为只传分享的人。
+
 ## 2026-10-20 dev-tasks-1020c 第一节：#126 两个开关定开，开之前修两处
 
 - Junyu 定开 `appFontScaleOnlyEnabled`、`suggestionsUseProfileEnabled`（10/20 手机测试过后、10/21 第一位 RCT- 登记前）。开关表、`tool/check_prelaunch_values.js` 改为期望 true。

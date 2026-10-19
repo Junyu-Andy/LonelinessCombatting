@@ -22,4 +22,5 @@
 | J | 研究员录入页说明和代码一致 | 过 | — |
 | 第 1 节 | 只读核对脚本（含 1020b 加的语音转写次数） | 过（`readonly_check_1020_emulator_test`） | 待 Junyu 跑 |
 | 1020b 二 | #126 四个开关进开关表和上线检查；两个开关的四个问题 | 过（报告第十节） | — |
+| 1020e 二.13 | 「想重新聯絡嘅人」只传「可以講」的人（记忆、建议页）；旧条目重写脚本 | 过（`researcher_intake_emulator_test`、`suggestions_use_profile_test`、`rewrite_reconnect_memory_emulator_test`） | 待 Junyu 跑脚本 |
 | 1020c 一 | 两个开关定开：建议页不用掉小欣的跟进；字号开关打开时字不变小；规则组建议页不变 | 过（`memory_emulator_test` 24 项、`suggestions_use_profile_test`、`text_scale_cap_test`、`app_settings_persistence_test`） | 待测（开两个开关：手机字号调大的手机字不变小；Hybrid 组建议页叫得出名字；规则组建议页照旧） |
