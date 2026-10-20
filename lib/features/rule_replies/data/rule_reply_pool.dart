@@ -319,6 +319,143 @@ class RuleReplyPool {
     ),
   ];
 
+  /// 1020 F (6) / 1020b §4 5.4 — Siu Yan's check-in reply 1 in the chat
+  /// check-in (`checkInChatV2Enabled`): X1–X5 by the Q1 answer 「尋日成日
+  /// 整體過得點？」 (好開心 = X1 … 好唔開心 = X5), the 「今日」 sentences
+  /// rewritten for 「尋日」.  Same ids and bands as the X entries above,
+  /// which stay as they were for the old check-in form (switch off).
+  /// `docs/spec/copy/rule-templates.md` 「小欣：check-in 回应一」 is the
+  /// source; test/final_copy_test.dart compares it word for word.
+  static const String checkInChatVersion = '2026-10-19-q1-yesterday';
+
+  static const List<RuleReplyEntry> checkInChatEntries = [
+    (
+      id: 'X1-1',
+      agent: 'siu_yan',
+      band: 'very_happy',
+      zh: '聽到你尋日咁開心，我都開心埋！有咩好事，得閒講俾我聽呀。',
+    ),
+    (
+      id: 'X1-2',
+      agent: 'siu_yan',
+      band: 'very_happy',
+      zh: '尋日心情咁靚，真係好事。今日都記得留啲時間做自己鍾意嘅嘢。',
+    ),
+    (
+      id: 'X1-3',
+      agent: 'siu_yan',
+      band: 'very_happy',
+      zh: '尋日過得咁好，我都放心晒。今日都好好享受下啦。',
+    ),
+    (
+      id: 'X1-4',
+      agent: 'siu_yan',
+      band: 'very_happy',
+      zh: '多謝你同我分享好心情！尋日最開心係邊一刻呢？',
+    ),
+    (
+      id: 'X2-1',
+      agent: 'siu_yan',
+      band: 'good',
+      zh: '尋日過得幾好，聽到都覺得安心。有咩想傾，我喺度。',
+    ),
+    (
+      id: 'X2-2',
+      agent: 'siu_yan',
+      band: 'good',
+      zh: '幾好已經好好㗎喇。尋日有冇邊件事令你覺得舒服啲？',
+    ),
+    (
+      id: 'X2-3',
+      agent: 'siu_yan',
+      band: 'good',
+      zh: '多謝你話俾我知。今日都希望你過得自在。',
+    ),
+    (
+      id: 'X2-4',
+      agent: 'siu_yan',
+      band: 'good',
+      zh: '平平穩穩又一日，都係一種福氣。得閒再嚟搵我傾偈。',
+    ),
+    (
+      id: 'X3-1',
+      agent: 'siu_yan',
+      band: 'so_so',
+      zh: '一般般嘅日子都好正常，唔使逼自己一定要好開心。',
+    ),
+    (
+      id: 'X3-2',
+      agent: 'siu_yan',
+      band: 'so_so',
+      zh: '收到。今日如果有啲悶，可以同我傾下，或者睇下 app 入面嘅文章。',
+    ),
+    (
+      id: 'X3-3',
+      agent: 'siu_yan',
+      band: 'so_so',
+      zh: '有啲日子就係平平淡淡，多謝你照實話我知。',
+    ),
+    (
+      id: 'X3-4',
+      agent: 'siu_yan',
+      band: 'so_so',
+      zh: '尋日感覺一般，都唔緊要。想講多啲，我隨時都喺度聽。',
+    ),
+    (
+      id: 'X4-1',
+      agent: 'siu_yan',
+      band: 'not_good',
+      zh: '聽到你尋日唔係幾好，辛苦你喇。想講多啲我喺度聽，想靜一靜都得。',
+    ),
+    (
+      id: 'X4-2',
+      agent: 'siu_yan',
+      band: 'not_good',
+      zh: '唔開心嘅時候，肯講出嚟已經唔容易。多謝你話俾我知。',
+    ),
+    (
+      id: 'X4-3',
+      agent: 'siu_yan',
+      band: 'not_good',
+      zh: '尋日可能有啲難過，唔使急住好返。慢慢嚟，我陪住你。',
+    ),
+    (
+      id: 'X4-4',
+      agent: 'siu_yan',
+      band: 'not_good',
+      zh: '有啲日子係會比較難捱。除咗同我講，如果有信得過嘅人，都可以搵佢哋傾下。',
+    ),
+    (
+      id: 'X5-1',
+      agent: 'siu_yan',
+      band: 'very_unhappy',
+      zh: '聽到你尋日好唔開心，我好想陪下你。想講咩都得，我喺度聽。',
+    ),
+    (
+      id: 'X5-2',
+      agent: 'siu_yan',
+      band: 'very_unhappy',
+      zh: '好難受嘅時候，唔使一個人頂住。多謝你肯話俾我知。',
+    ),
+    (
+      id: 'X5-3',
+      agent: 'siu_yan',
+      band: 'very_unhappy',
+      zh: '尋日好唔開心，辛苦你喇。你唔使即刻講原因，想講嘅時候我都喺度。',
+    ),
+    (
+      id: 'X5-4',
+      agent: 'siu_yan',
+      band: 'very_unhappy',
+      zh: '如果覺得好難頂，可以打開 app 入面嘅求助資料，嗰度有可以即刻傾嘅熱線。你唔係一個人。',
+    ),
+  ];
+
+  /// The 5.4 group for a Q1 band (`very_happy` … `very_unhappy`), in list
+  /// order.  Empty for any other band (Q1 唔想答 uses XG, not this pool).
+  static List<RuleReplyEntry> checkInChatSubPool(String band) =>
+      checkInChatEntries.where((e) => e.band == band).toList();
+
   /// True while any entry still carries [placeholderMarker].
   static bool get hasPlaceholders =>
       entries.any((e) => e.zh.startsWith(placeholderMarker));

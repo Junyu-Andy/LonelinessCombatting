@@ -193,4 +193,22 @@ describe('users/{uid} server-only arm', () => {
     await assertSucceeds(setDoc(profile(owner()),
       { displayName: 'y', memory_enabled: true }, { merge: true }));
   });
+
+  it('w4RecordedOn (1020e): the owner reads it, never sets, changes or ' +
+     'clears it', async () => {
+    await assertFails(setDoc(profile(owner()),
+      { uid: 'u1', w4RecordedOn: '2026-11-16' }));
+    await seed({ uid: 'u1', arm: 'A', cohort: 'rct',
+      w4RecordedOn: '2026-11-16' });
+    const snap = await assertSucceeds(getDoc(profile(owner())));
+    if (snap.get('w4RecordedOn') !== '2026-11-16') {
+      throw new Error('owner should read w4RecordedOn');
+    }
+    await assertFails(setDoc(profile(owner()),
+      { w4RecordedOn: '2026-11-30' }, { merge: true }));
+    await assertFails(updateDoc(profile(owner()),
+      { w4RecordedOn: deleteField() }));
+    await assertSucceeds(setDoc(profile(owner()),
+      { displayName: 'y', w4RecordedOn: '2026-11-16' }, { merge: true }));
+  });
 });

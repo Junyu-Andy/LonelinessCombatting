@@ -49,6 +49,9 @@ const HELD_BACK_FILES = [
   "safety_event_dedup", "stt_usage", "users",
   // T22: old companion assessment, not a Phase B measure (registry C15).
   "agent_diff",
+  // 1020d: reminiscence v2, the weekly 小篇章 and its ratings (`source`
+  // hybrid / rule names the arm; the chapter carries text).
+  "reminiscence_v2", "reminiscence_chapters", "reminiscence_chapter_ratings",
 ];
 
 // Field names (at any depth) that must not appear.

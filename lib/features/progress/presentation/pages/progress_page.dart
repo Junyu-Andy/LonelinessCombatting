@@ -15,8 +15,16 @@ import '../../../../core/session/chat_session_recorder.dart';
 /// M9 — Progress Tracking. Identical chart chrome across arms. Arm A
 /// shows an LLM-generated weekly narrative; Arm B shows a static
 /// template summary.
+///
+/// 1020e 二.11 (`moodRowV2Enabled`): the mood chart shows the last
+/// `daily_mood` of each of the last 7 days; a day without one stays blank
+/// (no bar, never a default 3).  Off: one bar per check-in, as before.
 class ProgressPage extends StatefulWidget {
-  const ProgressPage({super.key});
+  const ProgressPage({super.key, this.preset});
+
+  /// Tests and screenshots: show these numbers instead of reading.
+  @visibleForTesting
+  final WeeklyProgress? preset;
 
   @override
   State<ProgressPage> createState() => _ProgressPageState();
@@ -26,13 +34,14 @@ class _ProgressPageState extends State<ProgressPage> {
   // Weekly narrative summary — per Product Overview §5.4, in Siu Yan voice
   // (Hybrid arm only; Rule-based arm uses static labels).
   static const _systemPromptZh = '''
-你係小欣（一個 AI 機械人）。睇住呢位香港長者過去 7 日嘅活動數字，寫一段 2-3 句嘅週小結。
+你係小欣（一個電腦程式夥伴）。睇住呢位香港長者過去 7 日嘅活動數字，寫一段 2-3 句嘅週小結。
 要求：
 - 用粵語/口語繁體中文。
 - 提到 1 個具體數字（例如「呢個禮拜你做咗 3 次 check-in」）。
 - 如果有完成嘅計劃，認可佢。如果冇，唔好責備、亦唔好催促。
 - 唔好教訓，唔好提其他 app 功能。
 - 唔好用「我會諗起你」/「我擔心你」呢類依附語言。
+- 唔好用「AI」「模型」「機械人」呢啲字。
 輸出：只係段話本身。
 ''';
 
@@ -58,6 +67,18 @@ Output: only the paragraph itself.
   }
 
   Future<void> _load() async {
+    final preset = widget.preset;
+    if (preset != null) {
+      setState(() {
+        _data = preset;
+        _busy = false;
+      });
+      if (Arm.isA(context)) {
+        _generateLlmSummary(
+            preset, Localizations.localeOf(context).languageCode == 'en');
+      }
+      return;
+    }
     final profile = AppSettingsScope.read(context).profile;
     final auth = AuthServiceScope.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
@@ -107,13 +128,13 @@ Output: only the paragraph itself.
       history: const [],
       uid: AppSettingsScope.read(context).profile?.uid,
       userInput: [
-        'check-ins: ${d.moodScores.length}',
+        'check-ins: ${d.checkIns}',
         'days with contact: ${d.contactDays}',
         'plans authored: ${d.plansAuthored}',
         'plans followed up: ${d.plansFollowedUp}',
         'reminiscence sessions: ${d.reminiscenceSessions}',
-        if (d.moodScores.isNotEmpty)
-          'avg mood (1-5): ${(d.moodScores.reduce((a, b) => a + b) / d.moodScores.length).toStringAsFixed(1)}',
+        if (d.moodsForSummary.isNotEmpty)
+          'avg mood (1-5): ${(d.moodsForSummary.reduce((a, b) => a + b) / d.moodsForSummary.length).toStringAsFixed(1)}',
       ].join('\n'),
     );
     if (!mounted) return;
@@ -128,7 +149,7 @@ Output: only the paragraph itself.
     if (isEn) {
       final lines = <String>[];
       lines.add('Past 7 days at a glance:');
-      lines.add('• Check-ins: ${d.moodScores.length}');
+      lines.add('• Check-ins: ${d.checkIns}');
       lines.add('• Plans you made: ${d.plansAuthored}');
       lines.add('• Plans you followed up on: ${d.plansFollowedUp}');
       lines.add('• Reminiscence sessions: ${d.reminiscenceSessions}');
@@ -136,7 +157,7 @@ Output: only the paragraph itself.
     }
     final lines = <String>[];
     lines.add('呢個禮拜：');
-    lines.add('• Check-in：${d.moodScores.length} 次');
+    lines.add('• Check-in：${d.checkIns} 次');
     lines.add('• 計劃咗：${d.plansAuthored} 個');
     lines.add('• 跟進咗：${d.plansFollowedUp} 個');
     lines.add('• 人生點滴：${d.reminiscenceSessions} 節');
@@ -189,17 +210,23 @@ Output: only the paragraph itself.
                   Text(isEn ? 'Mood (1–5)' : '心情（1-5）',
                       style: theme.textTheme.titleLarge),
                   const SizedBox(height: 8),
-                  _BarChart(
-                    values: _data?.moodScores ?? const [],
-                    times: _data?.moodTimes ?? const [],
-                  ),
+                  if (_data?.moodFromDailyMood == true)
+                    _DailyMoodChart(
+                      moods: _data!.dailyMoods,
+                      days: _data!.dailyMoodDays,
+                    )
+                  else
+                    _BarChart(
+                      values: _data?.moodScores ?? const [],
+                      times: _data?.moodTimes ?? const [],
+                    ),
                   const SizedBox(height: 20),
                   Text(isEn ? 'Counts' : '數量',
                       style: theme.textTheme.titleLarge),
                   const SizedBox(height: 8),
                   _CountTile(
                     label: isEn ? 'Check-ins' : 'Check-in',
-                    value: _data?.moodScores.length ?? 0,
+                    value: _data?.checkIns ?? 0,
                   ),
                   _CountTile(
                     label: isEn ? 'Plans made' : '計劃咗',
@@ -337,6 +364,99 @@ class _BarChart extends StatelessWidget {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+/// 1020e 二.11 — one column per day (oldest left), the last `daily_mood`
+/// of that day; a day without one keeps its column and date but has no
+/// bar and no number (blank, never 3).
+class _DailyMoodChart extends StatelessWidget {
+  const _DailyMoodChart({required this.moods, required this.days});
+
+  final List<int?> moods;
+  final List<DateTime> days;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('progress_daily_mood_chart'),
+      height: 210,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var i = 0; i < moods.length; i++)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Column(
+                  key: ValueKey('progress_day_$i'),
+                  children: [
+                    if (moods[i] != null)
+                      Icon(
+                        AppMoodEncoding.forScore(
+                                moods[i]!, theme.colorScheme)
+                            .shape,
+                        size: 22,
+                        color: AppMoodEncoding.forScore(
+                                moods[i]!, theme.colorScheme)
+                            .color,
+                      )
+                    else
+                      const SizedBox(height: 22),
+                    const SizedBox(height: 4),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: moods[i] == null
+                            ? const SizedBox.shrink()
+                            : FractionallySizedBox(
+                                heightFactor: moods[i]!.clamp(1, 5) / 5,
+                                child: Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: AppMoodEncoding.forScore(
+                                            moods[i]!, theme.colorScheme)
+                                        .color,
+                                    borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(6)),
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(moods[i] == null ? '' : '${moods[i]}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        )),
+                    if (i < days.length) ...[
+                      const SizedBox(height: 2),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '${days[i].month}/${days[i].day}',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 11,
+                            height: 1.2,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

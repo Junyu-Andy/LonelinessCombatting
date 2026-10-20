@@ -16,7 +16,7 @@ import '../pages/emergency_support_page.dart';
 ///      dials 18111.
 ///   2. 「如果唔安全，睇更多支援熱線」 opens [EmergencySupportPage], whose
 ///      list leads with 999 / A&E.  The separate red 「撥 999」 row is gone
-///      from this card (decision draft NNNN-home-safety-card-simplified);
+///      from this card (decision draft 0048-home-safety-card-simplified);
 ///      the acute flow that opens the support page by itself is unchanged.
 class SafetyFooterCard extends StatelessWidget {
   final String analyticsTag;

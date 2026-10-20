@@ -1,13 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/reminders/reminder_service.dart';
 import '../../../../core/safety/safety_check.dart';
 import '../../../../core/voice/voice_input_button.dart';
+import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_profile.dart';
+import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/action_plan.dart';
+import '../../data/action_plan_copy.dart';
 
 /// M7 — Action Loop, Arm B (rule-based).
 ///
@@ -21,11 +27,23 @@ import '../../data/action_plan.dart';
 /// [seedAction] lets caller modules (M6 acceptance) pre-fill the action
 /// field. The legacy M4 thought-record cross-link was removed when M4
 /// was deprecated in Sprint 3.
+///
+/// 1020e 二.7 (switch actionPlanSimplifiedEnabled, read once when the page
+/// opens): only 做咩 and 幾時 are required; the other three may be left
+/// out (tap a chosen chip again to clear it); 做咩 wraps so a long
+/// suggestion shows in full; a line above 儲存計劃 says what is missing;
+/// the plan also stores planFormVersion 2, [source] and the suggestion.
+/// Same rule as the Hybrid page.  Off: exactly as before.
 class ActionLoopArmBPage extends StatefulWidget {
   final String? seedAction;
+
+  /// [ActionPlanSource]; default: suggestion when [seedAction] is set,
+  /// else landing.  Only stored with the switch on.
+  final String? source;
   const ActionLoopArmBPage({
     super.key,
     this.seedAction,
+    this.source,
   });
 
   @override
@@ -40,6 +58,17 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
   String? _contact;
   String? _fallback;
   bool _busy = false;
+  late final bool _simple =
+      RemoteFeatureFlags.current.actionPlanSimplifiedEnabled;
+
+  String? get _seed {
+    final s = widget.seedAction?.trim();
+    return s == null || s.isEmpty ? null : s;
+  }
+
+  String get _source =>
+      widget.source ??
+      (_seed != null ? ActionPlanSource.suggestion : ActionPlanSource.landing);
 
   @override
   void initState() {
@@ -55,12 +84,17 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
     super.dispose();
   }
 
-  bool get _isComplete =>
-      _actionCtrl.text.trim().isNotEmpty &&
-      _timeOfDay != null &&
-      _place != null &&
-      _contact != null &&
-      _fallback != null;
+  bool get _isComplete => _simple
+      ? _actionCtrl.text.trim().isNotEmpty && _timeOfDay != null
+      : _actionCtrl.text.trim().isNotEmpty &&
+          _timeOfDay != null &&
+          _place != null &&
+          _contact != null &&
+          _fallback != null;
+
+  /// Switch on: a second tap on an optional chip clears it.
+  String? _toggle(String? current, String picked) =>
+      _simple && current == picked ? null : picked;
 
   Future<void> _save() async {
     // B03 — stop dictation before reading the plan text.
@@ -70,7 +104,7 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
     final auth = AuthServiceScope.of(context);
     setState(() => _busy = true);
     if (profile != null) {
-      final repo = ActionPlanRepository(available: auth.available);
+      final repo = ActionPlanRepository.forApp(available: auth.available);
       final planId = await repo.create(
         profile.uid,
         ActionPlan(
@@ -81,8 +115,22 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
           fallback: _fallback ?? '',
           armCode: 'B',
           createdAt: DateTime.now(),
+          planFormVersion: _simple ? 2 : null,
+          source: _simple ? _source : null,
+          seedAction: _simple ? _seed : null,
         ),
       );
+      if (_simple && planId != null && mounted) {
+        unawaited(AnalyticsScope.maybeOf(context)?.logM7PlanSaved(
+          source: _source,
+          filled: [
+            if (_timeOfDay != null) 'whenText',
+            if (_place != null) 'whereText',
+            if (_contact != null) 'whoWith',
+            if (_fallback != null) 'fallback',
+          ],
+        ));
+      }
       if (planId != null) {
         final reminders = FirestoreReminderQueue(available: auth.available);
         await reminders.schedule(
@@ -153,7 +201,9 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
           ];
 
     return Scaffold(
-      appBar: AppBar(
+      // 1020c 二: one-line bar while the keyboard is open (switch
+      // keyboardCompactHeaderEnabled; off = the same AppBar as before).
+      appBar: keyboardCompactAppBar(context,
           title: Text(isEn ? 'Plan a small step' : '計劃一個小行動')),
       body: SafeArea(
         child: ListView(
@@ -173,7 +223,11 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
               children: [
                 Expanded(
                   child: TextField(
+                    key: const Key('plan_b_action'),
                     controller: _actionCtrl,
+                    // 1020e: wrap so a long suggestion shows in full.
+                    minLines: 1,
+                    maxLines: _simple ? 4 : 1,
                     style: theme.textTheme.bodyLarge,
                     decoration: InputDecoration(
                       border: const OutlineInputBorder(),
@@ -202,28 +256,43 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
               onChanged: (v) => setState(() => _timeOfDay = v),
             ),
             const SizedBox(height: 16),
-            _Label(text: isEn ? 'Where' : '邊度'),
+            _Label(text: _optional(isEn ? 'Where' : '邊度', isEn)),
             _ChipPicker(
               options: places,
               selected: _place,
-              onChanged: (v) => setState(() => _place = v),
+              onChanged: (v) => setState(() => _place = _toggle(_place, v)),
             ),
             const SizedBox(height: 16),
-            _Label(text: isEn ? 'Who' : '同邊個'),
+            _Label(text: _optional(isEn ? 'Who' : '同邊個', isEn)),
             _ChipPicker(
               options: contacts,
               selected: _contact,
-              onChanged: (v) => setState(() => _contact = v),
+              onChanged: (v) =>
+                  setState(() => _contact = _toggle(_contact, v)),
             ),
             const SizedBox(height: 16),
-            _Label(text: isEn ? 'If it doesn\'t work out' : '如果唔成功'),
+            _Label(
+                text: _optional(
+                    isEn ? 'If it doesn\'t work out' : '如果唔成功', isEn)),
             _ChipPicker(
               options: fallbacks,
               selected: _fallback,
-              onChanged: (v) => setState(() => _fallback = v),
+              onChanged: (v) =>
+                  setState(() => _fallback = _toggle(_fallback, v)),
             ),
             const SizedBox(height: 24),
+            if (_simple && !_isComplete) ...[
+              Text(
+                ActionPlanCopy.saveHint,
+                key: const Key('plan_b_save_hint'),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             FilledButton(
+              key: const Key('plan_b_save'),
               onPressed: _isComplete && !_busy ? _save : null,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
@@ -238,6 +307,12 @@ class _ActionLoopArmBPageState extends State<ActionLoopArmBPage> {
       ),
     );
   }
+}
+
+extension on _ActionLoopArmBPageState {
+  /// Switch on: the optional items say so.
+  String _optional(String label, bool isEn) =>
+      _simple && !isEn ? '$label${ActionPlanCopy.optionalSuffix}' : label;
 }
 
 class _Label extends StatelessWidget {

@@ -113,8 +113,118 @@
 ///                               「保留對話紀錄」 switch in 自己 (decision
 ///                               0020).  Off (default) = the row is hidden;
 ///                               the stored consent value is untouched.
+///   - [checkInChatV2Enabled]  — 1020 F (batch 2): the 小欣 card opens one
+///                               chat window in both arms.  Today's
+///                               check-in runs inside it as chat bubbles
+///                               with button replies (Q0–Q6, same words
+///                               and order in both arms, never written by
+///                               the LLM); once it is done the window is a
+///                               plain chat (rule arm: SY0 opener and the
+///                               SY / SN reply pool, no LLM).  Off: the
+///                               Hybrid chat page and the rule arm's form,
+///                               exactly as before.
+///   - [keyboardCompactHeaderEnabled] — 1020c item 二 (Junyu): while the
+///                               keyboard is open, the top bar of a page
+///                               the elder types on shrinks to one line
+///                               (48 px; the S9 / back button stays) and a
+///                               chat list goes back to the newest message;
+///                               the full bar returns when the keyboard
+///                               closes (lib/shared/widgets/
+///                               keyboard_compact.dart).  Both arms the
+///                               same.  Off: nothing changes.
+///   - [homeLayoutV2Enabled]   — 1020 D (batch 3): 睇今日 becomes page 1
+///                               (greeting, mood row, 「今日要做嘅事」 rows,
+///                               「去搵人傾」, the week's recap, crisis card)
+///                               and 搵人傾 page 2 (header, Brief PR card,
+///                               continue card, first-week nudge, the three
+///                               companions); the 做啲嘢 tools get their
+///                               picture tiles.  With it on, the old
+///                               [briefPrHomeBannerEnabled] banner is never
+///                               shown (1020b §2 (2)).  Both arms identical.
+///   - [moodRowV2Enabled]      — 1020 E (batch 3): the mood row on page 1
+///                               (M1–M8, no pop-ups: no daily mood sheet, no
+///                               Hybrid-only snackbar or dialog); M7 / M8
+///                               open 小欣's chat with an opener (rule arm
+///                               O1–O5 / C1–C2, Hybrid the LLM).  With it
+///                               on, [homeMoodOpensCheckInEnabled] cannot
+///                               take effect (1020b §2 (1)).  Both arms
+///                               identical apart from who writes the opener.
+///   - [actionPlanSimplifiedEnabled] — 1020e 二.7 (1) (Junyu): one rule for
+///                               the action plan in both arms: 做咩 (the
+///                               suggestion, pre-filled and editable) and
+///                               幾時 are the only required items; 邊度 /
+///                               同邊個 / 唔得點 may be left out; a plan
+///                               waiting for follow-up can have 做咩 and
+///                               幾時 changed, or be deleted (soft:
+///                               `deletedAt`, its unsent reminders go).
+///                               New plan fields and m7_* events only when
+///                               on.  Off: the planners, the list and the
+///                               stored fields are exactly as before.
+///   - [actionPlanMemoryEnabled] — 1020e 二.7 (2) (Junyu, 10/19 item 36(a)):
+///                               the Hybrid planner's two model calls
+///                               (m7_action_loop_summary, m7_action_loop_
+///                               followup) send agentId siu_yan, so the
+///                               server adds 小欣's memory block (never her
+///                               due follow-ups), with prompts that say
+///                               「電腦程式夥伴」.  Rule arm: no model call,
+///                               on or off.  Off: no agentId, old prompts.
+///   - [reminiscenceV2Enabled] — 1020d (回憶 v2): the reminiscence weeks open
+///                               one chat page for both arms: a fixed
+///                               three-bubble opener and the week's eight
+///                               open questions in order, each with an
+///                               input box and 「唔想講」.  Hybrid: one LLM
+///                               follow-up and one short LLM reply per
+///                               question (prompt `ah_jan_ah_bak_v3`); rule
+///                               arm: one fixed line, no LLM.  「完成今個
+///                               禮拜」 makes the week's chapter (Hybrid on
+///                               the server, rule arm on the phone), then
+///                               three ratings and 「改一改」; the landing
+///                               page gets 「我嘅人生小篇章」.  Off: the old
+///                               reminiscence pages, exactly as before.
+///   - [leaveButtonV2Enabled]  — 1020d 8 (2)(3): the top-left S9 button
+///                               「今日傾到呢度」 reads 「離開」 (first-use
+///                               note 「撳『離開』就係今次傾完。…」) on the
+///                               companion chat pages, and 「離開（會暫存）」
+///                               on the v2 reminiscence page.  Same end-of-
+///                               session rules and Brief PR.  Both arms.
+///                               Off: the old label and note.
+///   - [safetyFalseAlarmMarkEnabled] — 1020e 二.9: the researcher
+///                               dashboard's safety-alert list offers
+///                               「標記誤觸」 (false alarm) to the
+///                               `unblinded` role; the `markSafetyFalseAlarm`
+///                               callable checks the same switch.  A marked
+///                               crisis stop lets the elder resume that
+///                               day's chat check-in.  Researcher tool only;
+///                               nothing changes for participants until a
+///                               researcher marks an alert.
+///   - [weeklyReminderV2Enabled] — 1020 G / 1020e 二.1–二.2 (batch 4): the
+///                               weekly questionnaire's v2 windows — weeks
+///                               1–3 open day 7 00:00 → end of day 9 (14–16,
+///                               21–23); week 4 opens day 26 00:00 and closes
+///                               at the end of the day the W4 visit was
+///                               recorded (`users/{uid}.w4RecordedOn`), at
+///                               the latest the end of day 42
+///                               (`WeeklySchedule`).  The server reads the
+///                               same flag for the pushes, the missed marks
+///                               and the research lead's e-mail
+///                               (functions/weekly_schedule.js).  Both arms.
+///   - [researcherIntakeGateEnabled] — 1020e §2.14: after sign-up the elder
+///                               stops on a waiting page before the intake
+///                               questions; the researcher taps the centre
+///                               of the screen three times within 2 s to go
+///                               on (`ResearcherIntakeGate`).  Both arms
+///                               identical.  Off = the flow is as before.
+///   - [htmlReadersEnabled]    — 1020c (decision 0056-html-readers-webview):
+///                               the 「小讀本」 section at the top of 讀少少
+///                               (bundled HTML readers in a WebView,
+///                               `assets/readers/`).  Off (default) = 讀少少
+///                               exactly as before; on with no packaged
+///                               unit = still hidden.  Both arms identical
+///                               except 「問下通通」 (Hybrid only, C08).
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
+/// [lastKnown] is for a gate that must not decide on a failed read (1020e
+/// §2.14): it is null while no read has reached the document.
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -145,6 +255,18 @@ class RemoteFeatureFlags {
     this.briefPrHomeBannerEnabled = false,
     this.testerToolsEnabled = false,
     this.transcriptRetentionToggleEnabled = false,
+    this.checkInChatV2Enabled = false,
+    this.keyboardCompactHeaderEnabled = false,
+    this.homeLayoutV2Enabled = false,
+    this.moodRowV2Enabled = false,
+    this.actionPlanSimplifiedEnabled = false,
+    this.actionPlanMemoryEnabled = false,
+    this.reminiscenceV2Enabled = false,
+    this.leaveButtonV2Enabled = false,
+    this.safetyFalseAlarmMarkEnabled = false,
+    this.weeklyReminderV2Enabled = false,
+    this.researcherIntakeGateEnabled = false,
+    this.htmlReadersEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -168,28 +290,90 @@ class RemoteFeatureFlags {
   final bool briefPrHomeBannerEnabled;
   final bool testerToolsEnabled;
   final bool transcriptRetentionToggleEnabled;
+  final bool checkInChatV2Enabled;
+  final bool keyboardCompactHeaderEnabled;
+  final bool homeLayoutV2Enabled;
+  final bool moodRowV2Enabled;
+  final bool actionPlanSimplifiedEnabled;
+  final bool actionPlanMemoryEnabled;
+  final bool reminiscenceV2Enabled;
+  final bool leaveButtonV2Enabled;
+  final bool safetyFalseAlarmMarkEnabled;
+
+  /// 1020b §2 (1): the 10/19 "first mood pick opens the check-in" path is
+  /// unreachable while the mood row v2 is on, whatever its own field says.
+  bool get homeMoodOpensCheckInActive =>
+      homeMoodOpensCheckInEnabled && !moodRowV2Enabled;
+
+  /// 1020b §2 (2): with the two-page layout on, the Brief PR card lives in
+  /// 「今日要做嘅事」; the old banner under the greeting is never shown, so
+  /// page 1 never has two cards.
+  bool get briefPrHomeBannerActive =>
+      briefPrHomeBannerEnabled && !homeLayoutV2Enabled;
+
+  /// 1020 D / E (1): the M-3 daily mood sheet (DailyMoodPrompt) pops up only
+  /// while both the new layout and the mood row are off.
+  bool get dailyMoodPopupActive => !homeLayoutV2Enabled && !moodRowV2Enabled;
+  final bool weeklyReminderV2Enabled;
+  final bool researcherIntakeGateEnabled;
+  final bool htmlReadersEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
+
+  /// The flags from the last read that reached the document (server or
+  /// the phone's cache); null until one has.
+  static RemoteFeatureFlags? _lastRead;
+
+  /// Whether [load] has tried Firestore at least once in this process.
+  static bool _attempted = false;
+
+  /// Bumped after every read that reached the document, so a gate can
+  /// rebuild when a re-read (e.g. `ResearcherIntakeGate`'s retry) lands.
+  static final ValueNotifier<int> reads = ValueNotifier<int>(0);
 
   /// The active flags (all off until [load] reads the document).
   static RemoteFeatureFlags get current => _current;
 
-  /// Test / tooling hook.
+  /// 1020e §2.14: the flags as last actually read, or null when every
+  /// read in this process failed.  Unlike [current] a failed re-read does
+  /// not turn this back to "all off".  Without Firebase (guest mode,
+  /// tests) nothing is read and this is [current].
+  static RemoteFeatureFlags? get lastKnown =>
+      _lastRead ?? (_attempted ? null : _current);
+
+  /// Test / tooling hook.  Counts as a successful read.
   @visibleForTesting
-  static set current(RemoteFeatureFlags value) => _current = value;
+  static set current(RemoteFeatureFlags value) {
+    _current = value;
+    _lastRead = value;
+  }
+
+  /// Test hook: back to "nothing read yet" ([attempted] true = every read
+  /// failed so far).
+  @visibleForTesting
+  static void resetForTest({bool attempted = false}) {
+    _current = const RemoteFeatureFlags();
+    _lastRead = null;
+    _attempted = attempted;
+  }
 
   /// Firestore document holding the flags.  Read-only for clients.
   static const String remotePath = 'app_config/feature_flags';
 
   /// Read the flags.  Never throws; on any failure every flag is off.
-  static Future<RemoteFeatureFlags> load({bool available = true}) async {
+  /// [timeout] defaults to the startup value (3 s); a retry may wait longer.
+  static Future<RemoteFeatureFlags> load({
+    bool available = true,
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
     if (!available) return _current = const RemoteFeatureFlags();
+    _attempted = true;
     try {
-      final snap = await FirebaseFirestore.instance
-          .doc(remotePath)
-          .get()
-          .timeout(const Duration(seconds: 3));
+      final snap =
+          await FirebaseFirestore.instance.doc(remotePath).get().timeout(timeout);
       _current = fromMap(snap.data() ?? const {});
+      _lastRead = _current;
+      reads.value++;
     } catch (e) {
       if (kDebugMode) debugPrint('[RemoteFeatureFlags] load failed: $e');
       _current = const RemoteFeatureFlags();
@@ -226,6 +410,22 @@ class RemoteFeatureFlags {
         testerToolsEnabled: map['testerToolsEnabled'] == true,
         transcriptRetentionToggleEnabled:
             map['transcriptRetentionToggleEnabled'] == true,
+        checkInChatV2Enabled: map['checkInChatV2Enabled'] == true,
+        keyboardCompactHeaderEnabled:
+            map['keyboardCompactHeaderEnabled'] == true,
+        homeLayoutV2Enabled: map['homeLayoutV2Enabled'] == true,
+        moodRowV2Enabled: map['moodRowV2Enabled'] == true,
+        actionPlanSimplifiedEnabled:
+            map['actionPlanSimplifiedEnabled'] == true,
+        actionPlanMemoryEnabled: map['actionPlanMemoryEnabled'] == true,
+        reminiscenceV2Enabled: map['reminiscenceV2Enabled'] == true,
+        leaveButtonV2Enabled: map['leaveButtonV2Enabled'] == true,
+        safetyFalseAlarmMarkEnabled:
+            map['safetyFalseAlarmMarkEnabled'] == true,
+        weeklyReminderV2Enabled: map['weeklyReminderV2Enabled'] == true,
+        researcherIntakeGateEnabled:
+            map['researcherIntakeGateEnabled'] == true,
+        htmlReadersEnabled: map['htmlReadersEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

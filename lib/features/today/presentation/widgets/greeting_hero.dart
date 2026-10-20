@@ -9,11 +9,13 @@ import '../../../../core/agent_context/shared_context_service.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
+import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../context/presentation/pages/check_in_arm_a.dart';
 import '../../../context/presentation/pages/check_in_arm_b.dart';
 import '../../../context/presentation/pages/check_in_shared.dart';
 import '../../data/mood_recorder.dart';
+import 'mood_row_v2.dart';
 
 /// Top-of-Today greeting band (Home Layout Spec §1–2).
 ///
@@ -21,6 +23,11 @@ import '../../data/mood_recorder.dart';
 /// corners.  Embeds the 5-face mood pad directly in the hero per
 /// Home Layout Spec §2 — always visible, one-tap, supports multiple
 /// entries per day (first = `is_primary`, rest = `supplementary`).
+///
+/// 1020 E (`moodRowV2Enabled`): the pad, its 記低咗 snackbar and the
+/// Hybrid-only 「想同小欣講多兩句？」 snackbar and 「想同小欣講下發生咩事嗎？」
+/// dialog are replaced by [MoodRowV2] (no pop-ups); the 10/19
+/// `homeMoodOpensCheckInEnabled` path can then never run.  Off: as before.
 class GreetingHero extends StatefulWidget {
   const GreetingHero({super.key});
 
@@ -41,6 +48,10 @@ class _GreetingHeroState extends State<GreetingHero> {
   }
 
   Future<void> _loadTodayMood() async {
+    // 1020 E: the mood row loads its own state.
+    if (RemoteFeatureFlags.current.moodRowV2Enabled) return;
+    // No Firebase (guest mode, tests): nothing to read.
+    if (!AuthServiceScope.of(context).available) return;
     final profile = AppSettingsScope.read(context).profile;
     if (profile == null) return;
     final entry = await _recorder.latestForDate(
@@ -97,8 +108,10 @@ class _GreetingHeroState extends State<GreetingHero> {
     }
     // 10/19 (Junyu, switch homeMoodOpensCheckInEnabled): the first pick of
     // the day goes straight into the check-in page, so no toast then.
+    // 1020b §2 (1): never while moodRowV2Enabled is on (this pad is not
+    // even built then; the guard keeps the path closed regardless).
     final openCheckIn =
-        RemoteFeatureFlags.current.homeMoodOpensCheckInEnabled &&
+        RemoteFeatureFlags.current.homeMoodOpensCheckInActive &&
             !wasSupplementary;
     if (!openCheckIn) _showRecordedToast(isEn);
     // Sprint logging: mood is now a stream of entries — the first-of-
@@ -298,13 +311,16 @@ class _GreetingHeroState extends State<GreetingHero> {
             ),
           ),
           const SizedBox(height: 16),
-          _MoodPad(
-            isEn: isEn,
-            selectedMood: _selectedMood,
-            onPick: (v) => _onPick(v, isEn),
-            primaryInk: primaryInk,
-            secondaryInk: secondaryInk,
-          ),
+          if (RemoteFeatureFlags.current.moodRowV2Enabled)
+            const MoodRowV2()
+          else
+            _MoodPad(
+              isEn: isEn,
+              selectedMood: _selectedMood,
+              onPick: (v) => _onPick(v, isEn),
+              primaryInk: primaryInk,
+              secondaryInk: secondaryInk,
+            ),
         ],
       ),
     );

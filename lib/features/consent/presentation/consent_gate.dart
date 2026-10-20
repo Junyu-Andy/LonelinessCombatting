@@ -6,6 +6,7 @@ import '../../auth/data/user_profile.dart';
 import '../../onboarding/presentation/pages/agent_onboarding_page.dart';
 import '../../onboarding/presentation/pages/intake_people_page.dart';
 import '../../onboarding/presentation/pages/intake_short_page.dart';
+import '../../onboarding/presentation/researcher_intake_gate.dart';
 import 'pages/consent_page.dart';
 
 /// First-run sequencing under the AuthGate (after T21's EnrollmentWaitGate):
@@ -15,6 +16,13 @@ import 'pages/consent_page.dart';
 ///   3. Agent onboarding 「介紹三個夥伴」 (Ah Jan / Ah Bak pairing, interests,
 ///      S5 when that switch is on)
 ///   4. Main shell
+///
+/// 1020e §2.14: with `app_config/feature_flags.researcherIntakeGateEnabled`
+/// on, step 2 sits behind [ResearcherIntakeGate] — a waiting page the
+/// researcher unlocks with three taps in the centre.  Off (the default),
+/// the gate is just the intake page.  The gate rebuilds this widget's
+/// decision when its own re-read of the switches lands
+/// ([RemoteFeatureFlags.reads]).
 ///
 /// Once all steps are recorded in the profile the gate is transparent.
 /// Guest mode (no profile) sees neither — the demo shell renders directly.
@@ -37,11 +45,19 @@ class ConsentGate extends StatelessWidget {
   /// researcher records the intake and the elder sees no questionnaire.
   final bool? researcherIntakeOn;
 
+  /// 1020e §2.14 test hook; defaults to [RemoteFeatureFlags.lastKnown].
+  final bool? researcherIntakeGateOn;
+
+  /// 1020e §2.14 test hook; defaults to Firestore.
+  final IntakeGateUnlockStore? intakeGateStore;
+
   const ConsentGate(
       {super.key,
       required this.child,
       this.onboardingFixOn,
-      this.researcherIntakeOn});
+      this.researcherIntakeOn,
+      this.researcherIntakeGateOn,
+      this.intakeGateStore});
 
   /// Registered by the researcher (T19 / T21): the server wrote the
   /// pairing together with the arm.  `cohort` exists since T21; the two
@@ -82,7 +98,21 @@ class ConsentGate extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+        valueListenable: RemoteFeatureFlags.reads,
+        builder: (context, reads, child) => _decide(context),
+      );
+
+  /// 1020e §2.14: the intake page behind the researcher's gate.
+  Widget _gated(UserProfile profile, Widget intakePage) =>
+      ResearcherIntakeGate(
+        profile: profile,
+        gateOn: researcherIntakeGateOn,
+        store: intakeGateStore,
+        child: intakePage,
+      );
+
+  Widget _decide(BuildContext context) {
     final settings = AppSettingsScope.of(context);
     final profile = settings.profile;
     if (profile == null) return child;
@@ -95,19 +125,25 @@ class ConsentGate extends StatelessWidget {
     final researcherIntake = researcherIntakeOn ??
         RemoteFeatureFlags.current.researcherIntakeEnabled;
     if (researcherIntake && !profile.intakePeopleDone) {
-      return IntakePeoplePage(
-        onComplete: () async {
-          // Profile already updated inside the page; the rebuild is
-          // triggered by the settings.profile setter.
-        },
+      return _gated(
+        profile,
+        IntakePeoplePage(
+          onComplete: () async {
+            // Profile already updated inside the page; the rebuild is
+            // triggered by the settings.profile setter.
+          },
+        ),
       );
     }
     if (!researcherIntake && !profile.hasCompletedIntake) {
-      return IntakeShortPage(
-        onComplete: () async {
-          // Profile already updated inside IntakeShortPage; the rebuild
-          // is triggered by the settings.profile setter.
-        },
+      return _gated(
+        profile,
+        IntakeShortPage(
+          onComplete: () async {
+            // Profile already updated inside IntakeShortPage; the rebuild
+            // is triggered by the settings.profile setter.
+          },
+        ),
       );
     }
     final fixOn = onboardingFixOn ??

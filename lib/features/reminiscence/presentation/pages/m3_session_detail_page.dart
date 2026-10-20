@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/safety/safety_check.dart';
+import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
@@ -139,7 +140,9 @@ class _M3SessionDetailPageState extends State<M3SessionDetailPage> {
     final isEdited = doc.endSummaryUserEdited;
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      // 1020c 二: one-line bar while the keyboard is open (switch
+      // keyboardCompactHeaderEnabled; off = the same AppBar as before).
+      appBar: keyboardCompactAppBar(context, title: Text(title)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),

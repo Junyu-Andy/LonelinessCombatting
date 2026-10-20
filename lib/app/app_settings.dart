@@ -42,11 +42,22 @@ extension AppFontScaleX on AppFontScale {
 double combinedTextScale(double system, AppFontScale app) =>
     (system * app.multiplier).clamp(0.8, AppFontScale.xLarge.multiplier);
 
+/// 1020c (switch appFontScaleOnlyEnabled): the smallest App level that is
+/// not smaller than [scale], so switching to "App 字號 only" never shrinks
+/// anyone's text.  Above 1.30 there is nothing bigger: 特大.
+AppFontScale appFontScaleAtLeast(double scale) {
+  for (final level in AppFontScale.values) {
+    if (level.multiplier >= scale - 0.001) return level;
+  }
+  return AppFontScale.xLarge;
+}
+
 class AppSettings extends ChangeNotifier {
   AppSettings({
     Locale locale = const Locale('zh'),
     bool highContrast = false,
     AppFontScale fontScale = AppFontScale.standard,
+    bool appOnlyScaleSettled = false,
     bool quietHours = true,
     bool voiceReadback = false,
     UserProfile? profile,
@@ -54,6 +65,7 @@ class AppSettings extends ChangeNotifier {
   })  : _locale = locale,
         _highContrast = highContrast,
         _fontScale = fontScale,
+        _appOnlyScaleSettled = appOnlyScaleSettled,
         _quietHours = quietHours,
         _voiceReadback = voiceReadback,
         _profile = profile,
@@ -65,6 +77,11 @@ class AppSettings extends ChangeNotifier {
   static const String keyHighContrast = 'display.highContrast';
   static const String keyQuietHours = 'notifications.quietHours';
   static const String keyVoiceReadback = 'notifications.voiceReadback';
+
+  /// 1020c: set once, the first time the App runs with
+  /// appFontScaleOnlyEnabled on and has moved [fontScale] to the level the
+  /// phone × App size showed until then (see [settleAppOnlyScale]).
+  static const String keyAppOnlyScaleSettled = 'display.appOnlyScaleSettled';
 
   /// T37 — build the settings from what the device stored.  Never throws:
   /// a missing or unreadable store, or an unknown value, gives that
@@ -110,6 +127,7 @@ class AppSettings extends ChangeNotifier {
       locale: locale,
       highContrast: readBool(keyHighContrast, false),
       fontScale: readFontScale(),
+      appOnlyScaleSettled: readBool(keyAppOnlyScaleSettled, false),
       quietHours: readBool(keyQuietHours, true),
       voiceReadback: readBool(keyVoiceReadback, false),
       store: prefs,
@@ -119,6 +137,7 @@ class AppSettings extends ChangeNotifier {
   Locale _locale;
   bool _highContrast;
   AppFontScale _fontScale;
+  bool _appOnlyScaleSettled;
   bool _quietHours;
   bool _voiceReadback;
   UserProfile? _profile;
@@ -136,6 +155,31 @@ class AppSettings extends ChangeNotifier {
   Locale get locale => englishEnabled ? _locale : const Locale('zh');
   bool get highContrast => _highContrast;
   AppFontScale get fontScale => _fontScale;
+
+  /// 1020c: whether [settleAppOnlyScale] has run on this phone.
+  bool get appOnlyScaleSettled => _appOnlyScaleSettled;
+
+  /// 1020c (appFontScaleOnlyEnabled on): the level to draw with.  Before
+  /// [settleAppOnlyScale] has run, the level matching what the elder saw
+  /// until now (phone size × App size, capped), never smaller; after, the
+  /// App level alone.
+  AppFontScale appOnlyScaleFor(double system) => _appOnlyScaleSettled
+      ? _fontScale
+      : appFontScaleAtLeast(combinedTextScale(system, _fontScale));
+
+  /// 1020c: once per phone, keep that level as the App's 字號 so the
+  /// settings page shows it and the phone's size no longer counts.
+  void settleAppOnlyScale(double system) {
+    if (_appOnlyScaleSettled) return;
+    final level = appOnlyScaleFor(system);
+    _appOnlyScaleSettled = true;
+    _persist((p) => p.setBool(keyAppOnlyScaleSettled, true));
+    if (level != _fontScale) {
+      _fontScale = level;
+      _persist((p) => p.setString(keyFontScale, level.name));
+    }
+    notifyListeners();
+  }
 
   /// 「通知 → 安靜時段」 (default on).  T37: persisted; not yet read by the
   /// reminder code — the switch is the same as before, only remembered.

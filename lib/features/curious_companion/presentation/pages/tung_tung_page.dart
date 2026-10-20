@@ -42,6 +42,7 @@ import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
+import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
@@ -64,11 +65,17 @@ class TungTungPage extends StatefulWidget {
   /// L-1 — `tungtung.articleId` when opened from an article (mode A).
   final String? articleId;
 
+  /// 1020c §1(6) — replaces the line in front of [articleContext] (the
+  /// 小讀本 send their own, `reader_qa_prompt.dart`).  Null = the article
+  /// header as before.
+  final String? articleContextHeader;
+
   const TungTungPage({
     super.key,
     this.articleContext,
     this.articleTitle,
     this.articleId,
+    this.articleContextHeader,
   });
 
   @override
@@ -77,8 +84,9 @@ class TungTungPage extends StatefulWidget {
 
 class _TungTungPageState extends State<TungTungPage> {
   static const _fallbackPersonaPrompt = '''
-你叫通通，係一個 AI 機械人。短而活潑，唔做醫療／財務／交易建議。
+你叫通通，係一個電腦程式夥伴。短而活潑，唔做醫療／財務／交易建議。
 冇 search 資料時老實話「我未確定，要唔要一齊查下？」。
+唔好用「AI」「模型」「機械人」呢啲字。
 ''';
 
   final _inputCtrl = TextEditingController();
@@ -420,9 +428,10 @@ class _TungTungPageState extends State<TungTungPage> {
       suffix.writeln();
     }
     if (widget.articleContext != null) {
-      suffix.writeln(isEn
-          ? '[Article context — ground all answers in this text]'
-          : '[文章內容 — 所有回答只可以根據呢段]');
+      suffix.writeln(widget.articleContextHeader ??
+          (isEn
+              ? '[Article context — ground all answers in this text]'
+              : '[文章內容 — 所有回答只可以根據呢段]'));
       if (widget.articleTitle != null) {
         suffix.writeln('TITLE: ${widget.articleTitle}');
       }
@@ -819,10 +828,16 @@ class _TungTungPageState extends State<TungTungPage> {
         body: SafeArea(
           child: Column(
             children: [
-              if (widget.articleTitle != null)
+              // 1020c 二: the article line goes with the one-line top bar
+              // while the keyboard is open (switch keyboardCompactHeaderEnabled).
+              if (widget.articleTitle != null &&
+                  !KeyboardCompact.active(context))
                 _ArticleContextBanner(title: widget.articleTitle!),
               Expanded(
-                child: ListView(
+                // 1020c 二: back to the newest message when the keyboard opens.
+                child: KeyboardScrollToLatest(
+                  keyboardOpen: KeyboardCompact.active(context),
+                  child: ListView(
                   // 10/15: newest message at the bottom edge; the list follows the
                   // keyboard up instead of leaving the last turn under the composer.
                   reverse: true,
@@ -879,6 +894,7 @@ class _TungTungPageState extends State<TungTungPage> {
                       _SearchUnavailableHint(
                           reason: _searches.last.reason),
                   ].reversed.toList(),
+                ),
                 ),
               ),
               if (_pendingOffline != null)
@@ -1331,7 +1347,7 @@ class _Composer extends StatelessWidget {
                           ? (isEn
                               ? 'What should I look up?'
                               : '想查咩？')
-                          : (isEn ? 'Type or speak…' : '寫或者講都得…'),
+                          : (isEn ? 'Type what you want to say.' : '寫低你想講嘅嘢。'),
                     ),
                   ),
                 ),

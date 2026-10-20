@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/arm/arm_scope.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../reminiscence/data/reminiscence_themes.dart';
-import '../../../reminiscence/presentation/pages/reminiscence_arm_a_page.dart';
-import '../../../reminiscence/presentation/pages/reminiscence_arm_b_page.dart';
+import '../../../reminiscence/presentation/reminiscence_router.dart';
 import '../../data/my_story_progress.dart';
 
 /// Horizontal timeline of the four themes. The visual sense of "narrative
@@ -165,13 +163,10 @@ class _TimelineNode extends StatelessWidget {
 
   /// Same pages as the theme list in 人生點滴 (reminiscence_landing.dart).
   void _open(BuildContext context) {
-    final isArmA = Arm.isA(context);
+    // 1020d: the v2 page when `reminiscenceV2Enabled`, else arm A / B.
+    final page = ReminiscenceRouter.pageFor(context, storyTheme);
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => isArmA
-            ? ReminiscenceArmAPage(theme: storyTheme)
-            : ReminiscenceArmBPage(theme: storyTheme),
-      ),
+      MaterialPageRoute<void>(builder: (_) => page),
     );
   }
 }

@@ -275,8 +275,8 @@ test('--allocation-record keeps one row without personal data and ' +
   const rec = (await db.collection('allocation_records').doc('PB-017').get())
       .data();
   assert.deepStrictEqual(Object.keys(rec).sort(), ['allocatedAt', 'arm',
-    'researchId', 'sequencePosition', 'stratum', 'studyPeriod', 'withdrawnAt',
-    'writtenBy']);
+    'researchId', 'sequencePosition', 'sequenceVersion', 'stratum',
+    'studyPeriod', 'withdrawnAt', 'writtenBy']);
   assert.strictEqual(rec.arm, 'A');
   assert.strictEqual(rec.stratum, 'high');
   assert.strictEqual(rec.withdrawnAt.toDate().toISOString(),

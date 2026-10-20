@@ -50,6 +50,11 @@ const SERVER_DOCS = [
   ['randomization_sequences', 'low'],
   ['randomization_sequences', 'high'],
   ['randomization_state', 'low'],
+  // 10/19 (dev-tasks-1020 §C): the v2 sequence and the version records.
+  ['randomization_sequences', 'v2_low'],
+  ['randomization_state', 'v2_low'],
+  ['sequence_versions', 'v1'],
+  ['sequence_versions', 'v2'],
   ['enrollments', 'u1'],
   ['arm_assignment_log', 'log1'],
   ['llm_denied_log', 'd1'],
@@ -67,6 +72,11 @@ describe('T19 allocation rules', () => {
       await setDoc(doc(db, 'randomization_sequences', 'high'),
         { arms: ['B', 'A'], blocks: [2], length: 2 });
       await setDoc(doc(db, 'randomization_state', 'low'), { next: 1 });
+      await setDoc(doc(db, 'randomization_sequences', 'v2_low'),
+        { arms: ['B', 'A'], blocks: [2], length: 2, version: 'v2' });
+      await setDoc(doc(db, 'randomization_state', 'v2_low'), { next: 0 });
+      await setDoc(doc(db, 'sequence_versions', 'v1'), { status: 'retired' });
+      await setDoc(doc(db, 'sequence_versions', 'v2'), { status: 'active' });
       await setDoc(doc(db, 'enrollments', 'u1'),
         { uid: 'u1', arm: 'A', researchId: 'B001' });
       await setDoc(doc(db, 'arm_assignment_log', 'log1'),
@@ -90,7 +100,8 @@ describe('T19 allocation rules', () => {
         await assertFails(getDoc(doc(db, c, id)));
       }
       for (const c of ['randomization_sequences', 'randomization_state',
-        'enrollments', 'arm_assignment_log', 'llm_denied_log']) {
+        'sequence_versions', 'enrollments', 'arm_assignment_log',
+        'llm_denied_log']) {
         await assertFails(getDocs(collection(db, c)));
       }
     }

@@ -37,6 +37,7 @@ import 'package:app_demo/core/agents/agent_registry.dart';
 import 'package:app_demo/core/agents/persona_resolver.dart';
 import 'package:app_demo/core/config/phase_b_config.dart';
 import 'package:app_demo/core/core_services_scope.dart';
+import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
 import 'package:app_demo/core/cross_referral/handoff_executor.dart';
 import 'package:app_demo/core/cross_referral/referral_routing_service.dart';
 import 'package:app_demo/core/llm/agent_greeting_service.dart';
@@ -69,11 +70,21 @@ import 'package:app_demo/features/brief_pr/presentation/widgets/session_close_hi
 import 'package:app_demo/features/context/presentation/pages/check_in_arm_a.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_arm_b.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_shared.dart';
+import 'package:app_demo/features/context/presentation/pages/siu_yan_chat_page.dart';
+import 'package:app_demo/features/context/data/check_in_chat_copy.dart';
+import 'package:app_demo/features/context/data/check_in_response_store.dart';
+import 'package:app_demo/features/rule_replies/data/rule_reply_history_store.dart';
 import 'package:app_demo/features/crisis/presentation/pages/emergency_support_page.dart';
 import 'package:app_demo/features/crisis/presentation/widgets/safety_footer_card.dart';
 import 'package:app_demo/features/curious_companion/presentation/pages/tung_tung_page.dart';
 import 'package:app_demo/features/education/data/education_library.dart';
+import 'package:app_demo/features/education/data/reader_read_marks.dart';
+import 'package:app_demo/features/education/data/reader_test_unit.dart';
+import 'package:app_demo/features/education/data/reader_unit.dart';
 import 'package:app_demo/features/education/presentation/pages/education_article_page.dart';
+import 'package:app_demo/features/education/presentation/pages/education_library_page.dart';
+import 'package:app_demo/features/education/presentation/pages/reader_page.dart';
+import 'package:app_demo/features/education/presentation/reader/reader_surface.dart';
 import 'package:app_demo/features/memory/presentation/pages/remembered_page.dart';
 import 'package:app_demo/features/my_story/presentation/pages/my_story_page.dart';
 import 'package:app_demo/features/my_story/presentation/widgets/story_thread_timeline.dart';
@@ -91,6 +102,15 @@ import 'package:app_demo/features/settings/presentation/pages/faq_page.dart';
 import 'package:app_demo/features/settings/presentation/pages/settings_page.dart';
 import 'package:app_demo/features/settings/presentation/widgets/tester_arm_switch_card.dart';
 import 'package:app_demo/features/today/data/mood_recorder.dart';
+import 'package:app_demo/features/today/data/mood_row_copy.dart';
+import 'package:app_demo/features/today/data/mood_row_store.dart';
+import 'package:app_demo/features/today/presentation/home_v2_scope.dart';
+import 'package:app_demo/features/today/presentation/pages/today_page.dart';
+import 'package:app_demo/features/today/presentation/widgets/mood_row_v2.dart';
+import 'package:app_demo/features/talk/presentation/pages/talk_page.dart';
+import 'package:app_demo/features/me/presentation/pages/me_page.dart';
+import 'package:app_demo/features/progress/data/progress_data.dart';
+import 'package:app_demo/features/progress/presentation/pages/progress_page.dart';
 import 'package:app_demo/features/today/presentation/widgets/agent_tile_row.dart';
 import 'package:app_demo/features/today/presentation/widgets/facts_recap_row.dart';
 import 'package:app_demo/features/today/presentation/widgets/home_tool_shortcuts.dart';
@@ -220,7 +240,8 @@ class _TesterBackend implements TesterArmBackend {
   Future<void> setArm(String arm) async {}
 }
 
-UserProfile _profile({List<String>? interests, bool tester = false}) =>
+UserProfile _profile(
+        {List<String>? interests, bool tester = false, String? w0Date}) =>
     UserProfile(
       uid: 'u1',
       email: 'synthetic@example.com',
@@ -228,6 +249,7 @@ UserProfile _profile({List<String>? interests, bool tester = false}) =>
       arm: _armB ? ArmAssignment.b : ArmAssignment.a,
       armAssignmentMode: 'pilot_designated',
       cohort: 'pilot',
+      w0Date: w0Date,
       isTester: tester,
       hasCompletedIntake: true,
       ahJanAhBakVariant: AgentGenderVariant.feminine,
@@ -440,6 +462,39 @@ void _expectWideBubble(_Ctx c, String text) {
       reason: 'bubble text uses the width (not squeezed)');
 }
 
+
+/// 1020 batch 3 — runs [body] with the two-page layout, the mood row and
+/// the chat window on (and the study-week schedule), then restores.
+Future<void> _withHomeV2(Future<void> Function() body) async {
+  final flags = RemoteFeatureFlags.current;
+  final cfg = PhaseBConfig.current;
+  RemoteFeatureFlags.current = const RemoteFeatureFlags(
+    homeLayoutV2Enabled: true,
+    moodRowV2Enabled: true,
+    checkInChatV2Enabled: true,
+  );
+  PhaseBConfig.current = const PhaseBConfig(
+      sessionBriefPrV2Enabled: true, weeklyScheduleV2Enabled: true);
+  MoodRowV2.resetForTest();
+  try {
+    await body();
+  } finally {
+    RemoteFeatureFlags.current = flags;
+    PhaseBConfig.current = cfg;
+    MoodRowV2.resetForTest();
+  }
+}
+
+/// Page 1 with fakes: questionnaire W1 open (W5), 3 days without a
+/// check-in (D3 line), mood row in memory.
+Widget _page1(MoodRowStore store) => HomeV2Scope(
+      checkedInToday: (_) async => false,
+      daysSinceLastCheckIn: (_) async => 3,
+      moodStore: store,
+      clock: () => DateTime(2026, 10, 21, 21, 0),
+      child: const Scaffold(body: TodayPage()),
+    );
+
 typedef _Flow = Future<void> Function(_Ctx c);
 
 final _flows = <String, _Flow>{
@@ -528,6 +583,141 @@ final _flows = <String, _Flow>{
     await c.shot('checkin_b_prefilled');
     await _back(c);
   },
+  '小欣聊天窗口（1020 F check-in 对话化；组别按构建）': (c) async {
+    // 1020 F: answer buttons wrap on a narrow phone × 特大, the 唔講住
+    // button sits above the input box; then free chat in the same window.
+    await _pushPage(
+        c,
+        SiuYanChatPage(
+          checkedInToday: (_) async => false,
+          latestMoodToday: (_) async => null,
+          responseStore: InMemoryCheckInResponseStore(),
+          replyHistory: InMemoryRuleReplyHistoryStore(),
+          onOpenActionPlan: (_) async {},
+        ));
+    Future<void> settle() async {
+      await c.tester.pump(const Duration(seconds: 1));
+      await c.tester.pumpAndSettle();
+    }
+
+    await settle();
+    await c.shot('siu_yan_v2_q1');
+    for (final key in ['Q1_not_good', 'Q2_a_little', 'Q3_small']) {
+      expect(await _tap(c, find.byKey(ValueKey('check_in_answer_$key'))),
+          isTrue, reason: key);
+      await settle();
+    }
+    await c.shot('siu_yan_v2_q3b');
+    await _send(c, '同阿女去咗飲茶，佢買咗蛋撻俾我');
+    await c.shot('siu_yan_v2_reply1_q4');
+    expect(await _tap(c, find.byKey(const ValueKey('check_in_skip'))), isTrue);
+    await settle();
+    expect(await _tap(c, find.byKey(const ValueKey('check_in_answer_Q5_no'))),
+        isTrue);
+    await settle();
+    expect(find.textContaining(CheckInChatCopy.q6, findRichText: true),
+        findsOneWidget);
+    await c.shot('siu_yan_v2_q6');
+    await _send(c, '今日天氣幾好，想落街行下');
+    await c.shot('siu_yan_v2_chat');
+    await _back(c);
+  },
+  '第一页（1020 D 两页重排 + E 心情一行；组别按构建）': (c) => _withHomeV2(() async {
+        final store = InMemoryMoodRowStore()
+          ..clock = () => DateTime(2026, 10, 21, 21, 0);
+        await _pumpHome(c, _page1(store),
+            profile: _profile(w0Date: '2026-10-14'));
+        await c.tester.pump(const Duration(seconds: 1));
+        await c.tester.pumpAndSettle();
+        expect(find.text(MoodRowCopy.m1), findsOneWidget);
+        await c.shot('home_v2_page1_m1');
+        expect(await _tap(c, find.byKey(const ValueKey('mood_row_face_2'))),
+            isTrue);
+        await c.tester.pump(const Duration(seconds: 3));
+        await c.tester.pumpAndSettle();
+        expect(find.text(MoodRowCopy.m7), findsOneWidget);
+        await c.shot('home_v2_page1_m5_m7');
+        await _tap(c, find.byKey(const ValueKey('mood_row_change')));
+        await c.shot('home_v2_page1_m6_faces');
+        await _tap(c, find.byKey(const ValueKey('mood_row_face_4')));
+        await c.tester.pump(const Duration(seconds: 3));
+        await c.tester.pumpAndSettle();
+        expect(find.text(MoodRowCopy.m8), findsOneWidget);
+        await c.shot('home_v2_page1_m8');
+        await _scrollInto(c, find.text('問卷開咗，請盡快回答。'));
+        expect(find.text('問卷開咗，請盡快回答。'), findsOneWidget);
+        await c.shot('home_v2_page1_todo');
+        await _scrollTap(c, find.byKey(const Key('safety_footer_call_18111')));
+        await c.shot('home_v2_page1_bottom');
+      }),
+  '第一页 M4（1020 E 遲啲先答）': (c) => _withHomeV2(() async {
+        await _pumpHome(c, _page1(InMemoryMoodRowStore()),
+            profile: _profile(w0Date: '2026-10-14'));
+        await c.tester.pump(const Duration(seconds: 1));
+        await c.tester.pumpAndSettle();
+        expect(await _tap(c, find.byKey(const ValueKey('mood_row_later'))),
+            isTrue);
+        expect(find.text(MoodRowCopy.m4), findsOneWidget);
+        await c.shot('home_v2_page1_m4');
+      }),
+  '第二页（1020 D 搵人傾）': (c) => _withHomeV2(() async {
+        await _pumpHome(c, const Scaffold(body: TalkPage()));
+        expect(find.byKey(const ValueKey('talk_v2')), findsOneWidget);
+        await c.shot('home_v2_page2');
+      }),
+  '你嘅一個禮拜（1020e 二.11 每日心情图）': (c) => _withHomeV2(() async {
+        await _pushPage(
+            c,
+            ProgressPage(
+              preset: WeeklyProgress(
+                moodScores: const [4, 2],
+                contactDays: 1,
+                plansAuthored: 1,
+                plansFollowedUp: 0,
+                reminiscenceSessions: 0,
+                moodFromDailyMood: true,
+                dailyMoods: const [null, 2, 4, null, 5, 1, 3],
+                dailyMoodDays:
+                    ProgressRepository.lastSevenDays(DateTime(2026, 10, 20)),
+                checkInCount: 2,
+              ),
+            ));
+        await c.tester.pump(const Duration(seconds: 1));
+        await c.tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('progress_daily_mood_chart')),
+            findsOneWidget);
+        await c.shot('home_v2_progress_chart');
+        await _back(c);
+      }),
+  '做啲嘢（工具图，1020 batch 3）': (c) => _withHomeV2(() async {
+        await _pumpHome(c, const Scaffold(body: MePage()));
+        expect(find.byType(Image), findsNWidgets(4));
+        await c.shot('home_v2_tools');
+      }),
+  '小欣 M7、M8 开场（1020 E；组别按构建）': (c) => _withHomeV2(() async {
+        for (final entry in const [
+          MoodChatEntry(mood: 1),
+          MoodChatEntry(mood: 2, previousMood: 4),
+        ]) {
+          await _pushPage(
+              c,
+              SiuYanChatPage(
+                moodEntry: entry,
+                lowMoodEntry: entry.lowOpener,
+                checkedInToday: (_) async => false,
+                latestMoodToday: (_) async => entry.mood,
+                responseStore: InMemoryCheckInResponseStore(),
+                replyHistory: InMemoryRuleReplyHistoryStore(),
+                onOpenActionPlan: (_) async {},
+              ));
+          await c.tester.pump(const Duration(seconds: 1));
+          await c.tester.pumpAndSettle();
+          await c.shot('home_v2_${entry.promptId}_opener');
+          await _send(c, '今朝起身成身骨痛，冇乜心機');
+          await c.shot('home_v2_${entry.promptId}_chat');
+          await _back(c);
+        }
+      }),
   '阿珍／阿伯回忆页': (c) async {
     await _pushPage(c, ReminiscenceArmAPage(theme: ReminiscenceTheme.all.first));
     await _dismissIntro(c);
@@ -768,6 +958,30 @@ final _flows = <String, _Flow>{
     expect(child, findsWidgets);
     await c.shot('remembered_family_open');
   },
+  '讀少少 小讀本（1020c）': (c) async {
+    // Switch on, two units (one with a long title, one ticked); the
+    // WebView is a stand-in here (platform views do not render in tests).
+    final saved = RemoteFeatureFlags.current;
+    RemoteFeatureFlags.current =
+        const RemoteFeatureFlags(htmlReadersEnabled: true);
+    addTearDown(() => RemoteFeatureFlags.current = saved);
+    final source = _SweepReaderSource();
+    await _pumpHome(
+        c,
+        EducationLibraryPage(
+          readerSource: source,
+          readerSurface: const _SweepReaderSurface(),
+          readMarks: InMemoryReaderReadMarks({_sweepUnit2.id}),
+        ));
+    expect(find.text('小讀本'), findsOneWidget);
+    await c.shot('readers_list');
+    await c.tester.tap(find.text(readerTestUnit.titleZh));
+    await c.tester.pumpAndSettle();
+    expect(find.byType(ReaderPage), findsOneWidget);
+    expect(find.byKey(ReaderPage.askKey), _armB ? findsNothing : findsOneWidget);
+    await c.shot('reader_page');
+    await _back(c);
+  },
   '健康資訊文章页': (c) async {
     await _pushPage(
         c, EducationArticlePage(article: EducationLibrary.articles.first));
@@ -841,4 +1055,30 @@ void main() {
       });
     }
   }
+}
+
+// 1020c 小讀本 stand-ins for the sweep.
+const _sweepUnit2 = ReaderUnit(
+    id: 'u2_long_title',
+    titleZh: '點解孤單要理：同屋企人、朋友、鄰居慢慢重新聯絡',
+    minutes: 10,
+    order: 2);
+
+class _SweepReaderSource extends ReaderContentSource {
+  @override
+  Future<List<ReaderUnit>> units() async => [readerTestUnit, _sweepUnit2];
+
+  @override
+  Future<String> html(String id) async => readerTestUnitHtml;
+
+  @override
+  Future<String> text(String id) async => readerTestUnitText;
+}
+
+class _SweepReaderSurface extends ReaderSurface {
+  const _SweepReaderSurface();
+
+  @override
+  Widget build(BuildContext context, ReaderSurfaceRequest request) =>
+      const Center(child: Text('（網頁內容：真機上由 WebView 顯示）'));
 }

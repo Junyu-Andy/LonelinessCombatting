@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../data/action_plan.dart';
+import '../../data/action_plan_copy.dart';
 import 'action_loop_arm_a_page.dart';
 import 'action_loop_arm_b_page.dart';
 import 'action_loop_followup_page.dart';
+import 'action_plan_edit_page.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 
 /// M7 entry surface. Shows two things:
@@ -16,6 +19,9 @@ import '../../../../core/session/chat_session_recorder.dart';
 ///     planner.
 ///   - A list of pending plans (no outcome yet) so the user can mark
 ///     "did it happen?" — this is the follow-up loop the spec measures.
+///   - 1020e 二.7 (switch actionPlanSimplifiedEnabled): each pending plan
+///     also has 「改」 (ActionPlanEditPage) and 「刪除」 (confirm, soft
+///     delete).  Same in both arms.  Off: the card is as before.
 class ActionLoopLandingPage extends StatelessWidget {
   const ActionLoopLandingPage({super.key});
 
@@ -25,7 +31,7 @@ class ActionLoopLandingPage extends StatelessWidget {
     final theme = Theme.of(context);
     final auth = AuthServiceScope.of(context);
     final profile = AppSettingsScope.of(context).profile;
-    final repo = ActionPlanRepository(available: auth.available);
+    final repo = ActionPlanRepository.forApp(available: auth.available);
     // M-7 — tool session: enter = start, leave = end.
     return ToolSessionScope(
       toolId: 'action_loop',
@@ -92,6 +98,15 @@ class ActionLoopLandingPage extends StatelessWidget {
                         .map((p) => _PendingPlanCard(
                               plan: p,
                               onTap: () => _openFollowUp(context, p),
+                              onEdit: RemoteFeatureFlags
+                                      .current.actionPlanSimplifiedEnabled
+                                  ? () => _openEdit(context, p)
+                                  : null,
+                              onDelete: RemoteFeatureFlags
+                                      .current.actionPlanSimplifiedEnabled
+                                  ? () => confirmAndDeletePlan(context, p,
+                                      from: 'landing')
+                                  : null,
                             ))
                         .toList(),
                   );
@@ -105,9 +120,18 @@ class ActionLoopLandingPage extends StatelessWidget {
 
   void _openPlanner(BuildContext context) {
     final builder = Arm.isA(context)
-        ? (_) => const ActionLoopArmAPage()
-        : (BuildContext _) => const ActionLoopArmBPage();
+        ? (_) => const ActionLoopArmAPage(source: ActionPlanSource.landing)
+        : (BuildContext _) =>
+            const ActionLoopArmBPage(source: ActionPlanSource.landing);
     Navigator.of(context).push(MaterialPageRoute<void>(builder: builder));
+  }
+
+  void _openEdit(BuildContext context, ActionPlan plan) {
+    Navigator.of(context).push(
+      MaterialPageRoute<bool>(
+        builder: (_) => ActionPlanEditPage(plan: plan),
+      ),
+    );
   }
 
   void _openFollowUp(BuildContext context, ActionPlan plan) {
@@ -161,51 +185,101 @@ class _IntroCard extends StatelessWidget {
 class _PendingPlanCard extends StatelessWidget {
   final ActionPlan plan;
   final VoidCallback onTap;
-  const _PendingPlanCard({required this.plan, required this.onTap});
+
+  /// 1020e: null (switch off) = no 「改」 / 「刪除」 row.
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  const _PendingPlanCard({
+    required this.plan,
+    required this.onTap,
+    this.onEdit,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
+    final body = InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.hourglass_bottom,
+                size: 28, color: theme.colorScheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(plan.action, style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  // 1020e: items left out are not shown (an older plan
+                  // has both, so its line is unchanged).
+                  Text(
+                    ActionPlan.joinFilled([plan.whenText, plan.whoWith]),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              isEn ? 'How did it go?' : '點呀？',
+              style: TextStyle(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    final hasActions = onEdit != null || onDelete != null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(Icons.hourglass_bottom,
-                    size: 28, color: theme.colorScheme.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(plan.action, style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${plan.whenText} · ${plan.whoWith}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+        // Switch off: the same card as before (no button row).
+        child: !hasActions
+            ? body
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  body,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                    child: Row(
+                      children: [
+                        if (onEdit != null)
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              key: Key('plan_card_edit_${plan.id}'),
+                              onPressed: onEdit,
+                              icon: const Icon(Icons.edit_outlined),
+                              label: Text(
+                                  isEn ? 'Change' : ActionPlanCopy.edit),
+                            ),
+                          ),
+                        if (onEdit != null && onDelete != null)
+                          const SizedBox(width: 10),
+                        if (onDelete != null)
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              key: Key('plan_card_delete_${plan.id}'),
+                              onPressed: onDelete,
+                              icon: const Icon(Icons.delete_outline_rounded),
+                              label: Text(
+                                  isEn ? 'Delete' : ActionPlanCopy.delete),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                Text(
-                  isEn ? 'How did it go?' : '點呀？',
-                  style: TextStyle(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+                ],
+              ),
       ),
     );
   }

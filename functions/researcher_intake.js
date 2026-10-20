@@ -420,7 +420,8 @@ const label = (labels) => (id) => labels[id] || id;
  *   loneliness timings (feeling, private), typical day (routine),
  *     onMind (feeling, sensitive)                              → 小欣
  *   interests, topics (hobby), pet (family)                     → 小欣, 通通
- *   people the elder shared, people to reconnect (family)       → 小欣
+ *   people the elder shared, people to reconnect the elder
+ *     shared (1020e 二.13: 「可以講」 ticked, both lists)  (family) → 小欣
  *   life chapters (story, private)                              → 阿珍／阿伯
  *   avoidTopics (the prompts' ⛔ line), encouragementStyle (the
  *     tone slot), inputMode, preferredTimes                     → nobody
@@ -463,7 +464,9 @@ function intakeFactsFor(a) {
   const shared = a.people.filter((p) => p.share).map((p) =>
     p.relationship ? `${p.name}（${p.relationship}）` : p.name);
   push(["siu_yan"], "family", "重要嘅人", shared.join("、"));
-  const reconnect = a.reconnectPeople.map((p) =>
+  // 1020e 二.13: like 重要嘅人, only the people the elder said the
+  // companions may know (「可以講」); old rows without `share` are not shared.
+  const reconnect = a.reconnectPeople.filter((p) => p.share).map((p) =>
     p.relationship ? `${p.name}（${p.relationship}）` : p.name);
   push(["siu_yan"], "family", "想重新聯絡嘅人", reconnect.join("、"));
   // §A3: private — 阿珍／阿伯's own.

@@ -9,7 +9,7 @@
 /// Rules (dev-tasks-1014d T40):
 ///   1. Both arms, no UI, nothing the participant can see.
 ///   2. Not before registration: a row is written only while the signed-in
-///      account is enrolled (`users/{uid}.cohort` = `phase_b` / `pilot`).
+///      account is enrolled (`users/{uid}.cohort` in Cohorts.enrolled).
 ///      A foreground that happened before the profile was known (cold
 ///      start) is held and written with its ORIGINAL time once the enrolled
 ///      profile arrives; if the account turns out not to be enrolled it is
@@ -33,6 +33,15 @@
 /// can only create rows (no read / update / delete — firestore.rules); the
 /// research ID, study day, Hong Kong date and `uploadedLate` are stamped
 /// by the server trigger.
+///
+/// 1020c §1(5) — the 小讀本 rows ride on the same collection, the same
+/// switch and the same enrolment check ([recordReader]):
+///   `reader_open`    + `unitId`
+///   `reader_section` + `unitId`, `sectionId` (the page's `data-section`)
+///   `reader_cta`     + `unitId`, `cta` (`small_action` / `plan` / `thought`)
+///   `reader_close`   + `unitId`, `seconds` (time the reader was on screen)
+/// Ids only — never any text.  An id that is not [kReaderIdPattern] is
+/// dropped here and refused by the rules.
 library;
 
 import 'dart:async';
@@ -50,11 +59,31 @@ const String kUsageEventsCollection = 'usage_events';
 /// Row shape version written by this build.
 const int kUsageEventSchemaVersion = 1;
 
-enum UsageEventType {
-  foreground,
-  background;
+/// The shape of a reader unit id and a `data-section` id (1020c).  The
+/// same pattern is in firestore.rules (usage_events) and
+/// tool/check_reader_html.js.
+final RegExp kReaderIdPattern = RegExp(r'^[a-z0-9][a-z0-9_-]{0,47}$');
 
-  String get code => name;
+/// The three 小讀本 action buttons (`peizhu://cta/<code>`).
+const Set<String> kReaderCtaCodes = {'small_action', 'plan', 'thought'};
+
+/// A reader stay longer than this is recorded as this (a phone left on).
+const int kReaderMaxSeconds = 86400;
+
+enum UsageEventType {
+  foreground('foreground'),
+  background('background'),
+  readerOpen('reader_open'),
+  readerSection('reader_section'),
+  readerCta('reader_cta'),
+  readerClose('reader_close');
+
+  const UsageEventType(this.code);
+
+  /// The `type` value in the row.
+  final String code;
+
+  bool get isReader => code.startsWith('reader_');
 }
 
 /// One usage event, before the server stamps it.
@@ -67,6 +96,10 @@ class UsageEvent {
     required this.appVersion,
     required this.buildNumber,
     required this.platform,
+    this.unitId,
+    this.sectionId,
+    this.cta,
+    this.seconds,
   });
 
   final String uid;
@@ -79,6 +112,12 @@ class UsageEvent {
   final String buildNumber;
   final String platform;
 
+  /// 1020c reader rows only (null on foreground / background).
+  final String? unitId;
+  final String? sectionId;
+  final String? cta;
+  final int? seconds;
+
   /// The Firestore document (without `receivedAt`, which the sink adds as
   /// a server timestamp).
   Map<String, Object?> toMap() => {
@@ -88,6 +127,10 @@ class UsageEvent {
         'buildNumber': buildNumber,
         'platform': platform,
         'schemaVersion': kUsageEventSchemaVersion,
+        if (unitId != null) 'unitId': unitId,
+        if (sectionId != null) 'sectionId': sectionId,
+        if (cta != null) 'cta': cta,
+        if (seconds != null) 'seconds': seconds,
       };
 }
 
@@ -217,7 +260,58 @@ class UsageEventRecorder {
     _write(UsageEventType.foreground, _foregroundSince ?? _clock());
   }
 
-  void _write(UsageEventType type, DateTime at) {
+  /// 1020c §1(5) — one 小讀本 row (switch on, account enrolled, like the
+  /// lifecycle rows).  [type] must be a reader type; the fields it needs:
+  /// `reader_section` → [sectionId], `reader_cta` → [cta] (one of
+  /// [kReaderCtaCodes]), `reader_close` → [seconds] (clamped to
+  /// 0…[kReaderMaxSeconds]).  Anything malformed is dropped, not written.
+  /// Returns whether a row was written.
+  bool recordReader(
+    UsageEventType type, {
+    required String unitId,
+    String? sectionId,
+    String? cta,
+    int? seconds,
+  }) {
+    if (!type.isReader || !_canRecord) return false;
+    if (!kReaderIdPattern.hasMatch(unitId)) return false;
+    switch (type) {
+      case UsageEventType.readerOpen:
+        sectionId = null;
+        cta = null;
+        seconds = null;
+      case UsageEventType.readerSection:
+        if (sectionId == null || !kReaderIdPattern.hasMatch(sectionId)) {
+          return false;
+        }
+        cta = null;
+        seconds = null;
+      case UsageEventType.readerCta:
+        if (cta == null || !kReaderCtaCodes.contains(cta)) return false;
+        sectionId = null;
+        seconds = null;
+      case UsageEventType.readerClose:
+        if (seconds == null) return false;
+        seconds = seconds.clamp(0, kReaderMaxSeconds);
+        sectionId = null;
+        cta = null;
+      case UsageEventType.foreground:
+      case UsageEventType.background:
+        return false;
+    }
+    _write(type, _clock(),
+        unitId: unitId, sectionId: sectionId, cta: cta, seconds: seconds);
+    return true;
+  }
+
+  void _write(
+    UsageEventType type,
+    DateTime at, {
+    String? unitId,
+    String? sectionId,
+    String? cta,
+    int? seconds,
+  }) {
     _sink.write(UsageEvent(
       uid: _uid!,
       type: type,
@@ -225,6 +319,10 @@ class UsageEventRecorder {
       appVersion: _appVersion,
       buildNumber: _buildNumber,
       platform: _platform,
+      unitId: unitId,
+      sectionId: sectionId,
+      cta: cta,
+      seconds: seconds,
     ));
   }
 }

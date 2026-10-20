@@ -26,6 +26,7 @@ import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
+import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/data/user_profile.dart';
@@ -76,8 +77,9 @@ class _CheckInArmAState extends State<CheckInArmA> {
   /// older revision). Production responses come from the server-side
   /// `siu_yan_v1.txt` resolved by promptKey.
   static const _fallbackPersonaPrompt = '''
-你叫小欣，係一個 AI 機械人，唔係真人。每次回覆 1-2 句、reference 用戶啱啱講嘅
+你叫小欣，係一個電腦程式夥伴，唔係真人。每次回覆 1-2 句、reference 用戶啱啱講嘅
 具體細節、不分析、不診斷、不重 frame、不建立依賴。
+唔好用「AI」「模型」「機械人」呢啲字。
 ''';
 
   final _inputCtrl = TextEditingController();
@@ -316,8 +318,8 @@ class _CheckInArmAState extends State<CheckInArmA> {
     final mood = _resolvedMoodValue;
     if (mood == null) {
       return isEn
-          ? 'Hi — how are you today? Write a few words or speak whenever you\'re ready.'
-          : '你好啊。你今日點？寫幾句、或者用咪都得。';
+          ? 'Hi — how are you today? A few words are enough.'
+          : '你好啊。你今日點？寫幾句都得。';
     }
     if (_resolvedMoodIsToday) {
       if (isEn) {
@@ -1095,7 +1097,11 @@ class _CheckInArmAState extends State<CheckInArmA> {
           child: Column(
             children: [
               Expanded(
-                child: ListView(
+                // 1020c 二: back to the newest message when the keyboard
+                // opens (switch keyboardCompactHeaderEnabled).
+                child: KeyboardScrollToLatest(
+                  keyboardOpen: KeyboardCompact.active(context),
+                  child: ListView(
                   // 10/15: newest message at the bottom edge; the list follows the
                   // keyboard up instead of leaving the last turn under the composer.
                   reverse: true,
@@ -1143,6 +1149,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
                             setState(() => _pendingReferral = null),
                       ),
                   ].reversed.toList(),
+                ),
                 ),
               ),
               if (_pendingOffline != null)
@@ -1257,7 +1264,7 @@ class _Composer extends StatelessWidget {
                 maxLines: 4,
                 style: const TextStyle(fontSize: 17),
                 decoration: InputDecoration(
-                  hintText: isEn ? 'Type or speak…' : '寫或者講都得…',
+                  hintText: isEn ? 'Type what you want to say.' : '寫低你想講嘅嘢。',
                 ),
               ),
             ),

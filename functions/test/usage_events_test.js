@@ -106,6 +106,21 @@ test("already stamped, bad type, no clientAt → null (left alone)", () => {
   assert.strictEqual(UE.stampFor(null, ctx), null);
 });
 
+test("1020c: the four reader rows are stamped like the lifecycle rows", () => {
+  assert.deepStrictEqual(UE.READER_TYPES, ["reader_open", "reader_section",
+    "reader_cta", "reader_close"]);
+  assert.deepStrictEqual(UE.LIFECYCLE_TYPES, ["foreground", "background"]);
+  for (const type of UE.READER_TYPES) {
+    const s = UE.stampFor(row("2026-10-20T03:59:58Z", "2026-10-20T04:00:00Z",
+        {type, unitId: "u2_why_it_matters"}),
+    {user: USER, researchId: "PILOT-03", now: NOW});
+    assert.ok(s, type);
+    assert.strictEqual(s.researchId, "PILOT-03", type);
+    assert.strictEqual(s.studyDay, 5, type);
+    assert.strictEqual(s.dayKey, "2026-10-20", type);
+  }
+});
+
 test("the stamp holds exactly the server fields the rules deny clients", () => {
   const s = UE.stampFor(row("2026-10-20T03:59:58Z", "2026-10-20T04:00:00Z"),
       {user: USER, researchId: "PB-001", now: NOW});

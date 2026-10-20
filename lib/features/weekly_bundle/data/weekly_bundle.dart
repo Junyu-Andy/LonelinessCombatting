@@ -26,7 +26,7 @@ import '../../../core/scheduling/weekly_schedule.dart';
 import '../../auth/data/user_profile.dart';
 
 /// Is the study-week schedule on for this participant?  Switch on, Phase B
-/// build, and a registered cohort (`phase_b` / `pilot`, T21).
+/// build, and a registered cohort (`phase_b` / `rct` / `pilot`, T21; lib/core/study/cohorts.dart).
 class WeeklyBundleGate {
   WeeklyBundleGate._();
 
@@ -93,6 +93,24 @@ class WeeklyBundleDue {
       if (status[p] == null || status[p] == WeeklyPartStatus.inProgress) {
         return p;
       }
+    }
+    return null;
+  }
+
+  /// The first of [open] (bundles whose window contains now, in push order,
+  /// [WeeklySchedule.openBundlesAt]) with a part still to do, or null.
+  /// 1020e: with v2 the W4 window can overlap W5 / W6, so a finished
+  /// bundle must not hide a later open one.  Store errors propagate.
+  static Future<WeeklyBundleDue?> firstNotDone(
+    List<({WeeklyBundle bundle, WeeklyWindow window})> open,
+    WeeklyBundleStore store,
+  ) async {
+    for (final o in open) {
+      final due = WeeklyBundleDue(
+          bundle: o.bundle,
+          window: o.window,
+          status: await store.partStatus(o.bundle));
+      if (!due.allDone) return due;
     }
     return null;
   }

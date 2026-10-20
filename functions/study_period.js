@@ -3,17 +3,28 @@
  * dev-tasks-1010b) — the study period comes from the research-ID prefix,
  * and an account that is not enrolled gets nothing until it is.
  *
- * Phase A is paused (decision 0034), so only two prefixes exist:
+ * Phase A is paused (decision 0034).  10/19 (dev-tasks-1020 §C, 1020b §1):
+ * PB-01…04 became the run-in and the randomised analysis set registers
+ * with RCT- from 10/21, drawing from the second sequence (v2):
  *
- *   PB-…     Phase B    users/{uid}.cohort = "phase_b"
- *                       enrollments/{uid}.studyPeriod = "B"
+ *   RCT-…    Phase B    users/{uid}.cohort = "rct"
+ *                       enrollments/{uid}.studyPeriod = "B", sequence v2
  *   PILOT-…  pilot run  users/{uid}.cohort = "pilot"
  *                       enrollments/{uid}.studyPeriod = "PILOT"
+ *   PB-…     retired for NEW registrations (code
+ *            research_id_prefix_retired); the four PB- accounts keep
+ *            cohort "phase_b", studyPeriod "B" and stay in follow-up.
  *
  * "PA-…" and any ID without one of these prefixes is refused at
  * registration (code research_id_prefix).  The whole ID still follows the
  * T19 format (randomization.RESEARCH_ID_PATTERN), and something must come
  * after the prefix.
+ *
+ * Cohort lists (1020b §1(2)): every server check by cohort reads
+ * ENROLLED_COHORTS or PHASE_B_COHORTS below, never a string of its own;
+ * the App has lib/core/study/cohorts.dart and firestore.rules
+ * enrolledCohort().  functions/test/cohort_list_guard_test.js fails on a
+ * direct comparison anywhere else.
  *
  * `cohort` is the field of decision 0011.  It is written by the server at
  * registration only (firestore.rules lists it with the arm fields), so a
@@ -32,13 +43,26 @@
 
 "use strict";
 
+// `retired`: still resolves (existing PB- accounts: alerts, exports), but
+// a NEW registration with it is refused (randomization.enrol).
 const PERIODS = [
-  {prefix: "PB-", studyPeriod: "B", cohort: "phase_b"},
+  {prefix: "RCT-", studyPeriod: "B", cohort: "rct", sequenceVersion: "v2"},
+  {prefix: "PB-", studyPeriod: "B", cohort: "phase_b", retired: true},
   {prefix: "PILOT-", studyPeriod: "PILOT", cohort: "pilot"},
 ];
 
-/** Cohorts that count as enrolled (decision 0011 labels). */
-const ENROLLED_COHORTS = ["phase_b", "pilot"];
+/** The cohort labels (decision 0011; "rct" since 10/19). */
+const COHORT_RUN_IN = "phase_b";
+const COHORT_RCT = "rct";
+const COHORT_PILOT = "pilot";
+
+/** Cohorts that count as registered: the enrolment gate, the LLM gate,
+ * the weekly schedule (the pilot runs the standard one since 10/15). */
+const ENROLLED_COHORTS = [COHORT_RUN_IN, COHORT_RCT, COHORT_PILOT];
+
+/** Phase B follow-up: the PB- run-in (still followed up) and the RCT-
+ * analysis set — DJG W2 and the blinded / analysis / process exports. */
+const PHASE_B_COHORTS = [COHORT_RUN_IN, COHORT_RCT];
 
 /** armAssignmentMode of a pilot account whose arm the researcher chose. */
 const PILOT_MODE = "pilot_designated";
@@ -56,9 +80,10 @@ const FLAGS_DOC = "app_config/feature_flags";
 
 /**
  * @param {?string} researchId already normalised (upper case, trimmed)
- * @return {?{prefix: string, studyPeriod: string, cohort: string}} the
- *     study period, or null when the prefix is missing, retired (PA-) or
- *     nothing follows it
+ * @return {?{prefix: string, studyPeriod: string, cohort: string,
+ *     sequenceVersion: (string|undefined), retired: (boolean|undefined)}}
+ *     the study period (PB- comes back with retired: true), or null when
+ *     the prefix is missing or unknown (PA-) or nothing follows it
  */
 function periodForResearchId(researchId) {
   if (typeof researchId !== "string") return null;
@@ -77,6 +102,26 @@ function periodForResearchId(researchId) {
  */
 function isEnrolled(user) {
   return !!user && ENROLLED_COHORTS.indexOf(user.cohort) >= 0;
+}
+
+/**
+ * @param {?object} user users/{uid} data
+ * @return {boolean} a Phase B participant by cohort (run-in or RCT)
+ */
+function isPhaseBCohort(user) {
+  return !!user && PHASE_B_COHORTS.indexOf(user.cohort) >= 0;
+}
+
+/**
+ * The analysis set a cohort belongs to (exports derive it, 1020b §1(1)).
+ * @param {?string} cohort
+ * @return {?string} "rct" | "run_in" | "pilot" | null
+ */
+function analysisSetForCohort(cohort) {
+  if (cohort === COHORT_RCT) return "rct";
+  if (cohort === COHORT_RUN_IN) return "run_in";
+  if (cohort === COHORT_PILOT) return "pilot";
+  return null;
 }
 
 /**
@@ -113,7 +158,7 @@ function gateOnFromSnap(snap) {
  */
 function skipsPhaseAWeek2Push(p) {
   const u = p.user || {};
-  if (u.cohort === "pilot") return true;
+  if (u.cohort === COHORT_PILOT) return true;
   return p.gateOn === true && !isEnrolled(u) && u.isTester !== true;
 }
 
@@ -148,7 +193,9 @@ function resetGateCache() {
 }
 
 module.exports = {
-  PERIODS, ENROLLED_COHORTS, PILOT_MODE, PILOT_METHOD, PHASE_B_MODES,
-  GATE_FLAG, FLAGS_DOC, periodForResearchId, isEnrolled, llmRefusal,
+  PERIODS, COHORT_RUN_IN, COHORT_RCT, COHORT_PILOT,
+  ENROLLED_COHORTS, PHASE_B_COHORTS, PILOT_MODE, PILOT_METHOD, PHASE_B_MODES,
+  GATE_FLAG, FLAGS_DOC, periodForResearchId, isEnrolled, isPhaseBCohort,
+  analysisSetForCohort, llmRefusal,
   skipsPhaseAWeek2Push, gateOnFromSnap, enrollmentGateOn, resetGateCache,
 };

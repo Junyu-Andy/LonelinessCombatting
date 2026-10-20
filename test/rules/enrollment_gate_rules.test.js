@@ -141,11 +141,13 @@ describe('enrolment gate on research data (T21)', () => {
       await assertSucceeds(getDoc(doc(owner(), 'users', 'u1')));
     });
 
-  it('gate on: Phase B, pilot and tester accounts write as before',
+  it('gate on: Phase B (run-in and RCT-), pilot and tester accounts write',
     async () => {
       await gate(true);
       for (const profile of [
         { uid: 'u1', arm: 'A', cohort: 'phase_b' },
+        // 1020b §1: an RCT- account, not a tester.
+        { uid: 'u1', arm: 'B', cohort: 'rct', isTester: false },
         { uid: 'u1', arm: 'B', cohort: 'pilot' },
         { uid: 'u1', isTester: true },
       ]) {
@@ -156,11 +158,14 @@ describe('enrolment gate on research data (T21)', () => {
       }
     });
 
-  it('gate on: a cohort outside phase_b / pilot does not count', async () => {
-    await gate(true);
-    await seed('users/u1', { uid: 'u1', cohort: 'phase_a' });
-    await assertFails(event(owner()));
-  });
+  it('gate on: a cohort outside phase_b / rct / pilot does not count',
+    async () => {
+      await gate(true);
+      for (const cohort of ['phase_a', 'phase_b_rct', 'RCT']) {
+        await seed('users/u1', { uid: 'u1', cohort });
+        await assertFails(event(owner()));
+      }
+    });
 
   it('gate on: reading your own data is unaffected', async () => {
     await seed('users/u1/events/e1', { name: 'x' });

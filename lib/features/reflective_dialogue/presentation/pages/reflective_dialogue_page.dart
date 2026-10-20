@@ -37,6 +37,7 @@ import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
+import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
@@ -565,7 +566,11 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
           child: Column(
             children: [
               Expanded(
-                child: ListView(
+                // 1020c 二: back to the newest message when the keyboard
+                // opens (switch keyboardCompactHeaderEnabled).
+                child: KeyboardScrollToLatest(
+                  keyboardOpen: KeyboardCompact.active(context),
+                  child: ListView(
                   // 10/15: newest message at the bottom edge; the list follows the
                   // keyboard up instead of leaving the last turn under the composer.
                   reverse: true,
@@ -622,6 +627,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
                             setState(() => _pendingReferral = null),
                       ),
                   ].reversed.toList(),
+                ),
                 ),
               ),
               if (_pendingOffline != null)
@@ -854,7 +860,7 @@ class _Composer extends StatelessWidget {
                 maxLines: 5,
                 style: const TextStyle(fontSize: 17),
                 decoration: InputDecoration(
-                  hintText: isEn ? 'Type or speak…' : '寫或者講都得…',
+                  hintText: isEn ? 'Type what you want to say.' : '寫低你想講嘅嘢。',
                 ),
               ),
             ),

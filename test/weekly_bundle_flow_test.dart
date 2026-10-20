@@ -199,13 +199,20 @@ void main() {
       expect(find.text('第 1 部分，共 3 部分'), findsOneWidget);
       expect(find.text('我有一種空虛的感覺。'), findsOneWidget);
       expect(find.text('第 2 週問卷'), findsNothing);
+      // 1020f: each part page is titled with its part name.
+      expect(find.text('最近嘅感受'), findsOneWidget);
       await _answerDjg(tester);
       expect(djg.saves.last.$2, true); // submitted
       // Part 2 — Weekly PR: no referent → no_referent record, straight on to
       // part 3 — PGIC.
       expect(noReferentCalls, 1);
       expect(find.text('第 3 部分，共 3 部分'), findsOneWidget);
-      expect(find.text('同上個星期比較，你而家覺得自己嘅孤單感整體上有冇變化？'), findsOneWidget);
+      // 1020f: the approved package's PGIC (B.5) word for word.
+      expect(find.text('同你開始用呢個 app 之前比較，你嘅孤獨感而家點？'), findsOneWidget);
+      expect(find.text('同開始用嗰時比較'), findsOneWidget);
+      for (final o in ['好咗好多', '好咗', '好咗少少', '冇變', '差咗少少', '差咗', '差咗好多']) {
+        expect(find.text(o), findsOneWidget, reason: o);
+      }
       await tester.tap(find.text('冇變'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('提交'));
@@ -242,7 +249,8 @@ void main() {
       await tester.pumpAndSettle();
       // Straight to part 2 (Weekly PR), not the DJG.
       expect(find.text('第 2 部分，共 3 部分'), findsOneWidget);
-      expect(find.text('每週夥伴評估'), findsOneWidget);
+      expect(find.text('今個禮拜同夥伴傾偈嘅感覺'), findsOneWidget);
+      expect(find.text('每週夥伴評估'), findsNothing);
       expect(find.text('我有一種空虛的感覺。'), findsNothing);
       // Leave half-way: back on the intro, nothing marked done.
       await tester.tap(find.byType(BackButton));
@@ -330,7 +338,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('weekly_start')));
       await tester.pumpAndSettle();
       expect(find.text('第 1 部分，共 1 部分'), findsOneWidget);
-      expect(find.text('每週感受變化'), findsOneWidget);
+      expect(find.text('同開始用嗰時比較'), findsOneWidget);
+      expect(find.text('每週感受變化'), findsNothing);
     });
 
     testWidgets('stand-alone probe page: closed record shows the closed text',

@@ -203,6 +203,30 @@ test("injection logs what it used and asks a follow-up once", async () => {
   assert.strictEqual(log.get("policy"), "C");
 });
 
+test("1020c: 今日嘅小邀請 (m6_suggestions) gets 小欣's facts but never " +
+    "uses up her follow-up", async () => {
+  await reset();
+  await seedBuffer("siu_yan", [
+    [true, "大家都叫我陳太。我鍾意飲早茶。"],
+    [true, "我膝頭好痛，下個禮拜四睇醫生。"],
+  ]);
+  const id = await m.claimBuffer(db, UID, "siu_yan");
+  await m.processExtraction(db, UID, id, stub(GOOD), NOW);
+
+  const sugg = await m.injectMemory(db, {uid: UID, agentId: "siu_yan",
+    moduleId: "m6_suggestions",
+    messages: [{role: "user", content: "用戶嘅資料：…"}], now: NOW});
+  assert.ok(sugg.includes("陳太"), "facts go in");
+  assert.ok(!sugg.includes("[到期要關心嘅事]"), "no follow-up");
+  const fu = (await user().collection("mem_followups").get()).docs[0];
+  assert.notStrictEqual(fu.get("status"), "asked", "still hers to ask");
+
+  const chat = await m.injectMemory(db, {uid: UID, agentId: "siu_yan",
+    moduleId: "m2_check_in", messages: [{role: "user", content: "hi"}],
+    now: NOW});
+  assert.ok(chat.includes("[到期要關心嘅事]"), "小欣 still asks it");
+});
+
 test("another agent sees only the shared basic fact (policy C)", async () => {
   await reset();
   await seedBuffer("tung_tung", [
@@ -623,6 +647,55 @@ test("T10: after whole-participant deletion the profile is gone → inactive",
       await user().set({displayName: "x", memory_enabled: false});
       assert.strictEqual(await m.memoryActive(db, UID), null);
     });
+
+test("1020e: the action plan's two calls (m7_action_loop_summary / " +
+    "_followup) get 小欣's facts but never use up her follow-up",
+async () => {
+  await reset();
+  await seedBuffer("siu_yan", [
+    [true, "大家都叫我陳太。我鍾意飲早茶。"],
+    [true, "我膝頭好痛，下個禮拜四睇醫生。"],
+  ]);
+  const id = await m.claimBuffer(db, UID, "siu_yan");
+  await m.processExtraction(db, UID, id, stub(GOOD), NOW);
+
+  for (const moduleId of ["m7_action_loop_summary",
+    "m7_action_loop_followup"]) {
+    const block = await m.injectMemory(db, {uid: UID, agentId: "siu_yan",
+      moduleId, messages: [{role: "user", content: "action: 去飲茶"}],
+      now: NOW});
+    assert.ok(block.includes("<memory>"), `${moduleId}: block`);
+    assert.ok(block.includes("陳太"), `${moduleId}: facts go in`);
+    assert.ok(!block.includes("[到期要關心嘅事]"), `${moduleId}: no follow-up`);
+  }
+  const fu = (await user().collection("mem_followups").get()).docs[0];
+  assert.notStrictEqual(fu.get("status"), "asked", "still 小欣's to ask");
+  const logs = await user().collection("mem_injections").get();
+  assert.deepStrictEqual(logs.docs.map((d) => d.get("module_id")).sort(),
+      ["m7_action_loop_followup", "m7_action_loop_summary"]);
+
+  // Without agentId (App switch off) nothing is injected.
+  assert.strictEqual(await m.injectMemory(db, {uid: UID, agentId: null,
+    moduleId: "m7_action_loop_summary",
+    messages: [{role: "user", content: "action: 去飲茶"}], now: NOW}), "");
+
+  // 小欣's real chat still asks it.
+  const chat = await m.injectMemory(db, {uid: UID, agentId: "siu_yan",
+    moduleId: "m2_check_in", messages: [{role: "user", content: "hi"}],
+    now: NOW});
+  assert.ok(chat.includes("[到期要關心嘅事]"), "小欣 still asks it");
+});
+
+test("1020e: never for Arm B, action plan modules included", async () => {
+  await reset();
+  await user().collection("mem_facts").add({agent_id: "siu_yan",
+    category: "name", key: "稱呼", value: "陳太", status: "active",
+    visibility: "shared", sensitivity: "normal"});
+  await user().set({arm: "B"}, {merge: true});
+  assert.strictEqual(await m.injectMemory(db, {uid: UID, agentId: "siu_yan",
+    moduleId: "m7_action_loop_summary",
+    messages: [{role: "user", content: "action: 去飲茶"}], now: NOW}), "");
+});
 
 (async () => {
   let failed = 0;

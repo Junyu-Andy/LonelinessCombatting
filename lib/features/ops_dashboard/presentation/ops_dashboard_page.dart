@@ -322,7 +322,12 @@ class _PersonTile extends StatelessWidget {
                 '語音 ${p.voice['uses'] ?? 0} 次／失敗 ${p.voice['failures'] ?? 0}'),
             Text('安全事件：急性 ${p.safety['acute'] ?? 0}　中級 ${p.safety['moderate'] ?? 0}　'
                 '低級 ${p.safety['low'] ?? 0}　待確認 ${p.safety['pendingAck'] ?? 0}　'
+                // 1020e 二.9: events the researcher marked 誤觸.
+                '誤觸 ${p.safety['falseAlarm'] ?? 0}　'
                 'W8 ${weeklyCellLabel(p.w8Status)}　Debrief 未做（T42）'),
+            if (p.chapters.isNotEmpty)
+              Text('小篇章：待核對 ${p.chapters['flagged'] ?? 0}　'
+                  '整理失敗 ${p.chapters['failed'] ?? 0}'),
           ],
         ),
         trailing: const Icon(Icons.chevron_right),

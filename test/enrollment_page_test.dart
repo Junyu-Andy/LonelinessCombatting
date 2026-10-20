@@ -36,7 +36,7 @@ class _FakeBackend implements EnrollmentBackend {
 Future<void> _fill(WidgetTester tester, {int score = 2}) async {
   await tester.enterText(find.byKey(const Key('enroll_email')), 'e@x.org');
   await tester.enterText(
-      find.byKey(const Key('enroll_research_id')), 'pb-001');
+      find.byKey(const Key('enroll_research_id')), 'rct-001');
   await tester.pump();
   await tester.tap(find.byKey(Key('enroll_score_$score')));
   await tester.pump();
@@ -128,7 +128,7 @@ void main() {
     expect(b.calls.length, 2);
     expect(b.calls.last.dryRun, isFalse);
     final payload = b.calls.last.input.toPayload(dryRun: false);
-    expect(payload['researchId'], 'PB-001');
+    expect(payload['researchId'], 'RCT-001');
     expect(payload['w0DjgEmotional'], 2);
     expect(payload.containsKey('companionVariant'), isFalse); // T47
     expect(payload['w0Date'], '2026-10-07');
@@ -138,13 +138,33 @@ void main() {
   });
 
   group('T21 study period from the research-ID prefix', () {
-    test('PB- is Phase B, PILOT- the pilot run, anything else null', () {
-      expect(enrollmentPeriodOf(' pb-017 '), 'B');
+    test('RCT- is Phase B, PILOT- the pilot run, PB- retired, anything '
+        'else null', () {
+      expect(enrollmentPeriodOf(' rct-017 '), 'B');
       expect(enrollmentPeriodOf('PILOT-01'), 'PILOT');
-      for (final bad in ['PA-001', 'B001', 'PB-', 'PILOT-', 'PB001',
-        'PILOT-1234567', '']) {
+      for (final bad in ['PA-001', 'B001', 'RCT-', 'PILOT-', 'RCT001',
+        'PILOT-1234567', '', 'PB-017']) {
         expect(enrollmentPeriodOf(bad), isNull, reason: bad);
       }
+      expect(enrollmentPrefixRetired('pb-017'), isTrue);
+      expect(enrollmentPrefixRetired('RCT-017'), isFalse);
+    });
+
+    testWidgets('10/19: PB- says it is retired, check stays off',
+        (tester) async {
+      final b = _FakeBackend();
+      await tester.pumpWidget(_app(b));
+      await tester.enterText(find.byKey(const Key('enroll_email')), 'e@x.org');
+      await tester.enterText(
+          find.byKey(const Key('enroll_research_id')), 'PB-005');
+      await tester.pump();
+      expect(find.textContaining('PB- 已經停用'), findsOneWidget);
+      expect(
+          tester
+              .widget<FilledButton>(find.byKey(const Key('enroll_check')))
+              .onPressed,
+          isNull);
+      expect(b.calls, isEmpty);
     });
 
     testWidgets('PA- or no prefix: hint shown, check stays off',
@@ -169,11 +189,11 @@ void main() {
       expect(b.calls, isEmpty);
     });
 
-    testWidgets('PB- shows the score and W0 date, not the version',
+    testWidgets('RCT- shows the score and W0 date, not the version',
         (tester) async {
       await tester.pumpWidget(_app(_FakeBackend()));
       await tester.enterText(
-          find.byKey(const Key('enroll_research_id')), 'PB-002');
+          find.byKey(const Key('enroll_research_id')), 'RCT-002');
       await tester.pump();
       expect(find.text('研究期：Phase B'), findsOneWidget);
       expect(find.byKey(const Key('enroll_score_0')), findsOneWidget);

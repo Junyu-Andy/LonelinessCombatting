@@ -210,7 +210,7 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEn ? 'Weekly companion check-in' : '每週夥伴評估'),
+        title: Text(isEn ? 'Chatting with your companion this week' : '今個禮拜同夥伴傾偈嘅感覺'),
       ),
       body: SafeArea(
         child: Column(

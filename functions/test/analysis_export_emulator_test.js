@@ -30,6 +30,7 @@ const db = admin.firestore();
 const SECRET = "我個仔叫陳大文，佢住喺沙田";
 const UID_A = "hybridUid0000000000000000001";
 const UID_B = "ruleUid000000000000000000002";
+const UID_RCT = "rctUid0000000000000000000005";
 
 async function reset() {
   for (const c of ["users", "meta", "enrollments", "research_id_map",
@@ -67,6 +68,24 @@ async function seed() {
     await u.collection("brief_pr").doc("s1").set({schemaVersion: 3,
       sessionId: "s1", finalStatus: "completed", understanding: 6});
     await u.collection("mem_facts").add({value: SECRET});
+    // 1020d — a chapter (text in every text field) and its rating.
+    const ch = u.collection("reminiscence_chapters").doc("week_1");
+    await ch.set({weekIndex: 1, source: arm === "A" ? "hybrid" : "rule",
+      status: "ready", version: 1, requestId: "r1",
+      requestedAt: new Date("2026-11-07T02:00:00Z"),
+      input: {themeZh: "童年同屋企", items: [{questionIndex: 1, question: "q",
+        answer: SECRET, skipped: false, followups: [], reply: null}],
+      extras: []},
+      finalText: SECRET, ruleText: SECRET, editedText: SECRET,
+      editRatio: 0.25, flags: ["太书面"], deletedSentences: [SECRET],
+      generatedAt: new Date("2026-11-07T02:01:00Z"),
+      savedAt: new Date("2026-11-07T02:09:00Z")});
+    await ch.collection("runs").doc("r1").set({rounds: [{draft:
+      {text: SECRET}}]});
+    await u.collection("reminiscence_chapter_ratings").doc("week_1_v1").set({
+      weekIndex: 1, studyWeek: 1, source: arm === "A" ? "hybrid" : "rule",
+      scores: {q1: 6, q2: 7, q3: null},
+      ratedAt: new Date("2026-11-07T02:05:00Z"), note: SECRET});
     await db.collection("outcome_entries").add({researchId: rid, uid,
       instrument: "DJG-ES", instrumentVersion: "djg6_pkg3_v1",
       timepoint: "W4", assessmentDate: "2026-11-28", mode: "phone",
@@ -84,6 +103,17 @@ async function seed() {
   };
   await mk(UID_A, "PB-101", "A", "low");
   await mk(UID_B, "PB-102", "B", "high");
+  // dev-tasks-1020 §C(5): PB-102's arm was corrected after allocation (the
+  // drawn arm is then not known from enrollments); RCT-01 (cohort rct,
+  // 1020b §1) drew from v2.
+  await db.doc(`enrollments/${UID_B}`).set(
+      {correctedAt: new Date("2026-11-04")}, {merge: true});
+  await db.doc(`users/${UID_RCT}`).set({arm: "B", cohort: "rct",
+    armAssignmentMode: "randomise", w0Date: "2026-11-02", strataCell: 1});
+  await db.doc(`enrollments/${UID_RCT}`).set({uid: UID_RCT,
+    researchId: "RCT-01", studyPeriod: "B", stratum: "high", arm: "B",
+    allocatedArm: "B", sequenceVersion: "v2", sequencePosition: 1,
+    w0Date: "2026-11-02", enrolledAt: new Date("2026-11-02")});
   // Pilot and tester accounts: never exported.
   await db.doc("users/pilotUid000000000000000000004").set({arm: "A",
     cohort: "pilot", w0Date: "2026-11-01"});
@@ -125,7 +155,17 @@ test("after the lock: arm + outcome values, Phase B only, research IDs, " +
   real = await X.collectReal(db, {operator: "junyu@x"});
   const f = real.files;
   assert.deepStrictEqual(f.participants.map((p) => [p.researchId, p.arm,
-    p.stratum]).sort(), [["PB-101", "A", "low"], ["PB-102", "B", "high"]]);
+    p.stratum]).sort(), [["PB-101", "A", "low"], ["PB-102", "B", "high"],
+    ["RCT-01", "B", "high"]]);
+  const pick = (rid) => f.participants.find((p) => p.researchId === rid);
+  const cols = (p) => [p.allocatedArm, p.receivedArm, p.sequenceVersion,
+    p.runIn, p.analysisSet];
+  assert.deepStrictEqual(cols(pick("PB-101")), ["A", "A", "v1", true,
+    "run_in"]);
+  assert.deepStrictEqual(cols(pick("PB-102")), [null, "B", "v1", true,
+    "run_in"], "corrected: drawn arm left for a manual check");
+  assert.deepStrictEqual(cols(pick("RCT-01")), ["B", "B", "v2", false,
+    "rct"]);
   assert.strictEqual(f.outcome_entries.length, 2);
   const oe = f.outcome_entries.find((e) => e.researchId === "PB-101");
   assert.strictEqual(oe.arm, "A");
@@ -142,8 +182,23 @@ test("after the lock: arm + outcome values, Phase B only, research IDs, " +
     arm: "A", facts: 1, summaries: 0, followups: 0});
   assert.strictEqual(f.allocation_records.length, 1);
   assert.strictEqual(f.allocation_records[0].researchId, "PB-103");
+  assert.strictEqual(f.allocation_records[0].sequenceVersion, "v1");
+  assert.strictEqual(f.allocation_records[0].analysisSet, "run_in");
   assert.strictEqual(f.safety_events[0].matchedTerm, undefined);
   assert.strictEqual(f.llm_calls.length, 2);
+  // 1020d — chapter metadata and ratings, no text.
+  assert.deepStrictEqual(f.reminiscence_chapters.find((r) =>
+    r.researchId === "PB-101"), {dataset: "real", researchId: "PB-101",
+    arm: "A", weekIndex: 1, source: "hybrid", status: "ready", version: 1,
+    editRatio: 0.25, flagsCount: 1, deletedCount: 1, failReason: null,
+    edited: true, requestedAt: "2026-11-07T02:00:00.000Z",
+    generatedAt: "2026-11-07T02:01:00.000Z",
+    savedAt: "2026-11-07T02:09:00.000Z"});
+  assert.deepStrictEqual(f.reminiscence_chapter_ratings.find((r) =>
+    r.researchId === "PB-102"), {dataset: "real", researchId: "PB-102",
+    arm: "B", ratingId: "week_1_v1", weekIndex: 1, studyWeek: 1,
+    source: "rule", scores: {q1: 6, q2: 7, q3: null},
+    ratedAt: "2026-11-07T02:05:00.000Z"});
   const json = JSON.stringify(f);
   assert.ok(!json.includes(SECRET), "conversation text leaked");
   assert.ok(!json.includes(UID_A) && !json.includes(UID_B), "uid leaked");

@@ -95,6 +95,8 @@ class OpsPerson {
   final Map<String, int>? memory;
   final Map<String, int> voice;
   final Map<String, int> safety;
+  /// 1020d §6 (2)(d): 小篇章 still flagged after the check, and failed.
+  final Map<String, int> chapters;
   final String w8Status;
   final String debriefStatus;
 
@@ -118,6 +120,7 @@ class OpsPerson {
     required this.memory,
     required this.voice,
     required this.safety,
+    this.chapters = const {},
     required this.w8Status,
     required this.debriefStatus,
   });
@@ -148,6 +151,7 @@ class OpsPerson {
       memory: m['memory'] == null ? null : _intMap(m['memory']),
       voice: _intMap(m['voice']),
       safety: _intMap(m['safety']),
+      chapters: _intMap(m['chapters']),
       w8Status: m['w8Status'] as String? ?? 'not_built',
       debriefStatus: m['debriefStatus'] as String? ?? 'not_built',
     );

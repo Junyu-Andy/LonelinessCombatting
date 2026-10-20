@@ -1,6 +1,6 @@
 # 测试员自切组别：做了什么、查到的缺口（2026-10-16）
 
-> 分支 `claude/gifted-bardeen-yhizmk`，PR 草稿。决策草稿 `docs/decisions/NNNN-tester-arm-self-switch.md`（编号待 Junyu 给）。只用了 emulator 和合成帐号。
+> 分支 `claude/gifted-bardeen-yhizmk`，PR 草稿。决策草稿 `docs/decisions/0049-tester-arm-self-switch.md`（编号待 Junyu 给）。只用了 emulator 和合成帐号。
 
 ## 1. 结论
 

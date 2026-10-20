@@ -16,7 +16,14 @@
  *
  * Collections (firestore.rules: no client reads or writes):
  *   randomization_sequences/{low|high}  arms[], blocks[], length, sha256
- *   randomization_state/{low|high}      next (0-based index of next unused)
+ *                                       (v1, the PB- sequence; retired
+ *                                       10/19, kept untouched)
+ *   randomization_sequences/{v2_low|v2_high}  the RCT- sequence (v2)
+ *   randomization_state/{low|high|v2_low|v2_high}  next (0-based index of
+ *                                       the next unused position)
+ *   sequence_versions/{v1|v2}           status (retired / active) and each
+ *                                       stratum's length, used, sha256 —
+ *                                       written by sequence_upload.js
  *   enrollments/{uid}                   the registration record
  *   arm_assignment_log/{auto}           allocation / resubmit / correction
  *   meta/randomization_config           {enabled} — off by default
@@ -26,8 +33,10 @@
  * or the repository.
  *
  * T21 (registry v8 C01, dev-tasks-1010b): the research-ID prefix decides
- * the study period (functions/study_period.js).  "PB-…" takes the path
- * above and is marked cohort "phase_b".  "PILOT-…" is the pilot run: no
+ * the study period (functions/study_period.js).  10/19 (dev-tasks-1020 §C,
+ * 1020b §1): "RCT-…" takes the path above with the v2 sequence and is
+ * marked cohort "rct"; "PB-…" (the run-in, v1) is refused for new
+ * registrations (research_id_prefix_retired).  "PILOT-…" is the pilot run: no
  * W0 score, no sequence; the researcher picks the version (Arm A Hybrid or
  * Arm B rule-based) on the registration page, the study day starts on the
  * registration date, and the choice is logged in pilot_assignment_log.
@@ -98,6 +107,18 @@ function normaliseResearchId(raw) {
   if (typeof raw !== "string") return null;
   const id = raw.trim().toUpperCase();
   return RESEARCH_ID_PATTERN.test(id) ? id : null;
+}
+
+/**
+ * Document id of one stratum of a sequence version in
+ * randomization_sequences / randomization_state.  v1 (the PB- sequence)
+ * kept the plain stratum names; later versions are prefixed (v2_low).
+ * @param {string} version "v1" | "v2" …
+ * @param {string} stratum "low" | "high"
+ * @return {string}
+ */
+function sequenceDocId(version, stratum) {
+  return version === "v1" ? stratum : `${version}_${stratum}`;
 }
 
 /**
@@ -269,9 +290,11 @@ async function enrol(db, caller, input, opts) {
   if (uid === caller.uid) throw enrolError("own_account");
   const researchId = normaliseResearchId(input.researchId);
   if (!researchId) throw enrolError("invalid_research_id");
-  // T21: PB- or PILOT- only; PA- (Phase A paused) and no prefix refused.
+  // T21: RCT- or PILOT- only; PA- (Phase A paused) and no prefix refused;
+  // 10/19: PB- is retired for new registrations.
   const period = studyPeriod.periodForResearchId(researchId);
   if (!period) throw enrolError("research_id_prefix");
+  if (period.retired === true) throw enrolError("research_id_prefix_retired");
   if (period.studyPeriod === "PILOT") {
     return enrolPilot(db, caller, uid, researchId, input, now);
   }
@@ -293,8 +316,12 @@ async function enrol(db, caller, input, opts) {
   const enrolRef = db.collection(ENROLL_COLLECTION).doc(uid);
   const ridRef = db.collection("research_ids").doc(researchId);
   const mapRef = db.collection("research_id_map").doc(uid);
-  const seqRef = db.collection(SEQ_COLLECTION).doc(stratum);
-  const stateRef = db.collection(STATE_COLLECTION).doc(stratum);
+  const version = period.sequenceVersion;
+  if (!version) throw enrolError("sequence_missing");
+  const seqRef = db.collection(SEQ_COLLECTION)
+      .doc(sequenceDocId(version, stratum));
+  const stateRef = db.collection(STATE_COLLECTION)
+      .doc(sequenceDocId(version, stratum));
   const logRef = db.collection(LOG_COLLECTION).doc();
 
   return db.runTransaction(async (tx) => {
@@ -350,14 +377,16 @@ async function enrol(db, caller, input, opts) {
       armAssignedBy: "server",
       armAssignedAt: now,
       w0Date,
-      // T21: the study period, from the PB- prefix (decision 0011 label).
+      // T21: the study period, from the RCT- prefix (cohort "rct").
       cohort: period.cohort,
     }, {merge: true});
     tx.create(enrolRef, {
       uid, researchId, w0DjgEmotional: score, stratum, companionVariant:
         variant, w0Date, arm, sequencePosition: position,
       sequenceSha256: seq.get("sha256") || null,
-      // T21: from the research-ID prefix; the sequence path is PB- only.
+      // 10/19 §C: which sequence; the drawn arm, kept if arm is corrected.
+      sequenceVersion: version, allocatedArm: arm,
+      // T21: from the research-ID prefix; the sequence path is RCT- only.
       studyPeriod: period.studyPeriod,
       enrolledAt: now, enrolledBy: caller.uid,
       enrolledByEmail: caller.email || null,
@@ -369,7 +398,7 @@ async function enrol(db, caller, input, opts) {
       tx.set(mapRef, {researchId, createdAt: now, via: "enrollment"});
     }
     tx.create(logRef, {
-      action: "allocate", uid, researchId, stratum,
+      action: "allocate", uid, researchId, stratum, sequenceVersion: version,
       sequencePosition: position, arm, at: now,
       by: caller.uid, byEmail: caller.email || null,
     });
@@ -566,7 +595,8 @@ module.exports = {
   LOG_COLLECTION, PILOT_LOG_COLLECTION, STRATA, MIN_SEQUENCE_LENGTH,
   BLOCK_SIZES, METHOD, GENERATOR_VERSION, RESEARCH_ID_PATTERN, VARIANTS,
   UNBLINDED_ROLE,
-  configFromSnap, stratumFor, normaliseResearchId, hkDateKey, validW0Date,
+  configFromSnap, stratumFor, normaliseResearchId, sequenceDocId, hkDateKey,
+  validW0Date,
   seededRandomInt, generateSequences, sequenceHash, sequenceValid, enrol,
   correctArm,
 };

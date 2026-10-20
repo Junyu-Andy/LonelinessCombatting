@@ -13,7 +13,7 @@
  *   4. pilot_assignment_log holds exactly 3 `designate` rows.
  *   5. The blinded assessor calls the W4 due list on PILOT day 25: since
  *      dev-tasks-1014e §2.12 (functions/assessor.js assessedParticipants)
- *      the three PILOT accounts are on it next to a PB- control
+ *      the three PILOT accounts are on it next to an RCT- control
  *      participant, and nothing in the returned object says arm / cohort /
  *      version / hybrid / rule / A 組 / B 組.
  *   6. meta/alert_config on (T34 field names); PILOT-01 (no isTester)
@@ -90,7 +90,8 @@ const PILOTS = [
 ];
 const TESTER_UID = "t43_tester";
 const UNREGISTERED_UID = "t43_not_registered";
-const PB_CONTROL = {uid: "t43_pb_control", rid: "PB-901"};
+// 10/19: the Phase B control registers as RCT- (PB- retired, 1020b §1).
+const PB_CONTROL = {uid: "t43_pb_control", rid: "RCT-901"};
 
 // Captured mail; Auth stub: the primary has an unblinded App account.
 let sent = [];
@@ -130,7 +131,8 @@ async function account(uid, extra) {
 async function pointers() {
   const out = {};
   for (const s of R.STRATA) {
-    out[s] = (await db.doc(`randomization_state/${s}`).get()).get("next");
+    out[s] = (await db.doc(`randomization_state/${R.sequenceDocId("v2", s)}`)
+        .get()).get("next");
   }
   return out;
 }
@@ -195,8 +197,8 @@ test("1. randomization switch on, both sequences uploaded, pointers noted",
     async () => {
       await reset();
       await db.doc(R.CONFIG_DOC).set({enabled: true});
-      const up = await seqTool.upload(db, R.generateSequences(SEED),
-          {operator: JUNYU.email});
+      const up = await seqTool.upload(db, R.generateSequences(SEED, 80),
+          {operator: JUNYU.email, version: "v2"});
       assert.ok(up.ok, up.lines.join("\n"));
       pointersAtStart = await pointers();
       for (const s of R.STRATA) {
@@ -279,12 +281,13 @@ test("4. pilot_assignment_log: exactly 3 rows, all `designate`", async () => {
 
 // Step 5
 test("5a. assessor W4 list on PILOT day 25: the three PILOT accounts are " +
-    "listed with the PB- control (1014e §2.12; 1014c §0 item 1)",
+    "listed with the RCT- control (1014e §2.12; 1014c §0 item 1)",
 async () => {
   await db.doc("app_config/feature_flags").set({assessorViewEnabled: true},
       {merge: true});
-  // A PB- control participant, W0 today, so the list has a real row to
-  // leak-check.  It takes one sequence position — the pilots took none.
+  // An RCT- control participant (PB- is retired, 1020b §1), W0 today, so
+  // the list has a real row to leak-check.  It takes one sequence
+  // position — the pilots took none.
   await account(PB_CONTROL.uid);
   await R.enrol(db, JUNYU, {uid: PB_CONTROL.uid, researchId: PB_CONTROL.rid,
     w0DjgEmotional: 1, companionVariant: "feminine", w0Date: W0,
@@ -292,14 +295,14 @@ async () => {
   const after = await pointers();
   const used = R.STRATA.reduce((n, s) => n + after[s] - pointersAtStart[s],
       0);
-  assert.strictEqual(used, 1, "the PB- control used exactly one position");
+  assert.strictEqual(used, 1, "the RCT- control used exactly one position");
 
   const list = await A.dueList(db, KERAN, {now: DAY25});
   const ids = list.rows.map((r) => r.researchId);
   const pilotRows = ids.filter((id) => id.startsWith("PILOT-"));
   assert.strictEqual(pilotRows.length, 3, "the three PILOT accounts listed");
   assert.deepStrictEqual(ids.slice().sort(),
-      [PB_CONTROL.rid, "PILOT-01", "PILOT-02", "PILOT-03"]);
+      ["PILOT-01", "PILOT-02", "PILOT-03", PB_CONTROL.rid].sort());
   for (const r of list.rows) {
     assert.strictEqual(r.studyDay, 25);
     assert.strictEqual(r.windowState, "open");

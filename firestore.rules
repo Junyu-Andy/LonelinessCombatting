@@ -52,9 +52,13 @@ rules_version = '2';
 //   users/{uid}/social_contact_probes/{Wn}       -> T24 weekly social-contact probe (client: answers 0–3; server: study-week stamps)
 //   users/{uid}/weekly_pr|pgic|brief_pr          -> T24: studyWeek/studyDay/window/missed fields are server-only
 //   weekly_status/{uid}                          -> T24 weekly bundle status, research ID, push times (server only)
-//   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events (owner: create only; server stamps research ID, study day, uploadedLate)
+//   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events, 1020c reader_* rows (owner: create only; server stamps research ID, study day, uploadedLate)
 //   intake_audit_log/{id}                        -> T47 researcher-recorded intake log (server-only)
+//   users/{uid}.intakeGateUnlockedAt             -> 1020e §2.14 explanation gate unlocked (owner: once, server time only)
 //   ops_daily/{uid}/days/{dayKey}, ops_audit_log/{id} -> T39 operations dashboard: stored day rows + open log (server only)
+//   users/{uid}/reminiscence_chapters/week_{N}   -> 1020d 小篇章 (owner: request, rule text, edits; server: result fields;
+//                                                   .../runs/{requestId} archive is server only)
+//   users/{uid}/reminiscence_v2/**, reminiscence_chapter_ratings/** -> 1020d, generic owner rule
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -109,10 +113,14 @@ service cloud.firestore {
     // only, like the arm.
     // T21: so is cohort (the study period from the research-ID prefix,
     // decision 0011 labels) — it decides whether the account is enrolled.
+    // 1020e 二.2: so is w4RecordedOn (the day the assessor recorded the W4
+    // visit, functions/assessor.js) — it closes the in-App W4
+    // questionnaire, so the owner may read it but never write it.
     function assignmentFields() {
       return ['arm', 'strataCell', 'armAssignmentMode', 'armAssignedBy',
               'armAssignedAt', 'memoryWithdrawnAt', 'w0Date',
-              'armAssignmentMethod', 'armCorrectedAt', 'cohort'];
+              'armAssignmentMethod', 'armCorrectedAt', 'cohort',
+              'w4RecordedOn'];
     }
 
     function createLeavesAssignmentEmpty(data) {
@@ -121,12 +129,13 @@ service cloud.firestore {
         && !data.keys().hasAny(['armAssignmentMode', 'armAssignedBy',
                                 'armAssignedAt', 'memoryWithdrawnAt',
                                 'w0Date', 'armAssignmentMethod',
-                                'armCorrectedAt', 'cohort']);
+                                'armCorrectedAt', 'cohort',
+                                'w4RecordedOn']);
     }
 
     // T21 — enrolment gate (app_config/feature_flags.enrollmentGateEnabled,
     // off unless literally true; functions/study_period.js).  When on, an
-    // account that is not enrolled (no cohort phase_b / pilot) and is not
+    // account that is not enrolled (no registered cohort) and is not
     // a tester cannot write research data under users/{uid}/.  Its device
     // token (fcm_tokens) is not research data and stays writable.  The
     // profile doc itself (signup, consent) is not affected.
@@ -136,9 +145,17 @@ service cloud.firestore {
         && get(flags).data.get('enrollmentGateEnabled', false) == true;
     }
 
+    // 1020b §1(2): the ONE list of registered cohorts in the rules — run-in
+    // (PB-), RCT- and the pilot run; same as functions/study_period.js
+    // ENROLLED_COHORTS and lib/core/study/cohorts.dart.  Both rules below
+    // call it.
+    function enrolledCohort(u) {
+      return u.get('cohort', null) in ['phase_b', 'rct', 'pilot'];
+    }
+
     function enrolledOrTester(uid) {
       let u = get(/databases/$(database)/documents/users/$(uid)).data;
-      return u.get('cohort', null) in ['phase_b', 'pilot']
+      return enrolledCohort(u)
         || u.get('isTester', false) == true;
     }
 
@@ -166,13 +183,35 @@ service cloud.firestore {
         .hasAny(['isTester']);
     }
 
+    // 1020e §2.14: `intakeGateUnlockedAt` — when the researcher unlocked
+    // the explanation gate in front of the intake (three taps in the
+    // centre of the waiting page; switch researcherIntakeGateEnabled).
+    // The owner may write it once, and only as the server time: never a
+    // phone time, never changed or removed afterwards (so "unlocked" can
+    // not be undone or back-dated from the App).  The App's profile saves
+    // leave it out, so they pass unchanged.  The console / Admin SDK can
+    // still clear it, e.g. to show a tester the gate again.
+    function createIntakeGateOk(data) {
+      return !('intakeGateUnlockedAt' in data)
+        || data.intakeGateUnlockedAt == request.time;
+    }
+
+    function updateIntakeGateOk() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['intakeGateUnlockedAt'])
+        || (!('intakeGateUnlockedAt' in resource.data)
+            && request.resource.data.intakeGateUnlockedAt == request.time);
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)
         && createLeavesAssignmentEmpty(request.resource.data)
-        && createLeavesTesterEmpty(request.resource.data);
+        && createLeavesTesterEmpty(request.resource.data)
+        && createIntakeGateOk(request.resource.data);
       allow update: if isOwner(uid) && updateLeavesAssignmentUntouched()
-        && updateLeavesTesterUntouched();
+        && updateLeavesTesterUntouched()
+        && updateIntakeGateOk();
       allow delete: if false;
     }
 
@@ -188,10 +227,12 @@ service cloud.firestore {
       return ['brief_pr', 'weekly_pr', 'pgic', 'social_contact_probes'];
     }
 
+    // 1020e: outsideWindow is stamped with weeklyReminderV2Enabled on.
     function serverOnlyWeekFields() {
       return ['studyWeek', 'studyDay', 'submittedStudyDay', 'pushedAt',
               'windowStart', 'windowEnd', 'missed', 'missedAt',
-              'scheduleMode', 'stampedAt', 'studyWeekBasis'];
+              'scheduleMode', 'stampedAt', 'studyWeekBasis',
+              'outsideWindow'];
     }
 
     function leavesWeekStampsAlone(collection) {
@@ -203,19 +244,129 @@ service cloud.firestore {
                    .hasAny(serverOnlyWeekFields()));
     }
 
+    // 1020e 二.9 — the 「誤觸」 (false alarm) mark on a chat check-in row
+    // (users/{uid}/check_in_responses) is written by the markSafetyFalseAlarm
+    // Cloud Function only: a client create may not carry the three fields
+    // and a client update may not touch them.
+    function falseAlarmFields() {
+      return ['falseAlarm', 'markedBy', 'markedAt'];
+    }
+
+    function leavesFalseAlarmAlone(collection) {
+      return collection != 'check_in_responses'
+        || request.method == 'delete'
+        || (request.method == 'create'
+              ? !request.resource.data.keys().hasAny(falseAlarmFields())
+              : !request.resource.data.diff(resource.data).affectedKeys()
+                   .hasAny(falseAlarmFields()));
+    }
+
+    // 1020d: reminiscence_chapters has its own rule below (client and
+    // server fields; the runs/ archive under it is server only).  The
+    // other reminiscence v2 collections — reminiscence_v2 and
+    // reminiscence_chapter_ratings — stay under this generic owner rule.
     match /users/{uid}/{collection}/{document=**} {
       allow read: if isOwner(uid) && !collection.matches('mem_.*')
         && collection != 'djg_responses'
         && collection != 'social_contact_probes'
         && collection != 'usage_events'
+        && collection != 'reminiscence_chapters'
         && !(collection in phaseASurveyCollections());
       allow write: if isOwner(uid) && !collection.matches('mem_.*')
         && collection != 'djg_responses'
         && collection != 'social_contact_probes'
         && collection != 'usage_events'
+        && collection != 'reminiscence_chapters'
         && !(collection in phaseASurveyCollections())
         && researchWriteOpen(uid, collection)
-        && leavesWeekStampsAlone(collection);
+        && leavesWeekStampsAlone(collection)
+        && leavesFalseAlarmAlone(collection);
+    }
+
+    // ============================================================
+    // 1020d §6 — 小篇章, users/{uid}/reminiscence_chapters/week_{N}
+    // (functions/reminiscence_chapter.js).  The owner reads the doc and
+    // writes only the client fields:
+    //   weekIndex, source ('hybrid' | 'rule'), status, requestId,
+    //   requestedAt, input, ruleText, version (rule only), editedText,
+    //   editRatio, savedAt.
+    // The client may set status only to 'requested' (hybrid; with a NEW
+    // requestId — a re-request) or 'ready' (rule).  Everything else is
+    // the server's: finalText, flags, generatedAt, deletedSentences,
+    // failReason, the hybrid version, status 'generating' / 'failed',
+    // and the archive runs/{requestId} (no client access at all).  A
+    // full overwrite that would drop a server field is refused, so the
+    // App writes with update / merge.  No client deletes.
+    // ============================================================
+    function chapterClientKeys() {
+      return ['weekIndex', 'source', 'status', 'requestId', 'requestedAt',
+              'input', 'ruleText', 'version', 'editedText', 'editRatio',
+              'savedAt'];
+    }
+
+    function chapterRequestIdOk(d) {
+      return !('requestId' in d)
+        || (d.requestId is string && d.requestId.size() > 0
+              && d.requestId.size() <= 128
+              && !d.requestId.matches('.*/.*'));
+    }
+
+    function chapterShapeOk(d, docId) {
+      return d.weekIndex is int && d.weekIndex >= 1 && d.weekIndex <= 99
+        && docId == 'week_' + string(d.weekIndex)
+        && d.source in ['hybrid', 'rule']
+        && chapterRequestIdOk(d)
+        && (!('requestedAt' in d) || d.requestedAt is timestamp)
+        && (!('input' in d) || d.input is map)
+        && (!('ruleText' in d) || d.ruleText is string)
+        && (!('version' in d) || d.version is int)
+        && (!('editedText' in d) || d.editedText is string)
+        && (!('editRatio' in d) || d.editRatio is number)
+        && (!('savedAt' in d) || d.savedAt is timestamp);
+    }
+
+    // A rule-arm chapter is written whole by the App: status 'ready',
+    // its own text and version.
+    function chapterRuleOk(d) {
+      return d.status == 'ready'
+        && d.get('ruleText', null) is string
+        && d.get('version', null) is int && d.version >= 1;
+    }
+
+    function chapterCreateOk(d) {
+      return d.source == 'hybrid'
+        ? (d.status == 'requested' && 'requestId' in d
+             && !d.keys().hasAny(['version', 'ruleText']))
+        : chapterRuleOk(d);
+    }
+
+    function chapterUpdateOk(d, old, changed) {
+      return d.source == 'hybrid'
+        ? (!changed.hasAny(['version', 'ruleText'])
+             // status only ever to 'requested', with a new requestId …
+             && (!changed.hasAny(['status'])
+                   || (d.status == 'requested' && 'requestId' in d
+                         && d.requestId != old.get('requestId', null)))
+             // … and a new requestId only together with 'requested'.
+             && (!changed.hasAny(['requestId']) || d.status == 'requested'))
+        : chapterRuleOk(d);
+    }
+
+    match /users/{uid}/reminiscence_chapters/{docId} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && researchWriteOpen(uid, 'reminiscence_chapters')
+        && request.resource.data.keys().hasOnly(chapterClientKeys())
+        && chapterShapeOk(request.resource.data, docId)
+        && chapterCreateOk(request.resource.data);
+      allow update: if isOwner(uid)
+        && researchWriteOpen(uid, 'reminiscence_chapters')
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(chapterClientKeys())
+        && chapterShapeOk(request.resource.data, docId)
+        && chapterUpdateOk(request.resource.data, resource.data,
+             request.resource.data.diff(resource.data).affectedKeys());
+      allow delete: if false;
     }
 
     // ============================================================
@@ -318,16 +469,23 @@ service cloud.firestore {
     // T40 (registry C23) — usage events, users/{uid}/usage_events/{id}.
     // The App appends one row when it comes to the foreground and one
     // when it goes to the background (switch usageEventsEnabled, App
-    // side).  Only an ENROLLED account (cohort phase_b / pilot) may
+    // side).  Only an ENROLLED account (enrolledCohort) may
     // write — "not before registration" is enforced here as well as in
     // the App; testers without a cohort get nothing.  The owner only
     // creates: no read (the server stamps the research ID — decision
     // 0021), no update, no delete.  Server-only fields can never come
     // from the client.
+    //
+    // 1020c §1(5) — the 小讀本 rows share the collection (same switch, same
+    // enrolment check, App side): reader_open / reader_section /
+    // reader_cta / reader_close, each with exactly its own extra fields —
+    // a unit id, a section id, a CTA code or whole seconds.  Ids must be
+    // short lower-case slugs (the pattern in usage_event_recorder.dart and
+    // tool/check_reader_html.js), so no text can ride along.
     // ============================================================
     function isEnrolledParticipant(uid) {
       let u = get(/databases/$(database)/documents/users/$(uid)).data;
-      return u.get('cohort', null) in ['phase_b', 'pilot'];
+      return enrolledCohort(u);
     }
 
     function usageEventClientKeys() {
@@ -336,20 +494,49 @@ service cloud.firestore {
     }
 
     function usageEventValid(d) {
-      return d.type in ['foreground', 'background']
-        && d.clientAt is timestamp
+      return d.clientAt is timestamp
         && d.receivedAt == request.time
         && d.appVersion is string
         && d.buildNumber is string
         && d.platform is string
-        && d.schemaVersion == 1;
+        && d.schemaVersion == 1
+        && (usageLifecycleValid(d) || usageReaderValid(d));
+    }
+
+    // T40 foreground / background: the base fields only.
+    function usageLifecycleValid(d) {
+      return d.type in ['foreground', 'background']
+        && d.keys().hasOnly(usageEventClientKeys());
+    }
+
+    function readerIdOk(v) {
+      return v is string && v.matches('^[a-z0-9][a-z0-9_-]{0,47}$');
+    }
+
+    function usageReaderOnly(d, extra) {
+      return d.keys().hasOnly(usageEventClientKeys().concat(extra))
+        && d.keys().hasAll(extra);
+    }
+
+    // 1020c reader rows.
+    function usageReaderValid(d) {
+      return readerIdOk(d.get('unitId', null)) && (
+        (d.type == 'reader_open' && usageReaderOnly(d, ['unitId']))
+        || (d.type == 'reader_section'
+            && usageReaderOnly(d, ['unitId', 'sectionId'])
+            && readerIdOk(d.sectionId))
+        || (d.type == 'reader_cta'
+            && usageReaderOnly(d, ['unitId', 'cta'])
+            && d.cta in ['small_action', 'plan', 'thought'])
+        || (d.type == 'reader_close'
+            && usageReaderOnly(d, ['unitId', 'seconds'])
+            && d.seconds is int && d.seconds >= 0 && d.seconds <= 86400));
     }
 
     match /users/{uid}/usage_events/{eventId} {
       allow read: if false;
       allow create: if isOwner(uid)
         && isEnrolledParticipant(uid)
-        && request.resource.data.keys().hasOnly(usageEventClientKeys())
         && request.resource.data.keys().hasAll(usageEventClientKeys())
         && usageEventValid(request.resource.data);
       allow update, delete: if false;
@@ -472,6 +659,9 @@ service cloud.firestore {
         // `alwaysAlert` (T34, alert whatever the level) is the server's.
         && !request.resource.data.keys().hasAny(['dedup_key', 'isDuplicate',
             'duplicateOf', 'escalatedBy', 'alwaysAlert'])
+        // 1020e 二.9: the 「誤觸」 mark is the server's (markSafetyFalseAlarm).
+        && !request.resource.data.keys().hasAny(['falseAlarm', 'markedBy',
+            'markedAt'])
         // T34: `crisisPageShown` (both arms, SafetyEventWriter) is a
         // boolean when present.
         && (!('crisisPageShown' in request.resource.data)

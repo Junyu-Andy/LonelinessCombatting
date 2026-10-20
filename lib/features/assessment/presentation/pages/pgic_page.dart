@@ -1,6 +1,9 @@
 /// Weekly PGIC (Patient Global Impression of Change) assessment page.
 ///
-/// 7-point single-select scale comparing current loneliness to last week.
+/// 7-point single-select scale comparing current loneliness with before the
+/// elder started using the App (1020f: the approved questionnaire package,
+/// appendix B.5, word for word; values unchanged, 1 = 好咗好多).  The same
+/// page serves the bundle part and the W5–W7 stand-alone PGIC.
 /// Stores response at `users/{uid}/pgic/{auto-id}` (Sprint 1 spec).
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -39,23 +42,23 @@ class _PgicPageState extends State<PgicPage> {
   bool _saved = false;
 
   static const _optionsZh = <(int, String, Color)>[
-    (1, '改善咗好多（冇咁孤單）', Color(0xFF1B5E20)),
-    (2, '改善咗', Color(0xFF388E3C)),
-    (3, '少少改善（少少冇咁孤單）', Color(0xFF66BB6A)),
+    (1, '好咗好多', Color(0xFF1B5E20)),
+    (2, '好咗', Color(0xFF388E3C)),
+    (3, '好咗少少', Color(0xFF66BB6A)),
     (4, '冇變', Color(0xFF78909C)),
-    (5, '差咗少少（多咗少少孤單）', Color(0xFFFFB300)),
+    (5, '差咗少少', Color(0xFFFFB300)),
     (6, '差咗', Color(0xFFF57C00)),
-    (7, '差咗好多（更加孤單）', Color(0xFFB71C1C)),
+    (7, '差咗好多', Color(0xFFB71C1C)),
   ];
 
   static const _optionsEn = <(int, String, Color)>[
-    (1, 'Much better (far less lonely)', Color(0xFF1B5E20)),
+    (1, 'Much better', Color(0xFF1B5E20)),
     (2, 'Better', Color(0xFF388E3C)),
-    (3, 'Slightly better (a little less lonely)', Color(0xFF66BB6A)),
+    (3, 'A little better', Color(0xFF66BB6A)),
     (4, 'No change', Color(0xFF78909C)),
-    (5, 'Slightly worse (a little lonelier)', Color(0xFFFFB300)),
+    (5, 'A little worse', Color(0xFFFFB300)),
     (6, 'Worse', Color(0xFFF57C00)),
-    (7, 'Much worse (much lonelier)', Color(0xFFB71C1C)),
+    (7, 'Much worse', Color(0xFFB71C1C)),
   ];
 
   Future<void> _submit() async {
@@ -105,7 +108,7 @@ class _PgicPageState extends State<PgicPage> {
     final options = isEn ? _optionsEn : _optionsZh;
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEn ? 'Weekly check-in' : '每週感受變化'),
+        title: Text(isEn ? 'Compared with when you started' : '同開始用嗰時比較'),
       ),
       body: SafeArea(
         child: Column(children: [
@@ -115,8 +118,8 @@ class _PgicPageState extends State<PgicPage> {
           children: [
             Text(
               isEn
-                  ? 'Compared to last week, how has your overall loneliness changed?'
-                  : '同上個星期比較，你而家覺得自己嘅孤單感整體上有冇變化？',
+                  ? 'Compared with before you started using this app, how is your loneliness now?'
+                  : '同你開始用呢個 app 之前比較，你嘅孤獨感而家點？',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 fontSize: 20,

@@ -28,11 +28,13 @@ enum MoodFace {
       };
 
   String label(bool isEn) => switch (this) {
-        MoodFace.veryLow => isEn ? 'Very bad' : '好差',
-        MoodFace.low => isEn ? 'Bad' : '差',
-        MoodFace.neutral => isEn ? 'So-so' : '麻麻地',
-        MoodFace.good => isEn ? 'Good' : '幾好',
-        MoodFace.great => isEn ? 'Great' : '好好',
+        // 1020f: one set of words everywhere (selector, chart legend,
+        // check-in Q1); scores 1–5 unchanged.
+        MoodFace.veryLow => isEn ? 'Very unhappy' : '好唔開心',
+        MoodFace.low => isEn ? 'Not great' : '唔係幾好',
+        MoodFace.neutral => isEn ? 'So-so' : '一般般',
+        MoodFace.good => isEn ? 'Fairly good' : '幾好',
+        MoodFace.great => isEn ? 'Very happy' : '好開心',
       };
 }
 

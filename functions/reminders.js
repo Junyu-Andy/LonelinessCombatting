@@ -18,10 +18,13 @@
  *   - Due more than staleHours ago (default 12) → skipped_stale, so
  *     turning the switch on never floods old reminders.  Overnight
  *     reminders go out at 08:00 (≤ ~10 h late), inside the window.
- *   - 今日休息 active today (HK date) → skipped_quiet_today (B.10: the
- *     day's reminders are dropped, not delayed).
+ *   - 今日休息 used to drop the day's reminders (skipped_quiet_today);
+ *     since 10/20 (dev-tasks-1020 §H(3)) it is ignored.
  *   - Linked plan deleted → skipped_plan_missing; plan already has an
- *     outcome → skipped_followed_up.
+ *     outcome → skipped_followed_up.  1020e 二.7: plan soft-deleted by the
+ *     elder (`deletedAt`, App switch actionPlanSimplifiedEnabled) →
+ *     skipped_plan_deleted (the App also deletes the plan's unsent
+ *     reminders; this covers a delete that failed or ran offline).
  *   - Otherwise send.  At least one device accepted → sent.  No device
  *     or every send failed → retry on the next run, up to maxAttempts
  *     (default 3), then failed / no_tokens.
@@ -48,6 +51,7 @@ const DEFAULTS = {staleHours: 12, maxAttempts: 3};
 const TERMINAL = new Set([
   "sending", "sent", "failed", "no_tokens", "skipped_stale",
   "skipped_quiet_today", "skipped_plan_missing", "skipped_followed_up",
+  "skipped_plan_deleted",
 ]);
 
 /**
@@ -188,13 +192,13 @@ async function dispatchOne(db, messaging, userDoc, user, rem, cfg, now) {
   }
 
   let outcome = state === "skipped_stale" ? state : null;
-  if (!outcome && isQuietToday(user.quietTodayActivatedAt, now)) {
-    outcome = "skipped_quiet_today";
-  }
+  // 10/20 (dev-tasks-1020 §H(3)): 今日休息 is gone from the App and
+  // quietTodayActivatedAt is ignored here (isQuietToday stays for old logs).
   if (!outcome && r.linkedDocId) {
     const plan = await userDoc.ref.collection("action_plans")
         .doc(String(r.linkedDocId)).get();
     if (!plan.exists) outcome = "skipped_plan_missing";
+    else if (plan.get("deletedAt")) outcome = "skipped_plan_deleted";
     else if (plan.get("outcome")) outcome = "skipped_followed_up";
   }
 

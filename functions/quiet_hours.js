@@ -1,8 +1,10 @@
 /**
  * 10/14 (lead's decision) — the elder's 「安靜時段」 toggle is real.
+ * 10/20 (dev-tasks-1020 §H(2)) — quiet hours are fixed on for everyone; the
+ * switch is gone from the App and users/{uid}.quietHoursEnabled (which the
+ * App used to mirror the toggle onto) is ignored.
  *
- * The App mirrors the toggle onto users/{uid}.quietHoursEnabled (missing =
- * on, matching the page default).  The window lives in app_config/reminders
+ * The window lives in app_config/reminders
  * (quietHoursStart / quietHoursEnd, Hong Kong local "HH:mm", defaults
  * 22:00–08:00).  Every per-person push sender calls inQuietHours() first and
  * leaves the push for a later tick when it returns true.  Topic broadcasts
@@ -80,8 +82,7 @@ function hkMinutes(now) {
  * @return {boolean} true = do not push now
  */
 function inQuietHours(user, now, cfg) {
-  const u = user || {};
-  if (u.quietHoursEnabled === false) return false;
+  // [user] is kept for the callers; quietHoursEnabled no longer matters.
   const c = cfg || quietHoursConfigFrom({});
   if (c.startMin === c.endMin) return false; // zero-length window = off
   const m = hkMinutes(now);

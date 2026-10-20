@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_registry.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../my_story/data/my_story_progress.dart';
+import '../../../progress/presentation/pages/progress_page.dart';
 import '../../data/mood_recorder.dart';
+import '../home_v2_scope.dart';
 
 /// Home Layout Spec §4 — one-line factual recap, two-arm-identical,
 /// template-only (never LLM).  Example: "今個星期 · 傾咗 4 次 · 記錄 5
@@ -141,6 +144,16 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
     }
 
     final theme = Theme.of(context);
+    final wrap = Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: parts,
+    );
+    // 1020e 二.11 / D: with the two-page layout the three tool shortcuts
+    // (the only way to 你嘅一個禮拜 and its mood chart) are gone, so this
+    // line opens that page.
+    final opensWeek = RemoteFeatureFlags.current.homeLayoutV2Enabled;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       child: DecoratedBox(
@@ -151,12 +164,28 @@ class _FactsRecapRowState extends State<FactsRecapRow> {
         ),
         child: Padding(
           padding: const EdgeInsets.only(top: 12),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: parts,
-          ),
+          child: !opensWeek
+              ? wrap
+              : InkWell(
+                  key: const ValueKey('facts_recap_open_week'),
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => HomeSurfaceScope.push(
+                    context,
+                    MaterialPageRoute<void>(
+                        builder: (_) => const ProgressPage()),
+                  ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 48),
+                    child: Row(
+                      children: [
+                        Expanded(child: wrap),
+                        Icon(Icons.chevron_right_rounded,
+                            size: 28,
+                            color: theme.colorScheme.onSurfaceVariant),
+                      ],
+                    ),
+                  ),
+                ),
         ),
       ),
     );

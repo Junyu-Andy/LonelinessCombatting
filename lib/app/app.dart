@@ -27,6 +27,7 @@ import '../core/telemetry/screen_dwell_observer.dart';
 import '../core/version/build_info.dart';
 import '../core/telemetry/screen_dwell_tracker.dart';
 import '../core/usage/usage_event_recorder.dart';
+import '../core/usage/usage_events_scope.dart';
 import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
 import '../features/auth/data/auth_service.dart';
@@ -257,18 +258,29 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               // 10/19 (Junyu, switch appFontScaleOnlyEnabled): the phone's
               // font size is ignored and only the App's 字號 (five levels)
               // counts, so every page scales the same way.
-              final combined =
-                  RemoteFeatureFlags.current.appFontScaleOnlyEnabled
-                      ? widget.settings.fontScale.multiplier
-                      : combinedTextScale(
-                          base.textScaler.scale(1.0), widget.settings.fontScale);
+              // 1020c: the first time, the App's 字號 moves to the level the
+              // elder saw until now (never smaller), then stays.
+              final system = base.textScaler.scale(1.0);
+              final appOnly =
+                  RemoteFeatureFlags.current.appFontScaleOnlyEnabled;
+              if (appOnly && !widget.settings.appOnlyScaleSettled) {
+                WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => widget.settings.settleAppOnlyScale(system));
+              }
+              final combined = appOnly
+                  ? widget.settings.appOnlyScaleFor(system).multiplier
+                  : combinedTextScale(system, widget.settings.fontScale);
               final scaled = base.copyWith(
                 textScaler: TextScaler.linear(combined),
               );
               return MediaQuery(
                 data: scaled,
-                child: SafetyOverlay(
-                  child: child ?? const SizedBox.shrink(),
+                // 1020c: pages (the 小讀本 reader) reach the recorder here.
+                child: UsageEventsScope(
+                  recorder: _usage,
+                  child: SafetyOverlay(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
               );
             },

@@ -1,7 +1,7 @@
 /**
  * T40 (registry C23) — Firestore rules for users/{uid}/usage_events.
  *
- *   - An ENROLLED owner (cohort phase_b / pilot) may create a row with
+ *   - An ENROLLED owner (cohort phase_b / rct / pilot) may create a row with
  *     exactly the client fields (type, clientAt, receivedAt = server time,
  *     appVersion, buildNumber, platform, schemaVersion 1).
  *   - Not before registration: no cohort (even a tester) → refused.
@@ -10,6 +10,10 @@
  *   - Server-only fields (researchId, studyDay, uploadedLate, …) can never
  *     come from the client; a bad type or a missing field is refused.
  *   - Another account, blinded or unblinded, cannot touch the rows.
+ *   - 1020c §1(5): the 小讀本 rows (reader_open / reader_section /
+ *     reader_cta / reader_close) with exactly their own extra field(s);
+ *     ids are slugs, so no text fits; foreground / background rows may
+ *     not carry reader fields.
  *
  * Run inside the emulator (see README.md).
  */
@@ -76,7 +80,7 @@ function row(extra) {
 }
 
 describe('T40: users/{uid}/usage_events', () => {
-  for (const cohort of ['phase_b', 'pilot']) {
+  for (const cohort of ['phase_b', 'rct', 'pilot']) {
     it(`ALLOWS an enrolled owner (${cohort}) to append foreground and ` +
        'background rows', async () => {
       await seed('users/u1', { uid: 'u1', cohort, arm: 'A' });
@@ -144,6 +148,93 @@ describe('T40: users/{uid}/usage_events', () => {
       await assertFails(addDoc(col(blinded()), row()));
       await assertFails(getDoc(doc(blinded(), 'users', 'u1', 'usage_events', 'e1')));
     });
+
+  describe('1020c reader rows', () => {
+    const reader = (type, extra) =>
+      row(Object.assign({ type, unitId: 'u2_why_it_matters' }, extra || {}));
+
+    for (const cohort of ['phase_b', 'pilot']) {
+      it(`ALLOWS the four reader rows for an enrolled owner (${cohort})`,
+        async () => {
+          await seed('users/u1', { uid: 'u1', cohort, arm: 'B' });
+          await assertSucceeds(addDoc(col(me()), reader('reader_open')));
+          await assertSucceeds(addDoc(col(me()),
+            reader('reader_section', { sectionId: 's2_middle' })));
+          for (const cta of ['small_action', 'plan', 'thought']) {
+            await assertSucceeds(addDoc(col(me()),
+              reader('reader_cta', { cta })));
+          }
+          await assertSucceeds(addDoc(col(me()),
+            reader('reader_close', { seconds: 0 })));
+          await assertSucceeds(addDoc(col(me()),
+            reader('reader_close', { seconds: 86400 })));
+        });
+    }
+
+    it('DENIES reader rows before registration', async () => {
+      await seed('users/u1', { uid: 'u1', isTester: true });
+      await assertFails(addDoc(col(me()), reader('reader_open')));
+    });
+
+    it('DENIES text in any field and malformed ids', async () => {
+      await seed('users/u1', { uid: 'u1', cohort: 'phase_b', arm: 'A' });
+      await assertFails(addDoc(col(me()),
+        reader('reader_open', { unitId: '點解孤單要理' })));
+      await assertFails(addDoc(col(me()),
+        reader('reader_open', { unitId: 'U2 why' })));
+      await assertFails(addDoc(col(me()),
+        reader('reader_open', { unitId: 'x'.repeat(49) })));
+      await assertFails(addDoc(col(me()),
+        reader('reader_section', { sectionId: '我讀到第二節' })));
+      await assertFails(addDoc(col(me()),
+        reader('reader_cta', { cta: 'call_hotline' })));
+      await assertFails(addDoc(col(me()),
+        reader('reader_open', { text: '今日好開心' })));
+    });
+
+    it('DENIES a missing or a foreign extra field', async () => {
+      await seed('users/u1', { uid: 'u1', cohort: 'phase_b', arm: 'A' });
+      const noUnit = reader('reader_open');
+      delete noUnit.unitId;
+      await assertFails(addDoc(col(me()), noUnit));
+      await assertFails(addDoc(col(me()), reader('reader_section')));
+      await assertFails(addDoc(col(me()), reader('reader_cta')));
+      await assertFails(addDoc(col(me()), reader('reader_close')));
+      await assertFails(addDoc(col(me()),
+        reader('reader_open', { seconds: 3 })));
+      await assertFails(addDoc(col(me()),
+        reader('reader_section', { sectionId: 's1', cta: 'plan' })));
+      await assertFails(addDoc(col(me()),
+        reader('reader_close', { seconds: 5, sectionId: 's1' })));
+    });
+
+    it('DENIES bad seconds and an unknown reader type', async () => {
+      await seed('users/u1', { uid: 'u1', cohort: 'phase_b', arm: 'A' });
+      await assertFails(addDoc(col(me()),
+        reader('reader_close', { seconds: -1 })));
+      await assertFails(addDoc(col(me()),
+        reader('reader_close', { seconds: 86401 })));
+      await assertFails(addDoc(col(me()),
+        reader('reader_close', { seconds: 1.5 })));
+      await assertFails(addDoc(col(me()),
+        reader('reader_close', { seconds: '30' })));
+      await assertFails(addDoc(col(me()), reader('reader_scroll')));
+    });
+
+    it('DENIES reader fields on a foreground / background row', async () => {
+      await seed('users/u1', { uid: 'u1', cohort: 'phase_b', arm: 'A' });
+      await assertFails(addDoc(col(me()),
+        row({ unitId: 'u2_why_it_matters' })));
+      await assertFails(addDoc(col(me()),
+        row({ type: 'background', seconds: 3 })));
+    });
+
+    it('DENIES another account writing reader rows', async () => {
+      await seed('users/u1', { uid: 'u1', cohort: 'phase_b', arm: 'A' });
+      await assertFails(addDoc(col(other(), 'u1'), reader('reader_open')));
+      await assertFails(addDoc(col(unblinded(), 'u1'), reader('reader_open')));
+    });
+  });
 
   it('the generic owner rule still covers other sub-collections', async () => {
     await seed('users/u1', { uid: 'u1', cohort: 'phase_b', arm: 'A' });

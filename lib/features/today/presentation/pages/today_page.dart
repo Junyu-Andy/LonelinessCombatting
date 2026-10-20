@@ -7,6 +7,7 @@ import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../adherence/presentation/widgets/missed_checkin_banner.dart';
+import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../brief_pr/presentation/widgets/brief_pr_card_host.dart';
 import '../../../crisis/presentation/widgets/safety_footer_card.dart';
@@ -21,6 +22,9 @@ import '../../../../core/time/app_clock.dart';
 import '../widgets/daily_mood_prompt.dart';
 import '../widgets/simulated_clock_strip.dart';
 import '../widgets/pending_prompts_banner.dart';
+import '../widgets/today_todo_rows.dart';
+import '../home_v2_scope.dart';
+import '../../../../core/session/session_entry_surface.dart';
 import '../widgets/week1_nudge_banner.dart';
 
 /// Home tab (屋企) — final layout per Home Layout Spec §1:
@@ -36,6 +40,18 @@ import '../widgets/week1_nudge_banner.dart';
 /// On first build the agent-greeting warm-up still kicks off so that
 /// Ah Jan/Ah Bak and Tung Tung have hot caches by the time the user
 /// taps a tile.  Siu Yan keeps its mood-aware opener.
+///
+/// 1020 D (`app_config/feature_flags.homeLayoutV2Enabled`, both arms): page
+/// 1 「睇今日」 from top to bottom —
+///   (1) greeting; (2) the mood row (1020 E, or the old pad while
+///   `moodRowV2Enabled` is off); (3) 「今日要做嘅事」: check-in (the 3-day
+///   reminder folded in), the Brief PR invitation (the same
+///   [BriefPrCardHost] as page 2), the weekly questionnaire (G (2)) and the
+///   action-plan follow-up; (4) 「去搵人傾」 → page 2; (5) the week's recap;
+///   (6) the crisis card.  Moved off: the companion tiles, the continue
+///   card and the first-week nudge (to page 2), the tool shortcuts, the
+///   daily mood pop-up, the missed-check-in banner.  The old
+///   `briefPrHomeBannerEnabled` banner never shows with this on.
 class TodayPage extends StatefulWidget {
   const TodayPage({super.key});
 
@@ -62,8 +78,14 @@ class _TodayPageState extends State<TodayPage> {
   /// first-open-of-the-day mood prompt for that day.
   void _onClock() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(DailyMoodPrompt.maybeShow(context));
+      if (mounted) _maybeDailyMoodPopup();
     });
+  }
+
+  /// M-3 sheet — only in the old layout with the old pad (1020 D, E (1)).
+  void _maybeDailyMoodPopup() {
+    if (!RemoteFeatureFlags.current.dailyMoodPopupActive) return;
+    unawaited(DailyMoodPrompt.maybeShow(context));
   }
 
   @override
@@ -72,7 +94,7 @@ class _TodayPageState extends State<TodayPage> {
     _maybeWarmGreetings();
     // M-3 — one-question mood prompt on the first home build of the day.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(DailyMoodPrompt.maybeShow(context));
+      if (mounted) _maybeDailyMoodPopup();
     });
   }
 
@@ -101,6 +123,9 @@ class _TodayPageState extends State<TodayPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (RemoteFeatureFlags.current.homeLayoutV2Enabled) {
+      return _buildV2(context);
+    }
     return SafeArea(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -111,7 +136,10 @@ class _TodayPageState extends State<TodayPage> {
           // 10/19 (Junyu, switch briefPrHomeBannerEnabled): the Brief PR
           // invitation right under the greeting, so it is seen without
           // going to the companion list.  Renders nothing when none is due.
-          if (RemoteFeatureFlags.current.briefPrHomeBannerEnabled)
+          // 1020b §2 (2): never with homeLayoutV2Enabled (then it is in
+          // 「今日要做嘅事」 — this branch is not built, the guard is a
+          // second lock).
+          if (RemoteFeatureFlags.current.briefPrHomeBannerActive)
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 4, 20, 4),
               child: BriefPrCardHost(),
@@ -136,6 +164,48 @@ class _TodayPageState extends State<TodayPage> {
             child: SafetyFooterCard(analyticsTag: 'today_safety_footer'),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 1020 D — page 1 of the two-page layout.  1020e 一.(9): sessions
+  /// opened from here record entrySurface `page1` ([HomeSurfaceScope]).
+  Widget _buildV2(BuildContext context) {
+    final profile = AppSettingsScope.of(context).profile;
+    final questionnaireRow = QuestionnaireTodoRow.activeFor(profile);
+    final firebase = AuthServiceScope.of(context).available;
+    return HomeSurfaceScope(
+      surface: SessionEntrySurface.page1,
+      child: SafeArea(
+        child: ListView(
+          key: const ValueKey('today_v2'),
+          padding: EdgeInsets.zero,
+          children: [
+            const SimulatedClockStrip(),
+            // (1) greeting and (2) the mood row.
+            const GreetingHero(),
+            // (3) 今日要做嘅事 — each row only when there is something.
+            const TodoSectionTitle(),
+            const CheckInTodoRow(),
+            const BriefPrCardHost(),
+            if (questionnaireRow) const QuestionnaireTodoRow(),
+            // Whatever else the study still asks for here (Phase A items,
+            // the pre-T24 weekly card): the old banner, minus the weekly
+            // card the row above already shows.  Needs Firebase to read.
+            if (firebase)
+              PendingPromptsBanner(hideWeeklyBundle: questionnaireRow),
+            const ActivePlanBanner(),
+            // (4) → page 2.
+            const GoTalkButton(),
+            // (5) this week's recap (tap: 你嘅一個禮拜, 1020e 二.11).
+            const FactsRecapRow(),
+            // (6) crisis card, unchanged.
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 8, 20, 72),
+              child: SafetyFooterCard(analyticsTag: 'today_safety_footer'),
+            ),
+          ],
+        ),
       ),
     );
   }

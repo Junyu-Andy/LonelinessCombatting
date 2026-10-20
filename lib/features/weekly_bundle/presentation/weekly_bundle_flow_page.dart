@@ -167,7 +167,8 @@ class _WeeklyBundleFlowPageState extends State<WeeklyBundleFlowPage> {
           builder: (_) => DjgW2Page(
             store: widget.djgStoreFor(b.id),
             part: pos,
-            title: kWeeklyBundleTitle,
+            // 1020f: every part page is titled with its part name.
+            title: weeklyPartTitle(WeeklyPart.djg),
           ),
         ));
       case WeeklyPart.weeklyPr:
@@ -191,7 +192,7 @@ class _WeeklyBundleFlowPageState extends State<WeeklyBundleFlowPage> {
           builder: (_) => SocialContactProbePage(
             store: widget.socialStoreFor(b.id),
             part: pos,
-            title: kWeeklyBundleTitle,
+            title: weeklyPartTitle(WeeklyPart.socialContact),
           ),
         ));
     }

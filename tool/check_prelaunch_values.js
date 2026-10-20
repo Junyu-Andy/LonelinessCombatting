@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * tool/check_prelaunch_values.js — READ-ONLY.  Prints the current value of
- * every switch and config document the 10/19 launch depends on, next to
+ * every switch and config document the 10/19 launch depends on (10/21
+ * values per dev-tasks-1020 §3 where it changed them), next to
  * the value the checklist expects, so Junyu can run it once and paste the
  * result (dev-tasks-1018 §G4).  Writes nothing.  Never prints an arm, a
  * sequence or a full e-mail address.
@@ -23,7 +24,27 @@ const {parseArgs, checkTarget} = require('./firestore_target');
 const CHECKS = [
   ['app_config/feature_flags', 'onboardingAfterEnrollmentFix', true,
     'T37 登记后先走引导'],
-  ['app_config/feature_flags', 'voiceInputEnabled', true, 'T27 语音'],
+  // dev-tasks-1020 §3: the 10/21 values.
+  ['app_config/feature_flags', 'voiceInputEnabled', false,
+    'T58 语音输入隐藏（10/21 关）'],
+  ['app_config/feature_flags', 'transcriptRetentionToggleEnabled', false,
+    'T51 不显示「保留對話紀錄」'],
+  // dev-tasks-1020 §3, batch 4 (also batch 2's switch for the App).
+  ['app_config/feature_flags', 'checkInChatV2Enabled', true,
+    'T55 check-in 对话化 + 08:30 P1、19:00 P2（10/21 开）'],
+  ['app_config/feature_flags', 'weeklyReminderV2Enabled', true,
+    'T56 每周问卷整日窗口、10:00 提醒、给 Junyu 的电邮（1020e；装新构建后开）'],
+  // 1020b §2: two of #126's switches stay off for 10/21; 1020c 一: Junyu
+  // turns the other two on once the 10/20 phone test passes, before the
+  // first RCT- registration.
+  ['app_config/feature_flags', 'homeMoodOpensCheckInEnabled', 'off',
+    '#126，被第 3 批 E 节取代'],
+  ['app_config/feature_flags', 'briefPrHomeBannerEnabled', 'off',
+    '#126，被第 3 批 D 节取代'],
+  ['app_config/feature_flags', 'appFontScaleOnlyEnabled', true,
+    '#126，1020c 定开（10/20 手机测试过后、第一位 RCT- 前）'],
+  ['app_config/feature_flags', 'suggestionsUseProfileEnabled', true,
+    '#126，1020c 定开（同上）'],
   ['app_config/feature_flags', 'usageEventsEnabled', true, 'T40 使用事件'],
   ['app_config/feature_flags', 'opsDashboardEnabled', true, 'T39 运营看板'],
   ['app_config/feature_flags', 'enrollmentGateEnabled', true,
@@ -34,6 +55,34 @@ const CHECKS = [
     'T31 S7 说明，和 layersEnabled 一起开（10/19）'],
   ['app_config/feature_flags', 'testerArmSwitchEnabled', null,
     '测试员切组（PR #112，合了才有）'],
+  // 1020f 第三节: switches added by 1020d / 1020e.  Junyu sets the
+  // expected values on the evening of 10/20 (until then "—", shown only).
+  // The 1020f 第一节 fixes (measure wording) have no switch.
+  ['app_config/feature_flags', 'safetyFalseAlarmMarkEnabled', null,
+    '1020e 二.9「誤觸」标记（#128），期望值 10/20 晚定'],
+  ['app_config/feature_flags', 'actionPlanSimplifiedEnabled', null,
+    '1020e 二.7 (1) 行动计划少填、可改可删（#135），期望值 10/20 晚定'],
+  ['app_config/feature_flags', 'actionPlanMemoryEnabled', null,
+    '1020e 二.7 (2) 计划接上小欣记忆（#135），期望值 10/20 晚定'],
+  ['app_config/feature_flags', 'researcherIntakeGateEnabled', true,
+    '1020e 二.14 研究员讲解闸门（#136），10/20 第 54 条定开'],
+  ['app_config/feature_flags', 'reminiscenceV2Enabled', null,
+    '1020d 回忆 v2（#137），期望值 10/20 晚定'],
+  ['app_config/feature_flags', 'leaveButtonV2Enabled', null,
+    '1020d 离开按钮（#137），期望值 10/20 晚定'],
+  // 1020g 一 (3): switches the 10/20 review found missing.  Expected
+  // values are set by Junyu at the freeze (10/20 item 56 (3)); "—" until
+  // then.  homeLayoutV2Enabled and moodRowV2Enabled must be on together:
+  // with only one on, the old mood board's Hybrid-only pop-up and the old
+  // mood words are still reachable (1020g 二 (5)(b)).
+  ['app_config/feature_flags', 'homeLayoutV2Enabled', null,
+    '第 3 批首页两页（#133），须和 moodRowV2Enabled 同开同关'],
+  ['app_config/feature_flags', 'moodRowV2Enabled', null,
+    '第 3 批心情一行（#133），须和 homeLayoutV2Enabled 同开同关'],
+  ['app_config/feature_flags', 'keyboardCompactHeaderEnabled', null,
+    '1020c 键盘打开时顶栏变一行（#131），真机测过就开'],
+  ['app_config/feature_flags', 'htmlReadersEnabled', null,
+    '1020c 小讀本（#130），真机测不完就整项留到 Phase B 之后'],
   ['app_config/feature_flags', 'sessionBriefPrV2Enabled', 'absent',
     '放错位置的键，应删掉（正确位置在 phase_b）'],
   ['app_config/phase_b', 'sessionBriefPrV2Enabled', true, 'T25 收尾按钮'],
@@ -73,6 +122,8 @@ function show(key, v) {
 function verdict(expected, v) {
   if (expected === null) return '—';
   if (expected === 'absent') return v === undefined ? '✓' : '✗';
+  // A switch that must be off: missing or literally false.
+  if (expected === 'off') return v === undefined || v === false ? '✓' : '✗';
   if (expected === 'set') return (typeof v === 'string' && v) ? '✓' : '✗';
   return v === expected ? '✓' : '✗';
 }
@@ -105,7 +156,8 @@ async function main() {
     const ok = verdict(expected, v);
     if (ok === '✗') bad++;
     const exp = expected === null ? '' : `（期望 ${expected === 'absent' ?
-      '没有' : expected === 'set' ? '已填' : JSON.stringify(expected)}）`;
+      '没有' : expected === 'off' ? '没有或 false' : expected === 'set' ?
+        '已填' : JSON.stringify(expected)}）`;
     console.log(`  ${ok} ${key} = ${show(key, v)} ${exp} ${note}`);
   }
   // Keys in these documents the checklist does not list (information).
@@ -119,21 +171,38 @@ async function main() {
     }
   }
 
-  // Allocation sequences: existence, length and the next unused position
-  // only — never the arms (functions/randomization.js: arms[] on
-  // randomization_sequences/{low|high}, next on randomization_state).
-  console.log('\nrandomization_sequences');
-  for (const s of ['low', 'high']) {
-    const snap = await db.doc(`randomization_sequences/${s}`).get();
-    if (!snap.exists) {
-      console.log(`  ✗ ${s}：没有`);
-      bad++;
-      continue;
+  // Allocation sequences (dev-tasks-1020 §C(4), 1020b §1(8)): per version
+  // and stratum the stored length, the used positions and the sha256 —
+  // read with a field mask, so the arms are never fetched.  v1 (PB-, the
+  // run-in) is retired; v2 (RCT-) must be there before the first RCT-
+  // registration (Qingyang uploads it 10/20 afternoon).
+  console.log('\nrandomization_sequences（只看长度、已用、指纹）');
+  for (const version of ['v1', 'v2']) {
+    for (const s of ['low', 'high']) {
+      const id = version === 'v1' ? s : `${version}_${s}`;
+      const [snap] = await db.getAll(db.doc(`randomization_sequences/${id}`),
+          {fieldMask: ['length', 'sha256']});
+      if (!snap.exists) {
+        const must = version === 'v2';
+        console.log(`  ${must ? '✗' : '·'} ${version} ${s}：没有` +
+          (must ? '（上传前没有是正常的）' : ''));
+        if (must) bad++;
+        continue;
+      }
+      const state = await db.doc(`randomization_state/${id}`).get();
+      const next = state.exists ? Number(state.get('next')) || 0 : 0;
+      const len = Number(snap.get('length')) || 0;
+      const short = version === 'v2' && len < 80;
+      if (short) bad++;
+      console.log(`  ${short ? '✗' : '✓'} ${version} ${s}：${len} 个位置` +
+        `${short ? '（少于 80）' : ''}，已用 ${next}，sha256 ` +
+        `${snap.get('sha256') || '—'}`);
     }
-    const arms = snap.get('arms') || [];
-    const state = await db.doc(`randomization_state/${s}`).get();
-    const next = state.exists ? Number(state.get('next')) || 0 : 0;
-    console.log(`  ✓ ${s}：${arms.length} 个位置，已用 ${next}`);
+  }
+  for (const version of ['v1', 'v2']) {
+    const v = await db.doc(`sequence_versions/${version}`).get();
+    console.log(`  sequence_versions/${version}：` +
+      (v.exists ? `${v.get('status')}` : '没有'));
   }
 
   // Tester accounts: count and masked ids only (G2).

@@ -80,7 +80,7 @@ async function switchEnabled(db) {
  */
 function userPatch(u, arm, now) {
   const patch = {arm, armAssignedBy: ASSIGNED_BY, armAssignedAt: now};
-  if (!u.cohort) patch.cohort = "pilot";
+  if (!u.cohort) patch.cohort = studyPeriod.COHORT_PILOT;
   if (studyPeriod.PHASE_B_MODES.indexOf(u.armAssignmentMode) < 0) {
     patch.armAssignmentMode = studyPeriod.PILOT_MODE;
     patch.armAssignmentMethod = studyPeriod.PILOT_METHOD;

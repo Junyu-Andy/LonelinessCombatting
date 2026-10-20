@@ -43,10 +43,12 @@ import '../../features/analytics/data/analytics_service.dart';
 import '../../features/analytics/presentation/analytics_scope.dart';
 import '../../features/auth/presentation/auth_service_scope.dart';
 import '../config/phase_a_config.dart';
+import '../feature_flags/remote_feature_flags.dart';
 import '../llm/llm_gateway.dart';
 import '../safety/distress_detector.dart';
 import '../voice/voice_input_button.dart';
 import 'idle_session_timer.dart';
+import 'session_entry_surface.dart';
 import 'session_rules.dart';
 
 // T25: end reasons, session types and validity rules live in
@@ -304,6 +306,7 @@ class ChatSessionRecorder {
     this.theme,
     this.onIdleTimeout,
     this.onSwitchedAway,
+    this.reminiscenceV2 = false,
     SessionRules? rules,
     DateTime Function()? clock,
     FirebaseFirestore? db,
@@ -329,6 +332,11 @@ class ChatSessionRecorder {
   /// end-of-session flow (Brief PR scheduler) for the closed session.
   final void Function()? onSwitchedAway;
 
+  /// 1020d (回憶 v2) — the v2 reminiscence page: validity counts the
+  /// week's questions answered in the session
+  /// ([markReminiscenceQuestionAnswered]).
+  final bool reminiscenceV2;
+
   final SessionRules? _rules;
   final DateTime Function() _clock;
   final FirebaseFirestore? _db;
@@ -350,9 +358,16 @@ class ChatSessionRecorder {
   bool _summarySaved = false;
   bool _ruleSubmission = false;
   bool _ruleSubmissionCompleted = false;
+  bool _checkInCompleted = false;
+  int _reminiscenceQuestionsAnswered = 0;
   bool _ended = false;
   String? _endReason;
   IdleSessionTimer? _idle;
+  String? _entrySurface;
+
+  /// 1020e 一.(9) — the home page this session was started from (`page1`
+  /// / `page2`), or null ([SessionEntrySurface]).
+  String? get entrySurface => _entrySurface;
 
   /// The rules this recorder applies (fixed at construction or read from
   /// the configs on first use so a session never changes rules midway).
@@ -388,6 +403,9 @@ class ChatSessionRecorder {
         isRuleSubmission: _ruleSubmission,
         ruleSubmissionCompleted: _ruleSubmissionCompleted,
         endReason: _endReason,
+        checkInCompleted: _checkInCompleted,
+        reminiscenceV2: reminiscenceV2,
+        reminiscenceQuestionsAnswered: _reminiscenceQuestionsAnswered,
       );
 
   /// T25 — "完成一个互动单元" (C16) under [rules].  Under the legacy rules
@@ -407,6 +425,37 @@ class ChatSessionRecorder {
     _ruleSubmission = true;
     _ruleSubmissionCompleted = completed;
   }
+
+  /// 1020 F (3) — the chat check-in (`checkInChatV2Enabled`) was answered
+  /// to the end in this session: the session counts as valid
+  /// ([SessionRules.isValid]) and stays open for the chat that follows.
+  /// Marks the row at once so a session recovered after a process kill
+  /// keeps it.
+  void markCheckInCompleted() {
+    _checkInCompleted = true;
+    final ref = _sessionRef;
+    if (ref == null || _ended) return;
+    unawaited(_guard(
+        () => ref.set({'checkInCompleted': true}, SetOptions(merge: true))));
+  }
+
+  bool get checkInCompleted => _checkInCompleted;
+
+  /// 1020d (2)(5) — one of the week's questions was answered in this
+  /// session (v2 reminiscence page, both arms).  Marks the row at once, as
+  /// [markCheckInCompleted] does.
+  void markReminiscenceQuestionAnswered() {
+    _reminiscenceQuestionsAnswered++;
+    final ref = _sessionRef;
+    if (ref == null || _ended) return;
+    final n = _reminiscenceQuestionsAnswered;
+    unawaited(_guard(() => ref.set({
+          'reminiscenceV2': true,
+          'reminiscenceQuestionsAnswered': n,
+        }, SetOptions(merge: true))));
+  }
+
+  int get reminiscenceQuestionsAnswered => _reminiscenceQuestionsAnswered;
 
   /// T25 — what the Brief PR scheduler needs once the session has ended.
   /// Null while the session is open or when there is no signed-in user.
@@ -483,6 +532,9 @@ class ChatSessionRecorder {
     _endedAt = null;
     _ended = false;
     _endReason = null;
+    _checkInCompleted = false;
+    _entrySurface = SessionEntrySurface.current;
+    _reminiscenceQuestionsAnswered = 0;
     _open.add(this);
     _startIdleTimer();
     unawaited(analytics.logEvent(PhaseAEvents.sessionStart, {
@@ -490,10 +542,18 @@ class ChatSessionRecorder {
       'agentId': agentId,
       'moduleId': moduleId,
       if (theme != null) 'theme': theme,
+      if (_entrySurface != null) 'entrySurface': _entrySurface,
     }));
     final ref = _sessionRef;
     if (ref == null) return;
-    unawaited(_guard(() => ref.set({
+    unawaited(_guard(() => ref.set(_startDoc())));
+  }
+
+  /// The `sessions` row written when the session starts.
+  @visibleForTesting
+  Map<String, dynamic> debugStartDoc() => _startDoc();
+
+  Map<String, dynamic> _startDoc() => {
           'participantId': uid,
           'sessionId': _sessionId,
           'kind': 'agent',
@@ -525,8 +585,13 @@ class ChatSessionRecorder {
           'ruleSubmissionCompleted': _ruleSubmissionCompleted,
           'briefPrInvitedTodayAlready': null,
           'briefPrSkippedByCap': false,
-        })));
-  }
+          if (reminiscenceV2) 'reminiscenceV2': true,
+          if (reminiscenceV2) 'reminiscenceQuestionsAnswered': 0,
+          // 1020e 一.(9): only with the two-page layout on (rows written
+          // with it off stay as before); null = not from a home page.
+          if (RemoteFeatureFlags.current.homeLayoutV2Enabled)
+            'entrySurface': _entrySurface,
+        };
 
   void _startIdleTimer() {
     _idle?.dispose();
@@ -635,6 +700,10 @@ class ChatSessionRecorder {
           'summarySaved': _summarySaved,
           'isRuleSubmission': _ruleSubmission,
           'ruleSubmissionCompleted': _ruleSubmissionCompleted,
+          if (_checkInCompleted) 'checkInCompleted': true,
+          if (reminiscenceV2) 'reminiscenceV2': true,
+          if (reminiscenceV2)
+            'reminiscenceQuestionsAnswered': _reminiscenceQuestionsAnswered,
         }, SetOptions(merge: true))));
   }
 
@@ -885,9 +954,11 @@ class _ToolSessionScopeState extends State<ToolSessionScope> {
     final available = AuthServiceScope.of(context).available;
     _sessionId = ChatSessionRecorder._newId();
     _startedAt = DateTime.now();
+    final entrySurface = SessionEntrySurface.current;
     unawaited(_analytics!.logEvent(PhaseAEvents.sessionStart, {
       'sessionId': _sessionId,
       'toolId': widget.toolId,
+      if (entrySurface != null) 'entrySurface': entrySurface,
     }));
     if (!available || uid == null) return;
     _ref = FirebaseFirestore.instance
@@ -905,6 +976,9 @@ class _ToolSessionScopeState extends State<ToolSessionScope> {
           'lastActivityAt': Timestamp.fromDate(_startedAt!),
           'endedAt': null,
           'endReason': null,
+          // 1020e 一.(9), as the agent sessions.
+          if (RemoteFeatureFlags.current.homeLayoutV2Enabled)
+            'entrySurface': entrySurface,
         })));
   }
 

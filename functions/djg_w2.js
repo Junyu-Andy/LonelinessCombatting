@@ -25,6 +25,7 @@
 "use strict";
 
 const studyWeek = require("./study_week");
+const studyPeriod = require("./study_period");
 
 const CONFIG_DOC = "app_config/phase_b";
 const COLLECTION = "djg_responses";
@@ -213,7 +214,8 @@ function windowState(w0Key, todayKey, cfg) {
  */
 function isPhaseBParticipant(u) {
   if (!u || (u.arm !== "A" && u.arm !== "B")) return false;
-  if (typeof u.cohort === "string") return u.cohort === "phase_b";
+  // 1020b §1: run-in (PB-) and RCT- (study_period.js PHASE_B_COHORTS).
+  if (typeof u.cohort === "string") return studyPeriod.isPhaseBCohort(u);
   return u.armAssignmentMode === "randomise";
 }
 

@@ -25,8 +25,13 @@ class SessionCloseHint {
   /// Key in the device store (bool; `true` = the note has been shown).
   static const String key = 'session.closeHintShown';
 
+  /// 1020d 8 (3) — the 「離開」 note (`leaveButtonV2Enabled`) has its own
+  /// marker: shown once per phone even when the old note was.
+  static const String leaveKey = 'session.leaveHintShown';
+
   static SharedPreferences? _store;
   static bool _shown = false;
+  static bool _leaveShown = false;
 
   /// Whether the note has already been shown (on this phone, or — when the
   /// store is unavailable — in this process).
@@ -54,6 +59,11 @@ class SessionCloseHint {
     } catch (_) {
       _shown = false;
     }
+    try {
+      _leaveShown = prefs?.getBool(leaveKey) ?? false;
+    } catch (_) {
+      _leaveShown = false;
+    }
   }
 
   /// Called when the close button is about to appear.  Returns `true`
@@ -75,10 +85,28 @@ class SessionCloseHint {
     return true;
   }
 
+  /// [claimFirstUse] for the 「離開」 note (`leaveButtonV2Enabled`).
+  static bool claimLeaveFirstUse() {
+    if (_leaveShown) return false;
+    _leaveShown = true;
+    final store = _store;
+    if (store == null) return true;
+    try {
+      store.setBool(leaveKey, true).catchError((Object e) {
+        if (kDebugMode) debugPrint('[SessionCloseHint] persist failed: $e');
+        return false;
+      });
+    } catch (e) {
+      if (kDebugMode) debugPrint('[SessionCloseHint] persist failed: $e');
+    }
+    return true;
+  }
+
   /// Forget the marker in memory and in the given store (tests only).
   @visibleForTesting
   static void resetForTest({SharedPreferences? store}) {
     _store = store;
     _shown = false;
+    _leaveShown = false;
   }
 }

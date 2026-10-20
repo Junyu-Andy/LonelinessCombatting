@@ -28,6 +28,7 @@
 "use strict";
 
 const crypto = require("crypto");
+const studyPeriod = require("./study_period");
 
 const CONFIG_DOC = "meta/blinding_config";
 const STABLE_KEY_DOC = "export_blind_keys/stable_v2";
@@ -256,6 +257,8 @@ const SAFETY_FIELDS = [
   // T34: questionnaire rows name the instrument and item (never the other
   // answers); participant-input rows leave these empty.
   "instrument", "item", "crisisPageShown",
+  // 1020e 二.9: the 「誤觸」 mark (no text, no arm, not who marked).
+  "falseAlarm", "markedAt",
 ];
 
 // Held back until unblinding.  Listed so the manifest says so explicitly.
@@ -272,6 +275,10 @@ const HELD_BACK = [
   // T40: foreground / background usage events (process data for the T39
   // dashboard; the research ID is stamped on each row, so never here).
   "usage_events",
+  // 1020d: reminiscence v2 conversation, the weekly 小篇章 (text, and
+  // `source` hybrid / rule names the arm) and its ratings (also carry
+  // `source`).  Metadata and ratings go to the process / analysis exports.
+  "reminiscence_v2", "reminiscence_chapters", "reminiscence_chapter_ratings",
 ];
 
 /**
@@ -318,7 +325,8 @@ function pick(data, fields) {
 function isBlindedParticipant(u) {
   if (u.arm !== "A" && u.arm !== "B") return false;
   if (u.isTester === true) return false;
-  if (typeof u.cohort === "string") return u.cohort === "phase_b";
+  // 1020b §1: run-in (PB-) and RCT- are both Phase B participants.
+  if (typeof u.cohort === "string") return studyPeriod.isPhaseBCohort(u);
   return u.armAssignmentMode === "randomise";
 }
 

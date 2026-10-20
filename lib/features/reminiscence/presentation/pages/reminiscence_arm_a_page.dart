@@ -22,6 +22,7 @@ import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
+import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -64,7 +65,7 @@ class _ReminiscenceArmAPageState extends State<ReminiscenceArmAPage> {
   // substitution.  This client-side fallback is used only when the CF
   // bundle hasn't shipped the prompts yet (debug/guest mode).
   String _systemPromptZh(String themeTitle) => '''
-你叫{{VARIANT_NAME}}（一個 AI 機械人，peer-aged 聆聽者，唔係醫生、唔係朋友替代品）。今次同一位香港長者做人生回顧分享。
+你叫{{VARIANT_NAME}}（一個電腦程式夥伴，peer-aged 聆聽者，唔係醫生、唔係朋友替代品）。今次同一位香港長者做人生回顧分享。
 
 今週嘅主題：「$themeTitle」。今次傾偈全程只可以圍繞呢個主題。
 
@@ -78,6 +79,7 @@ class _ReminiscenceArmAPageState extends State<ReminiscenceArmAPage> {
 - **唔好喺 session 中間 surface 想法練習工具**。如果用戶講出負面諗法，輕輕承認「呢個諗法聽落好沉重」，然後返回聆聽。
 - 如果用戶想停，溫柔回應，唔好挽留。
 - 唔好用「我會諗起你」/「我擔心你」呢類依附語言。
+- 唔好用「AI」「模型」「機械人」呢啲字。
 - **離題處理**：如果用戶轉去同「$themeTitle」無關嘅話題，
   先溫柔承認佢講嘅嘢一句，然後輕輕引返今週主題。例：「呢樣聽落都唔容易，不過今次我想聽多啲關於你$themeTitle 嘅事，你提到嗰個地方／嗰個人，再講多少少好嗎？」
 - 唔好應承幫佢處理離題嘅問題，亦唔好無啦啦轉去其他主題。
@@ -110,7 +112,7 @@ Rules:
 ''';
 
   String _openerSystemPromptZh(String themeTitle) => '''
-你叫{{VARIANT_NAME}}（一個 AI 機械人，peer-aged 聆聽者）。今次同一位香港長者開始今週嘅人生回顧 session。
+你叫{{VARIANT_NAME}}（一個電腦程式夥伴，peer-aged 聆聽者）。今次同一位香港長者開始今週嘅人生回顧 session。
 今週主題：「$themeTitle」。
 
 請寫一句溫和、開放嘅開場白，邀請佢就「$themeTitle」呢個主題開始分享。
@@ -119,6 +121,7 @@ Rules:
 - 如果有過往幾週嘅 context，可以自然咁 reference 一個具體細節（例如：「上次你提到$themeTitle…」），但唔強求。
 - 唔好假設、唔好分析、唔好過分親密。
 - 唔好用「我會諗起你」呢類依附語言。
+- 唔好用「AI」「模型」「機械人」呢啲字。
 - 直接寫開場白本身，唔好寫任何前言或者解釋。
 ''';
 
@@ -848,8 +851,12 @@ clay-pot rice stand..."
 
     if (_showingSummary) {
       return Scaffold(
-        appBar: AppBar(
-            title: const CompanionTitle(agentId: AgentRegistry.ahJanAhBakId)),
+        // 1020c 二: one-line bar while the keyboard is open (switch
+        // keyboardCompactHeaderEnabled; off = the same AppBar as before).
+        appBar: keyboardCompactAppBar(context,
+            title: const CompanionTitle(agentId: AgentRegistry.ahJanAhBakId),
+            compactTitle: const CompanionTitle(
+                agentId: AgentRegistry.ahJanAhBakId, compact: true)),
         body: SafeArea(
           // 10/15: scrolling page so the keyboard never hides the field
           // or the save button (was a fixed column).
@@ -940,7 +947,11 @@ clay-pot rice stand..."
         child: Column(
           children: [
             Expanded(
-              child: ListView(
+              // 1020c 二: back to the newest message when the keyboard opens
+              // (switch keyboardCompactHeaderEnabled).
+              child: KeyboardScrollToLatest(
+                keyboardOpen: KeyboardCompact.active(context),
+                child: ListView(
                 // 10/15: newest message at the bottom edge; the list follows the
                 // keyboard up instead of leaving the last turn under the composer.
                 reverse: true,
@@ -985,6 +996,7 @@ clay-pot rice stand..."
                       ),
                     ),
                 ].reversed.toList(),
+              ),
               ),
             ),
             if (_pendingOffline != null)
@@ -1208,8 +1220,8 @@ class _Composer extends StatelessWidget {
                 style: const TextStyle(fontSize: 17),
                 decoration: InputDecoration(
                   hintText: isEn
-                      ? 'Share whatever comes to mind, or speak…'
-                      : '記得幾多寫幾多，或者用咪…',
+                      ? 'Write whatever you remember.'
+                      : '記得幾多寫幾多。',
                 ),
               ),
             ),

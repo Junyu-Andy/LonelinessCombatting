@@ -11,7 +11,8 @@
  *
  * Every server-side DeepSeek request goes through deepSeekChat() so no call
  * site can skip the log.  Arm B never reaches this module: the callers'
- * arm guards (assertLlmAllowed, memory inScope) run first.
+ * arm guards (assertLlmAllowed, memory inScope, reminiscence_chapter.js
+ * refusalFor) run first.
  */
 "use strict";
 
@@ -34,6 +35,10 @@ const CALL_TYPES = [
   "memory_summary", // memory v0 rolling-summary fold (App side)
   "referral_judgement", // cross-referral SURFACE/DEFER/SKIP
   "memory_extraction", // memory v1 summary / facts / follow-ups
+  // 1020d §6: the weekly 小篇章 (functions/reminiscence_chapter.js) —
+  // Pro draft and rewrites (thinking on), Flash check (thinking off).
+  "chapter_draft",
+  "chapter_check",
 ];
 
 /**
