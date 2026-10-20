@@ -4,6 +4,7 @@ import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../data/education_library.dart';
 import '../../data/reader_read_marks.dart';
 import '../../data/reader_unit.dart';
+import '../reader/reader_icons.dart';
 import '../reader/reader_surface.dart';
 import 'education_article_page.dart';
 import 'reader_page.dart';
@@ -13,10 +14,15 @@ import '../../../../core/session/chat_session_recorder.dart';
 /// is identical; only the "Ask me about this" dialogue is Arm A).
 ///
 /// 1020c §2 — with `htmlReadersEnabled` on and at least one packaged
-/// unit, a 「小讀本」 section sits on top (title, about how many minutes,
-/// a tick once read on this phone); the 15 articles below are unchanged.
-/// Switch off, or no unit: the page is exactly as before.  Both arms see
-/// the same list.
+/// unit, a 「小讀本」 section sits on top; the 15 articles below are
+/// unchanged.  Switch off, or no unit: the page is exactly as before.
+/// Both arms see the same list.
+///
+/// 1021 T-R1 — the units are grouped by the manifest's `part`, each group
+/// headed 「第一部分：」 + `partTitleZh`; each row: the manifest's Material
+/// icon on the left, the title, 「約 n 分鐘」 on the right, and 「✓ 讀完」
+/// (an icon and text, no emoji) once every section has been read on this
+/// phone (T-R3).
 class EducationLibraryPage extends StatefulWidget {
   const EducationLibraryPage({
     super.key,
@@ -26,7 +32,7 @@ class EducationLibraryPage extends StatefulWidget {
   });
 
   /// 1020c: where the 小讀本 come from, how they are shown, where the
-  /// 「讀過」 ticks live.  Tests pass fakes.
+  /// read state lives.  Tests pass fakes.
   final ReaderContentSource readerSource;
   final ReaderSurface readerSurface;
   final ReaderReadMarks readMarks;
@@ -37,7 +43,7 @@ class EducationLibraryPage extends StatefulWidget {
 
 class _EducationLibraryPageState extends State<EducationLibraryPage> {
   List<ReaderUnit> _units = const [];
-  Set<String> _read = const {};
+  Map<String, ReaderReadState> _read = const {};
 
   @override
   void initState() {
@@ -64,9 +70,10 @@ class _EducationLibraryPageState extends State<EducationLibraryPage> {
         readMarks: widget.readMarks,
       ),
     ));
-    // The reader marks itself read on this phone when it closes
-    // (reader_close); show the tick now.
-    if (mounted) setState(() => _read = {..._read, unit.id});
+    // The reader keeps what was read (maybe of several units, 「讀下一
+    // 篇」); show the ticks now.
+    final read = await widget.readMarks.load();
+    if (mounted) setState(() => _read = read);
   }
 
   @override
@@ -121,7 +128,33 @@ class _EducationLibraryPageState extends State<EducationLibraryPage> {
   }
 }
 
-/// 1020c §2(1)/(3) — the 小讀本 section.  Copy is a DRAFT for Junyu.
+/// 1021 T-R1 (1): 「第一部分：認識孤單」 — the part number in Chinese
+/// numerals (一 … 十, then digits) and the manifest's `partTitleZh`.
+String readerPartHeading(int part, String? partTitleZh, {bool en = false}) {
+  const numerals = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+  final n = part >= 1 && part <= numerals.length ? numerals[part - 1] : '$part';
+  final title = partTitleZh ?? '';
+  if (en) return title.isEmpty ? 'Part $part' : 'Part $part: $title';
+  return title.isEmpty ? '第$n部分' : '第$n部分：$title';
+}
+
+/// The units in list order, grouped by part (units without a part first,
+/// without a heading).  Parts in ascending order; within a part, the
+/// manifest order.
+List<(int?, String?, List<ReaderUnit>)> groupReaderUnits(
+    List<ReaderUnit> units) {
+  final groups = <int?, List<ReaderUnit>>{};
+  final titles = <int?, String?>{};
+  for (final u in units) {
+    groups.putIfAbsent(u.part, () => []).add(u);
+    titles[u.part] ??= u.partTitleZh;
+  }
+  final keys = groups.keys.toList()
+    ..sort((a, b) => a == null ? -1 : (b == null ? 1 : a.compareTo(b)));
+  return [for (final k in keys) (k, titles[k], groups[k]!)];
+}
+
+/// 1020c §2(1)/(3) — the 小讀本 section.  1021 T-R1: grouped by part.
 class _ReadersSection extends StatelessWidget {
   const _ReadersSection({
     required this.units,
@@ -130,7 +163,7 @@ class _ReadersSection extends StatelessWidget {
   });
 
   final List<ReaderUnit> units;
-  final Set<String> read;
+  final Map<String, ReaderReadState> read;
   final ValueChanged<ReaderUnit> onOpen;
 
   @override
@@ -153,13 +186,29 @@ class _ReadersSection extends StatelessWidget {
               : '每隔幾日睇一篇就得，唔使一次睇晒。',
           style: theme.textTheme.bodyLarge,
         ),
-        const SizedBox(height: 14),
-        for (final u in units)
-          _ReaderCard(
-            unit: u,
-            read: read.contains(u.id),
-            onTap: () => onOpen(u),
-          ),
+        for (final (part, partTitle, items) in groupReaderUnits(units)) ...[
+          const SizedBox(height: 16),
+          if (part != null) ...[
+            Semantics(
+              header: true,
+              child: Text(
+                readerPartHeading(part, partTitle, en: isEn),
+                key: Key('reader_part_$part'),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          for (final u in items)
+            _ReaderCard(
+              unit: u,
+              done: read[u.id]?.done ?? false,
+              onTap: () => onOpen(u),
+            ),
+        ],
       ],
     );
   }
@@ -168,64 +217,90 @@ class _ReadersSection extends StatelessWidget {
 class _ReaderCard extends StatelessWidget {
   const _ReaderCard({
     required this.unit,
-    required this.read,
+    required this.done,
     required this.onTap,
   });
 
   final ReaderUnit unit;
-  final bool read;
+  final bool done;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Card(
         key: Key('reader_card_${unit.id}'),
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             child: Row(
               children: [
-                Icon(Icons.auto_stories_outlined,
-                    size: 28, color: theme.colorScheme.primary),
+                Icon(readerIconFor(unit.icon),
+                    key: Key('reader_icon_${unit.id}'),
+                    size: 30, color: theme.colorScheme.primary),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(unit.titleZh, style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 4),
-                      Text(
-                        isEn
-                            ? 'About ${unit.minutes} min'
-                            : '大約 ${unit.minutes} 分鐘',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                      if (done) ...[
+                        const SizedBox(height: 6),
+                        _DoneBadge(key: Key('reader_done_${unit.id}')),
+                      ],
                     ],
                   ),
                 ),
-                if (read) ...[
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.check_circle_rounded,
-                    key: Key('reader_read_${unit.id}'),
-                    color: theme.colorScheme.primary,
-                    semanticLabel: isEn ? 'Read' : '讀過',
-                  ),
-                ],
-                const SizedBox(width: 4),
-                Icon(Icons.chevron_right_rounded,
-                    color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Text(
+                  isEn ? 'About ${unit.minutes} min' : '約 ${unit.minutes} 分鐘',
+                  key: Key('reader_minutes_${unit.id}'),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: muted),
+                ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 「✓ 讀完」 — a check icon and the word, no emoji (T-R1 (4)).
+class _DoneBadge extends StatelessWidget {
+  const _DoneBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    return Semantics(
+      label: isEn ? 'Finished' : '讀完',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(8, 2, 10, 2),
+        decoration: BoxDecoration(
+          color: primary.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_rounded, size: 18, color: primary),
+            const SizedBox(width: 4),
+            Text(
+              isEn ? 'Finished' : '讀完',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: primary, fontWeight: FontWeight.w700),
+            ),
+          ],
         ),
       ),
     );

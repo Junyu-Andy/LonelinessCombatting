@@ -972,7 +972,10 @@ final _flows = <String, _Flow>{
         EducationLibraryPage(
           readerSource: source,
           readerSurface: const _SweepReaderSurface(),
-          readMarks: InMemoryReaderReadMarks({_sweepUnit2.id}),
+          readMarks: InMemoryReaderReadMarks({
+            _sweepUnit2.id: const ReaderReadState(
+                readIds: {'s1', 's2', 's3'}, total: 3),
+          }),
         ));
     expect(find.text('小讀本'), findsOneWidget);
     await c.shot('readers_list');
@@ -1063,7 +1066,11 @@ const _sweepUnit2 = ReaderUnit(
     id: 'u2_long_title',
     titleZh: '點解孤單要理：同屋企人、朋友、鄰居慢慢重新聯絡',
     minutes: 10,
-    order: 2);
+    order: 2,
+    // 1021: a part heading and an icon, as the real manifest has.
+    part: 2,
+    partTitleZh: '自己同身邊嘅人可以做咩',
+    icon: 'family_restroom');
 
 class _SweepReaderSource extends ReaderContentSource {
   @override

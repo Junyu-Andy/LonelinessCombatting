@@ -566,7 +566,7 @@ service cloud.firestore {
         && d.keys().hasAll(extra);
     }
 
-    // 1020c reader rows.
+    // 1020c reader rows (1021: cta chat_siu_yan, the 小欣 chat).
     function usageReaderValid(d) {
       return readerIdOk(d.get('unitId', null)) && (
         (d.type == 'reader_open' && usageReaderOnly(d, ['unitId']))
@@ -575,7 +575,7 @@ service cloud.firestore {
             && readerIdOk(d.sectionId))
         || (d.type == 'reader_cta'
             && usageReaderOnly(d, ['unitId', 'cta'])
-            && d.cta in ['small_action', 'plan', 'thought'])
+            && d.cta in ['small_action', 'plan', 'thought', 'chat_siu_yan'])
         || (d.type == 'reader_close'
             && usageReaderOnly(d, ['unitId', 'seconds'])
             && d.seconds is int && d.seconds >= 0 && d.seconds <= 86400));

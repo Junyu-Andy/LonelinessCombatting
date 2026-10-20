@@ -38,7 +38,8 @@
 /// switch and the same enrolment check ([recordReader]):
 ///   `reader_open`    + `unitId`
 ///   `reader_section` + `unitId`, `sectionId` (the page's `data-section`)
-///   `reader_cta`     + `unitId`, `cta` (`small_action` / `plan` / `thought`)
+///   `reader_cta`     + `unitId`, `cta` (`small_action` / `plan` / `thought` /
+///                    `chat_siu_yan`, 1021)
 ///   `reader_close`   + `unitId`, `seconds` (time the reader was on screen)
 /// Ids only — never any text.  An id that is not [kReaderIdPattern] is
 /// dropped here and refused by the rules.
@@ -87,8 +88,15 @@ const int kUsageEventSchemaVersion = 1;
 /// tool/check_reader_html.js.
 final RegExp kReaderIdPattern = RegExp(r'^[a-z0-9][a-z0-9_-]{0,47}$');
 
-/// The three 小讀本 action buttons (`peizhu://cta/<code>`).
-const Set<String> kReaderCtaCodes = {'small_action', 'plan', 'thought'};
+/// The 小讀本 action buttons (`peizhu://cta/<code>`).
+// 1021 T-R4 (3): chat_siu_yan (the 小欣 chat).  Same list as ReaderCta,
+// firestore.rules and tool/check_reader_html.js.
+const Set<String> kReaderCtaCodes = {
+  'small_action',
+  'plan',
+  'thought',
+  'chat_siu_yan',
+};
 
 /// A reader stay longer than this is recorded as this (a phone left on).
 const int kReaderMaxSeconds = 86400;
