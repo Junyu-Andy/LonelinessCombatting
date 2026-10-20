@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/core_services_scope.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/safety/safety_check.dart';
 import '../../../../core/llm/llm_gateway.dart';
 import '../../../../core/llm/transcript_consent_prompter.dart';
@@ -36,6 +38,18 @@ class _ActionLoopFollowUpPageState extends State<ActionLoopFollowUpPage> {
 1-2 句。承認佢做咗咩，唔好教訓、唔好強加意義。
 如果未做到，輕輕話佢冇問題，「下次再試」就夠。
 唔好提其他功能、唔好建議新計劃。
+''';
+
+  // 1020e 二.7 (2): used only with actionPlanMemoryEnabled — the server
+  // then appends 小欣's memory block (agentId siu_yan; never her due
+  // follow-ups).  Identity wording as the v2 companion prompts (#134).
+  static const _systemPromptZhMemory = '''
+你係小欣（一個電腦程式夥伴），幫長者回顧佢嘅小行動。用粵語/口語繁體中文，
+1-2 句。承認佢做咗咩，唔好教訓、唔好強加意義。
+如果未做到，輕輕話佢冇問題，「下次再試」就夠。
+下面可能有你記得關於用戶嘅嘢：可以自然咁用返入面講過嘅人名；
+冇講過嘅人或者事唔好作；唔好提用戶話過唔想提起嘅話題。
+唔好提其他功能、唔好建議新計劃。唔好用「AI」「模型」「機械人」呢啲字。
 ''';
 
   static const _systemPromptEn = '''
@@ -70,7 +84,7 @@ counts. Do not suggest other modules or new plans.
     setState(() => _busy = true);
 
     if (profile != null && widget.plan.id != null) {
-      final repo = ActionPlanRepository(available: auth.available);
+      final repo = ActionPlanRepository.forApp(available: auth.available);
       await repo.updateOutcome(
         profile.uid,
         widget.plan.id!,
@@ -99,9 +113,15 @@ counts. Do not suggest other modules or new plans.
         moduleKey: 'm7_followup',
       );
       if (!mounted) return;
+      // 1020e 二.7 (2): 小欣's memory block (server side), Chinese only.
+      final withMemory =
+          RemoteFeatureFlags.current.actionPlanMemoryEnabled && !isEn;
       final response = await core.llm.send(
         moduleId: 'm7_action_loop_followup',
-        systemPrompt: isEn ? _systemPromptEn : _systemPromptZh,
+        systemPrompt: isEn
+            ? _systemPromptEn
+            : (withMemory ? _systemPromptZhMemory : _systemPromptZh),
+        agentId: withMemory ? AgentRegistry.siuYanId : null,
         history: const [],
         uid: AppSettingsScope.read(context).profile?.uid,
         userInput: [
@@ -168,7 +188,11 @@ counts. Do not suggest other modules or new plans.
                     const SizedBox(height: 6),
                     Text(p.action, style: theme.textTheme.titleMedium),
                     const SizedBox(height: 6),
-                    Text('${p.whenText} · ${p.whereText} · ${p.whoWith}',
+                    // 1020e: items left out are not shown (an older plan
+                    // has all three, so its line is unchanged).
+                    Text(
+                        ActionPlan.joinFilled(
+                            [p.whenText, p.whereText, p.whoWith]),
                         style: theme.textTheme.bodyMedium),
                   ],
                 ),

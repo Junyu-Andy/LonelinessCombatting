@@ -184,6 +184,36 @@ test("今日休息 is ignored since 10/20 (dev-tasks-1020 §H(3)); followed-up "
       assert.strictEqual(m.sent.length, 2);
     });
 
+test("1020e: a soft-deleted plan (deletedAt) is never pushed", async () => {
+  await reset({enabled: true});
+  await seedUser("u1");
+  await seedReminder("u1", "r1", {fireAt: "2026-10-08T09:30:00.000"});
+  // What the App writes on 「刪除」 (ActionPlanRepository.softDelete).
+  await db.doc("users/u1/action_plans/p1").set({
+    deletedAt: admin.firestore.Timestamp.fromDate(
+        new Date("2026-10-08T01:00:00Z")),
+    deletedFrom: "landing",
+  }, {merge: true});
+  // A plan in the same account that was not deleted still goes out.
+  await seedReminder("u1", "r2", {fireAt: "2026-10-08T09:40:00.000",
+    planId: "p2"});
+  const m = fakeMessaging();
+  const r = await reminders.dispatchDueReminders(db, m,
+      {now: NOW, log: silent});
+  assert.strictEqual(r.skipped_plan_deleted, 1);
+  assert.strictEqual(r.sent, 1);
+  assert.strictEqual(m.sent.length, 1);
+  assert.strictEqual(m.sent[0].data.reminderId, "r2");
+  const d = await rem("u1", "r1");
+  assert.strictEqual(d.dispatchStatus, "skipped_plan_deleted");
+  assert.notStrictEqual(d.delivered, true);
+  // Terminal: a later run leaves it alone.
+  const again = await reminders.dispatchDueReminders(db, m,
+      {now: NOW, log: silent});
+  assert.strictEqual(again.skipped_plan_deleted, undefined);
+  assert.strictEqual(m.sent.length, 1);
+});
+
 test("send failure retries on later runs, then gives up after 3", async () => {
   await reset({enabled: true});
   await seedUser("u1");

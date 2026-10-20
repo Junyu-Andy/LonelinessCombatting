@@ -70,6 +70,12 @@
 - C(2) 方案（v2 另存为 `v2_low`/`v2_high`、`sequence_versions/` 记停用、cohort 建议仍用 `phase_b` 加 `analysisSet`）写在 `docs/dev-reports/T50-T60-batch1-20261019.md`，等 Junyu 批。
 - 只读核对：`tool/readonly_check_1020.js`（保留开关、行动计划推送、今日休息、过期未展示的 Brief PR）。开发没有生产权限，要 Junyu 跑。代码能答的两题已答：保留开关关掉时 `turns`／`sessions` 照写（本来无原文）；服务器不把 `shortTermBuffer` 给聊天模型。
 - 顺带：#123 的冲突已由另一窗口合 main 解决，本地扫描确认无误。
+## 2026-10-20 1020e 二.7：行动计划少填、可改可删；Hybrid 计划用上小欣记忆（分支 `claude/zealous-fermat-8rgqtg-actionplan-impl`，接键盘分支，PR 草稿）
+
+- 结论：Junyu 10/20 定两样都在冻结前做（现状报告 PR #129）。两个开关都默认关。`actionPlanSimplifiedEnabled`：两组只必填「做咩」「幾時」，从建议进去「做咩」已填好可改；「等住跟進」可以改「做咩」「幾時」、可以删（软删除，未发提醒一并删，服务器也不推）。`actionPlanMemoryEnabled`：Hybrid 组计划页两次模型调用带 `agentId: siu_yan`，服务器加小欣记忆，不放、不用掉她的 follow-up。规则组仍零模型调用。
+- 只加新字段（`planFormVersion`、`source`、`seedAction`、`original`、`editCount`、`lastEditedAt`、`editLog`、`deletedAt`、`deletedFrom`）和三个事件；改「幾時」不移动提醒；不写 `scheduledFor`。`memory.js` 里第 1 批对 `m6_suggestions` 的几行一字不差照抄，m7 的排除另写一处，两分支谁先合都不冲突。
+- 报告（截图、真机步骤、要 Junyu 定的事）：`docs/dev-reports/action-plan-v2-20261020.md`；截图 `docs/dev-reports/action-plan-v2-shots/`；决策草稿 `docs/decisions/NNNN-action-plan-simplified.md`；测试 `test/action_plan_simplified_test.dart`（加进 CI 两套 Phase B）和 Functions 三个测试文件的新用例。
+
 ## 2026-10-20 1020c 第二项：键盘遮挡，打字时顶栏缩成一行（分支 `claude/zealous-fermat-8rgqtg-keyboard`，接第 2 批，PR 草稿）
 
 - 结论：Junyu 报告老人打字时顶栏不让位、对话看不全，两组一样。量过：360×640、字体 1.30、键盘 300 时，聊天区只剩 99–155 像素。新开关 `keyboardCompactHeaderEnabled`（默认关）开时，键盘打开顶栏 72 → 48（「今日傾到呢度」／返回键原样保留），收键盘恢复；聊天页跳回最新一条；通通文章问答的「根據文章」条一起收起。每页多 24 像素（文章问答多 80）。没有新文字。

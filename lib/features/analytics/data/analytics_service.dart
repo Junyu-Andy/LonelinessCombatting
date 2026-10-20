@@ -60,6 +60,8 @@ class AnalyticsService {
     'm5_thought_exercise_opened', 'm5_thought_exercise_saved',
     'm6_social_suggestion_shown', 'm6_social_suggestion_accepted',
     'm7_plan_saved', 'm7_followup_completed',
+    // 1020e 二.7 (switch actionPlanSimplifiedEnabled).
+    'm7_plan_edited', 'm7_plan_deleted',
     'm8_article_opened',
     'm9_progress_viewed',
     'cross_referral_offered', 'cross_referral_accepted',
@@ -322,9 +324,23 @@ class AnalyticsService {
   Future<void> logM6SuggestionAccepted({required String suggestionId}) =>
       logEvent('m6_social_suggestion_accepted', {'id': suggestionId});
 
-  // M7 — action loop
-  Future<void> logM7PlanSaved({required String kind}) =>
-      logEvent('m7_plan_saved', {'kind': kind});
+  // M7 — action loop.  1020e 二.7: written only with the switch
+  // actionPlanSimplifiedEnabled on; never the elder's words.
+  /// [source]: ActionPlanSource; [filled]: which of whenText / whereText /
+  /// whoWith / fallback were filled in.
+  Future<void> logM7PlanSaved({
+    required String source,
+    required List<String> filled,
+  }) =>
+      logEvent('m7_plan_saved', {'source': source, 'filled': filled});
+
+  /// [fields]: which of action / whenText changed.
+  Future<void> logM7PlanEdited({required List<String> fields}) =>
+      logEvent('m7_plan_edited', {'fields': fields});
+
+  /// [from]: the page the delete button was on (`landing` / `edit`).
+  Future<void> logM7PlanDeleted({required String from}) =>
+      logEvent('m7_plan_deleted', {'from': from});
 
   Future<void> logM7FollowUpCompleted({required String outcome}) =>
       logEvent('m7_followup_completed', {'outcome': outcome});

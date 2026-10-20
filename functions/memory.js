@@ -68,9 +68,22 @@ const AGENTS = ["siu_yan", "ah_jan_ah_bak", "tung_tung"];
 /** Chat surfaces that receive the memory block. */
 // 10/19: m6_suggestions (今日嘅小邀請) only reaches here when the App's
 // suggestionsUseProfileEnabled switch is on — off, it sends no agentId.
+// 1020e 二.7 (2): the Hybrid action plan's two calls (m7_action_loop_
+// summary / _followup) likewise, only with the App's
+// actionPlanMemoryEnabled switch on (off: no agentId → nothing here).
 const INJECT_MODULES = new RegExp(
     "^(m2_check_in|reflective_dialogue|tung_tung_chat|m3_reminiscence_w\\d+" +
-    "|greeting_(siu_yan|ah_jan_ah_bak|tung_tung)|m6_suggestions)$");
+    "|greeting_(siu_yan|ah_jan_ah_bak|tung_tung)|m6_suggestions" +
+    "|m7_action_loop_(summary|followup))$");
+
+/**
+ * 1020e 二.7 (2): surfaces that get the memory block but are not a chat,
+ * so a due follow-up is neither shown nor marked asked there (it stays
+ * 小欣's to ask in a real chat).  Same reasoning as 1020c for
+ * m6_suggestions, which the sessionStart line below already covers.
+ */
+const NO_FOLLOWUP_MODULES =
+    /^(m6_suggestions|m7_action_loop_(summary|followup))$/;
 
 /** Fixed category list the extractor must use. */
 const CATEGORIES = [
@@ -1013,7 +1026,9 @@ async function injectMemory(db,
       !moduleId.startsWith("greeting_") && moduleId !== "m6_suggestions";
     const mem = await loadMemory(db, uid);
     const sel = selectForInjection(mem, {
-      agentId, policy: active.policy, todayKey, sessionStart,
+      agentId, policy: active.policy, todayKey,
+      // 1020e: nor the action plan's two calls (NO_FOLLOWUP_MODULES).
+      sessionStart: sessionStart && !NO_FOLLOWUP_MODULES.test(moduleId),
       sensitiveQuota: active.cfg.sensitiveFactQuota,
       omitSensitiveSummary: active.cfg.omitSensitiveSummary,
       layers: active.cfg.layersEnabled,
@@ -1588,6 +1603,7 @@ module.exports = {
   CATEGORIES,
   LIMITS,
   INJECT_MODULES,
+  NO_FOLLOWUP_MODULES,
   hkDateKey,
   addDays,
   normalize,

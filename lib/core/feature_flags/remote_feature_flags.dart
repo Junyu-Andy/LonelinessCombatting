@@ -149,6 +149,25 @@
 ///                               on, [homeMoodOpensCheckInEnabled] cannot
 ///                               take effect (1020b §2 (1)).  Both arms
 ///                               identical apart from who writes the opener.
+///   - [actionPlanSimplifiedEnabled] — 1020e 二.7 (1) (Junyu): one rule for
+///                               the action plan in both arms: 做咩 (the
+///                               suggestion, pre-filled and editable) and
+///                               幾時 are the only required items; 邊度 /
+///                               同邊個 / 唔得點 may be left out; a plan
+///                               waiting for follow-up can have 做咩 and
+///                               幾時 changed, or be deleted (soft:
+///                               `deletedAt`, its unsent reminders go).
+///                               New plan fields and m7_* events only when
+///                               on.  Off: the planners, the list and the
+///                               stored fields are exactly as before.
+///   - [actionPlanMemoryEnabled] — 1020e 二.7 (2) (Junyu, 10/19 item 36(a)):
+///                               the Hybrid planner's two model calls
+///                               (m7_action_loop_summary, m7_action_loop_
+///                               followup) send agentId siu_yan, so the
+///                               server adds 小欣's memory block (never her
+///                               due follow-ups), with prompts that say
+///                               「電腦程式夥伴」.  Rule arm: no model call,
+///                               on or off.  Off: no agentId, old prompts.
 ///   - [safetyFalseAlarmMarkEnabled] — 1020e 二.9: the researcher
 ///                               dashboard's safety-alert list offers
 ///                               「標記誤觸」 (false alarm) to the
@@ -205,6 +224,8 @@ class RemoteFeatureFlags {
     this.keyboardCompactHeaderEnabled = false,
     this.homeLayoutV2Enabled = false,
     this.moodRowV2Enabled = false,
+    this.actionPlanSimplifiedEnabled = false,
+    this.actionPlanMemoryEnabled = false,
     this.safetyFalseAlarmMarkEnabled = false,
     this.weeklyReminderV2Enabled = false,
   });
@@ -234,6 +255,8 @@ class RemoteFeatureFlags {
   final bool keyboardCompactHeaderEnabled;
   final bool homeLayoutV2Enabled;
   final bool moodRowV2Enabled;
+  final bool actionPlanSimplifiedEnabled;
+  final bool actionPlanMemoryEnabled;
   final bool safetyFalseAlarmMarkEnabled;
 
   /// 1020b §2 (1): the 10/19 "first mood pick opens the check-in" path is
@@ -314,6 +337,9 @@ class RemoteFeatureFlags {
             map['keyboardCompactHeaderEnabled'] == true,
         homeLayoutV2Enabled: map['homeLayoutV2Enabled'] == true,
         moodRowV2Enabled: map['moodRowV2Enabled'] == true,
+        actionPlanSimplifiedEnabled:
+            map['actionPlanSimplifiedEnabled'] == true,
+        actionPlanMemoryEnabled: map['actionPlanMemoryEnabled'] == true,
         safetyFalseAlarmMarkEnabled:
             map['safetyFalseAlarmMarkEnabled'] == true,
         weeklyReminderV2Enabled: map['weeklyReminderV2Enabled'] == true,
