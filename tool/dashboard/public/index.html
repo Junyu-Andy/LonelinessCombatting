@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>陪住运营看板</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="title">
+      <strong>陪住运营看板</strong>
+      <span class="badge" id="mode-badge">只读</span>
+    </div>
+    <nav id="nav">
+      <a href="#/overview" data-view="overview">总览</a>
+      <a href="#/today" data-view="today">今天要做</a>
+      <a href="#/completion" data-view="completion">结局完成率</a>
+      <a href="#/export" data-view="export">导出</a>
+    </nav>
+    <div class="tools">
+      <span id="data-time" class="muted"></span>
+      <button id="refresh" type="button">刷新</button>
+      <span id="login-state" class="muted"></span>
+      <button id="logout" type="button" class="link hidden">登出</button>
+    </div>
+  </header>
+
+  <section id="login-panel" class="login hidden" aria-label="登录">
+    <p>「確認處理」和「標記誤觸」要用你自己的 App 账号（和手机上同一个电邮、密码）。密码只发给 Google，不经过看板程序；关掉这个网页就登出。</p>
+    <form id="login-form" autocomplete="on">
+      <label>电邮 <input id="login-email" type="email" autocomplete="username" required></label>
+      <label>密码 <input id="login-password" type="password" autocomplete="current-password" required></label>
+      <button type="submit">登录</button>
+      <button type="button" id="login-cancel" class="link">取消</button>
+      <span id="login-error" class="error"></span>
+    </form>
+  </section>
+
+  <main id="view" aria-live="polite"></main>
+
+  <footer class="foot muted">
+    只读：看板不往 Firestore 写任何东西；不读结局答案、对话原文、分配序列和分配日志。「確認處理」「標記誤觸」经服务器现有入口，用你的账号记录。
+  </footer>
+
+  <script src="/auth.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

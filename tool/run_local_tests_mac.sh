@@ -237,7 +237,7 @@ ensure_functions_deps() {
 
 if wants functions; then
   if [ $NODE_OK = 1 ] && ensure_functions_deps; then
-    run_step "Functions 单元测试" "$LOGDIR/functions_unit.log" sh -c '
+    run_step "Functions 单元测试（含看板）" "$LOGDIR/functions_unit.log" sh -c '
       cd functions || exit 2
       fails=""
       for t in test/*_test.js; do
@@ -245,6 +245,10 @@ if wants functions; then
         echo "--- $t"
         node "$t" || fails="$fails $t"
       done
+      cd ..
+      t=tool/dashboard/test/dashboard_unit_test.js
+      echo "--- $t"
+      NODE_PATH=functions/node_modules node "$t" || fails="$fails $t"
       if [ -n "$fails" ]; then echo "FAILED:$fails"; exit 1; fi'
     ff="$(grep '^FAILED:' "$LOGDIR/functions_unit.log" | sed 's/^FAILED: *//')"
     if [ -n "$ff" ]; then
@@ -252,7 +256,7 @@ if wants functions; then
       R_NOTES[$((${#R_NOTES[@]} - 1))]="失败的文件：$ff"
     fi
   else
-    skip_step "Functions 单元测试" "没有 node，或 npm ci 失败"
+    skip_step "Functions 单元测试（含看板）" "没有 node，或 npm ci 失败"
   fi
 fi
 
@@ -292,6 +296,8 @@ if wants rules; then
           node \"\$t\" || fails=\"\$fails \$t\"
         done
         if [ -n \"\$fails\" ]; then echo \"emulator FAIL\$fails\" >>\"\$res\"; else echo 'emulator PASS' >>\"\$res\"; fi
+        cd ..
+        if NODE_PATH=functions/node_modules node tool/dashboard/test/dashboard_emulator_test.js; then echo 'dashboard PASS' >>\"\$res\"; else echo 'dashboard FAIL' >>\"\$res\"; fi
         ! grep -q FAIL \"\$res\""
     echo "  分开看："
     note=""
@@ -305,6 +311,9 @@ if wants rules; then
       *) echo "    ✗ Functions 模拟器测试没有跑（模拟器没起来，看日志）"
         note="${note}模拟器没起来，看日志" ;;
     esac
+    if grep -q '^dashboard PASS' "$RES"; then echo "    ✓ 看板测试"
+    elif grep -q '^dashboard FAIL' "$RES"; then echo "    ✗ 看板测试"
+      note="${note}看板测试失败；"; fi
     [ -n "$note" ] && R_NOTES[$((${#R_NOTES[@]} - 1))]="$note"
   else
     skip_step "Firestore 规则测试 + Functions 模拟器测试" "npm ci 失败"

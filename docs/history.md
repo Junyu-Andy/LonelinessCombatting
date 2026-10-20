@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-10-20 1020i 第二版：本机只读运营看板（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-dashboard`；决策 0061）
+
+- 新目录 `tool/dashboard/`：Node 本机网页，只在 `127.0.0.1` 打开。五页：总览、今天要做、每人页、结局完成率、导出 CSV。研究日、问卷窗口、跟进阶段、有效会话、check-in 完成，都调用 `functions/` 里的同一份代码。
+- 读数据：专用只读服务账号。启动时用 `testIamPermissions` 检查，钥匙能写就拒绝启动。`lib/guarded_db.js` 只许读白名单里的集合，每次只取白名单里的字段。序列、`randomization_state`、`sequence_versions` 和分配日志写死不读。
+- 盲法：总览页每周问卷一格只看 Weekly PR。结局问卷完成情况只出现在「今天要做」名单（无组别）和全体合并的完成率（Phase B，少于 5 人不显示）。心情只显示有没有记。
+- 写入：「確認處理」「標記誤觸」由 Junyu 在网页上用 App 账号登录，浏览器直接调用现有的 `acknowledgeAlert`、`markSafetyFalseAlarm`。看板程序自己不写 Firestore。
+- 测试：
+  - `tool/dashboard/test/` 两份，已加进 CI 和 Mac 本地脚本；
+  - 合成数据的答案、心情值、对话、分配字段都带记号，确认没有读回来，也没出现在任何输出里；
+  - 另在模拟器上走了一遍登录和按钮：评估员账号被服务器拒绝。
+- 不改 App、Functions、规则。不进 STUDY_CHANGELOG（参与者感受不到）。
+
 ## 2026-10-20 1020i：Mac 本地测试脚本（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-mac-tests`）；本地只读看板先答四个问题
 
 - 新加 `tool/run_local_tests_mac.sh`：在 Mac 上一行跑完 CI 的全部测试（`flutter analyze`、小讀本 HTML 检查、六套 Flutter 测试、Functions 单元测试、规则和模拟器测试、隐私脚本测试）。每步打印通过或失败，失败不中断，最后汇总和总用时；`--only` 只跑一部分。只连本机模拟器：开头发现指向正式项目的环境变量就停。说明在 `docs/release/local-tests-mac.md`。
