@@ -412,7 +412,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
           r['completed'] == true) {
         continue;
       }
-      if (r['falseAlarm'] != true) {
+      if (isStoppedUnmarked(r)) {
         stoppedUnmarked = true;
         continue;
       }

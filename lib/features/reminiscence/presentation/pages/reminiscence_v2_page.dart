@@ -143,6 +143,13 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
   final _voice = VoiceInputController();
   final _chapterKey = GlobalKey();
 
+  /// The message list (to reach its scroll position).
+  final _listKey = GlobalKey();
+
+  /// 1020o (decisions-log 10/20 第 99 条): this visit added the week's
+  /// scene picture (the first visit), so the page opens at the picture.
+  bool _openAtScene = false;
+
   _Stage _stage = _Stage.loading;
   ReminiscenceWeekState? _state;
   ReminiscenceChapterDoc? _chapter;
@@ -252,6 +259,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
       if (scene) {
         _add(ReminiscenceMessageKind.scene, ReminiscenceV2Copy.sceneLines[_week]!,
             copyId: 'scene_$_week');
+        _openAtScene = true;
       }
       final name = AgentRegistry.ahJanAhBakName(_profile?.ahJanAhBakVariant);
       final opener = ReminiscenceV2Copy.openerFor(_week, name: name);
@@ -271,6 +279,55 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     if (!mounted) return;
     setState(() => _stage = _Stage.waiting);
     await _advance();
+    if (_openAtScene) unawaited(_showSceneFirst());
+  }
+
+  /// The list's scroll position (found below [_listKey]).
+  ScrollPosition? _listPosition() {
+    ScrollableState? found;
+    void visit(Element e) {
+      if (found != null) return;
+      if (e is StatefulElement && e.state is ScrollableState) {
+        found = e.state as ScrollableState;
+        return;
+      }
+      e.visitChildren(visit);
+    }
+
+    _listKey.currentContext?.visitChildElements(visit);
+    return found?.position;
+  }
+
+  /// 1020o (decisions-log 10/20 第 99 条): on the first visit of a week the
+  /// page opens at the scene picture (the start of the week, at the top of
+  /// the screen); the elder scrolls down to question 1.  The list is
+  /// reversed, so the start of the week is its far end.  Repeated until it
+  /// holds: the far end is only measured once it is built, and the input
+  /// box appearing below shortens the list.
+  Future<void> _showSceneFirst() async {
+    var still = 0;
+    for (var i = 0; i < 8 && still < 2; i++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final p = _listPosition();
+      if (p == null || !p.hasContentDimensions) continue;
+      if ((p.pixels - p.maxScrollExtent).abs() < 0.5) {
+        still++;
+      } else {
+        still = 0;
+        p.jumpTo(p.maxScrollExtent);
+      }
+    }
+  }
+
+  /// After the elder sends or skips: back to the newest message (the
+  /// list's start), as on every chat page.
+  void _toLatest() {
+    final p = _listPosition();
+    if (p == null || !p.hasContentDimensions) return;
+    if (p.pixels <= p.minScrollExtent) return;
+    p.animateTo(p.minScrollExtent,
+        duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
   }
 
   /// Whether the week's scene picture ships with the App (asset manifest).
@@ -470,6 +527,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
       text: text,
     );
     final q = _state!.currentQuestion;
+    _toLatest();
     setState(() {
       _busy = true;
       _stage = _Stage.waiting;
@@ -499,6 +557,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     final q = _state!.currentQuestion;
     _input = null;
     final pressedAt = DateTime.now();
+    _toLatest();
     setState(() {
       _busy = true;
       _stage = _Stage.waiting;
@@ -1254,6 +1313,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
                   child: KeyboardScrollToLatest(
                     keyboardOpen: KeyboardCompact.active(context),
                     child: ListView(
+                      key: _listKey,
                       reverse: true,
                       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                       children: _listChildren(theme).reversed.toList(),

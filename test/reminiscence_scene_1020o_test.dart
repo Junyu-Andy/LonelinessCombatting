@@ -8,6 +8,11 @@
 // never reaches the model.  The scene is not sent to the model (not in the
 // Hybrid history).  No picture → no bubble.  On coming back the bubble is
 // not added again: it stays the first bubble of the week's thread.
+// decisions-log 10/20 第 99/100 条: the first visit opens at the picture
+// (its top on screen; the elder scrolls down to question 1) on a phone at
+// App text 1.06 and 1.30 and on an iPad; coming back, or without the
+// picture, the page opens at the newest message as before; after the
+// elder's answer the list follows the newest message again.
 //
 //   flutter test test/reminiscence_scene_1020o_test.dart
 //   flutter test --dart-define=PHASE_B=true test/reminiscence_scene_1020o_test.dart
@@ -19,6 +24,7 @@ import 'dart:async';
 
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
+import 'package:app_demo/app/wide_screen_frame.dart';
 import 'package:app_demo/core/agent_context/agent_context_service.dart';
 import 'package:app_demo/core/agent_context/shared_context_service.dart';
 import 'package:app_demo/core/agents/agent_registry.dart';
@@ -166,7 +172,10 @@ UserProfile _profile(ArmAssignment arm) => UserProfile(
 final _now = DateTime(2026, 10, 21, 10, 0);
 
 class _Run {
-  _Run(this.arm, {this.bundle});
+  _Run(this.arm, {this.bundle, this.wide = false});
+
+  /// The iPad column (app.dart's WideScreenFrame).
+  final bool wide;
   final ArmAssignment arm;
   final AssetBundle? bundle;
   late final _FakeLlm llm = _FakeLlm(forbid: arm == ArmAssignment.b);
@@ -205,6 +214,8 @@ Widget _harness(_Run run) {
       GlobalWidgetsLocalizations.delegate,
       GlobalCupertinoLocalizations.delegate,
     ],
+    builder: (context, child) =>
+        WideScreenFrame(enabled: run.wide, child: child!),
     home: const Scaffold(body: Text('home')),
   );
   if (run.bundle != null) {
@@ -424,5 +435,111 @@ void main() {
       expect(tester.getSize(bubble).width, closeTo(360 * 0.88, 0.5));
       expect(tester.takeException(), isNull);
     });
+
+    // decisions-log 10/20 第 99 条 -------------------------------------------
+
+    for (final screen in [
+      (name: 'phone ×1.30', size: const Size(360, 800), scale: 1.3, wide: false),
+      (name: 'phone ×1.06', size: const Size(360, 800), scale: 1.06, wide: false),
+      (name: 'iPad ×1.06', size: const Size(820, 1180), scale: 1.06, wide: true),
+    ]) {
+      testWidgets('$tag, ${screen.name}: first visit opens at the picture',
+          (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = screen.scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        final run = _Run(arm, wide: screen.wide);
+        await _boot(tester, run, size: screen.size);
+        await _push(tester, run, 1);
+        final bubble = find.byKey(const Key('reminiscence_scene_bubble'));
+        expect(bubble, findsOneWidget);
+        final list = tester.getRect(find.byType(ListView));
+        final top = tester.getTopLeft(bubble).dy;
+        expect(top, inInclusiveRange(list.top, list.bottom - 1),
+            reason: 'the picture starts on screen');
+        // When the week does not fit (phones), the page is scrolled to its
+        // start: only the week title above the picture.  (On an iPad it
+        // all fits and the list sits at the bottom, as every chat page.)
+        if (_position(tester).maxScrollExtent > 0) {
+          expect(_position(tester).pixels,
+              closeTo(_position(tester).maxScrollExtent, 0.5));
+          expect(top - list.top, lessThan(120),
+              reason: 'at the top (only the week title above it)');
+        }
+        // Question 1 is further down (reached by scrolling) on a phone at
+        // the largest text.
+        if (screen.scale > 1.2) {
+          expect(_onScreen(tester, _says(ReminiscenceV2Copy.week(1).question(1))),
+              isFalse);
+        }
+        // The page stays there (nothing pushes it back down).
+        await tester.pump(const Duration(seconds: 2));
+        await tester.pumpAndSettle();
+        expect(tester.getTopLeft(bubble).dy, closeTo(top, 0.5));
+        if (run.rule) expect(run.llm.calls, isEmpty);
+      });
+    }
+
+    testWidgets('$tag: coming back opens at the newest message, as before',
+        (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final run = _Run(arm);
+      await _boot(tester, run, size: const Size(360, 800));
+      await _push(tester, run, 1);
+      await tester.tap(find.byKey(const Key('session_close_button')));
+      await _settle(tester);
+      await _push(tester, run, 1);
+      expect(_position(tester).pixels, 0, reason: 'at the newest message');
+      expect(_onScreen(tester, _says(ReminiscenceV2Copy.week(1).question(1))),
+          isTrue);
+      expect(_onScreen(tester, find.byKey(const Key('reminiscence_scene_bubble'))),
+          isFalse);
+    });
+
+    testWidgets('$tag: no picture — opens at the opener / question as before',
+        (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final run = _Run(arm, bundle: _NoScenesBundle());
+      await _boot(tester, run, size: const Size(360, 800));
+      await _push(tester, run, 1);
+      expect(_position(tester).pixels, 0);
+      expect(_onScreen(tester, _says(ReminiscenceV2Copy.week(1).question(1))),
+          isTrue);
+    });
+
+    testWidgets('$tag: after the first answer the list follows the newest '
+        'message', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final run = _Run(arm);
+      await _boot(tester, run, size: const Size(360, 800));
+      await _push(tester, run, 1);
+      expect(_position(tester).pixels, greaterThan(0), reason: 'at the picture');
+      await tester.enterText(
+          find.byKey(const Key('reminiscence_input')), '我喺深水埗大。');
+      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+      await _settle(tester);
+      expect(_position(tester).pixels, 0, reason: 'back at the newest message');
+      final newest = run.messages().last['text'] as String;
+      expect(_onScreen(tester, _says(newest).last), isTrue, reason: newest);
+      if (run.rule) expect(run.llm.calls, isEmpty);
+    });
   }
+}
+
+/// The message list's scroll position.
+ScrollPosition _position(WidgetTester tester) => tester
+    .state<ScrollableState>(find
+        .descendant(of: find.byType(ListView), matching: find.byType(Scrollable))
+        .first)
+    .position;
+
+/// Whether [f]'s top is inside the message list's visible area.
+bool _onScreen(WidgetTester tester, Finder f) {
+  final hits = f.hitTestable().evaluate();
+  if (f.evaluate().isEmpty) return false;
+  final list = tester.getRect(find.byType(ListView));
+  final r = tester.getRect(f.first);
+  return hits.isNotEmpty && r.top >= list.top - 0.5 && r.top < list.bottom;
 }

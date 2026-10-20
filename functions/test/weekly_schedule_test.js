@@ -36,7 +36,8 @@ test("config: defaults, literal-true switches, bad lists ignored", () => {
   assert.strictEqual(d.week4CloseDay, 29);
   assert.deepStrictEqual(d.djgWeeks, [1, 2, 3]);
   assert.deepStrictEqual(d.pgicOnlyDays, [35, 42, 49]);
-  assert.strictEqual(d.pushHour, 20);
+  // 10/20 item 98: 10, as the App's PhaseBConfig default.
+  assert.strictEqual(d.pushHour, 10);
   assert.strictEqual(d.socialContactProbeEnabled, false);
   assert.deepStrictEqual(d.pilotBundleDays, [1, 3, 5, 7]);
   assert.strictEqual(d.pilotWindowDays, 1);
@@ -134,6 +135,27 @@ test("shared table: Weekly PR referent range of W2", () => {
   const r1 = ws.referentRangeFor(p[1], w0, CFG, "pilot");
   assert.strictEqual(iso(r1.start), fx("2026-10-20T20:00:00+08:00"));
   assert.strictEqual(iso(r1.end), fx("2026-10-22T20:00:00+08:00"));
+});
+
+test("v2 openBundleAt around W5 (W4 recorded on day 30): day 34 23:59 " +
+    "none, day 35 00:00 → day 37 23:59:59 W5, day 38 none", () => {
+  const w0 = TABLE.v2.w0;
+  const opts = ws.windowOptsFor({w4RecordedOn: sw.addDays(w0, 30)}, V2);
+  const at = (day, h, m, sec) => new Date(`${sw.addDays(w0, day)}T` +
+    `${String(h).padStart(2, "0")}:${String(m || 0).padStart(2, "0")}:` +
+    `${String(sec || 0).padStart(2, "0")}+08:00`);
+  const id = (t) => {
+    const o = ws.openBundleAt(V2, "standard", w0, t, opts);
+    return o ? o.bundle.id : null;
+  };
+  assert.strictEqual(id(at(34, 23, 59)), null);
+  assert.strictEqual(id(at(35, 0)), "W5");
+  assert.strictEqual(id(at(36, 10)), "W5");
+  assert.strictEqual(id(at(37, 23, 59, 59)), "W5");
+  assert.strictEqual(id(at(38, 0)), null);
+  assert.strictEqual(id(at(42, 0)), "W6");
+  assert.strictEqual(id(at(51, 23, 59)), "W7");
+  assert.strictEqual(id(at(52, 0)), null);
 });
 
 test("openBundleAt: before / inside / at close / between bundles", () => {
@@ -234,7 +256,7 @@ test("v2 switch: only literal true in app_config/feature_flags", () => {
   assert.strictEqual(ws.configFromData({}, null).reminderV2, false);
 });
 
-test("v2 shared table: W1–W3 whole days, W4 to day 42, W5–W7 as T24",
+test("v2 shared table: W1–W3 and W5–W7 whole days, W4 to day 42",
     () => {
       const w0 = TABLE.v2.w0;
       const bundles = ws.bundlesFor(V2, "standard");
@@ -269,20 +291,75 @@ test("v2 shared table: referent range and the 10:00 push days", () => {
   const r = ws.referentRangeFor(bundles[1], w0, V2, "standard");
   assert.strictEqual(iso(r.start), fx(TABLE.v2.referentRangeW2.start));
   assert.strictEqual(iso(r.end), fx(TABLE.v2.referentRangeW2.end));
-  for (const id of ["W1", "W4"]) {
+  for (const id of ["W1", "W4", "W5", "W6", "W7"]) {
     const b = bundles.find((x) => x.id === id);
     const steps = ws.v2StepsFor(b, ws.windowFor(b, w0, V2, {}));
     const want = TABLE.v2.pushes.filter((p) => p.bundle === id);
     assert.deepStrictEqual(steps.map((s) => [s.step, s.dateKey, s.copyId,
       s.all, s.email]), want.map((p) => [p.step, p.date, p.copyId, p.all,
       p.email === true]), id);
+    const mail = want.find((p) => p.email);
     assert.strictEqual(ws.emailDayKeyFor(b, ws.windowFor(b, w0, V2, {})),
-        want.find((p) => p.email).date);
+        mail ? mail.date : null, id);
   }
   assert.strictEqual(ws.V2_PUSH_HOUR, 10);
-  // W5–W7 are not v2 bundles.
+  // 10/20 item 98: every standard bundle is a v2 bundle; the retired
+  // pilot mode's fourth bundle is not.
   assert.deepStrictEqual(bundles.map(ws.isReminderV2Bundle),
-      [true, true, true, true, false, false, false]);
+      [true, true, true, true, true, true, true]);
+  assert.deepStrictEqual(bundles.map((b) => b.pgicOnly),
+      [false, false, false, false, true, true, true]);
+  assert.deepStrictEqual(ws.bundlesFor(V2, "pilot")
+      .map(ws.isReminderV2Bundle), [true, true, true, false]);
+});
+
+test("item 98: W5–W7 — open day 00:00, three whole days, push day 1 to " +
+    "all, one reminder day 2, no preview, no day-3 push, no e-mail, the " +
+    "S14 texts, weeklyPushHour not read", () => {
+  const w0 = TABLE.v2.w0;
+  // Any push hour: the v2 windows of W5–W7 do not move.
+  for (const hour of [10, 20, 7]) {
+    const cfg = ws.configFromData(Object.assign({}, TABLE.config,
+        {weeklyScheduleV2Enabled: true, weeklyPushHour: hour}),
+    {weeklyReminderV2Enabled: true});
+    const w5 = ws.bundleById(cfg, "standard", "W5");
+    const win = ws.windowFor(w5, w0, cfg, {});
+    assert.strictEqual(iso(win.open), fx("2026-11-23T00:00:00+08:00"));
+    assert.strictEqual(iso(win.close), fx("2026-11-26T00:00:00+08:00"));
+    assert.strictEqual(sw.studyDayAt(w0, win.open), 35);
+    assert.strictEqual(sw.studyDayAt(w0, new Date(win.close - 1)), 37);
+    assert.strictEqual(ws.closingDayKey(win), sw.addDays(w0, 37));
+    const steps = ws.v2StepsFor(w5, win);
+    assert.deepStrictEqual(steps.map((s) => [s.step, s.dateKey, s.field,
+      s.all, s.email]), [
+      ["open", sw.addDays(w0, 35), "pushedAt", true, false],
+      ["remind1", sw.addDays(w0, 36), "reminderSentAt", false, false],
+    ]);
+    assert.ok(steps.every((s) => s.dateKey !== sw.addDays(w0, 34)),
+        "no preview");
+    assert.ok(steps.every((s) => s.dateKey !== sw.addDays(w0, 37)),
+        "no last-day reminder");
+    assert.strictEqual(ws.emailDayKeyFor(w5, win), null);
+  }
+  // The S14 texts, unchanged (item 98 (4)); a test override still wins.
+  const steps = ws.v2StepsFor(ws.bundleById(V2, "standard", "W6"),
+      ws.windowFor(ws.bundleById(V2, "standard", "W6"), w0, V2, {}));
+  const copy = {push: ws.PUSH_BODY, reminder: ws.REMINDER_BODY};
+  const w6 = ws.bundleById(V2, "standard", "W6");
+  assert.deepStrictEqual(steps.map((s) => ws.v2BodyFor(s, w6, copy)),
+      ["今個禮拜嘅問卷開咗，得閒入嚟答幾條。", "今個禮拜嘅問卷仲未答完，得閒入嚟答埋佢。"]);
+  assert.strictEqual(ws.v2BodyFor(steps[0], w6,
+      Object.assign({"S14-open": "x"}, copy)), "x");
+  // W1's texts still come from push_copy.js.
+  const w1 = ws.bundleById(V2, "standard", "W1");
+  const s1 = ws.v2StepsFor(w1, ws.windowFor(w1, w0, V2, {}));
+  assert.strictEqual(ws.v2BodyFor(s1[1], w1, copy),
+      "第一週問卷開咗，快啲入嚟答啦。");
+  // Switch off: exactly T24 (push hour, 72 h).
+  const off = ws.bundleById(CFG, "standard", "W5");
+  const t24 = ws.windowFor(off, w0, CFG);
+  assert.strictEqual(iso(t24.open), fx(TABLE.standard.bundles[4].open));
+  assert.strictEqual(iso(t24.close), fx(TABLE.standard.bundles[4].close));
 });
 
 test("v2 outsideWindow: inside → false, before / at close → true, none → " +

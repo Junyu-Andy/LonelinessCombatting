@@ -2,9 +2,10 @@
 // picture, for Junyu.  Not part of CI.
 //
 //   Phone 360 × 800 at App text 1.30 (特大), 阿珍 and 阿伯, normal and high
-//   contrast: as the elder lands on the page (the newest bubble, question
-//   1, at the bottom) and scrolled up to the start of the week (the
-//   picture).  iPad 820 × 1180 (the 600-wide column, 1020l) at 1.06.
+//   contrast: as the elder lands on the page — since decisions-log 10/20
+//   第 99 条 the first visit opens at the picture — and `_start`, scrolled
+//   to the start of the week (the same view).  iPad 820 × 1180 (the
+//   600-wide column, 1020l) at 1.06.
 //
 //   flutter test test_manual/reminiscence_scene_shots_1020o_test.dart \
 //     --dart-define=SHOTS=true --update-goldens
