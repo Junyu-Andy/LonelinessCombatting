@@ -31,18 +31,22 @@ class BriefPrItem {
   final String high;
 }
 
-/// The four items, wording identical to the popup page.
+/// The four items, wording identical to the popup page.  1020f: the
+/// approved questionnaire package, appendix B.3, word for word — questions
+/// about 「佢」 (this chat's companion, named at the top of the page) with
+/// their own anchors at 1, 4 and 7; 2, 3, 5 and 6 carry no words.  Keys,
+/// storage and scoring unchanged (insensitivity stored raw, 8 − x later).
 const briefPrItems = <BriefPrItem>[
-  BriefPrItem('understanding', _understood, '完全唔係咁', '一半半', '完全係咁'),
-  BriefPrItem('validation', _respected, '完全唔係咁', '一半半', '完全係咁'),
-  BriefPrItem('caring', _cared, '完全唔係咁', '一半半', '完全係咁'),
-  BriefPrItem('insensitivity', _missed, '完全唔係咁', '有少少', '好係咁'),
+  BriefPrItem('understanding', _understood, '完全唔明白', '一半半', '非常明白'),
+  BriefPrItem('validation', _validated, '完全唔認同', '一半半', '非常認同'),
+  BriefPrItem('caring', _cared, '完全唔關心', '一半半', '非常關心'),
+  BriefPrItem('insensitivity', _insensitive, '完全冇', '有少少', '非常'),
 ];
 
-String _understood(String n) => '$n 明白我。';
-String _respected(String n) => '$n 尊重我。';
-String _cared(String n) => '$n 關心我。';
-String _missed(String n) => '$n 嘅回應好似搞錯重點，或者唔在乎。';
+String _understood(String n) => '啱啱嘅傾偈，你覺得佢有幾明白你？';
+String _validated(String n) => '佢有幾認同、接受你嘅諗法同感受？';
+String _cared(String n) => '你覺得佢有幾關心你？';
+String _insensitive(String n) => '佢嘅反應有冇令你覺得唔舒服、或者唔顧你感受？';
 
 class BriefPrFlowPage extends StatefulWidget {
   const BriefPrFlowPage({
@@ -57,6 +61,9 @@ class BriefPrFlowPage extends StatefulWidget {
   final BriefPrScheduler? scheduler;
 
   static const stem = '今次傾偈';
+
+  /// 1020f: 「今次傾偈」 with the companion's name (draft wording).
+  static String stemFor(String name) => '$stem：$name';
   static const nextLabel = '下一題';
   static const submitLabel = '完成';
   static const backLabel = '上一題';
@@ -148,7 +155,10 @@ class _BriefPrFlowPageState extends State<BriefPrFlowPage> {
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
             children: [
               Text(
-                BriefPrFlowPage.stem,
+                // 1020f: the items say 「佢」, so the page names the
+                // companion here.
+                BriefPrFlowPage.stemFor(name),
+                key: const Key('brief_pr_stem'),
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                   fontSize: 17,

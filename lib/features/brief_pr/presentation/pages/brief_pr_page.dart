@@ -193,13 +193,12 @@ class _BriefPrPageState extends State<BriefPrPage> {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     final name = widget.agentDisplayName;
-    // Endpoint + midpoint anchors. Kept generic so they fit the existing
-    // Sprint 1 stems verbatim; the coupled wording proposed in the C1 ticket
-    // (完全唔〔明白/認同/關心〕 · 一半半 · 非常〔…〕) is pending PI / cognitive
-    // interview sign-off (protocol §6.4) before it can replace these.
-    final posLeft = isEn ? 'Not at all' : '完全唔係咁';
-    final posMid = isEn ? 'Halfway' : '一半半';
-    final posRight = isEn ? 'Very much' : '完全係咁';
+    // 1020f: the approved questionnaire package (appendix B.3) word for
+    // word — questions about 「佢」 with each item's own anchors at 1, 4
+    // and 7 — the same as the one-question-per-screen BriefPrFlowPage.
+    // Not shown in Phase B, changed anyway so it is never used with the
+    // old wording.  Fields and raw storage unchanged.
+    final mid = isEn ? 'Halfway' : '一半半';
     return Scaffold(
       appBar: AppBar(
         title: Text(isEn ? 'A quick check-in' : '一啲簡短回饋'),
@@ -229,38 +228,44 @@ class _BriefPrPageState extends State<BriefPrPage> {
             ),
             const SizedBox(height: 24),
             SurveyItemCard(
-              title: isEn ? '$name understood me.' : '$name 明白我。',
+              title: isEn
+                  ? 'In the chat just now, how well do you feel they understood you?'
+                  : '啱啱嘅傾偈，你覺得佢有幾明白你？',
               child: LikertScale(
                 points: 7,
                 value: _understanding,
                 onChanged: (v) => setState(() => _understanding = v),
-                lowLabel: posLeft,
-                midLabel: posMid,
-                highLabel: posRight,
+                lowLabel: isEn ? 'Not at all' : '完全唔明白',
+                midLabel: mid,
+                highLabel: isEn ? 'Completely' : '非常明白',
               ),
             ),
             const SizedBox(height: 14),
             SurveyItemCard(
-              title: isEn ? '$name respected me.' : '$name 尊重我。',
+              title: isEn
+                  ? 'How much did they accept your thoughts and feelings?'
+                  : '佢有幾認同、接受你嘅諗法同感受？',
               child: LikertScale(
                 points: 7,
                 value: _validation,
                 onChanged: (v) => setState(() => _validation = v),
-                lowLabel: posLeft,
-                midLabel: posMid,
-                highLabel: posRight,
+                lowLabel: isEn ? 'Not at all' : '完全唔認同',
+                midLabel: mid,
+                highLabel: isEn ? 'Completely' : '非常認同',
               ),
             ),
             const SizedBox(height: 14),
             SurveyItemCard(
-              title: isEn ? '$name cared about me.' : '$name 關心我。',
+              title: isEn
+                  ? 'How much do you feel they cared about you?'
+                  : '你覺得佢有幾關心你？',
               child: LikertScale(
                 points: 7,
                 value: _caring,
                 onChanged: (v) => setState(() => _caring = v),
-                lowLabel: posLeft,
-                midLabel: posMid,
-                highLabel: posRight,
+                lowLabel: isEn ? 'Not at all' : '完全唔關心',
+                midLabel: mid,
+                highLabel: isEn ? 'Completely' : '非常關心',
               ),
             ),
             if (_hasInsensitivity) ...[
@@ -269,16 +274,16 @@ class _BriefPrPageState extends State<BriefPrPage> {
               const SizedBox(height: 20),
               SurveyItemCard(
                 title: isEn
-                    ? '$name\'s response seemed to miss the point or feel indifferent.'
-                    : '$name 嘅回應好似搞錯重點，或者唔在乎。',
+                    ? 'Did their response make you uncomfortable, or seem to ignore your feelings?'
+                    : '佢嘅反應有冇令你覺得唔舒服、或者唔顧你感受？',
                 child: LikertScale(
                   points: 7,
                   value: _insensitivity,
                   onChanged: (v) => setState(() => _insensitivity = v),
                   // S4 is negatively worded; anchors run none → very much.
-                  lowLabel: isEn ? 'Not at all' : '完全唔係咁',
+                  lowLabel: isEn ? 'Not at all' : '完全冇',
                   midLabel: isEn ? 'A little' : '有少少',
-                  highLabel: isEn ? 'Very much' : '好係咁',
+                  highLabel: isEn ? 'Very much' : '非常',
                 ),
               ),
             ],

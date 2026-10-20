@@ -149,6 +149,14 @@
 - 「問下通通」只 Hybrid（C08），沿用通通文章模式，内容用 `<id>.txt`，前面那段说明是读本专用草稿（电脑程式伙伴写法）；规则组用会报错的假模型测过，没有任何调用。
 - 使用事件 `reader_open/section/cta/close` 进 `usage_events`（规则白名单、服务器盖章；运营看板前台分钟只算前台／后台）。检查脚本 `tool/check_reader_html.js` 进 CI。测试单元只在 `READER_TEST_UNIT` 构建里，已验证正式构建里没有。
 - 这台机器编不了 APK 和 iOS 包（连不上 Google 下载站、没有 Mac）：合并前 Junyu 跑 Build APK 和 Codemagic，两台手机按报告第 10 节测。报告：`docs/dev-reports/readers-20261020.md`。
+## 2026-10-20 1020f 第一节：量表文字改回已批问卷包（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-1020f`，从 `main` 开）
+
+- 依据 decisions-log 10/20 第 48 至 50 条和已批问卷包（7/17 提交版）附录 B.3、B.5。按修 bug 处理，两组相同，不加开关。
+- `pgic_page.dart`：题干、七个选项照 B.5；标题「同開始用嗰時比較」。`brief_pr_flow_page.dart`、`brief_pr_page.dart`：四题照 B.3，每题自己的两端和中点文字；一题一屏页顶「今次傾偈：〈名字〉」。`weekly_pr_response.dart`：12 题「頭先」→「呢個禮拜」。`check_in_shared.dart`（`MoodFace.label`）、`app_mood_encoding.dart`（图例）：同一套五个字。`weekly_bundle_flow_page.dart`：DJG、S12 页标题用部分名；`weekly_pr_page.dart`、`pgic_page.dart` 标题同样改。
+- 只读核对（1020f 第一节第 6 项）：小篇章两次模型调用前的文字都过 `stripPII`（#137 `reminiscence_chapter.js` `normaliseInput`，`index.js` 传入）；「改一改」两组都走 `saveChapterEdit` → 共享安全检测（输入点 `reminiscence_summary_edit`）；后备收件人字段是 `meta/alert_config.backupEmail`，生产值由 Junyu 用 `tool/check_prelaunch_values.js` 查（脚本已期望「没有」）。
+- `tool/check_prelaunch_values.js` 加 1020d、1020e 的七个新开关，期望值 10/20 晚由 Junyu 定（先只显示）。
+- 新测试 `test/instrument_wording_1020f_test.dart`；截图 `docs/dev-reports/1020f-shots/`。
+- Junyu 10/20 追加（同一 PR）：测试员工具「反饋／問卷」的 PGIC 一格改为「同開始用嗰時比較／同開始用之前比，孤獨感有冇變？」；「預覽量表」在 Phase B 构建里不再显示 Phase A 的「DJG-ES（第 2 週，6 題）」，只留「DJG W2（Phase B）」。测试 `test/tester_tools_1020f_test.dart`（两种构建）。Brief PR 一题一屏页顶「今次傾偈：〈陪伴者〉」Junyu 已定。
 
 ## 2026-10-19 W0 现场第三批（Junyu 定）：只认 App 字號、Brief PR 卡上首页、记忆页分组、资料卡和热线卡缩小（PR 草稿，分支 `feat/1019-ui-round3`，接 #122）
 

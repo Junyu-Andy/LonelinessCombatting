@@ -27,7 +27,7 @@ class DjgW2Page extends StatefulWidget {
     super.key,
     required this.store,
     this.part,
-    this.title = '第 2 週問卷',
+    this.title = '最近嘅感受',
   });
 
   @override

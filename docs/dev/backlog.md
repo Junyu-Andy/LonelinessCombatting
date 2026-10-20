@@ -43,6 +43,7 @@
 > 2026-10-20 1020 第 4 批（F (5) 08:30／19:00 推送，G (1)(3) 三天提醒和电邮）PR 草稿，分支 `claude/zealous-fermat-8rgqtg-batch4`（开关 `checkInChatV2Enabled`、`weeklyReminderV2Enabled` 默认关）；要部署 Functions（两个新定时函数、一个新触发器）。待 Junyu 定：P1、P2、W1–W3-4、E1 文字；第 1–3 周 W2「聽日截止」、W3「最後一日」比实际窗口早一天（窗口到第 10 天 20:00），要不要改窗口或改字；每周问卷推送日不发 P2；check-in 因危机中断算做过；08:30 前已做 check-in 仍收 P1；第 5–7 周提醒照旧、不进电邮；决策编号。已知缺口：W4 面访日期只能当天或之后录入、App 不读它，所以面访晚于第 29 天时 App 第 4 周仍按第 29 天关，要另开任务。
 > 2026-10-20 第 4 批按 1020e 改完（每周问卷整日窗口和 10:00 推送、W4 录入即关、P1 跳过已做、P2 每周推送日照发、误触 falseAlarm），上一行待定项里 W2/W3 文字、每周推送日不发 P2、08:30 前做完仍收 P1、第 5–7 周、W4 面访延不了几项已由 1020e 定，划掉。仍待定：第 1–4 周新文字和 E1 正文 Junyu 截图定；W4 在第 26 天前就录入时问卷开第 26 天一天（开发做法）；第 2 批要加「誤觸」标记动作（写 `falseAlarm`、`markedBy`、`markedAt`），没有它 P2 照危机中断处理；第 3 批首页问卷一行要传 `w4RecordedOn`（`WeeklySchedule` 的 `week4RecordedOn`）；测试员「日程模擬」一览（`ScheduleSimulator`）还是旧推送表。
 > 2026-10-20 1020c 小讀本 PR #130 草稿（开关 `htmlReadersEnabled` 默认关，manifest 空）；合并前：Build APK（`phase_b_templates` 和 `phase_b_templates_reader_test`）、Codemagic iOS 包、iPhone 和安卓按 `docs/dev-reports/readers-20261020.md` 第 10 节测；合并后部署规则和 Functions；待 Junyu 定：开关 10/21 的值、五句草稿文字、「問下通通」说明段、打勾条件、读本数据要不要导出、iPhone 测试单元怎么装、决策编号；Junyu 10/20 22:00 前交定稿单元（先跑 `node tool/check_reader_html.js`）。
+> 2026-10-20 1020f 第一节 PR 草稿（量表文字改回已批问卷包，无开关）；Brief PR 一题一屏页顶「今次傾偈：〈名字〉」Junyu 10/20 已定；待定：`check_prelaunch_values.js` 里七个新开关的期望值（Junyu 10/20 晚定）；第四节 W8 问卷（T35）等产品窗口交 `docs/spec/instruments/` 四份规格后再做，12/9 前测完。
 
 ## 1. 已决定、待开发
 

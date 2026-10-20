@@ -78,21 +78,22 @@ class WeeklyPrResponse {
   }
 }
 
-/// 12 Weekly PR items per Sprint 1 §4.1.
+/// 12 Weekly PR items per Sprint 1 §4.1.  1020f: each starts 「呢個禮拜」
+/// (was 「頭先」) — the items rate the whole week.
 class WeeklyPrItems {
   static const items = <({String id, String text})>[
-    (id: 'u1', text: '頭先 $kAgent 都明白我嘅感受。'),
-    (id: 'u2', text: '頭先 $kAgent 都明白我嘅想法。'),
-    (id: 'u3', text: '頭先 $kAgent 真係聽到我講嘅嘢。'),
-    (id: 'v1', text: '頭先 $kAgent 尊重我嘅感受。'),
-    (id: 'v2', text: '頭先 $kAgent 認可我講嘅嘢。'),
-    (id: 'v3', text: '頭先 $kAgent 冇判斷我。'),
-    (id: 'c1', text: '頭先 $kAgent 真心關心我。'),
-    (id: 'c2', text: '頭先 $kAgent 為我著想。'),
-    (id: 'c3', text: '頭先 $kAgent 嘅回應令我覺得舒服。'),
-    (id: 'i1', text: '頭先 $kAgent 嘅回應好似搞錯重點。'),
-    (id: 'i2', text: '頭先 $kAgent 好似唔在乎我講嘅嘢。'),
-    (id: 'i3', text: '頭先 $kAgent 嘅回應令我覺得唔舒服。'),
+    (id: 'u1', text: '呢個禮拜 $kAgent 都明白我嘅感受。'),
+    (id: 'u2', text: '呢個禮拜 $kAgent 都明白我嘅想法。'),
+    (id: 'u3', text: '呢個禮拜 $kAgent 真係聽到我講嘅嘢。'),
+    (id: 'v1', text: '呢個禮拜 $kAgent 尊重我嘅感受。'),
+    (id: 'v2', text: '呢個禮拜 $kAgent 認可我講嘅嘢。'),
+    (id: 'v3', text: '呢個禮拜 $kAgent 冇判斷我。'),
+    (id: 'c1', text: '呢個禮拜 $kAgent 真心關心我。'),
+    (id: 'c2', text: '呢個禮拜 $kAgent 為我著想。'),
+    (id: 'c3', text: '呢個禮拜 $kAgent 嘅回應令我覺得舒服。'),
+    (id: 'i1', text: '呢個禮拜 $kAgent 嘅回應好似搞錯重點。'),
+    (id: 'i2', text: '呢個禮拜 $kAgent 好似唔在乎我講嘅嘢。'),
+    (id: 'i3', text: '呢個禮拜 $kAgent 嘅回應令我覺得唔舒服。'),
   ];
 
   static const kAgent = '〈AGENT〉';

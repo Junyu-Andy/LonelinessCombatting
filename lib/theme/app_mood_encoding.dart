@@ -38,32 +38,32 @@ class AppMoodEncoding {
           level: 1,
           color: const Color(0xFFD32F2F),
           shape: Icons.cloud_outlined,
-          labelEn: 'Tough',
-          labelZh: '好辛苦',
+          labelEn: 'Very unhappy',
+          labelZh: '好唔開心',
         );
       case 2:
         return MoodVisualToken(
           level: 2,
           color: const Color(0xFFF57C00),
           shape: Icons.water_drop_outlined,
-          labelEn: 'Down',
-          labelZh: '差啲',
+          labelEn: 'Not great',
+          labelZh: '唔係幾好',
         );
       case 3:
         return MoodVisualToken(
           level: 3,
           color: const Color(0xFFFBC02D),
           shape: Icons.circle_outlined,
-          labelEn: 'OK',
-          labelZh: '一般',
+          labelEn: 'So-so',
+          labelZh: '一般般',
         );
       case 4:
         return MoodVisualToken(
           level: 4,
           color: const Color(0xFF7CB342),
           shape: Icons.eco_outlined,
-          labelEn: 'Good',
-          labelZh: '好',
+          labelEn: 'Fairly good',
+          labelZh: '幾好',
         );
       case 5:
       default:
@@ -71,7 +71,7 @@ class AppMoodEncoding {
           level: 5,
           color: scheme.primary,
           shape: Icons.wb_sunny_outlined,
-          labelEn: 'Great',
+          labelEn: 'Very happy',
           labelZh: '好開心',
         );
     }
