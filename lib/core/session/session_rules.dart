@@ -95,6 +95,7 @@ class SessionTally {
     this.isRuleSubmission = false,
     this.ruleSubmissionCompleted = false,
     this.endReason,
+    this.checkInCompleted = false,
   });
 
   final SessionType sessionType;
@@ -120,6 +121,11 @@ class SessionTally {
   final bool ruleSubmissionCompleted;
   final String? endReason;
 
+  /// 1020 F (3) — the chat check-in (`checkInChatV2Enabled`, both arms)
+  /// was answered to the end (Q5).  Written to the row only when true, so
+  /// rows from the old pages look exactly as before.
+  final bool checkInCompleted;
+
   Map<String, dynamic> toMap() => {
         'sessionType': sessionType.code,
         'userMessageCount': userMessageCount,
@@ -128,6 +134,7 @@ class SessionTally {
         'summarySaved': summarySaved,
         'isRuleSubmission': isRuleSubmission,
         'ruleSubmissionCompleted': ruleSubmissionCompleted,
+        if (checkInCompleted) 'checkInCompleted': true,
       };
 
   /// Rebuild from a stored `sessions` document (app-start sweep).  Missing
@@ -145,6 +152,7 @@ class SessionTally {
       isRuleSubmission: b('isRuleSubmission'),
       ruleSubmissionCompleted: b('ruleSubmissionCompleted'),
       endReason: endReason ?? m['endReason'] as String?,
+      checkInCompleted: b('checkInCompleted'),
     );
   }
 }
@@ -217,6 +225,9 @@ class SessionRules {
       case SessionType.freeChat:
         return t.replyCount >= freeChatValidMinUserMessages;
       case SessionType.checkIn:
+        // 1020 F (3): a completed chat check-in is one valid session (both
+        // arms); chatting on in the same window stays in this session.
+        if (t.checkInCompleted) return true;
         if (checkInValidRequiresMood && !t.moodRecorded) return false;
         return t.replyCount >= checkInValidMinUserMessages;
       case SessionType.reminiscence:

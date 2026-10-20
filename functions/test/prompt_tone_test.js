@@ -204,6 +204,8 @@ test("old files have no slot, so filling them is a no-op", () => {
 test("PROMPT_FILES maps the app keys to the new files", () => {
   assert.deepStrictEqual(reg.PROMPT_FILES, {
     siu_yan_v1: "siu_yan.v2",
+    // 1020 F: the chat check-in's key (test/prompt_siu_yan_v3_test.js).
+    siu_yan_v3: "siu_yan.v3",
     ah_jan_ah_bak_v1: "ah_jan_ah_bak.v2",
     tung_tung_v1: "tung_tung.v3",
   });

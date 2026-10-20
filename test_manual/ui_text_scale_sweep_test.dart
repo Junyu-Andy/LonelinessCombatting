@@ -69,6 +69,10 @@ import 'package:app_demo/features/brief_pr/presentation/widgets/session_close_hi
 import 'package:app_demo/features/context/presentation/pages/check_in_arm_a.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_arm_b.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_shared.dart';
+import 'package:app_demo/features/context/presentation/pages/siu_yan_chat_page.dart';
+import 'package:app_demo/features/context/data/check_in_chat_copy.dart';
+import 'package:app_demo/features/context/data/check_in_response_store.dart';
+import 'package:app_demo/features/rule_replies/data/rule_reply_history_store.dart';
 import 'package:app_demo/features/crisis/presentation/pages/emergency_support_page.dart';
 import 'package:app_demo/features/crisis/presentation/widgets/safety_footer_card.dart';
 import 'package:app_demo/features/curious_companion/presentation/pages/tung_tung_page.dart';
@@ -526,6 +530,45 @@ final _flows = <String, _Flow>{
     final picker = c.tester.widget<MoodFacePicker>(find.byType(MoodFacePicker));
     expect(picker.value, MoodFace.values[2], reason: 'face 3 pre-chosen');
     await c.shot('checkin_b_prefilled');
+    await _back(c);
+  },
+  '小欣聊天窗口（1020 F check-in 对话化；组别按构建）': (c) async {
+    // 1020 F: answer buttons wrap on a narrow phone × 特大, the 唔講住
+    // button sits above the input box; then free chat in the same window.
+    await _pushPage(
+        c,
+        SiuYanChatPage(
+          checkedInToday: (_) async => false,
+          latestMoodToday: (_) async => null,
+          responseStore: InMemoryCheckInResponseStore(),
+          replyHistory: InMemoryRuleReplyHistoryStore(),
+          onOpenActionPlan: (_) async {},
+        ));
+    Future<void> settle() async {
+      await c.tester.pump(const Duration(seconds: 1));
+      await c.tester.pumpAndSettle();
+    }
+
+    await settle();
+    await c.shot('siu_yan_v2_q1');
+    for (final key in ['Q1_not_good', 'Q2_a_little', 'Q3_small']) {
+      expect(await _tap(c, find.byKey(ValueKey('check_in_answer_$key'))),
+          isTrue, reason: key);
+      await settle();
+    }
+    await c.shot('siu_yan_v2_q3b');
+    await _send(c, '同阿女去咗飲茶，佢買咗蛋撻俾我');
+    await c.shot('siu_yan_v2_reply1_q4');
+    expect(await _tap(c, find.byKey(const ValueKey('check_in_skip'))), isTrue);
+    await settle();
+    expect(await _tap(c, find.byKey(const ValueKey('check_in_answer_Q5_no'))),
+        isTrue);
+    await settle();
+    expect(find.textContaining(CheckInChatCopy.q6, findRichText: true),
+        findsOneWidget);
+    await c.shot('siu_yan_v2_q6');
+    await _send(c, '今日天氣幾好，想落街行下');
+    await c.shot('siu_yan_v2_chat');
     await _back(c);
   },
   '阿珍／阿伯回忆页': (c) async {

@@ -106,7 +106,7 @@ const TABLES = {
   safety_events: ['dataset', 'researchId', 'arm', 'source', 'sourceGroup',
     'level', 'tier', 'category', 'lexiconVersion', 'agentId', 'inputPoint',
     'createdAt', 'instrument', 'item', 'rawValue', 'crisisPageShown',
-    'isDuplicate'],
+    'isDuplicate', 'falseAlarm', 'markedAt'],
   llm_calls: ['dataset', 'researchId', 'arm', 'ts', 'call_type', 'agent',
     'model_requested', 'model_returned', 'prompt_tokens',
     'completion_tokens', 'total_tokens', 'http_status', 'latency_ms',
@@ -549,7 +549,7 @@ function generateSynthetic(opts) {
                 lexiconVersion: 'v5-2026-09', agentId, inputPoint: 'chat',
                 createdAt: started, instrument: null, item: null,
                 rawValue: null, crisisPageShown: rand() < 0.3,
-                isDuplicate: false})));
+                isDuplicate: false, falseAlarm: false, markedAt: null})));
         }
       }
       const isoWeek = isoWeekHk(new Date(`${addDays(w0Date, (wk - 1) * 7)}` +

@@ -54,6 +54,8 @@ PROMPTS_V2 = [
     "functions/prompts/siu_yan.v2.txt",
     "functions/prompts/ah_jan_ah_bak.v2.txt",
     "functions/prompts/tung_tung.v3.txt",
+    # 1020 F (2026-10-19): 小欣 v3 (chat check-in), key siu_yan_v3.
+    "functions/prompts/siu_yan.v3.txt",
 ]
 
 BUNDLE_ORDER = PROMPTS + PROMPTS_V2 + [SUFFIX_TEMPLATE, ACKS, CRISIS, FALLBACK]

@@ -350,6 +350,7 @@ class ChatSessionRecorder {
   bool _summarySaved = false;
   bool _ruleSubmission = false;
   bool _ruleSubmissionCompleted = false;
+  bool _checkInCompleted = false;
   bool _ended = false;
   String? _endReason;
   IdleSessionTimer? _idle;
@@ -388,6 +389,7 @@ class ChatSessionRecorder {
         isRuleSubmission: _ruleSubmission,
         ruleSubmissionCompleted: _ruleSubmissionCompleted,
         endReason: _endReason,
+        checkInCompleted: _checkInCompleted,
       );
 
   /// T25 — "完成一个互动单元" (C16) under [rules].  Under the legacy rules
@@ -407,6 +409,21 @@ class ChatSessionRecorder {
     _ruleSubmission = true;
     _ruleSubmissionCompleted = completed;
   }
+
+  /// 1020 F (3) — the chat check-in (`checkInChatV2Enabled`) was answered
+  /// to the end in this session: the session counts as valid
+  /// ([SessionRules.isValid]) and stays open for the chat that follows.
+  /// Marks the row at once so a session recovered after a process kill
+  /// keeps it.
+  void markCheckInCompleted() {
+    _checkInCompleted = true;
+    final ref = _sessionRef;
+    if (ref == null || _ended) return;
+    unawaited(_guard(
+        () => ref.set({'checkInCompleted': true}, SetOptions(merge: true))));
+  }
+
+  bool get checkInCompleted => _checkInCompleted;
 
   /// T25 — what the Brief PR scheduler needs once the session has ended.
   /// Null while the session is open or when there is no signed-in user.
@@ -483,6 +500,7 @@ class ChatSessionRecorder {
     _endedAt = null;
     _ended = false;
     _endReason = null;
+    _checkInCompleted = false;
     _open.add(this);
     _startIdleTimer();
     unawaited(analytics.logEvent(PhaseAEvents.sessionStart, {
@@ -635,6 +653,7 @@ class ChatSessionRecorder {
           'summarySaved': _summarySaved,
           'isRuleSubmission': _ruleSubmission,
           'ruleSubmissionCompleted': _ruleSubmissionCompleted,
+          if (_checkInCompleted) 'checkInCompleted': true,
         }, SetOptions(merge: true))));
   }
 
