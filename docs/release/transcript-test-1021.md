@@ -1,6 +1,6 @@
 # 研究原文测试指引（10/21 冻结构建，两组都测）
 
-给 Junyu。依据：决策 0069、`lib/core/session/chat_session_recorder.dart`、各聊天页、`test/research_transcript_v2_test.dart`。读原文用新脚本 `tool/read_transcripts.js`（分支 `claude/zealous-fermat-8rgqtg-readtx`）。
+给 Junyu。依据：决策 0069、`lib/core/session/chat_session_recorder.dart`、各聊天页、`test/research_transcript_v2_test.dart`。读原文用新脚本 `tool/read_transcripts.js`（已在冻结分支 `claude/zealous-fermat-8rgqtg-freeze-1021`，PR #151）。
 
 ## 先说结论
 
@@ -97,7 +97,8 @@ Hybrid 模型失败时，回复换成后备句（例如「唔好意思，我啱�
 
 ```
 git fetch origin
-git checkout claude/zealous-fermat-8rgqtg-readtx
+git checkout claude/zealous-fermat-8rgqtg-freeze-1021
+git pull
 cd functions && npm ci && cd ..
 export GOOGLE_APPLICATION_CREDENTIALS=<服务账号文件>
 unset FIRESTORE_EMULATOR_HOST
