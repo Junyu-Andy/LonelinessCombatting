@@ -13,6 +13,8 @@
 #      「問下通通」 split — Hybrid only, no LLM path for the rule arm)
 #      (1020k: test/scale_direction_cues_1020k_test.dart runs in 1, 2 and 3
 #      — the reverse-item lines and Weekly PR pages, same for both arms)
+#      (1020l: test/reminiscence_avatar_1020l_test.dart runs in 1, 2 and 3 —
+#      the chosen 阿珍／阿伯 avatar on both arms)
 #   4. MEMORY_V1=true         — memory v1 client tests (memory branch)
 #   5. RULE_TEMPLATE_REPLIES=true — final templates on (T33: no placeholder
 #      left, so the switch alone turns them on)
@@ -58,6 +60,7 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/researcher_intake_gate_test.dart \
   test/reader_test.dart \
   test/scale_direction_cues_1020k_test.dart \
+  test/reminiscence_avatar_1020l_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
@@ -69,6 +72,7 @@ run "phase B arm B pages" \
   test/researcher_intake_gate_test.dart \
   test/reader_test.dart \
   test/scale_direction_cues_1020k_test.dart \
+  test/reminiscence_avatar_1020l_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \
   --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
