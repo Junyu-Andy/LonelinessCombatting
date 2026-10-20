@@ -463,8 +463,10 @@ class _ReaderTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   static const double _side = 64;
 
+  static const double _height = 76;
+
   @override
-  Size get preferredSize => const Size.fromHeight(72);
+  Size get preferredSize => const Size.fromHeight(_height);
 
   @override
   Widget build(BuildContext context) {
@@ -479,7 +481,7 @@ class _ReaderTopBar extends StatelessWidget implements PreferredSizeWidget {
       foregroundColor: ink,
       elevation: 0,
       scrolledUnderElevation: 0,
-      toolbarHeight: 72,
+      toolbarHeight: _height,
       centerTitle: true,
       titleSpacing: 0,
       leadingWidth: _side,
@@ -504,19 +506,24 @@ class _ReaderTopBar extends StatelessWidget implements PreferredSizeWidget {
               title,
               key: ReaderPage.titleKey,
               maxLines: 1,
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(color: ink, fontWeight: FontWeight.w700),
+              // Two lines must fit the bar at the largest App text (1.30).
+              style: theme.textTheme.titleMedium?.copyWith(
+                  color: ink,
+                  fontSize: 18,
+                  height: 1.3,
+                  fontWeight: FontWeight.w700),
             ),
           ),
-          const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
               subtitle,
               key: ReaderPage.subtitleKey,
               maxLines: 1,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 14,
+                  height: 1.3),
             ),
           ),
         ],
@@ -567,10 +574,14 @@ class _AskButton extends StatelessWidget {
             backgroundColor: primary.withValues(alpha: 0.10),
             foregroundColor: primary,
           ),
-          child: const Text(
+          child: Text(
             '?',
             textScaler: TextScaler.noScaling,
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+            style: TextStyle(
+                fontFamily: theme.textTheme.labelLarge?.fontFamily,
+                fontSize: 24,
+                height: 1.0,
+                fontWeight: FontWeight.w700),
           ),
         ),
       ),
