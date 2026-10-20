@@ -3,7 +3,7 @@
 /// 「今日要做嘅事」 rows, the 「去搵人傾」 button and the questionnaire row
 /// (W4, 1020b §4 5.5; W5 by day, 1020e 二.1 (5), 二.2 (4); 1020l §二 (1):
 /// two lines — title and a small second line, W5-2 the deadline day) and
-/// the small-action row (SA1–SA5, 1020m 第二节).
+/// the small-action row (SA1–SA5, 1020m 第二节; SA6–SA8, 1020n 第三节).
 ///
 /// Drafts (1020b common rule 4), verbatim from `docs/spec/copy/home-v2.md`
 /// (test/final_copy_test.dart).  D1–D4 are the development window's
@@ -60,8 +60,8 @@ class HomeV2Copy {
   /// SA2 — the small text button on SA1's right (hidden 3 days).
   static const String smallActionLater = '遲啲先';
 
-  /// SA3 — 1020m 第二节 (2): a plan for today, `今日計劃：{計劃內容}` (one
-  /// line; a long plan ends in 「…」).
+  /// SA3 — 1020m 第二节 (2): a plan for today, `今日計劃：{計劃內容}` (1020n
+  /// 第五节: at most two lines; a longer plan ends in 「…」).
   static const String smallActionPlanTemplate = '今日計劃：{計劃內容}';
 
   /// SA4 / SA5 — the two buttons under SA3.
@@ -71,6 +71,24 @@ class HomeV2Copy {
   /// SA3 with the plan's 做咩 filled in.
   static String smallActionPlan(String action) =>
       smallActionPlanTemplate.replaceFirst('{計劃內容}', action);
+
+  /// SA6 — 1020n 第三节 (1)(a): a plan made today for tomorrow, no buttons
+  /// (at most two lines, then 「…」).
+  static const String smallActionNextDayTemplate = '聽日計劃：{計劃內容}';
+
+  /// SA7 — 1020n 第三节 (1)(b): under the SA6 lines (撳: 今日小行動).
+  static const String smallActionMore = '仲有冇其他計劃？';
+
+  /// SA8 — 1020n 第三节 (4): more than two plans (撳: 我嘅計劃).
+  static const String smallActionOverflowTemplate = '仲有 {N} 個計劃';
+
+  /// SA6 with the plan's 做咩 filled in.
+  static String smallActionNextDay(String action) =>
+      smallActionNextDayTemplate.replaceFirst('{計劃內容}', action);
+
+  /// SA8 with the number of plans not shown.
+  static String smallActionOverflow(int n) =>
+      smallActionOverflowTemplate.replaceFirst('{N}', '$n');
 
   static const _weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 

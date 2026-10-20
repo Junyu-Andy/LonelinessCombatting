@@ -279,6 +279,13 @@ void main() {
       expect(HomeV2Copy.smallActionPlan('同阿明飲茶'), '今日計劃：同阿明飲茶');
     });
 
+    test('1020n 第三节: SA6–SA8, verbatim', () {
+      expect(HomeV2Copy.smallActionNextDayTemplate, rows['SA6']![2]);
+      expect(HomeV2Copy.smallActionMore, rows['SA7']![2]);
+      expect(HomeV2Copy.smallActionOverflowTemplate, rows['SA8']![2]);
+      expect(HomeV2Copy.smallActionOverflow(2), '仲有 2 個計劃');
+    });
+
     test('1020e 二.12: the five face words F1–F5 = check-in Q1 words', () {
       for (var m = 1; m <= 5; m++) {
         expect(MoodRowCopy.faceLabel(m), rows['F$m']![2], reason: 'F$m');

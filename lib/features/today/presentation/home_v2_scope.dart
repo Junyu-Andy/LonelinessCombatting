@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../../core/session/session_entry_surface.dart';
 import '../../context/presentation/pages/check_in_page.dart';
+import '../../action_loop/presentation/pages/action_loop_landing.dart';
 import '../../context/presentation/pages/siu_yan_chat_page.dart';
 import '../../social_suggestions/presentation/pages/social_suggestions_page.dart';
 import '../../weekly_bundle/data/weekly_bundle.dart';
@@ -28,6 +29,7 @@ class HomeV2Scope extends InheritedWidget {
     this.checkInPage,
     this.smallActionStore,
     this.smallActionPage,
+    this.myPlansPage,
   });
 
   /// Today's check-in done?  Default: the `check_in_submitted` event.
@@ -54,6 +56,10 @@ class HomeV2Scope extends InheritedWidget {
   /// [SocialSuggestionsPage] (今日小行動, the 做啲嘢 page's first card).
   final Widget Function()? smallActionPage;
 
+  /// 1020n: the page 「仲有 N 個計劃」 opens.  Default:
+  /// [ActionLoopLandingPage] (我嘅計劃).
+  final Widget Function()? myPlansPage;
+
   static HomeV2Scope? maybeOf(BuildContext context) =>
       context.getInheritedWidgetOfExactType<HomeV2Scope>();
 
@@ -73,6 +79,9 @@ class HomeV2Scope extends InheritedWidget {
   static Widget buildSmallActionPage(BuildContext context) =>
       maybeOf(context)?.smallActionPage?.call() ??
       const SocialSuggestionsPage();
+
+  static Widget buildMyPlansPage(BuildContext context) =>
+      maybeOf(context)?.myPlansPage?.call() ?? const ActionLoopLandingPage();
 
   @override
   bool updateShouldNotify(HomeV2Scope oldWidget) => false;

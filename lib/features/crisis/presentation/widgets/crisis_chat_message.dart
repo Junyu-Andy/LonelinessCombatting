@@ -13,8 +13,8 @@ import '../pages/emergency_support_page.dart';
 /// gone.
 /// This message is never written by the model and is never sent to it.
 ///
-///   • Opening sentence: [openingZh] / [openingEn]（【草稿】, wording for
-///     Junyu to confirm).
+///   • Opening sentence: [openingZh] / [openingEn] (final, Junyu 10/20,
+///     decisions-log item 86 / 1020n 第一节).
 ///   • The numbers: exactly the crisis page's list — [SafetyCopy.crisis],
 ///     read from the same `functions/prompts/crisis_resources.json` the
 ///     crisis page reads, same order, names and numbers as they are there.
@@ -25,13 +25,13 @@ import '../pages/emergency_support_page.dart';
 class CrisisChatMessage extends StatelessWidget {
   const CrisisChatMessage({super.key});
 
-  /// 【草稿】 Opening sentence (Junyu to confirm).
-  static const String openingZh = '你啱啱講嘅嘢好重要。請即刻打以下電話，有人會聽你講：';
+  /// Opening sentence (final, 1020n 第一节).
+  static const String openingZh = '如果你而家好唔開心、好難頂，請即刻打以下電話，有人會聽你講：';
 
-  /// Testers' English line (the study UI is Cantonese).
+  /// Testers' English line, same meaning (the study UI is Cantonese).
   static const String openingEn =
-      'What you just said matters. Please call one of these numbers now. '
-      'Someone will listen:';
+      'If you are very upset or finding it hard to cope right now, please '
+      'call one of these numbers now. Someone will listen:';
 
   static const String buttonZh = '打開緊急求助頁';
   static const String buttonEn = 'Open the emergency help page';

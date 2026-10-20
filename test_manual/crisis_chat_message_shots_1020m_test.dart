@@ -1,5 +1,5 @@
-// 1020m 第三节 — screenshots for Junyu (style; the opening sentence is a
-// 【草稿】): per arm, the crisis page the acute flow opens, and the chat
+// 1020m 第三节 — screenshots for Junyu (style; 1020n 第一节: the final
+// opening sentence): per arm, the crisis page the acute flow opens, and the chat
 // window after it is closed — the one fixed safety message
 // (CrisisChatMessage: the crisis page's numbers + 「打開緊急求助頁」).
 // 小欣 free chat at phone 360 × 800 (App text 1.06 and 1.30) and iPad
@@ -9,7 +9,7 @@
 //   flutter test test_manual/crisis_chat_message_shots_1020m_test.dart \
 //     --dart-define=PHASE_B=true --dart-define=SHOTS=true --update-goldens
 //
-// Writes docs/dev-reports/1020m-shots/crisis/*.png.  Needs the WenQuanYi
+// Writes docs/dev-reports/1020n-shots/crisis/*.png.  Needs the WenQuanYi
 // Zen Hei font (/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc) for the
 // Chinese text; without SHOTS nothing is drawn.  Synthetic data; nothing
 // is written.
@@ -59,7 +59,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _shots = bool.fromEnvironment('SHOTS');
-const _dir = '../docs/dev-reports/1020m-shots/crisis';
+const _dir = '../docs/dev-reports/1020n-shots/crisis';
 
 Map<String, dynamic> _json(String path) =>
     Map<String, dynamic>.from(jsonDecode(File(path).readAsStringSync()) as Map);
