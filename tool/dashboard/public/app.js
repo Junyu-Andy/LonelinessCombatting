@@ -14,6 +14,9 @@
     follow_up_period: '随访期', none: '—'};
   const CELL = {not_yet: '未开始', open: '未做完', missed: '已过时间',
     done: '已完成', skipped: '已完成（跳过）', not_built: '未做'};
+  /** Short labels for the overview's one Weekly PR cell. */
+  const CELL_SHORT = {not_yet: '未开始', open: '未做完', missed: '过时',
+    done: '完成', skipped: '完成'};
   const LEVEL = {acute: '急性', moderate: '中度', low: '轻度'};
   const SOURCE_GROUP = {participant_input: '老人输入',
     ai_reply_scan: '夥伴回复扫描', questionnaire: '问卷',
@@ -255,6 +258,9 @@
       {label: '跟进', get: (r) => r.stage,
         cell: (r) => r.stage === 'none' ? '—' :
           pill(r.stage, `${STAGE[r.stage]}（${r.consecutiveUnopenedDays} 天）`)},
+      {label: '未确认告警', num: true, get: (r) => r.pendingAlerts,
+        cell: (r) => r.pendingAlerts ? pill('bad', String(r.pendingAlerts)) :
+          '0'},
     ].concat([sessionsCol('thisWeek', '本周'), sessionsCol('all', '累计')])
         .concat([
           {label: 'Brief PR 邀请/完成', get: (r) => r.briefPr.invited,
@@ -262,15 +268,16 @@
           {label: '本周 check-in', get: (r) => r.checkIn.daysThisWeek,
             cell: (r) => `${r.checkIn.daysThisWeek} / ${r.checkIn.daysSoFar} 天`},
         ])
-        .concat(['W1', 'W2', 'W3', 'W4'].map((w) => ({
-          label: `Weekly PR ${w}`, get: (r) => r.weeklyPr[w],
-          cell: (r) => pill(r.weeklyPr[w], CELL[r.weeklyPr[w]] || r.weeklyPr[w]),
-        })))
+        .concat([{
+          label: 'Weekly PR（W1–W4）',
+          get: (r) => ['W1', 'W2', 'W3', 'W4'].filter((w) =>
+            r.weeklyPr[w] === 'done' || r.weeklyPr[w] === 'skipped').length,
+          cell: (r) => h('span', {class: 'actions'}, ['W1', 'W2', 'W3', 'W4']
+              .map((w) => pill(r.weeklyPr[w] === 'skipped' ? 'done' : r.weeklyPr[w],
+                  `${w} ${CELL_SHORT[r.weeklyPr[w]] || r.weeklyPr[w]}`))),
+        }])
         .concat([
           {label: 'W8', get: (r) => r.w8, cell: (r) => pill(r.w8, CELL[r.w8])},
-          {label: '未确认告警', num: true, get: (r) => r.pendingAlerts,
-            cell: (r) => r.pendingAlerts ? pill('bad', String(r.pendingAlerts)) :
-              '0'},
         ]);
     const testerBox = h('input', {type: 'checkbox', id: 'show-testers',
       checked: showTesters || null});
