@@ -160,9 +160,14 @@ UserProfile homeProfile(ArmAssignment arm, {String? cohort = 'phase_b'}) =>
 class FakeWeeklyStore implements WeeklyBundleStore {
   bool done = false;
 
+  /// Bundles answered in full whatever [done] says (10/20 item 98 tests:
+  /// W1–W4 done, W5 open).
+  final Set<String> doneBundles = {};
+
   @override
   Future<Map<WeeklyPart, String?>> partStatus(WeeklyBundle bundle) async => {
-        for (final p in bundle.parts) p: done ? 'submitted' : null,
+        for (final p in bundle.parts)
+          p: done || doneBundles.contains(bundle.id) ? 'submitted' : null,
       };
 }
 
@@ -365,7 +370,7 @@ Future<void> settle(WidgetTester tester) async {
 Finder says(String text) => find.textContaining(text, findRichText: true);
 
 /// The first study day of a bundle at its push hour (W0 = 2026-10-14).
-DateTime pushTime(int day, {int hour = 20, int minute = 30}) =>
+DateTime pushTime(int day, {int hour = 10, int minute = 30}) =>
     DateTime(2026, 10, 14 + day, hour, minute);
 
 /// Today's W0-based helpers for the questionnaire row.

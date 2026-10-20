@@ -179,13 +179,14 @@ void main() {
       final i = (await at(DateTime(2026, 10, 20, 10)))!;
       expect(i.isOpen, isFalse);
       expect(i.text, '下次問卷：10月21日（星期三）開，開咗之後三日內答都得。');
-      // Day 7 before 20:00 still says W4 (opens at the push hour).
-      expect((await at(DateTime(2026, 10, 21, 19, 59)))!.isOpen, isFalse);
+      // Day 7 before 10:00 still says W4 (opens at the push hour; default
+      // 10 since 10/20 item 98).
+      expect((await at(DateTime(2026, 10, 21, 9, 59)))!.isOpen, isFalse);
     });
 
-    test('1020e: open, by day from the window (today\'s T24 window '
-        '10/21 20:00 – 10/24 20:00): 請盡快回答 → 聽日截止 → 今晚截止; '
-        'never a day count', () async {
+    test('1020e: open, by day from the window (the T24 window at the '
+        'default push hour, 10/21 10:00 – 10/24 10:00): 請盡快回答 → 聽日截止 '
+        '→ 今晚截止; never a day count', () async {
       expect((await at(DateTime(2026, 10, 21, 20, 30)))!.text,
           '問卷開咗，請盡快回答。');
       expect((await at(DateTime(2026, 10, 22, 21, 0)))!.text,
@@ -194,7 +195,7 @@ void main() {
           '問卷開咗，聽日截止。');
       expect((await at(DateTime(2026, 10, 24, 8, 0)))!.text,
           '問卷開咗，今晚截止。');
-      expect((await at(DateTime(2026, 10, 24, 19, 59)))!.text,
+      expect((await at(DateTime(2026, 10, 24, 9, 59)))!.text,
           '問卷開咗，今晚截止。');
       for (final d in [21, 22, 23, 24]) {
         expect((await at(DateTime(2026, 10, d, 21)))?.text ?? '',
