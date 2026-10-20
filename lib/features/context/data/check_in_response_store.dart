@@ -63,6 +63,17 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// 1020h 一 / 10/20 第 99–100 条 — a chat check-in that an acute hit ended
+/// today and the researcher did not mark 誤觸 counts as today's check-in,
+/// as on the server (`functions/daily_checkin_push.js`): 小欣's page opens
+/// as the chat, not a new check-in, and the home row shows the tick.  One
+/// rule for both places.  Both arms.
+bool isStoppedUnmarked(Map<String, dynamic> row) =>
+    row['flow'] == 'chat_v2' &&
+    row['stopped_by_safety'] == true &&
+    row['completed'] != true &&
+    row['falseAlarm'] != true;
+
 abstract class CheckInResponseStore {
   /// A new document id for one check-in.
   String newId();

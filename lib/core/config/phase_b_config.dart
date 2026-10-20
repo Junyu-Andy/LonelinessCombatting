@@ -67,8 +67,12 @@
 ///                                     [1, 2, 3].
 ///   - [pgicOnlyDays]                — PGIC-only pushes (W5–W7).
 ///                                     [35, 42, 49].
-///   - [weeklyPushHour]              — HK hour of the push.  20 (today's
-///                                     Sunday weekly reminder hour).
+///   - [weeklyPushHour]              — HK hour of the push and of the
+///                                     72-hour window's opening, read
+///                                     only with weeklyReminderV2Enabled
+///                                     off (on, every week opens at 00:00
+///                                     and pushes at 10:00).  10 (10/20
+///                                     item 98: the production value).
 ///   - [socialContactProbeEnabled]   — 4th part, S12.  Default OFF.
 ///   - [pilotBundleDays]             — retired 10/15 (the pilot runs the
 ///                                     standard schedule); table test only.
@@ -114,7 +118,7 @@ class PhaseBConfig {
     this.week4CloseDay = 29,
     this.djgWeeks = const [1, 2, 3],
     this.pgicOnlyDays = const [35, 42, 49],
-    this.weeklyPushHour = 20,
+    this.weeklyPushHour = 10,
     this.socialContactProbeEnabled = false,
     this.pilotBundleDays = const [1, 3, 5, 7],
     this.pilotWindowDays = 1,

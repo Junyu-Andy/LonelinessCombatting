@@ -33,7 +33,8 @@ const CHECKS = [
   ['app_config/feature_flags', 'checkInChatV2Enabled', true,
     'T55 check-in 对话化 + 08:30 P1、19:00 P2（10/21 开）'],
   ['app_config/feature_flags', 'weeklyReminderV2Enabled', true,
-    'T56 每周问卷整日窗口、10:00 提醒、给 Junyu 的电邮（1020e；装新构建后开）'],
+    'T56 每周问卷整日窗口、10:00 提醒、给 Junyu 的电邮（1020e；第 5 至 7 周 ' +
+    'PGIC 也按整日，10/20 第 98 条；装新构建后开）'],
   // 1020b §2: two of #126's switches stay off for 10/21; 1020c 一: Junyu
   // turns the other two on once the 10/20 phone test passes, before the
   // first RCT- registration.
@@ -109,7 +110,9 @@ const CHECKS = [
   ['app_config/phase_b', 'weeklyScheduleV2Enabled', true, 'T24 每周问卷'],
   ['app_config/phase_b', 'socialContactProbeEnabled', true, '社会接触探针'],
   ['app_config/phase_b', 'weeklyPushHour', 10,
-    '第 5 至 7 周 PGIC 推送 10:00（10/20 第 96 条）'],
+    '只在 weeklyReminderV2Enabled 关时用（第 1 至 7 周推送和 72 小时窗口' +
+    '的钟点）；开着时不读，每周都是 00:00 开、10:00 推。代码默认也是 10' +
+    '（10/20 第 96、98 条）'],
   ['app_config/phase_a', 'sessionIdleTimeoutMin', 'absent',
     '测试残留，应删（正式 30 分钟来自 phase_b）'],
   ['app_config/phase_a', 'w2DayOffset', 'absent', '测试残留，应删'],

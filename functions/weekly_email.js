@@ -11,7 +11,9 @@
  * or on day 28 for W4 — weekly_schedule.emailDayKeyFor — when the v2
  * window is still open (W4 may already be closed by the recorded visit),
  * not marked missed, and at least one part is not submitted.  W5–W7 (PGIC
- * only) are not listed; W8 (T35) is not built.
+ * only) are never listed: since 10/20 item 98 they run on the v2 windows
+ * too, but emailDayKeyFor gives them no e-mail day.  W8 (T35) is not
+ * built.
  *
  * Who: PILOT-, PB- (run-in) and RCT- participants alike — the research ID
  * prefix tells them apart.  Testers are never listed (switched testers

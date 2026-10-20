@@ -2,11 +2,13 @@
 // once as a no-save preview, and (Phase B build) the in-app clock can jump
 // to a bundle's day so the real home card shows.  Synthetic tester account,
 // no Firebase.  The simulate test runs in the Phase B suite
-// (tool/ci_flutter_tests.sh).
+// (tool/ci_flutter_tests.sh).  10/20 item 98: with reminders v2 on, W5–W7
+// push at 10:00 like W1–W4.
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
 import 'package:app_demo/core/config/phase_b_config.dart';
 import 'package:app_demo/core/feature_flags/feature_flags.dart';
+import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
 import 'package:app_demo/core/time/app_clock.dart';
 import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:app_demo/features/settings/presentation/pages/tester_weekly_bundle_page.dart';
@@ -58,6 +60,7 @@ void main() {
       const PhaseBConfig(weeklyScheduleV2Enabled: true));
   tearDown(() {
     PhaseBConfig.current = const PhaseBConfig();
+    RemoteFeatureFlags.current = const RemoteFeatureFlags();
     AppClock.instance.clear();
   });
 
@@ -90,7 +93,7 @@ void main() {
     expect(btn.onPressed, isNull);
   }, skip: FeatureFlags.phaseB);
 
-  testWidgets('Phase B: 模擬 W1 jumps the clock to day 7 20:30 and goes home',
+  testWidgets('Phase B: 模擬 W1 jumps the clock to day 7 10:30 and goes home',
       (tester) async {
     await _pump(tester);
     expect(find.byKey(const Key('tester_weekly_simulate_blocked')),
@@ -99,10 +102,34 @@ void main() {
     await tester.pumpAndSettle();
     expect(AppClock.instance.isSimulated, isTrue);
     final now = AppClock.now();
-    // W0 2026-10-12 + 7 days = 10/19, push 20:00, +30 min.
-    expect(now.difference(DateTime(2026, 10, 19, 20, 30)).inMinutes.abs(),
+    // W0 2026-10-12 + 7 days = 10/19, push at the default weeklyPushHour
+    // (10 since 10/20 item 98), +30 min.
+    expect(now.difference(DateTime(2026, 10, 19, 10, 30)).inMinutes.abs(),
         lessThan(2));
     expect(find.byType(TesterWeeklyBundlePage), findsNothing,
         reason: 'back to the first route (屋企)');
   }, skip: !FeatureFlags.phaseB);
+
+  testWidgets('10/20 item 98, reminders v2 on: W5–W7 show 10:00 like W1–W4 '
+      '(weeklyPushHour not read); 模擬 W5 goes to day 35 10:30',
+      (tester) async {
+    PhaseBConfig.current =
+        const PhaseBConfig(weeklyScheduleV2Enabled: true, weeklyPushHour: 20);
+    RemoteFeatureFlags.current =
+        const RemoteFeatureFlags(weeklyReminderV2Enabled: true);
+    await _pump(tester);
+    // W0 2026-10-12: day 35 = 11/16, day 42 = 11/23, day 49 = 11/30.
+    expect(find.text('W5 · 第 35 天 · 11月16日 10:00 開'), findsOneWidget);
+    expect(find.text('W6 · 第 42 天 · 11月23日 10:00 開'), findsOneWidget);
+    expect(find.text('W7 · 第 49 天 · 11月30日 10:00 開'), findsOneWidget);
+    expect(find.text('W1 · 第 7 天 · 10月19日 10:00 開'), findsOneWidget);
+    expect(find.textContaining('20:00'), findsNothing);
+    if (!FeatureFlags.phaseB) return;
+    await tester.ensureVisible(
+        find.byKey(const Key('tester_weekly_simulate_W5')));
+    await tester.tap(find.byKey(const Key('tester_weekly_simulate_W5')));
+    await tester.pumpAndSettle();
+    expect(AppClock.now().difference(DateTime(2026, 11, 16, 10, 30))
+        .inMinutes.abs(), lessThan(2));
+  });
 }

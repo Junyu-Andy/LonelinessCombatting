@@ -179,13 +179,14 @@ void main() {
       final i = (await at(DateTime(2026, 10, 20, 10)))!;
       expect(i.isOpen, isFalse);
       expect(i.text, '下次問卷：10月21日（星期三）開，開咗之後三日內答都得。');
-      // Day 7 before 20:00 still says W4 (opens at the push hour).
-      expect((await at(DateTime(2026, 10, 21, 19, 59)))!.isOpen, isFalse);
+      // Day 7 before 10:00 still says W4 (opens at the push hour; default
+      // 10 since 10/20 item 98).
+      expect((await at(DateTime(2026, 10, 21, 9, 59)))!.isOpen, isFalse);
     });
 
-    test('1020e: open, by day from the window (today\'s T24 window '
-        '10/21 20:00 – 10/24 20:00): 請盡快回答 → 聽日截止 → 今晚截止; '
-        'never a day count', () async {
+    test('1020e: open, by day from the window (the T24 window at the '
+        'default push hour, 10/21 10:00 – 10/24 10:00): 請盡快回答 → 聽日截止 '
+        '→ 今晚截止; never a day count', () async {
       expect((await at(DateTime(2026, 10, 21, 20, 30)))!.text,
           '問卷開咗，請盡快回答。');
       expect((await at(DateTime(2026, 10, 22, 21, 0)))!.text,
@@ -194,7 +195,7 @@ void main() {
           '問卷開咗，聽日截止。');
       expect((await at(DateTime(2026, 10, 24, 8, 0)))!.text,
           '問卷開咗，今晚截止。');
-      expect((await at(DateTime(2026, 10, 24, 19, 59)))!.text,
+      expect((await at(DateTime(2026, 10, 24, 9, 59)))!.text,
           '問卷開咗，今晚截止。');
       for (final d in [21, 22, 23, 24]) {
         expect((await at(DateTime(2026, 10, d, 21)))?.text ?? '',
@@ -423,6 +424,68 @@ void main() {
             findsOneWidget);
         if (run.rule) expect(run.llm.calls, isEmpty);
         await tester.pumpWidget(const SizedBox());
+      }
+    });
+
+    // 10/20 第 99–100 条: a check-in an acute hit ended today, not marked
+    // 誤觸, counts as today's check-in (as on the server): the row ticks,
+    // and 小欣's page opens as the chat.  Marked 誤觸 → no tick (the elder
+    // can carry on); yesterday's stop → no tick.  Both arms.
+    Map<String, dynamic> stoppedRow(String dateIso, {bool falseAlarm = false}) =>
+        {
+          'uid': 'u1',
+          'flow': 'chat_v2',
+          'date_iso': dateIso,
+          'stopped_by_safety': true,
+          'stopped_at': 'Q4',
+          'completed': false,
+          if (falseAlarm) 'falseAlarm': true,
+        };
+
+    testWidgets('acute stop today, not marked 誤觸: a tick; tap → 小欣 chat, '
+        'no new check-in', (tester) async {
+      for (final arm in testableArms) {
+        ChatSessionRecorder.resetProcessStateForTest();
+        final run = HomeRun(arm);
+        run.checkIns.docs['stop1'] = stoppedRow('2026-10-20');
+        await pumpHome(tester, run, const MainShell());
+        final row = find.byKey(const ValueKey('today_todo_check_in'));
+        expect(
+            find.descendant(
+                of: row, matching: find.byIcon(Icons.check_circle_rounded)),
+            findsOneWidget,
+            reason: arm.name);
+        await tester.tap(row);
+        await settle(tester);
+        expect(find.byType(SiuYanChatPage), findsOneWidget);
+        expect(says(CheckInChatCopy.q1), findsNothing);
+        expect(says(run.rule ? CheckInChatCopy.sy0 : FakeLlm.opener),
+            findsOneWidget);
+        if (run.rule) expect(run.llm.calls, isEmpty);
+        await tester.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('acute stop today marked 誤觸, or a stop yesterday: no tick',
+        (tester) async {
+      for (final arm in testableArms) {
+        for (final seed in [
+          stoppedRow('2026-10-20', falseAlarm: true),
+          stoppedRow('2026-10-19'),
+        ]) {
+          ChatSessionRecorder.resetProcessStateForTest();
+          final run = HomeRun(arm);
+          run.checkIns.docs['stop1'] = seed;
+          await pumpHome(tester, run, const MainShell());
+          final row = find.byKey(const ValueKey('today_todo_check_in'));
+          expect(
+              find.descendant(
+                  of: row,
+                  matching: find.byIcon(Icons.radio_button_unchecked_rounded)),
+              findsOneWidget,
+              reason: '${arm.name} $seed');
+          await tester.pumpWidget(const SizedBox());
+        }
       }
     });
 

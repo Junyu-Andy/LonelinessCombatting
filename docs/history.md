@@ -15,6 +15,28 @@
 - 测试只改 `test/reader_test.dart` 的外壳主题（改用 App 主题；原来用 Flutter 默认主题，新版换页变慢，3 至 4 个测试等不到页面关完）。`flutter analyze` 两个版本都是同样的 92 条，0 error。
 - 没做的：Android 模拟器走查（这里没有 KVM 和 Android SDK）；真机清单 `docs/release/flutter-3441-phone-check.md`。`CLAUDE.md` 的「Flutter 固定 3.35.3」那行要 Junyu 改（开发窗口不改 CLAUDE.md）。
 
+## 2026-10-20 安卓通知小图标（第 99–100 条）
+
+- 结论：加了专门的通知小图标。陪住图标做成白色剪影（两个人和一张桌，茶杯是镂空），透明底，五种密度都有（`android/app/src/main/res/drawable-*/ic_stat_peizhu.png`）。AndroidManifest 设了 FCM 的默认通知图标和颜色（主题色 #C2703F）。App 没有本地通知，所有通知都经 FCM，所以都用这个图标。两组相同。
+- 查原因：App 图标是 10/15 换的（#97，不是 #126）。10/16 起 GitHub 打的安卓包都已经是新图标。手机通知里还显示 Flutter 标志，说明那个包是 10/15 以前打的（或者是别处打的旧包）。新图标是彩色、不透明的，没有专门的通知图标时，安卓只看透明度，会显示成一块；所以不管哪一种，都要加这个通知图标。
+- 图标由 `tool/make_notification_icon.py` 从 `assets/icon/app_icon.png` 生成，可以重跑。测试 `test/android_notification_icon_test.dart` 查 AndroidManifest 里的设置，以及五个图标的尺寸和白色透明。
+- 这里没有安卓模拟器，也没有真机。通知栏的真机截图要等装上冻结构建以后拍。
+
+## 2026-10-20 首页 check-in 一行：急性中断那天也打勾（第 99–100 条）
+
+- 结论：check-in 因急性中断、研究员没标「誤觸」时，首页「同小欣 check-in」一行显示已打勾。以前这一行没打勾，撳进去却是聊天，看起来像「不能 check-in」（Maria 测到的第二种情况）。两组相同，不加开关。
+- 规则只有一条（`check_in_response_store.dart` 的 `isStoppedUnmarked`），首页和小欣页共用，和服务器 `daily_checkin_push.js` 的算法一致。标了「誤觸」不打勾，老人可以从停下那题接着做；第二天照常。
+- Maria 的第一种情况（测试员「日程模擬」）照 Junyu 定不改：check-in 按真实日期算。
+- 测试在 `test/home_v2_test.dart` 的 check-in 一行组：两组，当天中断未标 → 打勾、撳进去是聊天；标了誤觸或昨天中断 → 不打勾。
+
+## 2026-10-20 第 98 条：第 5 至 7 周 PGIC 改按整天开关；`weeklyPushHour` 默认 10（分支 `claude/zealous-fermat-8rgqtg-pgicdays`，并入冻结 PR #151）
+
+- 结论：第 5 至 7 周 PGIC 和第 1 至 3 周一样按整天：第 35 天 00:00 开，第 37 天 23:59 关（42–44、49–51 同）。开放日 10:00 推给所有人，第二天 10:00 只推给没答的人。不预告，最后一天不提醒，不进 Junyu 的电邮，文字沿用原来两条。首页问卷一行第一天「請盡快回答」、第二天「聽日截止」、第三天「今晚截止」。两组相同，不加开关，决策 0067（取代 0055 第 8 条）。
+- 做法：放进原来的提醒 v2（`weeklyReminderV2Enabled`，生产已开），服务器和 App 用同一张测试表。开关开着时旧的第 5–7 周做法（推送起 72 小时、24 小时后提醒）删掉；开关关着时七周全部照旧。
+- `PhaseBConfig.weeklyPushHour` 和服务器默认值都由 20 改为 10，和生产一致。1020p 第二节记下的「读不到配置时差 10 小时」随之解决。
+- 部署时已在第 5–7 周窗口里的人：已发的推送和提醒不重发，窗口改在第三天 23:59 关。没答的在第 38 天 08:00（定时任务第一次跑）记缺失。
+- 测试：服务器单元测试；新的模拟器测试 `functions/test/pgic_whole_days_emulator_test.js`（合成账号跑第 34–38 天，每小时跑一次推送任务；第 6、7 周；部署时已在窗口里；开关关）；新的 Flutter 测试 `test/pgic_whole_days_1020_test.dart`（两个 Phase B 列表都加了；共用表、首页一行每天的字、两组）。旧的 T24 模拟器测试把 `weeklyPushHour` 固定为 20，内容不变。
+
 ## 2026-10-20 1020o/1020p 补充第一项：危机页核对日期（第 97 条）
 
 - 结论：`crisis_resources.json` 的 `verifiedDate` 填 2026-10-20，危机页底部从「資料核對日期：待核對」变成「資料核對日期：2026-10-20」。四个号码没改。两组相同。

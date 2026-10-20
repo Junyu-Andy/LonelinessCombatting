@@ -34,9 +34,11 @@ import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
+import '../../../context/data/check_in_response_store.dart';
 import '../../../weekly_bundle/data/weekly_bundle.dart';
 import '../../../weekly_bundle/presentation/weekly_bundle_flow_page.dart';
 import '../../data/home_v2_copy.dart';
+import '../../data/mood_recorder.dart';
 import '../home_v2_scope.dart';
 
 /// D1 「今日要做嘅事」.
@@ -230,13 +232,26 @@ class _CheckInTodoRowState extends State<CheckInTodoRow>
     final uid = AppSettingsScope.read(context).profile?.uid;
     if (uid == null) return;
     final scope = HomeV2Scope.maybeOf(context);
-    final check =
-        AdherenceCheck(available: AuthServiceScope.of(context).available);
+    final available = AuthServiceScope.of(context).available;
+    final check = AdherenceCheck(available: available);
+    final responses = scope?.checkInResponses ??
+        FirestoreCheckInResponseStore(available: available);
+    // The real clock, as 小欣's page (tests: the scope's clock).
+    final today = MoodRecorder.dateIsoFor(HomeV2Scope.now(context));
     var done = false;
     int? days;
     try {
       done = await (scope?.checkedInToday ?? check.hasCheckedInToday)(uid);
     } catch (_) {}
+    // 10/20 第 99–100 条: a check-in an acute hit ended today, not marked
+    // 誤觸, counts as done — as on the server and on 小欣's page, which then
+    // opens as the chat.  Same Hong Kong date as the check-in.
+    if (!done) {
+      try {
+        final rows = await responses.rowsForDay(uid: uid, dateIso: today);
+        done = rows.values.any(isStoppedUnmarked);
+      } catch (_) {}
+    }
     try {
       days = await (scope?.daysSinceLastCheckIn ?? check.daysSinceLastCheckIn)(
           uid);

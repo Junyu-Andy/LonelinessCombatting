@@ -53,7 +53,8 @@ void main() {
       expect(d.week4CloseDay, 29);
       expect(d.djgWeeks, [1, 2, 3]);
       expect(d.pgicOnlyDays, [35, 42, 49]);
-      expect(d.weeklyPushHour, 20);
+      // 10/20 item 98: 10, as production and the server's DEFAULTS.
+      expect(d.weeklyPushHour, 10);
       expect(d.socialContactProbeEnabled, false);
       expect(d.pilotBundleDays, [1, 3, 5, 7]);
       expect(d.pilotWindowDays, 1);
@@ -257,7 +258,7 @@ void main() {
       expect(RemoteFeatureFlags.fromMap({}).weeklyReminderV2Enabled, false);
     });
 
-    test('shared table: W1–W3 whole days, W4 to day 42, W5–W7 as T24', () {
+    test('shared table: W1–W3 and W5–W7 whole days, W4 to day 42', () {
       final expected = (v2['bundles'] as List).cast<Map<String, dynamic>>();
       for (var i = 0; i < expected.length; i++) {
         final e = expected[i];
@@ -266,8 +267,17 @@ void main() {
         expect(w.open, hkLocal(e['open'] as String), reason: '${e['id']} open');
         expect(w.close, hkLocal(e['close'] as String), reason: '${e['id']} close');
       }
+      // 10/20 item 98: every standard bundle (server isReminderV2Bundle).
       expect(bundles.map(WeeklySchedule.isV2Bundle).toList(),
-          [true, true, true, true, false, false, false]);
+          [true, true, true, true, true, true, true]);
+      expect(bundles.map((b) => b.pgicOnly).toList(),
+          [false, false, false, false, true, true, true]);
+      expect(
+          WeeklySchedule.bundlesFor(cfg, WeeklyScheduleMode.pilot)
+              .map(WeeklySchedule.isV2Bundle)
+              .toList(),
+          [true, true, true, false]);
+      expect(WeeklySchedule.v2PushHour, 10);
     });
 
     test('flag off (explicit or default): exactly the T24 table', () {
@@ -334,14 +344,14 @@ void main() {
       expect(at(DateTime(2026, 11, 16), rec: rec), null);
       expect(at(DateTime(2026, 11, 16))!.bundle.id, 'W4',
           reason: 'not recorded: still open');
-      // Day 43: W4 closed at the end of day 42; W6 (day 42 20:00) is open.
+      // Day 43: W4 closed at the end of day 42; W6 (day 42 00:00) is open.
       expect(at(DateTime(2026, 12, 1))!.bundle.id, 'W6');
       expect(at(DateTime(2026, 11, 30, 23, 59))!.bundle.id, 'W4');
     });
 
     test('W4 open to day 42 overlaps W5 / W6; the card takes the first one '
         'still to do', () async {
-      final t = DateTime(2026, 11, 23, 21); // day 35, W5 open since 20:00
+      final t = DateTime(2026, 11, 23, 21); // day 35, W5 open since 00:00
       final open = WeeklySchedule.openBundlesAt(cfg, mode, w0, t, v2: true);
       expect(open.map((o) => o.bundle.id).toList(), ['W4', 'W5']);
       final done = _MapStore({'W4': 'completed'});
