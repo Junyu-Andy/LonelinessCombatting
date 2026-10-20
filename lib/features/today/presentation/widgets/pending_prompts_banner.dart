@@ -132,7 +132,7 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(isEn
               ? "You didn't chat with a companion this week, so there's nothing more to rate."
-              : '本週你冇同 companion 傾偈，今週唔使評夥伴。'),
+              : '本週你冇同夥伴傾偈，今週唔使評夥伴。'),
           duration: const Duration(seconds: 4),
         ));
       }
@@ -267,10 +267,12 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
         subtitle: noReferent
             ? (isEn
                 ? "You didn't chat with a companion this week — one quick question only."
-                : '本週你冇同 companion 傾偈，淨係一條問題。')
+                : '本週你冇同夥伴傾偈，淨係一條問題。')
+            // 1020g 一 (6): the same words as the PGIC itself (W1–W8,
+            // 1020f) and the tester tools' tile.
             : (isEn
-                ? 'Has your loneliness changed since last week?'
-                : '同上週比較，孤單感有冇變化？'),
+                ? 'Has your loneliness changed since you started?'
+                : '同開始用之前比，孤獨感有冇變？'),
         onTap: _openWeeklyCycle,
       ));
     }

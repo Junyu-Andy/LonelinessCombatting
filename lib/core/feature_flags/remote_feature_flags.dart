@@ -214,7 +214,7 @@
 ///                               of the screen three times within 2 s to go
 ///                               on (`ResearcherIntakeGate`).  Both arms
 ///                               identical.  Off = the flow is as before.
-///   - [htmlReadersEnabled]    — 1020c (decision NNNN-html-readers-webview):
+///   - [htmlReadersEnabled]    — 1020c (decision 0056-html-readers-webview):
 ///                               the 「小讀本」 section at the top of 讀少少
 ///                               (bundled HTML readers in a WebView,
 ///                               `assets/readers/`).  Off (default) = 讀少少

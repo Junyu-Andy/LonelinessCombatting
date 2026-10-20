@@ -2,7 +2,7 @@
 /// and which links the reader lets through.  Pure Dart, unit-tested
 /// (test/reader_test.dart); the WebView itself only calls these.
 ///
-/// Network block, layer 1 (decision NNNN-html-readers-webview): the App
+/// Network block, layer 1 (decision 0056-html-readers-webview): the App
 /// puts a strict Content-Security-Policy at the very top of `<head>`, so a
 /// unit can load nothing from outside even if a file slips past layer 2
 /// (tool/check_reader_html.js in CI).  The page is shown with

@@ -793,12 +793,15 @@ test("quiet hours: ready, no push", async () => {
   assert.strictEqual(out.action, "ready");
   assert.strictEqual(out.push, "quiet_hours");
   assert.strictEqual(d.messaging.sent.length, 0);
-  // Quiet hours switched off by the elder → pushed.
+  // 1020 batch 1: quiet hours are fixed on for everyone, so an old
+  // quietHoursEnabled: false on the profile no longer lets the push
+  // through (1020g 一 (1)).
   const db2 = fakeDb();
   await seed(db2, {user: {arm: "A", cohort: "phase_b",
     quietHoursEnabled: false}});
   const d2 = deps(db2, scriptModel(happyScript()), {now: () => QUIET_NOW});
-  assert.strictEqual((await rc.handleChapterWrite(d2, ev(db2))).push, "sent");
+  assert.strictEqual((await rc.handleChapterWrite(d2, ev(db2))).push,
+      "quiet_hours");
 });
 
 test("push switched off / placeholder copy: no push", async () => {

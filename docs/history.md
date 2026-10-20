@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-20 冻结合并（1020g）：11 个草稿 PR 按 Fable 的顺序合成一条分支，加第一节七项修正（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-freeze`）
+
+- 合并顺序：#134 → #127 → #128 → #131 → #133 → #132 → #135 → #137 → #136 → #130 → #138。冲突都是两边各加几行（开关表、测试清单、规则测试清单、`pubspec.yaml` 资源目录、提示词清单），两边都留；手工合并两处：`functions/index.js`（#137 的小篇章触发器放在 #132 的 19:00 推送前面，丢掉 #137 带进来的旧 `dailyMoodReminder`）、`chat_session_recorder.dart`（`entrySurface` 和回忆 v2 的两个字段都写进会话行）；`ops_dashboard.js` 用 #130 的 `LAST_USE_SCAN` 加 #137 的小篇章查询。
+- 1020g 第一节：(1) `reminiscence_chapter_test.js` 安静时段断言改 `quiet_hours`（#127 后安静时段对所有人固定开）；(2) `tool/export_spec_inputs.py` 重算提示词包 hash；(3) 上线检查脚本删重复的 `weeklyReminderV2Enabled`、补五个开关、`researcherIntakeGateEnabled` 期望 true；(4) `siu_yan_chat_page.dart` 后备提示词改「電腦程式夥伴」；(5) `reminiscence_chapter.js` 不再读 `quietTodayActivatedAt`；(6) `pending_prompts_banner.dart` PGIC 卡副标题和两处「companion」；(7) `today_todo_rows.dart` 用 `openBundlesAt(..., week4RecordedOn)` 取第一个未完成的问卷包（新测试 `test/questionnaire_row_1020g_test.dart`）。
+- 决策记录编号：0051 RCT cohort 和序列 v2、0052 check-in 聊天窗口、0053 键盘顶栏、0054 首页两页和心情一行、0055 推送和每周窗口、0056 小讀本、0057 回忆 v2（App）、0058 小篇章生成、0059 行动计划、0060 研究员讲解闸门；顺手把指向 0043–0050 的旧 `NNNN-` 链接改成正式编号。
+
 ## 2026-10-20 dev-tasks-1020d 第一节：两个 bug（回忆页提示、App 端提示词「AI 機械人」）
 
 - 1020d 第三版存进 `docs/dev-tasks/dev-tasks-1020d.md`。第一节两个 bug 不设开关，单独一个小 PR，从 main 开。
@@ -31,7 +37,7 @@
 - G (1)：`weekly_schedule.js` 的 `dispatchWeeklyBundles` 在 `weeklyReminderV2Enabled` 开时对 W1–W4 用新文字、第二／三天（第 4 周关闭日前一天／当天）20:00 只推未完成者；第 4 周关闭日读 `weekly_status.w4VisitDate`。第 5–7 周不变。
 - G (3)：`functions/weekly_email.js` + 定时函数 `weeklyIncompleteEmail`（10:00），复用 `pi_alert.js` 的收件人和发信；`meta/weekly_email_test.send` 触发测试邮件（`onWeeklyEmailTestRequested`）。
 - 文字草稿 `functions/push_copy.js` ＝ `docs/spec/copy/push-and-email-1020.md`（`push_copy_test.js` 逐字比对）。`sendTestPush` 开关开时「每日心情提醒」发 P1、「每週問卷提醒」发 W1，供手机测试。
-- 测试：`pushes_email_1020_emulator_test.js` 11 项（模拟时钟）；整套后端测试通过。决策草稿 `NNNN-daily-and-weekly-pushes-1020.md`。
+- 测试：`pushes_email_1020_emulator_test.js` 11 项（模拟时钟）；整套后端测试通过。决策草稿 `0055-daily-and-weekly-pushes-1020.md`。
 - 发现：第 1–3 周 W2／W3 文字比实际窗口早一天；W4 面访日期只能事后录入、App 读不到，面访延后其实延不了。都列给 Junyu 定。
 ## 2026-10-20 dev-tasks-1020e 二.13：「想重新聯絡嘅人」只传勾了「可以講」的人
 
@@ -57,7 +63,7 @@
 - 给 Qingyang 的步骤：`docs/release/sequence-v2-upload-20261020.md`，接 prelaunch-checklist G 节。开发只写不跑。
 - #126 四个开关进开关表（10/21 false），上线检查期望「没有或 false」。两个开关的四个问题答在批 1 报告第十节；「想重新聯絡嘅人」传给 DeepSeek 时不看 `share`，待 Junyu 定。
 - 只读脚本加自 10/15 起每人语音转写次数（只计数）。
-- 决策记录 `NNNN-rct-cohort-and-sequence-v2.md`（已采纳），0037 顶上标部分取代。
+- 决策记录 `0051-rct-cohort-and-sequence-v2.md`（已采纳），0037 顶上标部分取代。
 - 第 2 批（小欣页）同时开工，在另一个分支。
 
 ## 2026-10-19 dev-tasks-1020 第 1 批：设定页、安静时段固定开、今日休息取消、语音隐藏、导出加列、只读核对脚本；C 的序列版本方案待批（PR 草稿，分支 `claude/zealous-fermat-8rgqtg`）
@@ -74,7 +80,7 @@
 
 - 结论：Junyu 10/20 定两样都在冻结前做（现状报告 PR #129）。两个开关都默认关。`actionPlanSimplifiedEnabled`：两组只必填「做咩」「幾時」，从建议进去「做咩」已填好可改；「等住跟進」可以改「做咩」「幾時」、可以删（软删除，未发提醒一并删，服务器也不推）。`actionPlanMemoryEnabled`：Hybrid 组计划页两次模型调用带 `agentId: siu_yan`，服务器加小欣记忆，不放、不用掉她的 follow-up。规则组仍零模型调用。
 - 只加新字段（`planFormVersion`、`source`、`seedAction`、`original`、`editCount`、`lastEditedAt`、`editLog`、`deletedAt`、`deletedFrom`）和三个事件；改「幾時」不移动提醒；不写 `scheduledFor`。`memory.js` 里第 1 批对 `m6_suggestions` 的几行一字不差照抄，m7 的排除另写一处，两分支谁先合都不冲突。
-- 报告（截图、真机步骤、要 Junyu 定的事）：`docs/dev-reports/action-plan-v2-20261020.md`；截图 `docs/dev-reports/action-plan-v2-shots/`；决策草稿 `docs/decisions/NNNN-action-plan-simplified.md`；测试 `test/action_plan_simplified_test.dart`（加进 CI 两套 Phase B）和 Functions 三个测试文件的新用例。
+- 报告（截图、真机步骤、要 Junyu 定的事）：`docs/dev-reports/action-plan-v2-20261020.md`；截图 `docs/dev-reports/action-plan-v2-shots/`；决策草稿 `docs/decisions/0059-action-plan-simplified.md`；测试 `test/action_plan_simplified_test.dart`（加进 CI 两套 Phase B）和 Functions 三个测试文件的新用例。
 ## 2026-10-20 1020d 回忆 v2（App 部分）：两组同一份开放问题、小篇章和评分、离开按钮改名（分支 `claude/zealous-fermat-8rgqtg-reminiscence-app`，接键盘分支，PR 草稿）
 
 - 结论：回忆页改成两组同一页、同一份问题稿，差别只在每题答完之后（Hybrid 组模型追问一条再回一句，规则组固定句、零 LLM）。每周答完整理成小篇章，两组同一个画面，评三题，可改。全部在开关 `reminiscenceV2Enabled` 后面，默认关。离开按钮改名在另一个开关 `leaveButtonV2Enabled` 后面，默认关。
@@ -82,14 +88,14 @@
 - 数据：每周 `reminiscence_v2/week_{N}`（进度和逐句对话；同意关时原话只在手机）；小篇章 `reminiscence_chapters/week_{N}`（和服务器分支约定的字段）；评分 `reminiscence_chapter_ratings`；会话 `reminiscenceQuestionsAnswered`。80 字小结照旧。
 - 服务器部分（小篇章 Cloud Function、`ah_jan_ah_bak.v3` 提示词、推送、Firestore 规则）由另一个开发窗口做，两边按报告里的约定拼接。第一节的两个 bug 不在这个分支。
 - 报告、截图（测试渲染，Hybrid 组的回应是假模型的句子）和真机步骤：`docs/dev-reports/reminiscence-v2-app-20261020.md`。测试 `test/reminiscence_v2_test.dart`（加进 CI「phase B arm gating」）、`test/reminiscence_v2_copy_test.dart`。
-- 待 Junyu：全部草稿文字；有效会话 3 题；规则组整理好不推送；`moderate_review` 不停题、规则组用 Z5；第 8 题后规则组不出固定句；同意关时小篇章请求仍带对话；看过旧说明的人再看一次新说明；决策编号（草稿 `NNNN-reminiscence-v2-app.md`）。
+- 待 Junyu：全部草稿文字；有效会话 3 题；规则组整理好不推送；`moderate_review` 不停题、规则组用 Z5；第 8 题后规则组不出固定句；同意关时小篇章请求仍带对话；看过旧说明的人再看一次新说明；决策编号（草稿 `0057-reminiscence-v2-app.md`）。
 ## 2026-10-20 1020d 回忆 v2 服务器端：阿珍／阿伯提示词 v3、小篇章生成、规则、导出和看板（分支 `claude/zealous-fermat-8rgqtg-reminiscence-server`，未推送、未开 PR）
 
 - 结论：开关 `reminiscenceV2Enabled`（默认关）开时，新回忆页发 `ah_jan_ah_bak_v3`，模型每题问一条具体追问、再回一两句不提问；老人撳「完成今個禮拜」后，Hybrid 组的小篇章由服务器触发器 `onReminiscenceChapterWritten` 生成（Pro 思考写稿 → Flash 核对 → 最多改两轮 → 删仍无出处的句子），规则组不调任何模型。App 那一半由另一个窗口做，约定写在报告第 6 节。
 - 真实模型名 10/19 核对过：`deepseek-flash`、`deepseek-v4-pro` 都在 DeepSeek `/models` 里。
 - 合成老人试运行改了提示词四次：追问漏问、离世仍追问、Flash 把粤语词当「太口语」、改写把老人原话改成普通话、Pro 偶尔交空稿；定稿后一般追问 29/32 有一条问题、回应 33/34 不提问、离世只承认、没假设香港；三篇小篇章逐句都有出处，植入的「五歲」被 Flash 拦下并删去。代码另加两道保护（无口语语法字的「太口语」剔走、空稿重试）。
 - 规则、过程／分析导出、盲法导出清单、运营看板计数一并做了；看板页面显示要改 `lib/`，留给 App 窗口。
-- 全部后端测试（换端口跑）和钉版本 Flutter 测试通过。报告 `docs/dev-reports/reminiscence-v2-server-20261020.md`；决策草稿 `NNNN-reminiscence-chapter-generation.md`。
+- 全部后端测试（换端口跑）和钉版本 Flutter 测试通过。报告 `docs/dev-reports/reminiscence-v2-server-20261020.md`；决策草稿 `0058-reminiscence-chapter-generation.md`。
 - 待 Junyu：三份提示词措辞、推送文字、「太口语」代码剔除、核对失败照交、评分算过程还是结局等（报告第 11 节）。
 
 ## 2026-10-20 1020c 第二项：键盘遮挡，打字时顶栏缩成一行（分支 `claude/zealous-fermat-8rgqtg-keyboard`，接第 2 批，PR 草稿）
@@ -97,7 +103,7 @@
 - 结论：Junyu 报告老人打字时顶栏不让位、对话看不全，两组一样。量过：360×640、字体 1.30、键盘 300 时，聊天区只剩 99–155 像素。新开关 `keyboardCompactHeaderEnabled`（默认关）开时，键盘打开顶栏 72 → 48（「今日傾到呢度」／返回键原样保留），收键盘恢复；聊天页跳回最新一条；通通文章问答的「根據文章」条一起收起。每页多 24 像素（文章问答多 80）。没有新文字。
 - 共用写法 `lib/shared/widgets/keyboard_compact.dart`（`KeyboardCompact.active`、`keyboardCompactAppBar`、`KeyboardScrollToLatest`）；`companionAppBar` 改用它，所以陪伴者页面两组一起变；表格页（望一望、行动计划两组、行动跟进、回忆总结修改、回忆详情）各改一行。
 - 页面清单、量出来的数字、截图（测试渲染，不是真机）和真机步骤：`docs/dev-reports/keyboard-20261020.md`。测试 `test/keyboard_compact_header_test.dart`（加进 CI 两套 Phase B）。
-- 待 Junyu：开不开开关、缩小后标题要不要一句新话、表格页要不要也缩、决策编号（草稿 `NNNN-keyboard-compact-header.md`）。另发现「個人資料 → 修改」弹出框键盘一出就溢出（另一个问题，没改）。
+- 待 Junyu：开不开开关、缩小后标题要不要一句新话、表格页要不要也缩、决策编号（草稿 `0053-keyboard-compact-header.md`）。另发现「個人資料 → 修改」弹出框键盘一出就溢出（另一个问题，没改）。
 - 10/20 跟进（1020e 一.(11)）：Junyu 接受以上做法，开关真机测过再开。同一 PR 修弹出框（不放开关，两组一样）：`personalization_page.dart` 四格放进 `SingleChildScrollView`（`Flexible`），「儲存」固定在下面，`useSafeArea: true`；新测试 `test/profile_editor_keyboard_test.dart`（360×640、1.30、键盘 300：无溢出、「儲存」按得到；旧代码 5 个全失败）。修前修后截图在同一截图夹。
 ## 2026-10-20 1020 第 3 批跟进 1020e：check-in 一行做完可撳、问卷一行按日子写、表情字统一、心情图读 daily_mood、会话记 entrySurface（同一分支，PR #133 草稿）
 
@@ -116,7 +122,7 @@
 - 小欣聊天窗口：新参数 `moodEntry`（`MoodChatEntry`），进来直接是聊天；`activePromptKey` 在心情一行开时用 `siu_yan_v4`。新提示词 `siu_yan.v4.txt` = v3 + 「從首頁心情入嚟（開場）」一节，`prompt_registry.js`、`build_info.g.dart`、指纹测试都加上；v3 不动。
 - 做啲嘢：`assets/tools/` 四张定稿图，`MeListItem` 多 `image`、`tileColor`，开关开时用。
 - 测试：`test/home_v2_test.dart`、`test/mood_row_v2_test.dart`（加进 CI 两套 Phase B 构建）、`final_copy_test.dart` 加 `home-v2.md`、文字扫描加五个流程、Functions 加 `prompt_siu_yan_v4_test.js`、`prompt_siu_yan_v4_emulator_test.js`。报告 `docs/dev-reports/T53-T54-batch3-20261020.md`，截图 `docs/dev-reports/batch3-20261020-shots/`。
-- 待 Junyu：文字定稿（5.1、5.2、5.5 和 D1–D4）、v4 新一节措辞、表情下的字要不要改成 Q1 的说法、W5 天数算法、决策编号（草稿 `NNNN-home-two-pages-mood-row.md`）。
+- 待 Junyu：文字定稿（5.1、5.2、5.5 和 D1–D4）、v4 新一节措辞、表情下的字要不要改成 Q1 的说法、W5 天数算法、决策编号（草稿 `0054-home-two-pages-mood-row.md`）。
 ## 2026-10-19 第 2 批跟进（1020e 二.5、二.8、二.9、二.10、二.12；PR #128）
 
 - 结论：Hybrid 组 Q4 唔講住改叫模型（一句、不建议、不提问，失败回落 R4b）；规则组中度复核用 SN；check-in 因急性停下后，研究员标「誤觸」，老人当天可从停下那题接着做；Q1 按钮由低到高；输入框提示只讲打字。
@@ -135,16 +141,16 @@
 - A：(1) 新窗口里规则组模板不再看编译开关 `RULE_TEMPLATE_REPLIES`，一定出现；(2) v2 下 Brief PR 只在列表页出卡，两组的问卷都有「唔評住」（测试覆盖），签到后不弹问卷；(3) 通通规则组照旧由回应池回复（`tung_tung_arm_b_test.dart` 覆盖）；(4) 规则组小欣聊天新建。
 - 会话：`ChatSessionRecorder.markCheckInCompleted()` / `SessionTally.checkInCompleted`（只在为 true 时写进 `sessions`），`SessionRules.isValid` 把答完的 check-in 当有效。
 - 测试：`test/check_in_chat_v2_test.dart`（加进 CI 的 Phase B 一套）、`final_copy_test.dart` 加 check-in 文字和旧 X、文字扫描加新窗口一个流程、Functions 加 `prompt_siu_yan_v3_test.js` 和 `prompt_siu_yan_v3_emulator_test.js`。报告 `docs/dev-reports/T50-T55-batch2-20261019.md`，截图在 `docs/dev-reports/batch2-20261019-shots/`。
-- 待 Junyu：文字定稿、v3 提示词措辞、Hybrid 唔講住用 R4b、acute 后停止 check-in、决策编号（草稿 `NNNN-check-in-chat-v2.md`）。
+- 待 Junyu：文字定稿、v3 提示词措辞、Hybrid 唔講住用 R4b、acute 后停止 check-in、决策编号（草稿 `0052-check-in-chat-v2.md`）。
 ## 2026-10-20 研究员讲解闸门（1020e 第二节第 14 条；PR 草稿，分支 `claude/zealous-fermat-8rgqtg-intake-gate`）
 
 - 新开关 `researcherIntakeGateEnabled`（默认关）。`ConsentGate` 把两种入组问卷页（`IntakeShortPage`、`IntakePeoplePage`）包在 `ResearcherIntakeGate` 里：开着、帐号没解锁、也没做完引导（T37 规则，`needsAgentOnboarding(fixOn: true)`）时显示等候页，正中一格（九宫格中间）2 秒内点 3 下解锁，写 `users/{uid}.intakeGateUnlockedAt`（服务器时间）。两组同一页。
 - 开关读取：`RemoteFeatureFlags.lastKnown`（最后一次真正读到的值；一次都没读到为 null）。为 null 时先「等一陣…」、后台重读（`load(timeout:)` 6–20 秒），8 秒后显示等候页（不跳过、可放行），读到关自动进问卷；`RemoteFeatureFlags.reads` 计数让 `ConsentGate` 重读后重新决定。
-- `firestore.rules`：这个字段老人只能写一次、只能是服务器时间。新测试 `test/researcher_intake_gate_test.dart`（42 项，三种构建）、`test/rules/intake_gate_rules.test.js`（10 项）。报告 `docs/dev-reports/intake-gate-20261020.md`，决策草稿 `docs/decisions/NNNN-researcher-intake-gate.md`。
+- `firestore.rules`：这个字段老人只能写一次、只能是服务器时间。新测试 `test/researcher_intake_gate_test.dart`（42 项，三种构建）、`test/rules/intake_gate_rules.test.js`（10 项）。报告 `docs/dev-reports/intake-gate-20261020.md`，决策草稿 `docs/decisions/0060-researcher-intake-gate.md`。
 - 待 Junyu：等候页文字、位置（「開始之前」前还是后）、点击范围、读不到时宁可等、开关在第一位 `PB-` 前定好、W0 步骤加一句、决策编号。
 ## 2026-10-20 1020c「讀少少」小讀本（PR #130 草稿，分支 `claude/zealous-fermat-8rgqtg-readers`）
 
-- 先评估（`docs/dev-reports/webview-eval-20261020.md`）：官方 `webview_flutter` 4.13.1 能装进 Flutter 3.35.3，系统版本不用改，包约大 1 MB；再写决策草稿 `docs/decisions/NNNN-html-readers-webview.md`，再写代码。
+- 先评估（`docs/dev-reports/webview-eval-20261020.md`）：官方 `webview_flutter` 4.13.1 能装进 Flutter 3.35.3，系统版本不用改，包约大 1 MB；再写决策草稿 `docs/decisions/0056-html-readers-webview.md`，再写代码。
 - 开关 `htmlReadersEnabled` 默认关；`assets/readers/manifest.json` 先是 `[]`。阅读页用 `loadHtmlString`，App 加 CSP、禁缩放 viewport、`--fs`、读节脚本；只放行首次载入和三个 `peizhu://cta/…`；WebView 放在 `ReaderSurface` 接口后，测试用替身。
 - 「問下通通」只 Hybrid（C08），沿用通通文章模式，内容用 `<id>.txt`，前面那段说明是读本专用草稿（电脑程式伙伴写法）；规则组用会报错的假模型测过，没有任何调用。
 - 使用事件 `reader_open/section/cta/close` 进 `usage_events`（规则白名单、服务器盖章；运营看板前台分钟只算前台／后台）。检查脚本 `tool/check_reader_html.js` 进 CI。测试单元只在 `READER_TEST_UNIT` 构建里，已验证正式构建里没有。
@@ -182,14 +188,14 @@
 - 登录后第一次点「自己」跳回「睇今日」：`AuthGate` 每次 build 都新建 `profileChanges()` 流，登录后重读开关的 `setState` 让 `StreamBuilder` 回到等待状态，整个 `MainShell` 被换掉。改为流只建一次，重读开关后只把 `configRevision` 加一交给 `StaffGate`（它据此重查评估员身份，重查时不再显示转圈）。测试 `test/auth_gate_stream_test.dart`，去掉修复会失败。
 - 标题跳动：`AppAppBar` 的 `AnimatedSwitcher` 默认把新旧标题居中叠放，动画完才回到左边；`layoutBuilder` 改为靠左。
 - 「自己」页：删掉开头「語言、界線、demo 資料」一句、「你嘅資料」卡和那里的登出；登出移到「個人資料」页底（键 `profile_sign_out`，先确认、回到第一页再登出）。
-- 首页安全卡：两部分，见决策草稿 `NNNN-home-safety-card-simplified.md`（危机界面，待 PI 审核）。「24×7 政府熱線」独占一行居中，「如果唔安全，／睇更多支援熱線」固定两行——扫描截图里放在按钮旁边或一行写完时，大字下会断成「政府熱／線」「支援熱／線」。
+- 首页安全卡：两部分，见决策草稿 `0048-home-safety-card-simplified.md`（危机界面，待 PI 审核）。「24×7 政府熱線」独占一行居中，「如果唔安全，／睇更多支援熱線」固定两行——扫描截图里放在按钮旁边或一行写完时，大字下会断成「政府熱／線」「支援熱／線」。
 - 「行動／望一望／進度」标签 17 pt、图标 30；「今個星期」17 pt、后面各项 16 pt。
-- 字号五档（决策草稿 `NNNN-five-font-levels.md`）：先做过一版「加超大 1.45、最大 1.6」，Junyu 看后改为 1.06／1.12／1.18／1.24／1.30 平均五档，最大仍 1.3。`AppFontScale` = `standard`/`slightlyLarge`/`large`/`larger`/`xLarge`（旧三档名字不变，已存设定照旧读得到；原標準 1.0 变 1.06）。`combinedTextScale` 封顶 1.3。设定页五个按钮不随字号变；去掉预览，换档后 `_FontSizeCheck` 问「會唔會太大／太細」，可返回原档（测试 `test/font_scale_check_test.dart`）。
+- 字号五档（决策草稿 `0045-five-font-levels.md`）：先做过一版「加超大 1.45、最大 1.6」，Junyu 看后改为 1.06／1.12／1.18／1.24／1.30 平均五档，最大仍 1.3。`AppFontScale` = `standard`/`slightlyLarge`/`large`/`larger`/`xLarge`（旧三档名字不变，已存设定照旧读得到；原標準 1.0 变 1.06）。`combinedTextScale` 封顶 1.3。设定页五个按钮不随字号变；去掉预览，换档后 `_FontSizeCheck` 问「會唔會太大／太細」，可返回原档（测试 `test/font_scale_check_test.dart`）。
 - 五档扫描：`ui_text_scale_sweep_test.dart` 支持 `SWEEP_SCALES`，新加五条流程（睇今日下半＋支援熱線页、傾完評分、人生回顧、每週問卷 W1 全套、個人資料＋登出；设定页加字号按钮）。18 条流程 × 4 种宽度（320／360／375／390）× 5 档 × 两组 = 720 次，**全部没有溢出**。中间试 1.45／1.6 时注册页小标题在 320／360 宽超出，已改为可换行（现在用不到这么大，但留着无害）。没覆盖的：首页最上面的问候和心情、继续倾偈卡、提醒横幅（要连 Firebase），「望一望」「進度」打开后的页面。底部分页的字 Flutter 自己封顶 1.3。
 
 ## 2026-10-19 Junyu 核对后六处：测试员免打包解锁、每週問卷測試页、Brief PR 横排、注册跳到错处、人生回顧去锁、做啲嘢用词与保留对话开关（PR 草稿，分支 `claude/zealous-fermat-8rgqtg`）
 
-- 测试员工具：`TesterGate.tryUnlockAsTester`——`isTester` 且 `testerToolsEnabled` 时 7 次点击直接解锁；旧的 `TESTER_PIN` 照旧可用；非测试员不弹任何提示。决策草稿 `NNNN-tester-tools-unlock-without-pin.md`。
+- 测试员工具：`TesterGate.tryUnlockAsTester`——`isTester` 且 `testerToolsEnabled` 时 7 次点击直接解锁；旧的 `TESTER_PIN` 照旧可用；非测试员不弹任何提示。决策草稿 `0050-tester-tools-unlock-without-pin.md`。
 - 新页 `tester_weekly_bundle_page.dart`：W1–W7 预览（`WeeklyBundleFlowPage.previewFor`，各部分 `preview: true` 不写 Firestore）和「模擬到嗰日」（`AppClock` 拨到推送后 30 分钟，回首页）。模拟要帐号有 cohort 和 W0（切换组别一次会补上）。
 - Brief PR 第二版问卷：七个选项横排（`_HorizontalScale`，键名 `brief_pr_option_N` 不变），小屏大字测试不溢出。
 - 注册页：每格 `GlobalKey` + `FocusNode`，验证失败滚到第一格错处再聚焦（先滚完再聚焦，否则光标的滚动会打断动画）；服务器错误按代码对到电邮或密码格，用 `forceErrorText` 显示，改了就消失。
@@ -244,11 +250,11 @@
 
 - #113 核对报告第 6 节发现：老人删了条目，`mem_extractions.raw_output` 里还有模型当时的原文。Junyu 10/18 晚定修（1018 §E4）。
 - 做了：页面删事实／待跟进（`deleteSummaryForItem`）、页面删摘要（新触发器 `memorySummaryDeleted`）、「唔好記住」（`forgetRelated`）三处，都把来源那次整理的 `raw_output` 改成「已清除」，审计字段保留。开关 `clearRawOutputOnDelete` 默认开。`tool/delete_memory.js` 本来就整个删，不用改。
-- 报告 `docs/dev-reports/T49e4-raw-output-20261018.md`；决策草稿 `docs/decisions/NNNN-clear-raw-output-on-delete.md`（补充 0024 第 4 条）。待定：部署前已删条目的原文。
+- 报告 `docs/dev-reports/T49e4-raw-output-20261018.md`；决策草稿 `docs/decisions/0043-clear-raw-output-on-delete.md`（补充 0024 第 4 条）。待定：部署前已删条目的原文。
 ## 2026-10-16 测试员自切组别（PR 草稿，分支 `claude/gifted-bardeen-yhizmk`）
 
 - 要做的：测试员在同一部手机上把 Hybrid 组和规则组都完整走一遍，包括记忆。做了：服务器 `setTesterArm`（只认 `isTester`，开关 `testerArmSwitchEnabled` 默认关），测试员不吃分组缓存，Arm A 测试员有记忆 v1，切过组的测试员收每周问卷推送；App 测試員工具加「切換組別」。参与者一律不变。
-- 查到的缺口和处理见报告 `docs/dev-reports/tester-arm-switch-20261016.md`；决策草稿 `docs/decisions/NNNN-tester-arm-self-switch.md`，编号待 Junyu 给。
+- 查到的缺口和处理见报告 `docs/dev-reports/tester-arm-switch-20261016.md`；决策草稿 `docs/decisions/0049-tester-arm-self-switch.md`，编号待 Junyu 给。
 ## 2026-10-18 T49c 通通 S1a 固定回复记一条事件（PR 草稿，分支 `feat/t49c-s1a-event`）
 
 - 10/18 §C：搜一搜维持关闭，只加记录。通通显示 S1a 时写 `users/{uid}/events` 的 `s1a_fixed_reply`（`agentId`、`sessionId`、`arm`、`matchedVersion`、`clientTime`，不含原话和关键词），两组相同，开关 `s1aEventLogEnabled` 默认关。每周过程数据导出加 `event_counts`（按人、按组次数）；锁库分析导出本来按事件名通用导出，不用改。
@@ -259,7 +265,7 @@
 - 文字改动（任务单 1018 §B）：自称「電腦程式夥伴」，被问起老实说是电脑程式；不用「AI」「模型」「機械人」，不说版本；删通通「幫佢搵資料」和「+ 搜尋」，小欣改说「過去同通通傾下」；删末尾从来没填过的「Context injection 格式」。
 - 回忆页是 Hybrid 组唯一没把「唔想提起的话题」告诉陪伴者的聊天页，补上，和签到页同一句。
 - 服务器：提示词登记表搬到 `functions/prompt_registry.js`，好做不连 Firestore 的测试；语气从服务器读的资料来，App 改不了；规则组第一步就被拒绝。
-- `encouragementStyle` 要等 PR #111 合并才有人写。10/19 冻结后合并算偏离，STUDY_CHANGELOG 已记。决策记录草稿 `docs/decisions/NNNN-companion-prompts-v2-tone-slot.md`。Junyu 要看三份最终文本再合。
+- `encouragementStyle` 要等 PR #111 合并才有人写。10/19 冻结后合并算偏离，STUDY_CHANGELOG 已记。决策记录草稿 `docs/decisions/0044-companion-prompts-v2-tone-slot.md`。Junyu 要看三份最终文本再合。
 ## 2026-10-18 T49e-3 小欣签到页、回忆页每种结束都马上交记忆（PR 草稿，分支 `fix/t49e3-memory-handover`）
 
 - 10/18 记忆机制报告（PR #113 第 2.2 节）发现：小欣签到页在切换陪伴者、30 分钟超时时不叫服务器整理记忆；回忆页只在按「儲存」时叫。Junyu 10/18 晚定按 bug 修（任务单 §E3）。

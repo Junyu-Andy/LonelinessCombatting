@@ -29,7 +29,7 @@ dependencies:
   url_launcher: ^6.3.0
   shared_preferences: ^2.5.5
   record: ^6.2.1
-  # 1020c 小讀本 (decision NNNN-html-readers-webview): pinned exactly —
+  # 1020c 小讀本 (decision 0056-html-readers-webview): pinned exactly —
   # 4.13.1 is the newest that Flutter 3.35.3 resolves; do not upgrade
   # before the Phase B freeze.  Evaluation:
   # docs/dev-reports/webview-eval-20261020.md

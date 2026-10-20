@@ -762,7 +762,7 @@ Flash（deepseek-flash，1.2 秒）：`{"ok": false, "issues": [{"type": "无出
 6. **评分算过程指标还是探索性结局**：决定它进不进锁库前的过程导出（第 8 节）。
 7. **最终稿的长度**：老人讲得少时写不满 300 字（试跑 B 约 250 字、D 约 120 字），提示词要求「宁短勿编」。可以吗？
 8. **借用追问里的场景**：A 稿「升到最高時」来自追问的问题，老人的回答默认了这个时刻。要不要在两份提示词里明确禁止？
-9. 决策编号（草稿 `docs/decisions/NNNN-reminiscence-chapter-generation.md`）。
+9. 决策编号（草稿 `docs/decisions/0058-reminiscence-chapter-generation.md`）。
 
 ## 12. 未做和已知问题
 

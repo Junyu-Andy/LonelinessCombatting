@@ -1,6 +1,6 @@
 # 行动计划 v2：少填、可改可删、Hybrid 计划用上小欣记忆（2026-10-20）
 
-分支 `claude/zealous-fermat-8rgqtg-actionplan-impl`，从键盘分支 `claude/zealous-fermat-8rgqtg-keyboard`（`3125ac2`，含第 2 批 Q5 和键盘顶栏）开。依据：1020e 二.7（Junyu 定两样都在冻结前做）；现状报告 `docs/dev-reports/action-plan-current-20261020.md`（PR #129）。决策草稿 `docs/decisions/NNNN-action-plan-simplified.md`。没连生产 Firestore，只用模拟器和合成数据；没改热线；没碰分配序列、分配日志；`lib/core/safety/` 没改。
+分支 `claude/zealous-fermat-8rgqtg-actionplan-impl`，从键盘分支 `claude/zealous-fermat-8rgqtg-keyboard`（`3125ac2`，含第 2 批 Q5 和键盘顶栏）开。依据：1020e 二.7（Junyu 定两样都在冻结前做）；现状报告 `docs/dev-reports/action-plan-current-20261020.md`（PR #129）。决策草稿 `docs/decisions/0059-action-plan-simplified.md`。没连生产 Firestore，只用模拟器和合成数据；没改热线；没碰分配序列、分配日志；`lib/core/safety/` 没改。
 
 ## 结论
 
@@ -132,7 +132,7 @@ Firestore 规则不用改（老人本来就能改自己的 `action_plans`、删�
 4. **改计划页的「幾時」是文字框加三个快捷按钮**，两组一样。规则组改过后 `whenText` 可能不再是三个固定值之一（数据里用 `editCount` 区分）。如果要规则组只能三选一，两组就不一样了。
 5. **改「幾時」不移动提醒**（提醒固定在存后 24 小时）。要提醒跟着时间走，要把「幾時」改成日期钟点，留到 Phase B 之后。
 6. **记忆部分两段新提示词**（App 内，`action_loop_arm_a_page.dart` 和 `action_loop_followup_page.dart` 里的 `…Memory`）措辞。
-7. 决策编号（草稿 `docs/decisions/NNNN-action-plan-simplified.md`）。
+7. 决策编号（草稿 `docs/decisions/0059-action-plan-simplified.md`）。
 8. 删除的计划只在数据库里，App 里没有「已删除」列表。要不要给研究员看（例如运营看板）另议。
 
 ## 八、合并注意

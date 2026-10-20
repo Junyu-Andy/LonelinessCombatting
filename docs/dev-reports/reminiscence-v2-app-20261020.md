@@ -293,7 +293,7 @@ Hybrid 组：
 15. 规则组小篇章里「再講多啲」的内容排在最后，小标题「再講多啲」。
 16. 小篇章显示时页面自动滚到标题；评分在正文下面，要往下拉。
 17. 追问上限放在 `app_config/phase_b.reminiscenceFollowupsMax`（只在 Phase B 构建读）。
-18. 决策编号（草稿 `docs/decisions/NNNN-reminiscence-v2-app.md`）。
+18. 决策编号（草稿 `docs/decisions/0057-reminiscence-v2-app.md`）。
 
 ## 10. 没做、要注意
 

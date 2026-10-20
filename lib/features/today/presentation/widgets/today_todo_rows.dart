@@ -317,30 +317,36 @@ class QuestionnaireRowInfo {
     return null;
   }
 
-  /// W5 when a bundle is open and not all done, else W4 for the next one,
-  /// else null (nothing left: the row hides).
+  /// W5 for the first open bundle not yet all done, else W4 for the next
+  /// one, else null (nothing left: the row hides).  1020g 一 (7): the W4
+  /// window closes on the day its visit was recorded ([week4RecordedOn],
+  /// `w4RecordedOnFor`), and with v2 it can overlap W5 / W6, so every open
+  /// bundle is checked in push order (as PendingPromptsService
+  /// .weeklyBundleDue) — a finished W4 no longer hides an open W5.
   static Future<QuestionnaireRowInfo?> resolve({
     required PhaseBConfig cfg,
     required WeeklyScheduleMode mode,
     required DateTime w0,
     required DateTime now,
     required WeeklyBundleStore? store,
+    DateTime? week4RecordedOn,
   }) async {
-    final open = WeeklySchedule.openBundleAt(cfg, mode, w0, now);
-    if (open != null) {
+    final open = WeeklySchedule.openBundlesAt(cfg, mode, w0, now,
+        week4RecordedOn: week4RecordedOn);
+    for (final o in open) {
       Map<WeeklyPart, String?> status = {
-        for (final p in open.bundle.parts) p: null,
+        for (final p in o.bundle.parts) p: null,
       };
       if (store != null) {
         try {
-          status = await store.partStatus(open.bundle);
+          status = await store.partStatus(o.bundle);
         } catch (_) {}
       }
-      final due = WeeklyBundleDue(
-          bundle: open.bundle, window: open.window, status: status);
+      final due =
+          WeeklyBundleDue(bundle: o.bundle, window: o.window, status: status);
       if (!due.allDone) {
         return QuestionnaireRowInfo.open(
-            due, openState(open.bundle, open.window, now));
+            due, openState(o.bundle, o.window, now));
       }
     }
     final next = nextBundle(cfg, mode, w0, now);
@@ -423,6 +429,7 @@ class _QuestionnaireTodoRowState extends State<QuestionnaireTodoRow>
       // A scheduling decision: the (possibly simulated) App clock.
       now: HomeV2Scope.maybeOf(context)?.clock?.call() ?? AppClock.now(),
       store: _store(profile.uid),
+      week4RecordedOn: w4RecordedOnFor(profile),
     );
     if (mounted) setState(() => _info = info);
   }

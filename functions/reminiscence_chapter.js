@@ -58,7 +58,6 @@ const admin = require("firebase-admin");
 const featureFlags = require("./feature_flags");
 const studyPeriod = require("./study_period");
 const quietHours = require("./quiet_hours");
-const reminders = require("./reminders");
 const weeklySchedule = require("./weekly_schedule");
 const promptRegistry = require("./prompt_registry");
 const llmLog = require("./llm_log");
@@ -968,10 +967,9 @@ async function pushReady(deps, userSnap, weekIndex, cfg) {
   const user = userSnap.exists ? (userSnap.data() || {}) : {};
   const at = new Date(deps.now ? deps.now() : Date.now());
   const qcfg = await quietHours.readQuietHoursConfig(deps.db);
+  // 今日休息 is gone (10/19 item 14 (3)); quietTodayActivatedAt is ignored
+  // here as everywhere else on the server.
   if (quietHours.inQuietHours(user, at, qcfg)) return {status: "quiet_hours"};
-  if (reminders.isQuietToday(user.quietTodayActivatedAt, at)) {
-    return {status: "quiet_today"};
-  }
   const sent = await weeklySchedule.sendToDevices(deps.messaging, userSnap,
       body, "reminiscence_chapter_ready");
   return {status: sent.tokens === 0 ? "no_tokens" :

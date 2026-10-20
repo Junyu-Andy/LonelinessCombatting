@@ -64,14 +64,25 @@ const CHECKS = [
     '1020e 二.7 (1) 行动计划少填、可改可删（#135），期望值 10/20 晚定'],
   ['app_config/feature_flags', 'actionPlanMemoryEnabled', null,
     '1020e 二.7 (2) 计划接上小欣记忆（#135），期望值 10/20 晚定'],
-  ['app_config/feature_flags', 'researcherIntakeGateEnabled', null,
-    '1020e 二.14 研究员讲解闸门（#136），期望值 10/20 晚定'],
+  ['app_config/feature_flags', 'researcherIntakeGateEnabled', true,
+    '1020e 二.14 研究员讲解闸门（#136），10/20 第 54 条定开'],
   ['app_config/feature_flags', 'reminiscenceV2Enabled', null,
     '1020d 回忆 v2（#137），期望值 10/20 晚定'],
   ['app_config/feature_flags', 'leaveButtonV2Enabled', null,
     '1020d 离开按钮（#137），期望值 10/20 晚定'],
-  ['app_config/feature_flags', 'weeklyReminderV2Enabled', null,
-    '1020e 每周问卷新窗口和 10:00 提醒（#132），期望值 10/20 晚定'],
+  // 1020g 一 (3): switches the 10/20 review found missing.  Expected
+  // values are set by Junyu at the freeze (10/20 item 56 (3)); "—" until
+  // then.  homeLayoutV2Enabled and moodRowV2Enabled must be on together:
+  // with only one on, the old mood board's Hybrid-only pop-up and the old
+  // mood words are still reachable (1020g 二 (5)(b)).
+  ['app_config/feature_flags', 'homeLayoutV2Enabled', null,
+    '第 3 批首页两页（#133），须和 moodRowV2Enabled 同开同关'],
+  ['app_config/feature_flags', 'moodRowV2Enabled', null,
+    '第 3 批心情一行（#133），须和 homeLayoutV2Enabled 同开同关'],
+  ['app_config/feature_flags', 'keyboardCompactHeaderEnabled', null,
+    '1020c 键盘打开时顶栏变一行（#131），真机测过就开'],
+  ['app_config/feature_flags', 'htmlReadersEnabled', null,
+    '1020c 小讀本（#130），真机测不完就整项留到 Phase B 之后'],
   ['app_config/feature_flags', 'sessionBriefPrV2Enabled', 'absent',
     '放错位置的键，应删掉（正确位置在 phase_b）'],
   ['app_config/phase_b', 'sessionBriefPrV2Enabled', true, 'T25 收尾按钮'],

@@ -1,4 +1,4 @@
-# NNNN：「讀少少」加「小讀本」，用官方 WebView（`webview_flutter` 4.13.1）显示随 App 打包的 HTML，开关默认关（编号待 Junyu 给）
+# 0056：「讀少少」加「小讀本」，用官方 WebView（`webview_flutter` 4.13.1）显示随 App 打包的 HTML，开关默认关
 
 - 日期：2026-10-20
 - 状态：提议中（依据 1020c；Junyu 审）
