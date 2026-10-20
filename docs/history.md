@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-20 1020j：两个运维工具（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-ops-tools`）
+
+- `tool/export_agent_contexts.js`（第一节 (3)）：只读，把 PILOT-、PB- 账号的 `agent_contexts` 导出到 Mac 本地文件（权限 0600，不能放在仓库里）。核实时发现：App 每次会话结束就把原话折叠成摘要并清空，所以这里通常只有摘要。说明 `docs/release/agent-contexts-backup.md`。
+- `tool/update_login_email.js`（第七节）：用研究编号或 uid 找账号，改登录电邮（同步 App 资料里的电邮）或重设密码。默认空跑；正式改要 `--confirm --production`。每次正式修改写一条 `account_admin_log`：记 @ 前最后四个字符，不记完整电邮和密码。说明 `docs/release/update-login-email.md`。
+- 两个工具都不读序列和分配日志；测试用模拟器，已进 CI 和 Mac 本地脚本。
+
 ## 2026-10-20 1020i：Mac 本地测试脚本（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-mac-tests`）；本地只读看板先答四个问题
 
 - 新加 `tool/run_local_tests_mac.sh`：在 Mac 上一行跑完 CI 的全部测试（`flutter analyze`、小讀本 HTML 检查、六套 Flutter 测试、Functions 单元测试、规则和模拟器测试、隐私脚本测试）。每步打印通过或失败，失败不中断，最后汇总和总用时；`--only` 只跑一部分。只连本机模拟器：开头发现指向正式项目的环境变量就停。说明在 `docs/release/local-tests-mac.md`。
