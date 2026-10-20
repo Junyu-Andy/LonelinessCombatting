@@ -230,6 +230,15 @@
 ///                               (`DirectionCue`).  Both arms identical;
 ///                               items, options, storage and scoring
 ///                               unchanged.  Off = exactly as before.
+///   - [researchTranscriptEnabled] — 1020l (1020j 一 (4)): every chat turn
+///                               also writes the elder's message and the
+///                               reply shown to
+///                               `users/{uid}/chat_transcripts/{turnId}`
+///                               (`ChatSessionRecorder.logTurn`).  Both
+///                               arms; nothing on screen changes; no model
+///                               call.  firestore.rules checks the same
+///                               switch and lets no client read the rows.
+///                               Off (default) = nothing written.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 /// [lastKnown] is for a gate that must not decide on a failed read (1020e
@@ -277,6 +286,7 @@ class RemoteFeatureFlags {
     this.researcherIntakeGateEnabled = false,
     this.htmlReadersEnabled = false,
     this.scaleDirectionCuesEnabled = false,
+    this.researchTranscriptEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -328,6 +338,7 @@ class RemoteFeatureFlags {
   final bool researcherIntakeGateEnabled;
   final bool htmlReadersEnabled;
   final bool scaleDirectionCuesEnabled;
+  final bool researchTranscriptEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -438,6 +449,7 @@ class RemoteFeatureFlags {
             map['researcherIntakeGateEnabled'] == true,
         htmlReadersEnabled: map['htmlReadersEnabled'] == true,
         scaleDirectionCuesEnabled: map['scaleDirectionCuesEnabled'] == true,
+        researchTranscriptEnabled: map['researchTranscriptEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

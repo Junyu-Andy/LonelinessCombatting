@@ -1571,6 +1571,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       modality: input?.voice == true ? InputModality.voice : InputModality.text,
       voiceDurationMs: input?.voiceMs,
       charCount: input?.text.length ?? 0,
+      userText: input?.text,
       detector: flag,
       shortCircuited: shortCircuited,
       ackShown: ackShown,

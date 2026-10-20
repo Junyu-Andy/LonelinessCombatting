@@ -87,6 +87,10 @@ const CHECKS = [
   // items and the Weekly PR pages.  Expected value set by Junyu.
   ['app_config/feature_flags', 'scaleDirectionCuesEnabled', null,
     '1020k 反向题前的过渡句 + Weekly PR 反向三题固定第 3 页（两组相同），期望值待 Junyu 定'],
+  // 1020l (1020j 一 (4)): research transcript of every chat turn.  Junyu
+  // decides when (consent wording first); "—" until then.
+  ['app_config/feature_flags', 'researchTranscriptEnabled', null,
+    '1020l 对话原文存档（两组，老人看不到变化），期望值待 Junyu 定'],
   ['app_config/feature_flags', 'sessionBriefPrV2Enabled', 'absent',
     '放错位置的键，应删掉（正确位置在 phase_b）'],
   ['app_config/phase_b', 'sessionBriefPrV2Enabled', true, 'T25 收尾按钮'],

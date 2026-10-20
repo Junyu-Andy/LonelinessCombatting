@@ -10,6 +10,10 @@
 ///   • `users/{uid}/events/{auto}`         — the existing analytics stream;
 ///     spec event *types* are written as the event `name` with the spec
 ///     `payload` as `params`.
+///   • `users/{uid}/chat_transcripts/{turnId}` — 1020l (1020j 一 (4)), switch
+///     `researchTranscriptEnabled`: the elder's message and the reply shown,
+///     same id as the turn.  Write-once; no client reads it back
+///     (firestore.rules); Admin SDK only ([TurnRecord.transcriptMap]).
 ///
 /// Session definition (M-7): an **agent session** starts when the first
 /// user message is sent on a chat page and ends when the participant leaves
@@ -110,6 +114,12 @@ class TurnRecord {
 
   /// Length of the raw user message (before any PII stripping).
   final int charCount;
+
+  /// 1020l — the elder's message as sent (voice: the transcribed text);
+  /// null when the turn had no free text (e.g. the check-in's reply after
+  /// the button questions).  Only [transcriptMap] uses it — never the
+  /// `turns` row, which keeps only [charCount].
+  final String? userText;
   final DistressMatch detector;
   final bool shortCircuited;
 
@@ -137,6 +147,7 @@ class TurnRecord {
     required this.modality,
     this.voiceDurationMs,
     required this.charCount,
+    this.userText,
     required this.detector,
     required this.shortCircuited,
     required this.ackShown,
@@ -214,6 +225,36 @@ class TurnRecord {
       'createdAt': FieldValue.serverTimestamp(),
     };
   }
+
+  /// Longest texts kept in a transcript row (firestore.rules allows these).
+  static const maxUserChars = 5000;
+  static const maxReplyChars = 10000;
+
+  /// 1020l (1020j 一 (4)) — the `chat_transcripts/{turnId}` row: what the
+  /// elder wrote and the reply shown on screen (rule template, model reply,
+  /// fixed line or the empty crisis short-circuit — [LlmResponse.status]
+  /// says which).  No arm field; the status names the arm only for the rule
+  /// template, and the collection is held back from every blinded export.
+  Map<String, dynamic> transcriptMap({
+    required String sessionId,
+    required String turnId,
+  }) =>
+      {
+        'sessionId': sessionId,
+        'turnId': turnId,
+        'agentId': agentId,
+        'moduleId': moduleId,
+        'userText': _clip(userText, maxUserChars),
+        'replyText': _clip(response.text, maxReplyChars),
+        'replyStatus': response.status.code,
+        'userSentAt': Timestamp.fromDate(userSent),
+        'replyShownAt': Timestamp.fromDate(replyShown),
+        'receivedAt': FieldValue.serverTimestamp(),
+        'schemaVersion': 1,
+      };
+
+  static String? _clip(String? s, int max) =>
+      s == null || s.length <= max ? s : s.substring(0, max);
 
   /// F1…F5 = the five CF flags in spec order; all null on fallback /
   /// short-circuit (spec §S-6) or when the CF did not return them.
@@ -641,6 +682,18 @@ class ChatSessionRecorder {
     if (!available || u == null || s == null) return null;
     final turnRef = _firestore.collection('users').doc(u).collection('turns').doc();
     unawaited(_guard(() => turnRef.set(turn.toMap(participantId: u, sessionId: s))));
+    // 1020l (1020j 一 (4)): the research transcript, both arms, only while
+    // the switch is on.  Fire-and-forget like the rest: the SDK queues it
+    // offline; a refused write never reaches the page.
+    if (RemoteFeatureFlags.current.researchTranscriptEnabled) {
+      final tRef = _firestore
+          .collection('users')
+          .doc(u)
+          .collection('chat_transcripts')
+          .doc(turnRef.id);
+      unawaited(_guard(
+          () => tRef.set(turn.transcriptMap(sessionId: s, turnId: turnRef.id))));
+    }
     unawaited(_guard(() => _sessionRef!.set({
           'userTurnCount': _userTurnCount,
           'fallbackCount': _fallbackCount,

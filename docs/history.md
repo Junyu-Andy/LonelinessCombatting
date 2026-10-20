@@ -11,6 +11,12 @@
 - 起因：Maria 测试时发现老人在一串同方向的题里容易把反向题答反。Junyu 定了三处文字（decisions-log 10/20 第 77–79 条）。
 - 做法：新开关 `scaleDirectionCuesEnabled`（默认关）。开着时 Brief PR 第 4 题、Weekly PR 第 3 页、DJG-ES 第 4 题前各加一行；Weekly PR 反向三题固定在第 3 页，正向九题在第 1、2 页随机；记录多一个 `itemOrder`。两组相同，题目、选项、计分不变。决策草稿 0062。
 - 测试：Weekly PR 页面跑十次，i1–i3 每次都在第 3 页、正向九题从没上第 3 页；排页函数另跑 1000 次。最大字号（1.30）、360 宽手机下三处都不切字、不遮按钮。截图在 `docs/dev-reports/1020k-shots/`。
+## 2026-10-20 1020l (1)：对话原文修复（1020j 第一节 (4)，PR 草稿，分支 `claude/zealous-fermat-8rgqtg-transcript`）
+
+- 每一轮聊天在原有记录之外，再存一份老人原话和屏幕上的回复（`users/{uid}/chat_transcripts`），两组都存。新开关 `researchTranscriptEnabled` 默认关。
+- 规则保证：只有本人登记后能新建，谁都读不到、改不了、删不掉；只有管理权限能读；删除参与者脚本一并删除；不进盲法导出。
+- 测试：规则 12 项、删除脚本、盲法导出、Dart 5 项（含「每个聊天页都把原话传进来」的检查）。决策草稿 0063。
+- 还没做：读取／导出工具（给操纵检验编码和看板「查看對話」用），见 backlog。
 
 ## 2026-10-20 1020i：Mac 本地测试脚本（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-mac-tests`）；本地只读看板先答四个问题
 

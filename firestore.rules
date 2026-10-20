@@ -271,12 +271,14 @@ service cloud.firestore {
         && collection != 'social_contact_probes'
         && collection != 'usage_events'
         && collection != 'reminiscence_chapters'
+        && collection != 'chat_transcripts'
         && !(collection in phaseASurveyCollections());
       allow write: if isOwner(uid) && !collection.matches('mem_.*')
         && collection != 'djg_responses'
         && collection != 'social_contact_probes'
         && collection != 'usage_events'
         && collection != 'reminiscence_chapters'
+        && collection != 'chat_transcripts'
         && !(collection in phaseASurveyCollections())
         && researchWriteOpen(uid, collection)
         && leavesWeekStampsAlone(collection)
@@ -539,6 +541,54 @@ service cloud.firestore {
         && isEnrolledParticipant(uid)
         && request.resource.data.keys().hasAll(usageEventClientKeys())
         && usageEventValid(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // ============================================================
+    // 1020l (1020j 一 (4)) — research transcript,
+    // users/{uid}/chat_transcripts/{turnId}: the elder's message and the
+    // reply shown, written by the App (ChatSessionRecorder.logTurn) once
+    // per turn with the turn's id.  Only while
+    // app_config/feature_flags.researchTranscriptEnabled is true; only for
+    // enrolled participants and testers.  Write-once: no client reads,
+    // updates or deletes it — not even the elder; the Admin SDK reads it
+    // (unblinded tools) and tool/delete_participant.js deletes it.
+    // ============================================================
+    function transcriptKeys() {
+      return ['sessionId', 'turnId', 'agentId', 'moduleId', 'userText',
+              'replyText', 'replyStatus', 'userSentAt', 'replyShownAt',
+              'receivedAt', 'schemaVersion'];
+    }
+
+    function transcriptSwitchOn() {
+      return get(/databases/$(database)/documents/app_config/feature_flags)
+        .data.get('researchTranscriptEnabled', false) == true;
+    }
+
+    function transcriptValid(turnId, d) {
+      return d.keys().hasOnly(transcriptKeys())
+        && d.keys().hasAll(transcriptKeys())
+        && d.turnId == turnId
+        && d.sessionId is string
+        && d.sessionId.size() > 0 && d.sessionId.size() <= 128
+        && d.agentId is string && d.agentId.size() <= 64
+        && d.moduleId is string && d.moduleId.size() <= 64
+        && (d.userText == null
+            || (d.userText is string && d.userText.size() <= 5000))
+        && d.replyText is string && d.replyText.size() <= 10000
+        && d.replyStatus is string && d.replyStatus.size() <= 32
+        && d.userSentAt is timestamp
+        && d.replyShownAt is timestamp
+        && d.receivedAt == request.time
+        && d.schemaVersion == 1;
+    }
+
+    match /users/{uid}/chat_transcripts/{turnId} {
+      allow read: if false;
+      allow create: if isOwner(uid)
+        && enrolledOrTester(uid)
+        && transcriptSwitchOn()
+        && transcriptValid(turnId, request.resource.data);
       allow update, delete: if false;
     }
 
