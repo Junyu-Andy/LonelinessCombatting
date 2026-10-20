@@ -33,9 +33,10 @@
 
 **iOS 不能用 3.35.3 编译。** 仓库里的 iOS 工程（`ios/Runner/AppDelegate.swift`、`Info.plist` 的 UIScene 设置）从 10/04 第一次导入起，就是新版 Flutter（3.38 以上）的写法。用 3.35.3 编译会报 `Cannot find type 'FlutterImplicitEngineDelegate'`。以前的 TestFlight 包都是用 Mac 上的 3.44.1 打的。所以：
 
-- **iOS 用 3.44.1**：先找到它的完整路径：`for f in $(which -a flutter); do echo "$f"; "$f" --version | head -1; done`，选显示 3.44.1 的那个。下面命令里的 `$FLUTTER_IOS` 换成这个路径，或者先运行 `FLUTTER_IOS=<那个路径>`。
+- **iOS 用 3.44.1**：先找到它的完整路径：`for f in $(which -a flutter); do echo "$f"; "$f" --version | head -1; done`，选显示 3.44.1 的那个（Junyu 的 Mac 上是 Homebrew 装的 `/opt/homebrew/bin/flutter`）。给它起个名字，只做一次：`echo "alias flutter-ios=<那个路径>" >> ~/.bash_profile`（终端是 zsh 就写进 `~/.zshrc`），重开终端。下面的 `flutter-ios` 就是它。
 - 安卓和本地测试照旧用 3.35.3（直接写 `flutter`）。
-- 两个版本之间切换后，第一次编译前先跑一次 `flutter clean`（用接下来要用的那个版本）。
+- 两个版本之间切换后，第一次编译前先跑一次 `flutter clean`（用接下来要用的那个版本）。不换版本就**不要** clean：clean 之后从头编译要 10 分钟以上，不 clean 只要 1–3 分钟。
+- 从头编译最慢的是 Firestore。`ios/Podfile` 里加一行用预先编译好的 Firestore（invertase `firestore-ios-sdk-frameworks`，tag 和 pod install 显示的 Firebase SDK 版本一致，10/20 是 11.15.0），能降到几分钟。
 - 新版 Xcode 还要求 `ios/Podfile` 里所有组件的最低系统是 15.0。改法见 1020j 开发窗口记录；以后会提交进仓库。
 
 两个版本统一的事记在 `docs/dev/backlog.md`。
@@ -45,8 +46,8 @@
 ```bash
 cd ~/dev/LonelinessCombatting
 git checkout main && git pull
-$FLUTTER_IOS devices                 # 找到 iPad 那一行，第二列是设备 id
-$FLUTTER_IOS run --release -d <设备id> \
+flutter-ios devices                 # 找到 iPad 那一行，第二列是设备 id
+flutter-ios run --release -d <设备id> \
   --dart-define=PHASE_B=true --dart-define=RULE_TEMPLATE_REPLIES=true \
   --dart-define=TESTER_PIN=<测试员 PIN>
 ```
