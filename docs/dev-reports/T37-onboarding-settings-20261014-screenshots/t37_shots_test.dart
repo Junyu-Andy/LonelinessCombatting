@@ -179,7 +179,6 @@ void main() {
     SharedPreferences.setMockInitialValues({
       AppSettings.keyFontScale: 'xLarge',
       AppSettings.keyHighContrast: true,
-      AppSettings.keyQuietHours: false,
       AppSettings.keyVoiceReadback: true,
     });
     // ignore: invalid_use_of_visible_for_testing_member

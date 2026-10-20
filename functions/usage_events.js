@@ -34,6 +34,10 @@
  * / _later / _done / _postpone, and 1020n _more / _list; a row state, a
  * plan id and a bool only — firestore.rules) is stamped the same way; not
  * a lifecycle row either.
+ *
+ * 1020o 第三节: 「安靜時段」 in 我的設定 (quiet_hours_changed; field start /
+ * end, from, to — "HH:mm" times only, firestore.rules) is stamped the same
+ * way; one row per change, both arms; not a lifecycle row.
  */
 "use strict";
 
@@ -48,7 +52,10 @@ const HOME_SMALL_ACTION_TYPES = ["home_small_action_shown",
   "home_small_action_done", "home_small_action_postpone",
   // 1020n 第三节: 「仲有冇其他計劃？」 and 「仲有 N 個計劃」 tapped.
   "home_small_action_more", "home_small_action_list"];
-const TYPES = LIFECYCLE_TYPES.concat(READER_TYPES, HOME_SMALL_ACTION_TYPES);
+// 1020o 第三节: 安靜時段 changed in 我的設定.
+const QUIET_HOURS_TYPES = ["quiet_hours_changed"];
+const TYPES = LIFECYCLE_TYPES.concat(READER_TYPES, HOME_SMALL_ACTION_TYPES,
+    QUIET_HOURS_TYPES);
 
 /** A row uploaded this long after its client time counts as late. */
 const LATE_AFTER_MS = 5 * 60 * 1000;
@@ -113,6 +120,6 @@ async function stampCreated(db, uid, eventId, data, opts) {
 
 module.exports = {
   COLLECTION, TYPES, LIFECYCLE_TYPES, READER_TYPES, HOME_SMALL_ACTION_TYPES,
-  LATE_AFTER_MS,
+  QUIET_HOURS_TYPES, LATE_AFTER_MS,
   SKEW_AHEAD_MS, SERVER_FIELDS, stampFor, stampCreated,
 };

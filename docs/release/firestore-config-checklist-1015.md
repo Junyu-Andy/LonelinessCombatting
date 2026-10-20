@@ -32,7 +32,7 @@
 | `sessionBriefPrV2Enabled` | 关 | **true** | T25：收尾按钮、评价卡、一题一屏；关着是旧弹窗 |
 | `weeklyScheduleV2Enabled` | 关 | true（已设） | T24 研究周每周问卷总开关 |
 | `socialContactProbeEnabled` | 关 | true（已设） | 每周问卷第四部分 S12（W1–W4） |
-| `weeklyPushHour` | 20 | 不动 | 推送钟点 |
+| `weeklyPushHour` | 20 | **10**（10/20 第 96 条，Junyu 已改生产） | 推送钟点（第 1–4 周提醒 v2 本来固定 10:00，这个键只管第 5–7 周 PGIC） |
 | `weeklyBundleDays` / `weeklyWindowDays` / `week4CloseDay` / `djgWeeks` / `pgicOnlyDays` | [7,14,21,26] / 3 / 29 / [1,2,3] / [35,42,49] | 不动 | 排程表 |
 | `djgW2ReminderHours` | 24 | 不动 | 提醒间隔（研究周也用它） |
 | `sessionIdleTimeoutMinV2` | 30 | 不动 | V2 的会话闲置超时 |

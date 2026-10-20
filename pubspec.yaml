@@ -64,9 +64,9 @@ flutter:
     # 1020c 小讀本: <id>.html, <id>.txt, manifest.json (committed as []).
     # Checked by tool/check_reader_html.js in CI.
     - assets/readers/
-    # 1020o 第四节: 人生點滴 theme pictures theme_1.png … theme_4.png (Junyu's
-    # art).  Kept as a folder (with .gitkeep) so the build passes before the
-    # pictures arrive; until then the cards show the number tile.
+    # 1020o 第四节: Junyu's 人生點滴 pictures — theme_1.png … theme_4.png
+    # (landing cards, 512 × 512) and scene_1.jpg … scene_4.jpg (the first
+    # bubble of each week, 1024 × 768, each under 200 KB).
     - assets/reminiscence/
     # Phase A baseline — single source of truth shared with the Cloud
     # Functions bundle (S-3 templates, S-4 crisis resources).  Bundled so
