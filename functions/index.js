@@ -2834,13 +2834,15 @@ exports.adaStaffSave = onCall(
 // ---------------------------------------------------------------------------
 // Action Loop follow-up reminders (SPEC:C07, decision 0022).  The app queues
 // them at users/{uid}/reminders; this sends the due ones to the
-// participant's own devices.  Every 15 min, 08:00–21:45 HKT, so nothing
-// goes out at night.  Both arms, no LLM.  Off unless
-// app_config/reminders.m7FollowupPushEnabled === true (functions/reminders.js).
+// participant's own devices.  Every 15 min, 06:00–22:45 HKT (1020o: was
+// 08:00–21:45); each elder's 安靜時段 (own window, else the global
+// 22:00–08:00) holds the push, so nothing goes out at night.  Both arms, no
+// LLM.  Off unless app_config/reminders.m7FollowupPushEnabled === true
+// (functions/reminders.js).
 // ---------------------------------------------------------------------------
 exports.dispatchReminders = onSchedule(
   {
-    schedule: "*/15 8-21 * * *",
+    schedule: "*/15 6-22 * * *",
     timeZone: "Asia/Hong_Kong",
     region: "asia-east2",
     retryCount: 0,

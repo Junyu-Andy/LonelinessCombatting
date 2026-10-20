@@ -4,6 +4,8 @@
 // No switch: a bug fix.  Options and wording are unchanged.
 // 10/20 (dev-tasks-1020 §H): 安靜時段 and 今日休息 left the page (quiet hours
 // fixed on); 高對比 moved to 自己 → 我的設定 → 顯示.
+// 1020o: the old 安靜時段 on/off value is gone from the device store; the
+// elder sets the times under 我的設定 (test/quiet_hours_settings_1020o_test).
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
@@ -23,7 +25,6 @@ void main() {
     final s = await AppSettings.restore();
     expect(s.fontScale, AppFontScale.standard, reason: '標準');
     expect(s.highContrast, isFalse);
-    expect(s.quietHours, isTrue, reason: '安靜時段 defaults on, as before');
     expect(s.voiceReadback, isFalse, reason: '語音讀出內容 defaults off');
   });
 
@@ -31,14 +32,12 @@ void main() {
     final s = await AppSettings.restore();
     s.fontScale = AppFontScale.xLarge;
     s.highContrast = true;
-    s.quietHours = false;
     s.voiceReadback = true;
     await pumpEventQueue(); // the writes are fire-and-forget
 
     final reopened = await AppSettings.restore();
     expect(reopened.fontScale, AppFontScale.xLarge, reason: '特大');
     expect(reopened.highContrast, isTrue);
-    expect(reopened.quietHours, isFalse);
     expect(reopened.voiceReadback, isTrue);
   });
 
@@ -54,12 +53,12 @@ void main() {
     final s = await AppSettings.restore();
     s.highContrast = true;
     s.highContrast = false;
-    s.quietHours = false;
-    s.quietHours = true;
+    s.voiceReadback = true;
+    s.voiceReadback = false;
     await pumpEventQueue();
     final reopened = await AppSettings.restore();
     expect(reopened.highContrast, isFalse);
-    expect(reopened.quietHours, isTrue);
+    expect(reopened.voiceReadback, isFalse);
   });
 
   test('unknown or wrongly typed stored values fall back to the defaults',
@@ -67,12 +66,12 @@ void main() {
     SharedPreferences.setMockInitialValues({
       AppSettings.keyFontScale: 'huge',
       AppSettings.keyHighContrast: 'yes',
-      AppSettings.keyQuietHours: 3,
+      AppSettings.keyVoiceReadback: 3,
     });
     final s = await AppSettings.restore();
     expect(s.fontScale, AppFontScale.standard);
     expect(s.highContrast, isFalse);
-    expect(s.quietHours, isTrue);
+    expect(s.voiceReadback, isFalse);
   });
 
   // 1020c (appFontScaleOnlyEnabled): the first run with the switch on keeps
@@ -121,14 +120,14 @@ void main() {
     final s = await AppSettings.restore();
     s.fontScale = AppFontScale.large;
     s.highContrast = true;
-    s.quietHours = false;
     s.voiceReadback = true;
     await pumpEventQueue();
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('display.fontScale'), 'large');
     expect(prefs.getBool('display.highContrast'), isTrue);
-    expect(prefs.getBool('notifications.quietHours'), isFalse);
     expect(prefs.getBool('notifications.voiceReadback'), isTrue);
+    // 1020o: the old 安靜時段 on/off value is no longer written.
+    expect(prefs.containsKey('notifications.quietHours'), isFalse);
   });
 
   testWidgets('字體大小 on 自己 and 高對比 under 我的設定 write through to '
@@ -181,14 +180,20 @@ void main() {
     await tester.tap(switchIn('高對比模式'));
     await tester.pumpAndSettle();
     expect(settings.highContrast, isTrue);
-    expect(settings.quietHours, isTrue, reason: 'no switch; stays on');
     expect(settings.voiceReadback, isFalse, reason: 'row hidden, value untouched');
+    // 1020o: 安靜時段 is back one level down, with times and no switch.
+    expect(find.text('安靜時段'), findsOneWidget);
+    expect(find.byKey(const Key('quiet_hours_card')), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byKey(const Key('quiet_hours_card')),
+            matching: find.byType(Switch)),
+        findsNothing);
 
     // "Close and reopen the App".
     final reopened = await AppSettings.restore();
     expect(reopened.fontScale, AppFontScale.xLarge);
     expect(reopened.highContrast, isTrue);
-    expect(reopened.quietHours, isTrue);
     expect(reopened.voiceReadback, isFalse);
   });
 }

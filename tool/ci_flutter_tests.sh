@@ -22,6 +22,8 @@
 #      (1020o: test/selfpage_landing_1020o_test.dart runs in 1, 2 and 3 —
 #      自己 → 我嘅人生小篇章 and the 人生點滴 landing on both arms; the old
 #      My Story page and test/my_story_arm_test.dart are gone)
+#      (1020o 第三节: test/quiet_hours_settings_1020o_test.dart runs in 1, 2
+#      and 3 — 我的設定 → 安靜時段 「由」/「到」, same for both arms)
 #   4. MEMORY_V1=true         — memory v1 client tests (memory branch)
 #   5. RULE_TEMPLATE_REPLIES=true — final templates on (T33: no placeholder
 #      left, so the switch alone turns them on)
@@ -75,6 +77,7 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/crisis_chat_message_1020m_test.dart \
   test/faq_1020o_test.dart \
   test/selfpage_landing_1020o_test.dart \
+  test/quiet_hours_settings_1020o_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
@@ -94,6 +97,7 @@ run "phase B arm B pages" \
   test/crisis_chat_message_1020m_test.dart \
   test/faq_1020o_test.dart \
   test/selfpage_landing_1020o_test.dart \
+  test/quiet_hours_settings_1020o_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \
   --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart

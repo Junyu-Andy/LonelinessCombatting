@@ -58,6 +58,13 @@
 ///   `home_small_action_list`     (1020n: 「仲有 N 個計劃」 tapped)
 /// A plan id that is not [kPlanIdPattern] is dropped here and refused by
 /// the rules.
+///
+/// 1020o 第三节 — 「安靜時段」 in 自己 → 我的設定 (both arms) rides on the
+/// same collection, switch and enrolment check ([recordQuietHoursChanged]):
+///   `quiet_hours_changed` + `field` (`start` 「由」 / `end` 「到」), `from`
+///                           (the time shown before), `to` (the time
+///                           picked) — "HH:mm" only
+/// One row per change; a pick of the value already shown writes nothing.
 library;
 
 import 'dart:async';
@@ -98,6 +105,11 @@ const Set<String> kHomeSmallActionRowStates = {
   'next_day_plan',
 };
 
+/// 1020o: "HH:mm" in `quiet_hours_changed` (the same pattern is in
+/// firestore.rules `hhmmOk`).
+final RegExp kQuietHoursTimePattern =
+    RegExp(r'^([01][0-9]|2[0-3]):[0-5][0-9]$');
+
 enum UsageEventType {
   foreground('foreground'),
   background('background'),
@@ -113,7 +125,9 @@ enum UsageEventType {
   homeSmallActionPostpone('home_small_action_postpone'),
   // 1020n 第三节.
   homeSmallActionMore('home_small_action_more'),
-  homeSmallActionList('home_small_action_list');
+  homeSmallActionList('home_small_action_list'),
+  // 1020o 第三节 — 安靜時段 changed in 我的設定.
+  quietHoursChanged('quiet_hours_changed');
 
   const UsageEventType(this.code);
 
@@ -142,6 +156,9 @@ class UsageEvent {
     this.rowState,
     this.planId,
     this.moved,
+    this.quietField,
+    this.quietFrom,
+    this.quietTo,
   });
 
   final String uid;
@@ -165,6 +182,11 @@ class UsageEvent {
   final String? planId;
   final bool? moved;
 
+  /// 1020o quiet_hours_changed rows only: `field`, `from`, `to`.
+  final String? quietField;
+  final String? quietFrom;
+  final String? quietTo;
+
   /// The Firestore document (without `receivedAt`, which the sink adds as
   /// a server timestamp).
   Map<String, Object?> toMap() => {
@@ -181,6 +203,9 @@ class UsageEvent {
         if (rowState != null) 'rowState': rowState,
         if (planId != null) 'planId': planId,
         if (moved != null) 'moved': moved,
+        if (quietField != null) 'field': quietField,
+        if (quietFrom != null) 'from': quietFrom,
+        if (quietTo != null) 'to': quietTo,
       };
 }
 
@@ -354,6 +379,7 @@ class UsageEventRecorder {
       case UsageEventType.homeSmallActionPostpone:
       case UsageEventType.homeSmallActionMore:
       case UsageEventType.homeSmallActionList:
+      case UsageEventType.quietHoursChanged:
         return false;
     }
     _write(type, _clock(),
@@ -405,6 +431,36 @@ class UsageEventRecorder {
         return false;
     }
     _write(type, _clock(), rowState: rowState, planId: planId, moved: moved);
+    return true;
+  }
+
+  /// 1020o 第三节 — one row when the elder changes 「安靜時段」 (switch on,
+  /// account enrolled, like the lifecycle rows).  [field] is `start` or
+  /// `end`; [from] and [to] are "HH:mm".  Nothing is written when they are
+  /// equal or malformed.  Returns whether a row was written.
+  bool recordQuietHoursChanged({
+    required String field,
+    required String from,
+    required String to,
+  }) {
+    if (!_canRecord) return false;
+    if (field != 'start' && field != 'end') return false;
+    if (!kQuietHoursTimePattern.hasMatch(from) ||
+        !kQuietHoursTimePattern.hasMatch(to) ||
+        from == to) {
+      return false;
+    }
+    _sink.write(UsageEvent(
+      uid: _uid!,
+      type: UsageEventType.quietHoursChanged,
+      clientAt: _clock(),
+      appVersion: _appVersion,
+      buildNumber: _buildNumber,
+      platform: _platform,
+      quietField: field,
+      quietFrom: from,
+      quietTo: to,
+    ));
     return true;
   }
 
