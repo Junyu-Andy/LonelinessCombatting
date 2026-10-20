@@ -101,6 +101,12 @@
 ///                               phone's system font size is ignored, so
 ///                               every page scales the same way.  Off: the
 ///                               two multiply, capped at 特大 (app.dart).
+///   - [wideScreenFrameEnabled] — 1020l §二 (2): on an iPad (shorter side
+///                               ≥ 600) the pages sit in one centred column
+///                               at most 600 wide, the App's background in
+///                               the margins (lib/app/wide_screen_frame.dart).
+///                               Phones never change, on or off.  Both arms
+///                               the same.  Off: iPad as before.
 ///   - [briefPrHomeBannerEnabled] — 10/19 (Junyu): the Brief PR invitation
 ///                               card also sits at the top of 睇今日, under
 ///                               the greeting, not only on the companion
@@ -270,6 +276,7 @@ class RemoteFeatureFlags {
     this.homeMoodOpensCheckInEnabled = false,
     this.suggestionsUseProfileEnabled = false,
     this.appFontScaleOnlyEnabled = false,
+    this.wideScreenFrameEnabled = false,
     this.briefPrHomeBannerEnabled = false,
     this.testerToolsEnabled = false,
     this.transcriptRetentionToggleEnabled = false,
@@ -307,6 +314,7 @@ class RemoteFeatureFlags {
   final bool homeMoodOpensCheckInEnabled;
   final bool suggestionsUseProfileEnabled;
   final bool appFontScaleOnlyEnabled;
+  final bool wideScreenFrameEnabled;
   final bool briefPrHomeBannerEnabled;
   final bool testerToolsEnabled;
   final bool transcriptRetentionToggleEnabled;
@@ -428,6 +436,7 @@ class RemoteFeatureFlags {
         suggestionsUseProfileEnabled:
             map['suggestionsUseProfileEnabled'] == true,
         appFontScaleOnlyEnabled: map['appFontScaleOnlyEnabled'] == true,
+        wideScreenFrameEnabled: map['wideScreenFrameEnabled'] == true,
         briefPrHomeBannerEnabled: map['briefPrHomeBannerEnabled'] == true,
         testerToolsEnabled: map['testerToolsEnabled'] == true,
         transcriptRetentionToggleEnabled:
