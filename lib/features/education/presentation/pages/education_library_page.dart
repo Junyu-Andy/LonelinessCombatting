@@ -252,7 +252,13 @@ class _ReaderCard extends StatelessWidget {
                       Text(unit.titleZh, style: theme.textTheme.titleMedium),
                       if (done) ...[
                         const SizedBox(height: 6),
-                        _DoneBadge(key: Key('reader_done_${unit.id}')),
+                        // Shrinks rather than overflow on a narrow phone at
+                        // the largest text.
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: _DoneBadge(key: Key('reader_done_${unit.id}')),
+                        ),
                       ],
                     ],
                   ),

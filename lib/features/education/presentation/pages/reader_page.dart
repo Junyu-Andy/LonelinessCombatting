@@ -6,10 +6,12 @@
 ///         [ReaderSurface] (the WebView).  Only the first load and the
 ///         App's `peizhu://` links pass; nothing else opens.
 ///   1021 T-R2 the native top bar (the page hides its own:
-///         `data-chrome="app"`).  「‹」 and the system back key first ask
-///         the page (`window.peizhuReader.back()`): true = it went from a
-///         section back to its contents, stay; false = it is at its
-///         contents, close and return to 讀少少.  The title follows the
+///         `data-chrome="app"`).  「‹」 first asks the page
+///         (`window.peizhuReader.back()`): true = it went from a section
+///         back to its contents, stay; false = it is at its contents, close
+///         and return to 讀少少.  The system back key in a section does the
+///         same; at the contents it closes (what back() would answer), so
+///         the iPhone edge swipe works there.  The title follows the
 ///         page's `peizhu:view`: at the contents the unit title and
 ///         「約 n 分鐘」, in a section 「第 i／n 節」 and the unit title.  Top
 ///         right: the round 「?」 (問下通通, Hybrid only, registry C08:
@@ -421,10 +423,13 @@ class _ReaderPageState extends State<ReaderPage> with WidgetsBindingObserver {
       title = _unit.titleZh;
       subtitle = isEn ? 'About ${_unit.minutes} min' : '約 ${_unit.minutes} 分鐘';
     }
-    // System back (Android key, predictive back) asks the page first; the
-    // page is popped only by [_onBack] (or from outside).
+    // System back in a section (Android key) asks the page first and
+    // stays: the page goes back to its contents.  At the contents (or
+    // before the page has said where it is) back simply closes — the same
+    // as back() returning false — so the iPhone edge swipe and Android's
+    // predictive back work there too.
     return PopScope(
-      canPop: false,
+      canPop: !inSection,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) {
           _close();

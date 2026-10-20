@@ -1180,8 +1180,9 @@ void main() {
       final name = arm == ArmAssignment.a ? 'Hybrid' : 'rule arm';
 
       testWidgets('$name: top bar — title from peizhu:view; 「‹」 and the '
-          'system back ask peizhuReader.back() first (true = stay, false = '
-          'close); zero LLM calls in the rule arm', (tester) async {
+          'system back in a section ask peizhuReader.back() first (true = '
+          'stay); at the contents back closes; zero LLM calls in the rule '
+          'arm', (tester) async {
         final h = await openReader(tester, arm, textScale: 1.3);
         expect(tester.takeException(), isNull);
         expect(title(tester), '孤單係咩');
@@ -1204,10 +1205,11 @@ void main() {
         expect(h.surface.backCalls, 2);
         expect(find.byType(ReaderPage), findsOneWidget);
         expect(title(tester), '孤單係咩');
-        // At the contents: back closes, the reader returns to the list.
+        // At the contents: the system back closes (what back() would
+        // answer; the iPhone edge swipe works here), back to the list.
         await _systemBack(tester);
-        expect(h.surface.backCalls, 3);
         expect(find.byType(ReaderPage), findsNothing);
+        expect(h.surface.backCalls, 2);
         expect(h.llm.calls, 0);
         expect(_rows(h.sink).map((r) => r['type']), [
           'reader_open', 'reader_section', 'reader_section', 'reader_close',
@@ -1346,6 +1348,22 @@ void main() {
         'straight away', (tester) async {
       final h = await openReader(tester, ArmAssignment.a, unit: readerTestUnit);
       h.surface.hasReaderApi = false;
+      await tester.tap(find.byKey(ReaderPage.backKey));
+      await _pumpFor(tester);
+      expect(find.byType(ReaderPage), findsNothing);
+      expect(h.surface.backCalls, 1);
+    });
+
+    testWidgets('「‹」 at the contents still asks the page: a page that '
+        'answers true (it was in a section) keeps the reader open',
+        (tester) async {
+      final h = await openReader(tester, ArmAssignment.b);
+      // The page is in a section but its peizhu:view never arrived.
+      h.surface.view = 's2';
+      await tester.tap(find.byKey(ReaderPage.backKey));
+      await _pumpFor(tester);
+      expect(find.byType(ReaderPage), findsOneWidget);
+      expect(h.surface.view, 'toc');
       await tester.tap(find.byKey(ReaderPage.backKey));
       await _pumpFor(tester);
       expect(find.byType(ReaderPage), findsNothing);
