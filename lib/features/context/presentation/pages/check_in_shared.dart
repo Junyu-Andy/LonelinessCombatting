@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../shared/widgets/equal_button_grid.dart';
+
 /// Five-face mood picker — kept in lock-step with the home hero pad so
 /// the onboarding pick, the hero pick and the post-chat "完成" sheet
 /// all speak the same language (1=好差 … 5=好好).
@@ -38,6 +40,14 @@ enum MoodFace {
       };
 }
 
+/// 1020l §一 (3) — the five faces are one even grid ([EqualButtonGrid]):
+/// every button the same width and height, the face and the word centred
+/// both ways, the word on one line whenever the screen allows (five in a
+/// row on a tablet, three-and-two or two-two-one on a phone, by the text
+/// size).  Was a [Wrap] of fixed 92 px boxes, where a long word wrapped in
+/// some boxes and not others.  Font sizes unchanged.  Used by the old
+/// check-in pages (switch `checkInChatV2Enabled` off), the rule-arm
+/// reminiscence page and the old home mood sheet; same in both arms.
 class MoodFacePicker extends StatelessWidget {
   /// Null = nothing selected yet.  B14-aligned: measurement surfaces
   /// must not pre-select a midpoint face, so callers may start empty
@@ -51,8 +61,8 @@ class MoodFacePicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
-    return Wrap(
-      spacing: 10,
+    return EqualButtonGrid(
+      spacing: 8,
       runSpacing: 10,
       children: MoodFace.values.map((face) {
         final selected = face == value;
@@ -61,11 +71,11 @@ class MoodFacePicker extends StatelessWidget {
           selected: selected,
           label: face.label(isEn),
           child: InkWell(
+            key: ValueKey('mood_face_${face.name}'),
             onTap: () => onChanged(face),
             borderRadius: BorderRadius.circular(20),
             child: Container(
-              width: 92,
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
               decoration: BoxDecoration(
                 color: selected
                     ? theme.colorScheme.primaryContainer
@@ -79,10 +89,12 @@ class MoodFacePicker extends StatelessWidget {
                 ),
               ),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(face.emoji(), style: const TextStyle(fontSize: 32)),
                   const SizedBox(height: 4),
                   Text(face.label(isEn),
+                      textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight:
                             selected ? FontWeight.w700 : FontWeight.w500,

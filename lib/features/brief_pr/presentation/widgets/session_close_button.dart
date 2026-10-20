@@ -10,7 +10,10 @@
 /// is shown once as a snack bar.  The wording is not finalised, so it is a
 /// `【占位】` draft.  T46: "already explained" is kept on the device
 /// ([SessionCloseHint], `shared_preferences`), so the note shows once per
-/// phone instead of once per App start; same in both arms.
+/// phone instead of once per App start; same in both arms.  1020l §一 (2):
+/// on a page with a top notice area (the 小欣 chat window, switch
+/// `checkInChatV2Enabled`) the note shows there, under the app bar, not
+/// as a snack bar over the input bar.
 ///
 /// 1020d 8 (3)(4) — switch `app_config/feature_flags.leaveButtonV2Enabled`
 /// (default off): the label reads 「離開」 ([leaveLabel]; a page may pass
@@ -24,6 +27,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../../core/feature_flags/remote_feature_flags.dart';
+import '../../../../shared/widgets/top_notice_area.dart';
 import 'session_close_hint.dart';
 
 class SessionCloseButton extends StatefulWidget {
@@ -52,6 +56,12 @@ class SessionCloseButton extends StatefulWidget {
   /// The label shown now (switch-dependent).
   static String get currentLabel => leaveV2 ? leaveLabel : label;
 
+  /// How long the first-use note stays.
+  static const firstUseNoteDuration = Duration(seconds: 6);
+
+  /// 1020l §一 (2): the note's id in a page's top notice area.
+  static const firstUseNoticeId = 'session_close_first_use';
+
   /// Width to give `AppBar.leadingWidth` so the label is not clipped.
   static const leadingWidth = 168.0;
 
@@ -73,9 +83,18 @@ class _SessionCloseButtonState extends State<SessionCloseButton> {
           : SessionCloseButton.firstUseNote;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
+        // 1020l §一 (2): a page with a top notice area (the 小欣 chat
+        // window) shows the note there, under the bar, for as long as the
+        // snack bar stayed; every other page: the snack bar, as before.
+        final top = TopNotices.maybeOf(context);
+        if (top != null) {
+          top.showText(SessionCloseButton.firstUseNoticeId, note,
+              duration: SessionCloseButton.firstUseNoteDuration);
+          return;
+        }
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
           content: Text(note, style: const TextStyle(fontSize: 17)),
-          duration: const Duration(seconds: 6),
+          duration: SessionCloseButton.firstUseNoteDuration,
         ));
       });
     }
