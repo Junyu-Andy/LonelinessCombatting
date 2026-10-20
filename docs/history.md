@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-20 1020i：Mac 本地测试脚本（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-mac-tests`）；本地只读看板先答四个问题
+
+- 新加 `tool/run_local_tests_mac.sh`：在 Mac 上一行跑完 CI 的全部测试（`flutter analyze`、小讀本 HTML 检查、六套 Flutter 测试、Functions 单元测试、规则和模拟器测试、隐私脚本测试）。每步打印通过或失败，失败不中断，最后汇总和总用时；`--only` 只跑一部分。只连本机模拟器：开头发现指向正式项目的环境变量就停。说明在 `docs/release/local-tests-mac.md`。
+- 不改 App 和 Functions 的行为；CI 照旧用 `tool/ci_flutter_tests.sh` 和 `tool/ci_backend_tests.sh`。
+- 第二节本地只读看板：只回答 1020i 2.4 的四个问题，不写代码，等 Junyu 选定方案。
+
 ## 2026-10-20 1020h：急性中断后当天不再重开 check-in；「当天」用香港日期；登记表 C06 小篇章来源确认（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-1020h`，接冻结合并 #139）
 
 - `siu_yan_chat_page.dart`：`_findResumable` 改为 `_todayStops`，一次读当天的 check-in 行，分出「标了误触、可续问」和「急性中断、没标误触」两种。后者和 `done` 一样进聊天（`_seedChatOpener`），不再 `_beginCheckIn`。不加开关，放在误触续问的同一条路上。
