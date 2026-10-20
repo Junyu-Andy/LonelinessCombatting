@@ -36,8 +36,10 @@ class AgentAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final variant = agent.resolveVariant(selectedVariant);
+    // 1020l: the chosen companion's own initial (阿伯 → 伯), never 「阿」,
+    // which 阿珍 and 阿伯 share.
     final initial = variant.displayNameZh.isNotEmpty
-        ? variant.displayNameZh.characters.first
+        ? variant.initialZh
         : variant.displayNameEn.characters.first;
 
     final fallback = Container(
@@ -50,6 +52,7 @@ class AgentAvatar extends StatelessWidget {
       ),
       child: Text(
         initial,
+        key: const ValueKey('agent_avatar_initial'),
         style: TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w700,

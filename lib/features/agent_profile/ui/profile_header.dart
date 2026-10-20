@@ -9,6 +9,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/agents/agent_registry.dart';
 import '../controller/agent_profile_controller.dart';
 
 class ProfileHeader extends StatelessWidget {
@@ -42,7 +43,8 @@ class ProfileHeader extends StatelessWidget {
                 header.fullBodyImageAsset,
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => _FallbackArtwork(
-                  initial: header.displayName.characters.first,
+                  // 1020l: 阿伯 → 伯 (not the shared 「阿」).
+                  initial: avatarInitial(header.displayName),
                   accent: resolution.accent,
                   size: imageSize,
                 ),

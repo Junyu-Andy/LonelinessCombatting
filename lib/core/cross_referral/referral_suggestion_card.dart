@@ -101,7 +101,15 @@ class _ReferralSuggestionCardState extends State<ReferralSuggestionCard> {
             children: [
               Row(
                 children: [
-                  AgentAvatar(agent: target, size: 36),
+                  // 1020l: 阿伯's picture for an elder who chose 阿伯 (the
+                  // name next to it already followed the choice).
+                  AgentAvatar(
+                    agent: target,
+                    selectedVariant: target.id == AgentRegistry.ahJanAhBakId
+                        ? AppSettingsScope.of(context).profile?.ahJanAhBakVariant
+                        : null,
+                    size: 36,
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     isEn ? 'Talk to ' : '搵 ',

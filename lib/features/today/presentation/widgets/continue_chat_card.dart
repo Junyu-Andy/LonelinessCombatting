@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
+import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/core_services_scope.dart';
 import '../../../context/presentation/pages/check_in_page.dart';
@@ -17,7 +18,10 @@ import '../home_v2_scope.dart';
 /// when nothing can be suggested at all (extremely rare — the default
 /// branch always picks Siu Yan).
 class ContinueChatCard extends StatefulWidget {
-  const ContinueChatCard({super.key});
+  const ContinueChatCard({super.key, this.progressReader});
+
+  /// Tests only: reads the reminiscence weeks without Firestore.
+  final MyStoryProgressReader? progressReader;
 
   @override
   State<ContinueChatCard> createState() => _ContinueChatCardState();
@@ -49,7 +53,8 @@ class _ContinueChatCardState extends State<ContinueChatCard> {
 
     // Priority 1: reminiscence week with unfinished current chapter.
     try {
-      final reader = MyStoryProgressReader(available: true);
+      final reader =
+          widget.progressReader ?? MyStoryProgressReader(available: true);
       final progress = await reader.read(
         uid: profile.uid,
         referenceDate: DateTime.now(),
@@ -61,12 +66,9 @@ class _ContinueChatCardState extends State<ContinueChatCard> {
         final chapter = isEn
             ? 'Chapter ${theme.weekIndex} · ${theme.titleEn}'
             : '第 ${theme.weekIndex} 章 · ${theme.titleZh}';
-        final name = AgentRegistry.ahJanAhBakName(
-            profile?.ahJanAhBakVariant,
-            isEn: isEn);
         pick = _Suggestion(
           agentId: AgentRegistry.ahJanAhBakId,
-          headline: isEn ? 'Pick up with $name' : '同$name講舊時',
+          headline: _reminiscenceHeadline(profile.ahJanAhBakVariant, isEn),
           chapter: chapter,
         );
       }
@@ -154,6 +156,13 @@ class _ContinueChatCardState extends State<ContinueChatCard> {
       );
     }
     final palette = _paletteFor(s.agentId);
+    // 1020l: the elder's own 阿珍／阿伯 choice, read (and listened to) at
+    // build time, so the picture and the name follow a later switch too.
+    final pairing = AppSettingsScope.of(context).profile?.ahJanAhBakVariant;
+    final agent = AgentRegistry.tryById(s.agentId);
+    final headline = s.agentId == AgentRegistry.ahJanAhBakId
+        ? _reminiscenceHeadline(pairing, isEn)
+        : s.headline;
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
       child: Material(
@@ -166,7 +175,11 @@ class _ContinueChatCardState extends State<ContinueChatCard> {
             padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
             child: Row(
               children: [
+                // 1020l: the picture of the companion the elder chose (it
+                // was a fixed 「珍」 for 阿珍／阿伯, also for 阿伯); if the
+                // picture cannot load, that companion's own initial.
                 Container(
+                  key: const ValueKey('continue_chat_avatar'),
                   width: 46,
                   height: 46,
                   alignment: Alignment.center,
@@ -175,14 +188,15 @@ class _ContinueChatCardState extends State<ContinueChatCard> {
                     shape: BoxShape.circle,
                     border: Border.all(color: palette.ring, width: 2),
                   ),
-                  child: Text(
-                    palette.initial,
-                    style: TextStyle(
-                      color: palette.initialColor,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 21,
-                    ),
-                  ),
+                  child: agent == null
+                      ? null
+                      : AgentAvatar(
+                          agent: agent,
+                          selectedVariant: agent.id == AgentRegistry.ahJanAhBakId
+                              ? pairing
+                              : null,
+                          size: 42,
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -199,7 +213,7 @@ class _ContinueChatCardState extends State<ContinueChatCard> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        s.headline,
+                        headline,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -254,14 +268,16 @@ class _Suggestion {
       );
 }
 
+/// 「同阿珍講舊時」 / 「同阿伯講舊時」 by the elder's choice.
+String _reminiscenceHeadline(AgentGenderVariant? variant, bool isEn) {
+  final name = AgentRegistry.ahJanAhBakName(variant, isEn: isEn);
+  return isEn ? 'Pick up with $name' : '同$name講舊時';
+}
+
 class _AgentPalette {
-  final String initial;
-  final Color initialColor;
   final Color halo;
   final Color ring;
   const _AgentPalette({
-    required this.initial,
-    required this.initialColor,
     required this.halo,
     required this.ring,
   });
@@ -271,29 +287,21 @@ _AgentPalette _paletteFor(String agentId) {
   switch (agentId) {
     case AgentRegistry.siuYanId:
       return const _AgentPalette(
-        initial: '小',
-        initialColor: Color(0xFF993C1D),
         halo: Color(0xFFFAECE7),
         ring: Color(0xFFE0A98E),
       );
     case AgentRegistry.ahJanAhBakId:
       return const _AgentPalette(
-        initial: '珍',
-        initialColor: Color(0xFF6A3A78),
         halo: Color(0xFFF6EEF8),
         ring: Color(0xFFC9A9D4),
       );
     case AgentRegistry.tungTungId:
       return const _AgentPalette(
-        initial: '通',
-        initialColor: Color(0xFF0F6E56),
         halo: Color(0xFFE1F5EE),
         ring: Color(0xFF7FCBAE),
       );
   }
   return const _AgentPalette(
-    initial: '·',
-    initialColor: Color(0xFF2E251D),
     halo: Color(0xFFF1ECE6),
     ring: Color(0xFFBDB1A4),
   );
