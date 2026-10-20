@@ -97,6 +97,12 @@ const CHECKS = [
   // decides when (consent wording first); "—" until then.
   ['app_config/feature_flags', 'researchTranscriptEnabled', null,
     '1020l 对话原文存档（两组，老人看不到变化），期望值待 Junyu 定'],
+  // 1020o 二 (4) / 四 (1): copy that can override the new FAQ answer 4 and
+  // the reminiscence landing line.  Shown only; "—" = no expectation.
+  ['app_config/usage_copy', 'faq_skip_checkin_answer_zh', null,
+    '1020o 常見問題第 4 条；设了就盖住新答案'],
+  ['app_config/usage_copy', 'reminiscence_landing_intro_zh', null,
+    '1020o 人生點滴页顶一句；设了就盖住新文字'],
   ['app_config/feature_flags', 'sessionBriefPrV2Enabled', 'absent',
     '放错位置的键，应删掉（正确位置在 phase_b）'],
   ['app_config/phase_b', 'sessionBriefPrV2Enabled', true, 'T25 收尾按钮'],

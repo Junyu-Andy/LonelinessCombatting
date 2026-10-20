@@ -23,30 +23,36 @@ class FaqPage extends StatelessWidget {
             ),
             (
               'Will my data be seen by others?',
-              'All your check-ins, reflections, and reminders stay on your device. '
-                  'We do not share your records with anyone, '
-                  'unless you choose to export them to someone you trust.',
+              'What you say in the App, the questionnaires you fill in and '
+                  'your usage records are stored on the study\'s server. '
+                  'The research team reads and analyses them for the study only, '
+                  'and does not give them to anyone outside the team for any other use. '
+                  'See the consent form you signed for details, '
+                  'or ask the research staff.',
             ),
             (
               'How do I change the text size?',
-              'Go to Settings → Display and choose Standard / Large / Extra Large. '
-                  'You will see a live preview above the options. '
-                  'If it is still hard to read, try turning on High-Contrast Mode.',
+              'Go to "Display" in Self and pick a text size, '
+                  'from Standard to Max (five steps); the whole App changes '
+                  'as soon as you pick. If it is still hard to read, '
+                  'turn on High-Contrast Mode in "My settings".',
             ),
             (
               'Does it matter if I skip a check-in?',
-              'Not at all. There are no scores or grades here. '
-                  'Even if you skip a whole week, you are just as welcome when you come back.',
+              'Nothing happens. But we suggest you come in for a chat every day, '
+                  'and use the App at least five times a week.',
             ),
             (
-              'How do I turn off reminders?',
-              'Go to the Follow-up page and toggle off any reminder you no longer want. '
-                  'You can also set a Quiet Hours window under Settings → Notifications.',
+              'Why are there no notifications at night? Can I change the time?',
+              'From 10 pm to 8 am the App does not show notifications. '
+                  'To change this time, go to "Quiet hours" in "My settings".',
             ),
             (
               'I feel very unhappy — what should I do?',
-              'Take a few slow deep breaths first, then check the support hotlines on the Home screen. '
-                  'If you feel you cannot cope, please call 999 right away.',
+              'Take a few slow deep breaths first. At the bottom of the Home '
+                  'screen, tap "Want to talk to someone?" to call the 18111 '
+                  'mental health support hotline. If you feel unsafe, tap '
+                  '"see more support hotlines", or call 999 directly.',
             ),
           ]
         : const [
@@ -58,38 +64,41 @@ class FaqPage extends StatelessWidget {
             ),
             (
               '我嘅資料會唔會畀第二個人睇到？',
-              '你所有嘅 check-in、反思同提醒都只會留喺你部電話度。'
-                  '我哋唔會將你嘅紀錄同其他人分享，'
-                  '除非你自己主動選擇匯出畀信任嘅人。',
+              '你喺 App 入面講嘅嘢、填嘅問卷同使用紀錄，會儲存喺研究用嘅伺服器。'
+                  '研究團隊會睇同分析呢啲資料，只用嚟做研究，'
+                  '唔會交畀研究團隊以外嘅人做其他用途。'
+                  '詳情請睇你簽嘅同意書，有問題可以問研究人員。',
             ),
             (
               '點樣改字體大細？',
-              '你可以去「設定 > 顯示設定」揀標準／大／特大，'
-                  '上面會即時見到預覽。'
-                  '如果仲係睇唔清，可以打開「高對比模式」。',
+              '你可以去「自己」入面嘅「顯示設定」揀字體大小，'
+                  '由標準到特大一共五級，揀咗之後成個 App 嘅字即刻跟住變。'
+                  '如果仲係睇唔清，可以入「我的設定」打開「高對比模式」。',
             ),
             (
               '我冇填 check-in 會唔會有事？',
-              '完全唔會有事。呢度冇分數、冇評分。'
-                  '就算一整個星期冇填，你返嚟嗰陣都係一樣受歡迎。',
+              '唔會有事。不過建議你每日都入嚟傾下，每個禮拜最少用五次。',
             ),
             (
-              '點樣關掉提醒？',
-              '可以入「跟進」頁，'
-                  '將唔想收到嘅提醒旁邊個開關撥返灰色，就唔會再出聲。'
-                  '亦可以喺「設定 > 通知」打開「安靜時段」。',
+              '點解夜晚冇通知？可唔可以改時間？',
+              '晚上十點到朝早八點，App 唔會彈出通知。'
+                  '想改呢段時間，可以入「我的設定」嘅「安靜時段」。',
             ),
             (
               '我覺得好唔開心，應該點做？',
-              '先深呼吸幾下，然後睇下首頁上面「溫馨提示」嘅支援電話，'
-                  '或者即刻打畀你信任嘅人。'
-                  '如果覺得撐唔住，請直接撥 999。',
+              '先慢慢深呼吸幾下。首頁下面有「想搵人傾吓？」，'
+                  '撳一下就會打去情緒通 18111。'
+                  '如果覺得唔安全，可以撳「睇更多支援熱線」，或者直接打 999。',
             ),
           ];
     // 10/16: the 「我可唔可以用英文？」 entry was removed — English is off
     // (AppSettings.englishEnabled) and the FAQ must not promise it.
     // T20: the "skip a check-in" answer talks about how often to come
     // back, so `app_config/usage_copy` may replace it (same in both arms).
+    // 1020o 二: answers 2–6 rewritten (Q2 matches the consent form; Q3 uses
+    // the real names on 自己 — five levels, no preview; Q5 is now about
+    // the night-time quiet hours set in 我的設定; Q6 points to the home
+    // safety card).  Q1 unchanged.
     final items = [
       for (var i = 0; i < faq.length; i++)
         i == _skipCheckinIndex
