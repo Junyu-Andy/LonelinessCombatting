@@ -6,14 +6,15 @@
 
 ---
 
-## 2026-10-20 1020l 第一节 (2)(3)：小欣页提示移到顶部、签到选项按钮排整齐（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-siuyan-1020l`）
+## 2026-10-20 1020l 第一节 (2)(3)：小欣页提示移到顶部、签到选项按钮和五个表情按钮排整齐（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-siuyan-1020l`）
 
 - 结论：小欣聊天页（开关 `checkInChatV2Enabled`）以前在底部弹出、盖住输入框的提示，都移到标题栏下面；签到的选项按钮一样宽、一样高。两组相同。开关关时不变。
 - 移到顶部的：「今日傾到呢度」首次说明、中度安全提示、离线待发那一行、语音两条提示（语音开关关着）。前一页留下的底部小提示不再画在小欣页上（页面自带 `ScaffoldMessenger`）。没动的：首次见面介绍框、记忆开关询问框（都是要先点的对话框）、危机页（整页）、聊天里的支持句和其他卡片（本来就在对话里）。
 - 中度安全提示：文字、三个选项、事件记录、时机都不变，只换位置，放在页顶时留白收紧一点（`DistressRouter.route` 新增可选参数 `showModerateInline`，`DistressModerateSheet` 新增可选 `onClose`；不传就是原来的底部弹出，一点不变）。签到时照旧等老人点选项才问下一题。检测规则没动。页面布局：底栏高度不变，消息列表至少留一块（160 px 或四分之一），提示区拿其余。360 宽手机最大字时三个选项和最新一句都看得到；320×700 这种很小的屏幕加最大字，「我冇事，繼續」要在提示区里往下滑（有滚动条），两个求助按钮仍看得到。
 - 新组件：`lib/shared/widgets/top_notice_area.dart`（页顶提示区）、`lib/shared/widgets/equal_button_grid.dart`（等宽按钮格）。只有小欣页用。`session_close_button.dart`、`voice_input_button.dart`：页面有提示区才放顶部，否则照旧。
 - 测试 `test/siu_yan_prompts_mood_1020l_test.dart`（量位置：在标题栏下、不压输入框、最新一句完整可见；按钮同宽同高、一行、居中），加进 CI 两个 Phase B 组。截图在 `docs/dev-reports/1020l-shots/siuyan/`。
-- 五个表情的心情按钮（`MoodFacePicker`，用在旧签到页、规则组旧回忆页、旧首页心情框）不在小欣页上，这次没改，待 Junyu 确认要不要一起改。
+- 五个表情的心情按钮（`MoodFacePicker`，`check_in_shared.dart`）也改用 `EqualButtonGrid`：同宽同高，表情和字居中，字一行（Junyu 说的「五个按钮同宽」应是开关关着时的旧签到页）。用在旧签到页 A／B、规则组回忆页、旧首页心情框，按修 bug 处理、不加开关，两组相同。截图 `mood_face_picker_*`。
+- 中度提示的三个选项都点过测试（页顶和原来的底部弹出两种）：靜一靜开呼吸页、搵人傾记事件并开同一个求助页、我冇事，繼續收起；回来后聊天照常、签到接着问。代码改为先取 Navigator 再关提示，关掉后不再用已移除的 context。
 
 ## 2026-10-20 1020i：Mac 本地测试脚本（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-mac-tests`）；本地只读看板先答四个问题
 

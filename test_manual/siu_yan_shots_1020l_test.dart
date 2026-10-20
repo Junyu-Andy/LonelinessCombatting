@@ -1,7 +1,8 @@
 // 1020l §一 (2)(3) — draft screenshots of the 小欣 chat window for Junyu:
 // the notes now under the app bar (the S9 first-use note, the moderate
 // safety notice) with the input bar / answer buttons visible, and the Q1
-// answer buttons as one even grid.  Phone 360 × 800 at App text 1.06 and
+// answer buttons as one even grid; the five mood faces of the old check-in
+// (switch off) as one even grid.  Phone 360 × 800 at App text 1.06 and
 // 1.30 (特大), 320 × 700 at 1.30, iPad 820 × 1180 at 1.06.  Switch
 // `checkInChatV2Enabled` on.  Default build = Hybrid; the layout is the
 // same in the rule arm.  Not part of CI.
@@ -47,8 +48,10 @@ import 'package:app_demo/features/brief_pr/data/brief_pr_store.dart';
 import 'package:app_demo/features/brief_pr/data/brief_pr_v2.dart';
 import 'package:app_demo/features/brief_pr/presentation/widgets/session_close_hint.dart';
 import 'package:app_demo/features/context/data/check_in_response_store.dart';
+import 'package:app_demo/features/context/presentation/pages/check_in_arm_a.dart';
 import 'package:app_demo/features/context/presentation/pages/siu_yan_chat_page.dart';
 import 'package:app_demo/features/rule_replies/data/rule_reply_history_store.dart';
+import 'package:app_demo/features/today/data/mood_recorder.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -63,6 +66,13 @@ Future<void> _loadFonts() async {
   final bytes = ByteData.sublistView(cjk.readAsBytesSync());
   for (final family in ['NotoSerifHK', 'NotoSansHK']) {
     await (FontLoader(family)..addFont(Future.value(bytes))).load();
+  }
+  // The five faces' emoji: the phones draw them with their own emoji font.
+  final emoji = File('/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf');
+  if (emoji.existsSync()) {
+    await (FontLoader('NotoColorEmoji')
+          ..addFont(Future.value(ByteData.sublistView(emoji.readAsBytesSync()))))
+        .load();
   }
   final root = Platform.environment['FLUTTER_ROOT'];
   final icons = File(
@@ -88,6 +98,7 @@ ThemeData _shotTheme() {
   }
 
   return t.copyWith(
+    textTheme: t.textTheme.apply(fontFamilyFallback: const ['NotoColorEmoji']),
     filledButtonTheme:
         FilledButtonThemeData(style: withFont(t.filledButtonTheme.style)),
     elevatedButtonTheme:
@@ -149,6 +160,7 @@ Future<void> _open(
   required Size size,
   required double scale,
   required bool doneToday,
+  Widget? page,
 }) async {
   tester.view.physicalSize = size * 2;
   tester.view.devicePixelRatio = 2.0;
@@ -216,7 +228,7 @@ Future<void> _open(
   ));
   await tester.pumpAndSettle();
   navKey.currentState!.push(MaterialPageRoute<void>(
-    builder: (_) => SiuYanChatPage(
+    builder: (_) => page ?? SiuYanChatPage(
       checkedInToday: (_) async => doneToday,
       latestMoodToday: (_) async => null,
       responseStore: InMemoryCheckInResponseStore(),
@@ -238,6 +250,17 @@ Future<void> _shot(WidgetTester tester, String name) async {
   await tester.pump();
   await expectLater(
       find.byType(MaterialApp), matchesGoldenFile('$_dir/$name.png'));
+}
+
+/// No mood recorded today (no Firebase here) → the old check-in's gate.
+class _NoMoodRecorder extends MoodRecorder {
+  @override
+  Future<MoodEntry?> latestForDate(
+          {required String uid, required String dateIso}) async =>
+      null;
+
+  @override
+  Future<MoodEntry?> mostRecent({required String uid}) async => null;
 }
 
 const _sizes = [
@@ -275,6 +298,23 @@ void main() {
       // Let the note's 6 s timer run out before the page goes.
       await tester.pump(const Duration(seconds: 7));
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('five mood faces (old check-in, switch off), ${s.name}',
+        (tester) async {
+      if (!_shots) return;
+      await tester.runAsync(_loadFonts);
+      SessionCloseHint.resetForTest();
+      SessionCloseHint.claimFirstUse();
+      RemoteFeatureFlags.current = const RemoteFeatureFlags();
+      await _open(tester,
+          size: s.size,
+          scale: s.scale,
+          doneToday: false,
+          page: CheckInArmA(moodRecorder: _NoMoodRecorder()));
+      await tester.tap(find.byKey(const ValueKey('mood_face_good')));
+      await tester.pumpAndSettle();
+      await _shot(tester, 'mood_face_picker_${s.name}');
     });
 
     testWidgets('moderate safety notice, ${s.name}', (tester) async {

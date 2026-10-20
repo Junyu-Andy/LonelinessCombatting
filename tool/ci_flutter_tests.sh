@@ -76,7 +76,8 @@ run "rule template replies (switch only)" \
 run "rule template replies on" \
   --dart-define=RULE_TEMPLATE_REPLIES=true \
   --dart-define=RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true \
-  test/rule_reply_pool_test.dart test/rule_reply_pages_test.dart
+  test/rule_reply_pool_test.dart test/rule_reply_pages_test.dart \
+  test/siu_yan_prompts_mood_1020l_test.dart
 
 if [ ${#failed[@]} -gt 0 ]; then
   echo "Failed suites: ${failed[*]}"

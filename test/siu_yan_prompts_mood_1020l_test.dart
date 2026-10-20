@@ -8,6 +8,11 @@
 //       one even grid: same width, same height, labels centred and on one
 //       line, at 360 wide with App text 1.06 and 1.30, 320 wide at 1.30 and
 //       iPad width.
+//   (3b) the five mood faces ([MoodFacePicker]: old check-in pages with the
+//       switch off, the rule-arm reminiscence page, the old home mood
+//       sheet) are the same even grid, face and word centred both ways;
+//   the moderate notice's three choices, tapped inline (chat, Q3b, Q4) and
+//   in the old bottom-sheet mode: same pages, same event, flow goes on.
 // Both arms: run with --dart-define=PHASE_B=true (both) and with
 // FORCE_ARM=B (rule arm); the default build covers Hybrid only.
 // Synthetic data only; no Firebase.
@@ -17,6 +22,7 @@ import 'dart:io';
 
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
+import 'package:app_demo/app/app_theme.dart';
 import 'package:app_demo/core/agent_context/agent_context_service.dart';
 import 'package:app_demo/core/agent_context/shared_context_service.dart';
 import 'package:app_demo/core/agents/persona_resolver.dart';
@@ -51,8 +57,18 @@ import 'package:app_demo/features/brief_pr/presentation/widgets/session_close_bu
 import 'package:app_demo/features/brief_pr/presentation/widgets/session_close_hint.dart';
 import 'package:app_demo/features/context/data/check_in_chat_copy.dart';
 import 'package:app_demo/features/context/data/check_in_response_store.dart';
+import 'package:app_demo/features/context/presentation/pages/check_in_arm_a.dart';
+import 'package:app_demo/features/context/presentation/pages/check_in_arm_b.dart';
+import 'package:app_demo/features/context/presentation/pages/check_in_page.dart';
+import 'package:app_demo/features/context/presentation/pages/check_in_shared.dart';
+import 'package:app_demo/features/crisis/presentation/pages/emergency_support_page.dart';
+import 'package:app_demo/features/reminiscence/data/reminiscence_themes.dart';
+import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_arm_b_page.dart';
+import 'package:app_demo/features/rule_replies/data/rule_reply_pool.dart';
+import 'package:app_demo/features/wellbeing/presentation/pages/calm_page.dart';
 import 'package:app_demo/features/context/presentation/pages/siu_yan_chat_page.dart';
 import 'package:app_demo/features/rule_replies/data/rule_reply_history_store.dart';
+import 'package:app_demo/features/today/data/mood_recorder.dart';
 import 'package:app_demo/shared/widgets/equal_button_grid.dart';
 import 'package:app_demo/shared/widgets/top_notice_area.dart';
 import 'package:flutter/material.dart';
@@ -164,6 +180,7 @@ class _Run {
   _Run(this.arm);
   final ArmAssignment arm;
   late _FakeLlm llm;
+  final analytics = AnalyticsService(firebaseReady: false);
   final navKey = GlobalKey<NavigatorState>();
   bool get rule => arm == ArmAssignment.b;
 }
@@ -181,7 +198,7 @@ Widget _harness(_Run run, double scale) {
     child: AuthServiceScope(
       authService: AuthService(available: false),
       child: AnalyticsScope(
-        analytics: AnalyticsService(firebaseReady: false),
+        analytics: run.analytics,
         child: CoreServicesScope(
           llm: llm,
           memory: memory,
@@ -204,6 +221,8 @@ Widget _harness(_Run run, double scale) {
           memoryV1: _FakeMemoryV1(),
           child: MaterialApp(
             navigatorKey: run.navKey,
+            // The App theme: the faces' words are its bodyMedium (18 px).
+            theme: AppTheme.light,
             locale: const Locale('zh'),
             supportedLocales: const [Locale('zh'), Locale('en')],
             localizationsDelegates: const [
@@ -704,6 +723,356 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  group('(3b) MoodFacePicker: one even grid of five', () {
+    // The old check-in pages and the old home mood sheet have 24 px each
+    // side; the rule-arm reminiscence page 20.
+    for (final side in [24.0, 20.0]) {
+      for (final f in _faceSizes) {
+        testWidgets('side $side, ${f.name}: ${f.cols} per row, same size, '
+            'face and word centred, words on one line; picking one moves '
+            'nothing', (tester) async {
+          await _pumpPicker(tester, size: f.size, scale: f.scale, side: side);
+          _expectEvenFaces(tester, scale: f.scale, cols: f.cols);
+          final before =
+              tester.getRect(find.byKey(const ValueKey('mood_face_good')));
+          await tester.tap(find.byKey(const ValueKey('mood_face_veryLow')));
+          await tester.pumpAndSettle();
+          _expectEvenFaces(tester, scale: f.scale, cols: f.cols);
+          expect(tester.getRect(find.byKey(const ValueKey('mood_face_good'))),
+              before);
+          expect(tester.takeException(), isNull);
+        });
+      }
+    }
+
+    for (final f in _faceSizes) {
+      testWidgets('old check-in (switch off), Hybrid mood gate, ${f.name}',
+          (tester) async {
+        RemoteFeatureFlags.current = const RemoteFeatureFlags();
+        final run = _Run(ArmAssignment.a);
+        // No mood today → the gate (首先，揀一個最似你今日心情嘅樣？).
+        await _open(tester, run, CheckInArmA(moodRecorder: _NoMoodRecorder()),
+            size: f.size, scale: f.scale);
+        expect(find.byType(CheckInArmA), findsOneWidget);
+        expect(find.byKey(const Key('check_in_mood_gate_start')),
+            findsOneWidget);
+        expect(find.byType(MoodFacePicker), findsOneWidget);
+        _expectEvenFaces(tester, scale: f.scale, cols: f.cols);
+        expect(tester.takeException(), isNull);
+      }, skip: !_hybridTestable);
+
+      testWidgets('old check-in (switch off), rule-arm form, ${f.name}',
+          (tester) async {
+        RemoteFeatureFlags.current = const RemoteFeatureFlags();
+        final run = _Run(ArmAssignment.b);
+        await _open(tester, run, const CheckInPage(),
+            size: f.size, scale: f.scale);
+        expect(find.byType(CheckInArmB), findsOneWidget);
+        _expectEvenFaces(tester, scale: f.scale, cols: f.cols);
+        expect(tester.takeException(), isNull);
+        expect(run.llm.calls, 0);
+      }, skip: !_ruleTestable);
+
+      // The picker shows there only with the rule template replies on:
+      //   --dart-define=RULE_TEMPLATE_REPLIES=true
+      //   --dart-define=RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true
+      testWidgets('rule-arm reminiscence page, ${f.name}', (tester) async {
+        final run = _Run(ArmAssignment.b);
+        await _open(
+            tester,
+            run,
+            ReminiscenceArmBPage(
+                theme: ReminiscenceTheme.byIndex(1),
+                replyHistory: InMemoryRuleReplyHistoryStore()),
+            size: f.size,
+            scale: f.scale);
+        // The form is a lazy list: scroll down to the faces.
+        await tester.scrollUntilVisible(find.byType(MoodFacePicker), 200,
+            scrollable: find.byType(Scrollable).first);
+        await tester.pumpAndSettle();
+        _expectEvenFaces(tester, scale: f.scale, cols: f.cols);
+        expect(tester.takeException(), isNull);
+        expect(run.llm.calls, 0);
+      }, skip: !RuleReplyPool.enabled);
+    }
+  });
+
+  group('moderate notice: each choice', () {
+    for (final arm in _arms) {
+      for (final path in ['chat', 'Q3b', 'Q4']) {
+        for (final choice in _Choice.values) {
+          testWidgets('${_tag(arm)}, $path, inline: ${choice.name} — '
+              '${choice.what}; back on the page, the flow goes on',
+              (tester) async {
+            final run = _Run(arm);
+            await _open(tester, run, _page(doneToday: path == 'chat'));
+            if (path != 'chat') {
+              await _tapAnswer(tester, 'Q1', 'so_so');
+              await _tapAnswer(tester, 'Q2', 'none');
+              await _tapAnswer(
+                  tester, 'Q3', path == 'Q3b' ? 'small' : 'none');
+            }
+            await _type(tester, '冇人理我');
+            final notice = find.byKey(
+                const ValueKey('top_notice_moderate_safety'),
+                skipOffstage: false);
+            expect(notice, findsOneWidget);
+            final latest = _latestIndex();
+            await _choose(tester, run, choice);
+            expect(notice, findsNothing, reason: 'the notice is closed');
+            expect(find.byType(SiuYanChatPage), findsOneWidget);
+            expect(find.textContaining('冇人理我', findRichText: true),
+                findsOneWidget);
+            switch (path) {
+              case 'chat':
+                expect(find.byKey(_inputBar), findsOneWidget);
+                await _type(tester, '今日天氣幾好');
+                expect(_latestIndex(), latest + 2, reason: 'sent, answered');
+              case 'Q3b':
+                expect(
+                    find.textContaining(CheckInChatCopy.q4, findRichText: true),
+                    findsOneWidget);
+                await _type(tester, '下晝去公園行下');
+                expect(
+                    find.textContaining(CheckInChatCopy.q5, findRichText: true),
+                    findsOneWidget);
+              case 'Q4':
+                expect(
+                    find.textContaining(CheckInChatCopy.q5, findRichText: true),
+                    findsOneWidget);
+                await _tapAnswer(tester, 'Q5', 'no');
+                expect(
+                    find.textContaining(CheckInChatCopy.q6, findRichText: true),
+                    findsOneWidget);
+            }
+            if (run.rule) expect(run.llm.calls, 0);
+          });
+        }
+      }
+    }
+
+    for (final choice in _Choice.values) {
+      testWidgets('other pages, the bottom sheet (no onClose): '
+          '${choice.name} — ${choice.what}, as before', (tester) async {
+        final run = _Run(_arms.first);
+        await _open(tester, run, const _SheetHost());
+        await tester.tap(find.text('go'));
+        await tester.pumpAndSettle();
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.byType(DistressModerateSheet), findsOneWidget);
+        await _choose(tester, run, choice);
+        expect(find.byType(BottomSheet), findsNothing);
+        expect(find.byType(DistressModerateSheet), findsNothing);
+        expect(find.text('route done'), findsOneWidget,
+            reason: 'route() returned once the sheet closed');
+      });
+    }
+  });
+}
+
+/// No mood recorded (no Firebase in tests).
+class _NoMoodRecorder extends MoodRecorder {
+  @override
+  Future<MoodEntry?> latestForDate(
+          {required String uid, required String dateIso}) async =>
+      null;
+
+  @override
+  Future<MoodEntry?> mostRecent({required String uid}) async => null;
+}
+
+enum _Choice {
+  calm('opens CalmPage'),
+  reach('logs moderate_sheet_opened_resources, opens the resources page'),
+  ok('closes it');
+
+  const _Choice(this.what);
+  final String what;
+}
+
+/// Taps [choice] in the moderate notice (inline or sheet), checks the page
+/// it opens and comes back.
+Future<void> _choose(WidgetTester tester, _Run run, _Choice choice) async {
+  int resourcesEvents() => run.analytics.bufferedEvents
+      .where((e) => e['name'] == 'moderate_sheet_opened_resources')
+      .length;
+  final before = resourcesEvents();
+  switch (choice) {
+    case _Choice.calm:
+      await tester.tap(find.text('靜一靜（4-4-6 呼吸）'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CalmPage), findsOneWidget);
+      expect(find.byType(DistressModerateSheet, skipOffstage: false),
+          findsNothing);
+      expect(resourcesEvents(), before);
+      run.navKey.currentState!.pop();
+      await _settle(tester);
+    case _Choice.reach:
+      await tester.tap(find.text('搵人傾'));
+      await tester.pumpAndSettle();
+      final page = find.byType(EmergencySupportPage);
+      expect(page, findsOneWidget);
+      expect(tester.widget<EmergencySupportPage>(page).from, 'moderate_sheet');
+      expect(find.byType(DistressModerateSheet, skipOffstage: false),
+          findsNothing);
+      expect(resourcesEvents(), before + 1);
+      run.navKey.currentState!.pop();
+      await _settle(tester);
+    case _Choice.ok:
+      await tester.tap(find.text('我冇事，繼續'));
+      await _settle(tester);
+      expect(resourcesEvents(), before);
+  }
+  expect(find.byType(CalmPage), findsNothing);
+  expect(find.byType(EmergencySupportPage), findsNothing);
+}
+
+/// A page without a top area: routes a moderate hit as every other page
+/// does (the bottom sheet).
+class _SheetHost extends StatefulWidget {
+  const _SheetHost();
+
+  @override
+  State<_SheetHost> createState() => _SheetHostState();
+}
+
+class _SheetHostState extends State<_SheetHost> {
+  bool _done = false;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        body: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextButton(
+              onPressed: () async {
+                await CoreServicesScope.of(context).distressRouter.route(
+                    const DistressMatch(DistressLevel.moderateInterrupt),
+                    context: context);
+                if (mounted) setState(() => _done = true);
+              },
+              child: const Text('go'),
+            ),
+            if (_done) const Text('route done'),
+          ]),
+        ),
+      );
+}
+
+int _latestIndex() {
+  var best = -1;
+  for (final e in find
+      .byWidgetPredicate((w) =>
+          w.key is ValueKey<String> &&
+          (w.key! as ValueKey<String>).value.startsWith('siu_yan_chat_bubble_'))
+      .evaluate()) {
+    final v = (e.widget.key! as ValueKey<String>).value;
+    final i = int.parse(v.substring('siu_yan_chat_bubble_'.length));
+    if (i > best) best = i;
+  }
+  return best;
+}
+
+/// Columns expected for the five faces (24 or 20 px each side).
+const _faceSizes = [
+  (size: Size(360, 800), scale: 1.06, name: '360 text 1.06', cols: 3),
+  (size: Size(360, 800), scale: 1.30, name: '360 text 1.30', cols: 2),
+  (size: Size(320, 700), scale: 1.30, name: '320 text 1.30', cols: 2),
+  (size: Size(820, 1180), scale: 1.06, name: 'iPad 820 text 1.06', cols: 5),
+];
+
+Future<void> _pumpPicker(
+  WidgetTester tester, {
+  required Size size,
+  required double scale,
+  required double side,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  MoodFace? value;
+  await tester.pumpWidget(MaterialApp(
+    theme: AppTheme.light,
+    locale: const Locale('zh'),
+    supportedLocales: const [Locale('zh'), Locale('en')],
+    localizationsDelegates: const [
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context)
+          .copyWith(textScaler: TextScaler.linear(scale)),
+      child: child!,
+    ),
+    home: Scaffold(
+      body: Padding(
+        padding: EdgeInsets.symmetric(horizontal: side, vertical: 16),
+        child: StatefulBuilder(
+          builder: (context, setState) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MoodFacePicker(
+                  value: value, onChanged: (v) => setState(() => value = v)),
+            ],
+          ),
+        ),
+      ),
+    ),
+  ));
+  await tester.pumpAndSettle();
+}
+
+/// The five faces: [cols] per row, every one the same width and height,
+/// rows level, the last row centred, face and word centred across, the
+/// pair centred up-down, the word on one line, all on screen.
+void _expectEvenFaces(
+  WidgetTester tester, {
+  required double scale,
+  required int cols,
+}) {
+  final grid = tester.renderObject<RenderEqualButtonGrid>(find.descendant(
+      of: find.byType(MoodFacePicker), matching: find.byType(EqualButtonGrid)));
+  expect(grid.columns, cols, reason: 'faces per row');
+  final gridRect = tester.getRect(find.descendant(
+      of: find.byType(MoodFacePicker), matching: find.byType(EqualButtonGrid)));
+  final screen = tester.getRect(find.byType(Scaffold).last);
+  Rect? first;
+  final rows = <double, List<Rect>>{};
+  for (final face in MoodFace.values) {
+    final button = find.byKey(ValueKey('mood_face_${face.name}'));
+    final r = tester.getRect(button);
+    first ??= r;
+    expect(r.width, moreOrLessEquals(first.width, epsilon: 0.5),
+        reason: '${face.name} width');
+    expect(r.height, moreOrLessEquals(first.height, epsilon: 0.5),
+        reason: '${face.name} height');
+    expect(r.left, greaterThanOrEqualTo(screen.left - 0.5));
+    expect(r.right, lessThanOrEqualTo(screen.right + 0.5));
+    rows.putIfAbsent((r.top * 2).roundToDouble() / 2, () => []).add(r);
+    final emoji = tester.getRect(
+        find.descendant(of: button, matching: find.text(face.emoji())));
+    final label = tester.getRect(
+        find.descendant(of: button, matching: find.text(face.label(false))));
+    expect((emoji.center.dx - r.center.dx).abs(), lessThan(1.0),
+        reason: '${face.name} face centred across');
+    expect((label.center.dx - r.center.dx).abs(), lessThan(1.0),
+        reason: '${face.name} word centred across');
+    expect(((emoji.top + label.bottom) / 2 - r.center.dy).abs(),
+        lessThan(1.0), reason: '${face.name} centred up-down');
+    // bodyMedium 18 px, line height 1.55: one line.
+    expect(label.height, lessThan(18 * 1.55 * scale * 1.5),
+        reason: '${face.name} word on one line');
+  }
+  expect(rows.length, (MoodFace.values.length / cols).ceil(),
+      reason: 'rows level');
+  for (final row in rows.values) {
+    final left = row.map((r) => r.left).reduce((a, b) => a < b ? a : b);
+    final right = row.map((r) => r.right).reduce((a, b) => a > b ? a : b);
+    expect(((left + right) / 2 - gridRect.center.dx).abs(), lessThan(1.0),
+        reason: 'each row centred');
+  }
 }
 
 /// Q buttons: one grid of [cols] columns — every button the same width

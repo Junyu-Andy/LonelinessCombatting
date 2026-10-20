@@ -172,8 +172,10 @@ class DistressModerateSheet extends StatelessWidget {
                   ? 'Quiet a moment (4-4-6 breathing)'
                   : '靜一靜（4-4-6 呼吸）',
               onPressed: () {
+                // Taken before closing: inline, closing removes this widget.
+                final nav = Navigator.of(context);
                 _close(context);
-                Navigator.of(context).push(
+                nav.push(
                   MaterialPageRoute<void>(
                     builder: (_) => const CalmPage(),
                   ),
@@ -188,8 +190,9 @@ class DistressModerateSheet extends StatelessWidget {
               onPressed: () {
                 AnalyticsScope.of(context)
                     .logEvent(PhaseAEvents.moderateSheetOpenedResources);
+                final nav = Navigator.of(context);
                 _close(context);
-                Navigator.of(context).push(
+                nav.push(
                   MaterialPageRoute<void>(
                     builder: (_) =>
                         const EmergencySupportPage(from: 'moderate_sheet'),

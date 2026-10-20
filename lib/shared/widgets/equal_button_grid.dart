@@ -8,7 +8,9 @@
 /// as the tallest.  A last row with fewer buttons is centred.
 ///
 /// Used by the answer buttons of the 小欣 chat window (Q1, Q2, Q3, Q5;
-/// switch `checkInChatV2Enabled`).  Nothing else uses it.
+/// switch `checkInChatV2Enabled`) and by the five mood faces
+/// ([MoodFacePicker]: old check-in pages, rule-arm reminiscence page, old
+/// home mood sheet).
 library;
 
 import 'dart:math' as math;
