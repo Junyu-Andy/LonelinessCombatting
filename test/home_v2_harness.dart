@@ -262,6 +262,7 @@ Widget homeHarness(HomeRun run,
   final state = DistressState();
   return HomeV2Scope(
     checkedInToday: (_) async => run.checkedIn,
+    checkInResponses: run.checkIns,
     daysSinceLastCheckIn: (_) async => run.daysSince,
     moodStore: run.moodStore,
     weeklyStore: (_) => run.weekly,

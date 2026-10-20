@@ -7,6 +7,7 @@ library;
 import 'package:flutter/widgets.dart';
 
 import '../../../core/session/session_entry_surface.dart';
+import '../../context/data/check_in_response_store.dart';
 import '../../context/presentation/pages/check_in_page.dart';
 import '../../action_loop/presentation/pages/action_loop_landing.dart';
 import '../../context/presentation/pages/siu_yan_chat_page.dart';
@@ -21,6 +22,7 @@ class HomeV2Scope extends InheritedWidget {
     super.key,
     required super.child,
     this.checkedInToday,
+    this.checkInResponses,
     this.daysSinceLastCheckIn,
     this.moodStore,
     this.weeklyStore,
@@ -34,6 +36,11 @@ class HomeV2Scope extends InheritedWidget {
 
   /// Today's check-in done?  Default: the `check_in_submitted` event.
   final Future<bool> Function(String uid)? checkedInToday;
+
+  /// Today's chat check-in rows (an acute stop not marked 誤觸 also ticks
+  /// the row — [isStoppedUnmarked]).  Default:
+  /// [FirestoreCheckInResponseStore].
+  final CheckInResponseStore? checkInResponses;
 
   /// Days since the last check-in (null = never).  Default: the event.
   final Future<int?> Function(String uid)? daysSinceLastCheckIn;

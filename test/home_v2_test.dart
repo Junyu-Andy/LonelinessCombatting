@@ -427,6 +427,68 @@ void main() {
       }
     });
 
+    // 10/20 第 99–100 条: a check-in an acute hit ended today, not marked
+    // 誤觸, counts as today's check-in (as on the server): the row ticks,
+    // and 小欣's page opens as the chat.  Marked 誤觸 → no tick (the elder
+    // can carry on); yesterday's stop → no tick.  Both arms.
+    Map<String, dynamic> stoppedRow(String dateIso, {bool falseAlarm = false}) =>
+        {
+          'uid': 'u1',
+          'flow': 'chat_v2',
+          'date_iso': dateIso,
+          'stopped_by_safety': true,
+          'stopped_at': 'Q4',
+          'completed': false,
+          if (falseAlarm) 'falseAlarm': true,
+        };
+
+    testWidgets('acute stop today, not marked 誤觸: a tick; tap → 小欣 chat, '
+        'no new check-in', (tester) async {
+      for (final arm in testableArms) {
+        ChatSessionRecorder.resetProcessStateForTest();
+        final run = HomeRun(arm);
+        run.checkIns.docs['stop1'] = stoppedRow('2026-10-20');
+        await pumpHome(tester, run, const MainShell());
+        final row = find.byKey(const ValueKey('today_todo_check_in'));
+        expect(
+            find.descendant(
+                of: row, matching: find.byIcon(Icons.check_circle_rounded)),
+            findsOneWidget,
+            reason: arm.name);
+        await tester.tap(row);
+        await settle(tester);
+        expect(find.byType(SiuYanChatPage), findsOneWidget);
+        expect(says(CheckInChatCopy.q1), findsNothing);
+        expect(says(run.rule ? CheckInChatCopy.sy0 : FakeLlm.opener),
+            findsOneWidget);
+        if (run.rule) expect(run.llm.calls, isEmpty);
+        await tester.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('acute stop today marked 誤觸, or a stop yesterday: no tick',
+        (tester) async {
+      for (final arm in testableArms) {
+        for (final seed in [
+          stoppedRow('2026-10-20', falseAlarm: true),
+          stoppedRow('2026-10-19'),
+        ]) {
+          ChatSessionRecorder.resetProcessStateForTest();
+          final run = HomeRun(arm);
+          run.checkIns.docs['stop1'] = seed;
+          await pumpHome(tester, run, const MainShell());
+          final row = find.byKey(const ValueKey('today_todo_check_in'));
+          expect(
+              find.descendant(
+                  of: row,
+                  matching: find.byIcon(Icons.radio_button_unchecked_rounded)),
+              findsOneWidget,
+              reason: '${arm.name} $seed');
+          await tester.pumpWidget(const SizedBox());
+        }
+      }
+    });
+
     testWidgets('3 days without a check-in: the reminder is in the row, no '
         'separate banner', (tester) async {
       final run = HomeRun(testableArms.first)..daysSince = 3;
