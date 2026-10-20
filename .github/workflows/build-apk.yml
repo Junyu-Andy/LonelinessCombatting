@@ -11,6 +11,11 @@
 #   phase_b_templates — the Phase B package for participants and internal
 #                testing (T36): PHASE_B plus the rule-arm template replies
 #                (RULE_TEMPLATE_REPLIES); no FORCE_ARM, no placeholder flag.
+#   phase_b_templates_reader_test — the same plus the 小讀本 placeholder
+#                test unit (READER_TEST_UNIT, content says 測試) for the
+#                1020c §4 phone tests.  TESTING ONLY — never give this
+#                APK to a participant.  The 小讀本 section also needs
+#                app_config/feature_flags.htmlReadersEnabled = true.
 #
 # Signed with the debug key: fine for testing, not for a store release.
 # Flutter is pinned to the team's version (.metadata: 3.35.3); newer
@@ -23,7 +28,7 @@ on:
       variant:
         description: Build variant
         type: choice
-        options: [phase_a, phase_b, memory_v1, phase_b_templates]
+        options: [phase_a, phase_b, memory_v1, phase_b_templates, phase_b_templates_reader_test]
         default: phase_a
 
 jobs:
@@ -54,6 +59,7 @@ jobs:
             phase_b)   DEFINES="--dart-define=PHASE_B=true" ;;
             memory_v1) DEFINES="--dart-define=MEMORY_V1=true" ;;
             phase_b_templates) DEFINES="--dart-define=PHASE_B=true --dart-define=RULE_TEMPLATE_REPLIES=true" ;;
+            phase_b_templates_reader_test) DEFINES="--dart-define=PHASE_B=true --dart-define=RULE_TEMPLATE_REPLIES=true --dart-define=READER_TEST_UNIT=true" ;;
           esac
           if [ -n "$TESTER_PIN" ]; then
             DEFINES="$DEFINES --dart-define=TESTER_PIN=$TESTER_PIN"

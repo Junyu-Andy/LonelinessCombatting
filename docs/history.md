@@ -142,6 +142,13 @@
 - 开关读取：`RemoteFeatureFlags.lastKnown`（最后一次真正读到的值；一次都没读到为 null）。为 null 时先「等一陣…」、后台重读（`load(timeout:)` 6–20 秒），8 秒后显示等候页（不跳过、可放行），读到关自动进问卷；`RemoteFeatureFlags.reads` 计数让 `ConsentGate` 重读后重新决定。
 - `firestore.rules`：这个字段老人只能写一次、只能是服务器时间。新测试 `test/researcher_intake_gate_test.dart`（42 项，三种构建）、`test/rules/intake_gate_rules.test.js`（10 项）。报告 `docs/dev-reports/intake-gate-20261020.md`，决策草稿 `docs/decisions/NNNN-researcher-intake-gate.md`。
 - 待 Junyu：等候页文字、位置（「開始之前」前还是后）、点击范围、读不到时宁可等、开关在第一位 `PB-` 前定好、W0 步骤加一句、决策编号。
+## 2026-10-20 1020c「讀少少」小讀本（PR #130 草稿，分支 `claude/zealous-fermat-8rgqtg-readers`）
+
+- 先评估（`docs/dev-reports/webview-eval-20261020.md`）：官方 `webview_flutter` 4.13.1 能装进 Flutter 3.35.3，系统版本不用改，包约大 1 MB；再写决策草稿 `docs/decisions/NNNN-html-readers-webview.md`，再写代码。
+- 开关 `htmlReadersEnabled` 默认关；`assets/readers/manifest.json` 先是 `[]`。阅读页用 `loadHtmlString`，App 加 CSP、禁缩放 viewport、`--fs`、读节脚本；只放行首次载入和三个 `peizhu://cta/…`；WebView 放在 `ReaderSurface` 接口后，测试用替身。
+- 「問下通通」只 Hybrid（C08），沿用通通文章模式，内容用 `<id>.txt`，前面那段说明是读本专用草稿（电脑程式伙伴写法）；规则组用会报错的假模型测过，没有任何调用。
+- 使用事件 `reader_open/section/cta/close` 进 `usage_events`（规则白名单、服务器盖章；运营看板前台分钟只算前台／后台）。检查脚本 `tool/check_reader_html.js` 进 CI。测试单元只在 `READER_TEST_UNIT` 构建里，已验证正式构建里没有。
+- 这台机器编不了 APK 和 iOS 包（连不上 Google 下载站、没有 Mac）：合并前 Junyu 跑 Build APK 和 Codemagic，两台手机按报告第 10 节测。报告：`docs/dev-reports/readers-20261020.md`。
 
 ## 2026-10-19 W0 现场第三批（Junyu 定）：只认 App 字號、Brief PR 卡上首页、记忆页分组、资料卡和热线卡缩小（PR 草稿，分支 `feat/1019-ui-round3`，接 #122）
 

@@ -23,13 +23,22 @@
  *
  * Idempotent: a stamped row (stampedAt present) is left alone.  Nothing
  * here reads an outcome, a memory or a conversation.
+ *
+ * 1020c §1(5): the 小讀本 rows (reader_open / reader_section / reader_cta /
+ * reader_close; ids, a CTA code and seconds only — firestore.rules) are
+ * stamped the same way, so they carry the research ID and the study day.
+ * They are not foreground / background: ops_dashboard.js counts only
+ * LIFECYCLE_TYPES for opens and foreground minutes.
  */
 "use strict";
 
 const studyWeek = require("./study_week");
 
 const COLLECTION = "usage_events";
-const TYPES = ["foreground", "background"];
+const LIFECYCLE_TYPES = ["foreground", "background"];
+const READER_TYPES = ["reader_open", "reader_section", "reader_cta",
+  "reader_close"];
+const TYPES = LIFECYCLE_TYPES.concat(READER_TYPES);
 
 /** A row uploaded this long after its client time counts as late. */
 const LATE_AFTER_MS = 5 * 60 * 1000;
@@ -93,6 +102,6 @@ async function stampCreated(db, uid, eventId, data, opts) {
 }
 
 module.exports = {
-  COLLECTION, TYPES, LATE_AFTER_MS, SKEW_AHEAD_MS, SERVER_FIELDS,
-  stampFor, stampCreated,
+  COLLECTION, TYPES, LIFECYCLE_TYPES, READER_TYPES, LATE_AFTER_MS,
+  SKEW_AHEAD_MS, SERVER_FIELDS, stampFor, stampCreated,
 };

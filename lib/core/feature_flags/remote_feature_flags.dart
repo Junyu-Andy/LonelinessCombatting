@@ -214,6 +214,13 @@
 ///                               of the screen three times within 2 s to go
 ///                               on (`ResearcherIntakeGate`).  Both arms
 ///                               identical.  Off = the flow is as before.
+///   - [htmlReadersEnabled]    — 1020c (decision NNNN-html-readers-webview):
+///                               the 「小讀本」 section at the top of 讀少少
+///                               (bundled HTML readers in a WebView,
+///                               `assets/readers/`).  Off (default) = 讀少少
+///                               exactly as before; on with no packaged
+///                               unit = still hidden.  Both arms identical
+///                               except 「問下通通」 (Hybrid only, C08).
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 /// [lastKnown] is for a gate that must not decide on a failed read (1020e
@@ -259,6 +266,7 @@ class RemoteFeatureFlags {
     this.safetyFalseAlarmMarkEnabled = false,
     this.weeklyReminderV2Enabled = false,
     this.researcherIntakeGateEnabled = false,
+    this.htmlReadersEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -308,6 +316,7 @@ class RemoteFeatureFlags {
   bool get dailyMoodPopupActive => !homeLayoutV2Enabled && !moodRowV2Enabled;
   final bool weeklyReminderV2Enabled;
   final bool researcherIntakeGateEnabled;
+  final bool htmlReadersEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -416,6 +425,7 @@ class RemoteFeatureFlags {
         weeklyReminderV2Enabled: map['weeklyReminderV2Enabled'] == true,
         researcherIntakeGateEnabled:
             map['researcherIntakeGateEnabled'] == true,
+        htmlReadersEnabled: map['htmlReadersEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply
