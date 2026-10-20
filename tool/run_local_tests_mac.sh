@@ -191,6 +191,10 @@ if wants analyze; then
     run_step "准备：flutter pub get" "$LOGDIR/pub_get.log" flutter pub get
     run_step "flutter analyze" "$LOGDIR/analyze.log" \
       flutter analyze --no-fatal-infos --no-fatal-warnings
+    # Only errors fail the step (as in CI); show the count to compare with CI.
+    n_issues="$(grep -Eo '[0-9]+ issues? found' "$LOGDIR/analyze.log" | head -n 1 | grep -Eo '^[0-9]+')"
+    n_errors="$(grep -cE '^ *error ' "$LOGDIR/analyze.log")"
+    [ -n "$n_issues" ] && R_NOTES[$((${#R_NOTES[@]} - 1))]="共 $n_issues 条提示，其中 error $n_errors 条"
   else
     skip_step "flutter analyze" "没有 flutter"
   fi
@@ -242,7 +246,11 @@ if wants functions; then
         node "$t" || fails="$fails $t"
       done
       if [ -n "$fails" ]; then echo "FAILED:$fails"; exit 1; fi'
-    grep '^FAILED:' "$LOGDIR/functions_unit.log" | sed 's/^FAILED:/    失败的文件：/'
+    ff="$(grep '^FAILED:' "$LOGDIR/functions_unit.log" | sed 's/^FAILED: *//')"
+    if [ -n "$ff" ]; then
+      echo "    失败的文件：$ff"
+      R_NOTES[$((${#R_NOTES[@]} - 1))]="失败的文件：$ff"
+    fi
   else
     skip_step "Functions 单元测试" "没有 node，或 npm ci 失败"
   fi
@@ -258,7 +266,7 @@ port_busy() { # port → prints "port (PID …)" when something listens on it
 busy_ports() { # ports… → list of busy ones
   local out="" p b
   for p in "$@"; do b="$(port_busy "$p")" && out="$out $b"; done
-  echo "$out"
+  echo "${out# }"
 }
 
 if wants rules; then
@@ -286,13 +294,18 @@ if wants rules; then
         if [ -n \"\$fails\" ]; then echo \"emulator FAIL\$fails\" >>\"\$res\"; else echo 'emulator PASS' >>\"\$res\"; fi
         ! grep -q FAIL \"\$res\""
     echo "  分开看："
-    if grep -q '^rules PASS' "$RES"; then echo "    ✓ Firestore 规则测试"; else echo "    ✗ Firestore 规则测试（或模拟器没起来）"; fi
+    note=""
+    if grep -q '^rules PASS' "$RES"; then echo "    ✓ Firestore 规则测试"
+    else echo "    ✗ Firestore 规则测试（或模拟器没起来）"; note="规则测试失败；"; fi
     em="$(grep '^emulator ' "$RES")"
     case "$em" in
       "emulator PASS") echo "    ✓ Functions 模拟器测试" ;;
-      "emulator FAIL"*) echo "    ✗ Functions 模拟器测试，失败的文件：${em#emulator FAIL}" ;;
-      *) echo "    ✗ Functions 模拟器测试没有跑（模拟器没起来，看日志）" ;;
+      "emulator FAIL"*) echo "    ✗ Functions 模拟器测试，失败的文件：${em#emulator FAIL }"
+        note="${note}模拟器测试失败的文件：${em#emulator FAIL }" ;;
+      *) echo "    ✗ Functions 模拟器测试没有跑（模拟器没起来，看日志）"
+        note="${note}模拟器没起来，看日志" ;;
     esac
+    [ -n "$note" ] && R_NOTES[$((${#R_NOTES[@]} - 1))]="$note"
   else
     skip_step "Firestore 规则测试 + Functions 模拟器测试" "npm ci 失败"
   fi
