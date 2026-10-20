@@ -402,7 +402,13 @@ class _IntakeSectionState extends State<IntakeSection> {
             : const Text('錄入'),
       ),
       const SizedBox(height: 4),
-      Text('錄入後老人家下次完全關閉再打開 App 先會用到。再錄一次會覆蓋你錄嘅部分；老人家自己填嘅「重要嘅人」唔會郁。',
+      // dev-tasks-1020 §J: say what the code does.  Memory facts and the
+      // encouragement tone are read by the server on every call (next
+      // message, Hybrid only); interests and 唔想提起嘅話題 come from the
+      // profile the App loads when it starts.
+      Text('錄入後：記憶同鼓勵方式（只限 Hybrid 組）老人家下一句訊息就用到；'
+          '興趣同「唔想提起嘅話題」要老人家下次完全關閉再打開 App 先用到。'
+          '再錄一次會覆蓋你錄嘅部分；老人家自己填嘅「重要嘅人」唔會郁。',
           style: theme.textTheme.bodySmall),
     ];
   }
@@ -455,7 +461,9 @@ class _DoneCard extends StatelessWidget {
         Text('已錄入：${result.researchId ?? '—'}',
             key: const Key('intake_done'),
             style: Theme.of(context).textTheme.titleMedium),
-        Text('老人家自己填咗嘅重要嘅人 ${result.people} 位。老人家下次完全關閉再打開 App 先生效。'),
+        Text('老人家自己填咗嘅重要嘅人 ${result.people} 位。'
+            '記憶同鼓勵方式下一句訊息就生效；興趣同「唔想提起嘅話題」'
+            '要老人家下次完全關閉再打開 App 先生效。'),
         const SizedBox(height: 8),
         TextButton(onPressed: onNext, child: const Text('錄下一位')),
       ],

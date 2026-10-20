@@ -126,9 +126,10 @@ other text.
                 ? c.name.trim()
                 : '${c.name.trim()}（${c.relation!.trim()}）',
       ];
+      // 1020e 二.13: only the people the elder ticked 「可以講」 for.
       final reconnect = [
         for (final c in profile.reconnectContacts)
-          if (c.name.trim().isNotEmpty)
+          if (c.share && c.name.trim().isNotEmpty)
             c.relation == null || c.relation!.trim().isEmpty
                 ? c.name.trim()
                 : '${c.name.trim()}（${c.relation!.trim()}）',

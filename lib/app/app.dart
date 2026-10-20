@@ -257,11 +257,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               // 10/19 (Junyu, switch appFontScaleOnlyEnabled): the phone's
               // font size is ignored and only the App's 字號 (five levels)
               // counts, so every page scales the same way.
-              final combined =
-                  RemoteFeatureFlags.current.appFontScaleOnlyEnabled
-                      ? widget.settings.fontScale.multiplier
-                      : combinedTextScale(
-                          base.textScaler.scale(1.0), widget.settings.fontScale);
+              // 1020c: the first time, the App's 字號 moves to the level the
+              // elder saw until now (never smaller), then stays.
+              final system = base.textScaler.scale(1.0);
+              final appOnly =
+                  RemoteFeatureFlags.current.appFontScaleOnlyEnabled;
+              if (appOnly && !widget.settings.appOnlyScaleSettled) {
+                WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => widget.settings.settleAppOnlyScale(system));
+              }
+              final combined = appOnly
+                  ? widget.settings.appOnlyScaleFor(system).multiplier
+                  : combinedTextScale(system, widget.settings.fontScale);
               final scaled = base.copyWith(
                 textScaler: TextScaler.linear(combined),
               );

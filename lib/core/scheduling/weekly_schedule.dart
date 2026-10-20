@@ -23,6 +23,7 @@
 library;
 
 import '../config/phase_b_config.dart';
+import '../study/cohorts.dart';
 import 'study_week.dart';
 
 enum WeeklyScheduleMode { standard, pilot }
@@ -88,12 +89,10 @@ class WeeklySchedule {
   WeeklySchedule._();
 
   /// Schedule mode by cohort (T21); null = not scheduled.  10/15: a pilot
-  /// account runs the standard Phase B schedule.
-  static WeeklyScheduleMode? modeForCohort(String? cohort) => switch (cohort) {
-        'phase_b' => WeeklyScheduleMode.standard,
-        'pilot' => WeeklyScheduleMode.standard,
-        _ => null,
-      };
+  /// account runs the standard Phase B schedule; 1020b §1: so do the run-in
+  /// and RCT- (every registered cohort, lib/core/study/cohorts.dart).
+  static WeeklyScheduleMode? modeForCohort(String? cohort) =>
+      Cohorts.isEnrolled(cohort) ? WeeklyScheduleMode.standard : null;
 
   static List<WeeklyPart> _common(PhaseBConfig cfg, bool withDjg) => [
         if (withDjg) WeeklyPart.djg,

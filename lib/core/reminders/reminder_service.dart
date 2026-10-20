@@ -25,9 +25,9 @@ import '../../features/auth/data/user_profile.dart';
 ///     queue and register OS-level alarms.
 ///   - Skips delivery silently in guest mode or when Firebase is down.
 abstract class ReminderService {
-  /// Schedule a reminder for [uid].  When [profile] is non-null and
-  /// `profile.isQuietToday == true`, requests for **today** are
-  /// suppressed (B.10).  Returns null when suppressed.
+  /// Schedule a reminder for [uid].  B.10 used to drop today's requests
+  /// while 今日休息 was on; since 10/20 (dev-tasks-1020 §H(3)) 今日休息 is
+  /// gone and [profile] is not consulted.  Returns null when not stored.
   Future<String?> schedule({
     required String uid,
     required ReminderRequest request,
@@ -99,15 +99,6 @@ class FirestoreReminderQueue implements ReminderService {
     UserProfile? profile,
   }) async {
     if (!available) return null;
-    // B.10 — suppress reminders for today when 今日休息 is active.
-    // Reminders scheduled for tomorrow or later go through.
-    if (profile != null && profile.isQuietToday) {
-      final now = DateTime.now();
-      final sameDay = request.fireAt.year == now.year &&
-          request.fireAt.month == now.month &&
-          request.fireAt.day == now.day;
-      if (sameDay) return null;
-    }
     final doc = await _ref(uid).add(request.toMap());
     return doc.id;
   }

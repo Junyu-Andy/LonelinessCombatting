@@ -9,7 +9,8 @@
  *   (export)    refuses without meta/data_lock.  Writes one NDJSON file per
  *               table below into --out=<dir> (default analysis-export/<stamp>)
  *               plus manifest.json: every Phase B participant (cohort
- *               phase_b, not pilot, not testers), research ID instead of
+ *               phase_b = run-in or rct, not pilot, not testers;
+ *               functions/study_period.js PHASE_B_COHORTS), research ID instead of
  *               uid, the real arm, NO conversation text (every table is an
  *               allowlist of columns; `turns` carries only metadata).
  *   --synthetic reads NOTHING from Firestore: generates 72 fake
@@ -43,6 +44,7 @@ const fs = require('fs');
 const path = require('path');
 const {parseArgs, checkTarget} = require('./firestore_target');
 const instruments = require('../functions/outcome_instruments');
+const studyPeriod = require('../functions/study_period');
 
 const LOCK_DOC = 'meta/data_lock';
 const LOG_COLLECTION = 'analysis_export_log';
@@ -54,11 +56,17 @@ const EXPORT_VERSION = 1;
  * construction.  Column `dataset` is "real" or "synthetic".
  */
 const TABLES = {
+  // dev-tasks-1020 §C(5): allocatedArm (the arm drawn at registration),
+  // receivedArm (the arm the App delivers now = `arm`), sequenceVersion
+  // (v1 = the PB- sequence, v2 = RCT-), runIn (PB-01…04) and analysisSet
+  // ("rct" for RCT-, "run_in" for PB-).
   participants: ['dataset', 'researchId', 'arm', 'stratum', 'strataCell',
     'w0Date', 'companionVariantAtRegistration', 'enrolledAt', 'ageGroup',
-    'baselineUclaScore', 'withdrawn'],
+    'baselineUclaScore', 'withdrawn', 'allocatedArm', 'receivedArm',
+    'sequenceVersion', 'runIn', 'analysisSet'],
   allocation_records: ['dataset', 'researchId', 'studyPeriod', 'stratum',
-    'arm', 'sequencePosition', 'allocatedAt', 'withdrawnAt'],
+    'arm', 'sequencePosition', 'allocatedAt', 'withdrawnAt',
+    'sequenceVersion', 'runIn', 'analysisSet'],
   outcome_entries: ['dataset', 'researchId', 'arm', 'instrument',
     'instrumentVersion', 'timepoint', 'assessmentDate', 'mode', 'enteredAt',
     'answers', 'missingItems', 'scores', 'scoringVersion', 'studyDay',
@@ -185,8 +193,48 @@ async function lock(db, p) {
 function isPhaseB(u) {
   if (u.isTester === true) return false;
   if (u.arm !== 'A' && u.arm !== 'B') return false;
-  if (typeof u.cohort === 'string') return u.cohort === 'phase_b';
+  // 1020b §1: run-in (PB-) and RCT- (functions/study_period.js lists).
+  if (typeof u.cohort === 'string') return studyPeriod.isPhaseBCohort(u);
   return u.armAssignmentMode === 'randomise';
+}
+
+/**
+ * dev-tasks-1020 §C(5) / 1020b §1(1): the analysis set comes from the
+ * cohort (rct → "rct", phase_b → "run_in", pilot → "pilot").  A withdrawal
+ * record has no cohort; its research-ID prefix gives the same answer.
+ * @param {?string} cohort
+ * @param {?string=} researchId fallback when there is no cohort
+ * @return {?string}
+ */
+function analysisSetOf(cohort, researchId) {
+  if (typeof cohort === 'string') return studyPeriod.analysisSetForCohort(cohort);
+  const p = studyPeriod.periodForResearchId(researchId);
+  return p ? studyPeriod.analysisSetForCohort(p.cohort) : null;
+}
+
+/**
+ * The sequence an enrolment drew from: stored since §C; a Phase B
+ * enrolment from before has none and drew from the first sequence, v1.
+ * @param {object} e enrollments/{uid} (or allocation_records) data
+ * @return {?string}
+ */
+function sequenceVersionOf(e) {
+  if (typeof e.sequenceVersion === 'string') return e.sequenceVersion;
+  return e.studyPeriod === 'B' || e.sequencePosition != null ? 'v1' : null;
+}
+
+/**
+ * The arm drawn at registration.  Stored as allocatedArm since §C; before
+ * that, enrollments.arm is still the drawn arm unless the arm was corrected
+ * (correctedAt) — then it is not known here (the allocation log is not
+ * read) and the column stays empty for a manual check.
+ * @param {object} e enrollments/{uid} data
+ * @return {?string}
+ */
+function allocatedArmOf(e) {
+  if (e.allocatedArm === 'A' || e.allocatedArm === 'B') return e.allocatedArm;
+  if (e.correctedAt) return null;
+  return e.arm === 'A' || e.arm === 'B' ? e.arm : null;
 }
 
 /**
@@ -222,6 +270,10 @@ async function collectReal(db, opts) {
       baselineUclaScore: u.baselineUclaScore == null ? null :
         u.baselineUclaScore,
       withdrawn: false,
+      allocatedArm: allocatedArmOf(e), receivedArm: u.arm,
+      sequenceVersion: sequenceVersionOf(e),
+      runIn: analysisSetOf(u.cohort, researchId) === 'run_in',
+      analysisSet: analysisSetOf(u.cohort, researchId),
     })));
 
     for (const t of ['djg_responses', 'pgic', 'ucla3_responses', 'weekly_pr',
@@ -287,8 +339,11 @@ async function collectReal(db, opts) {
   }
   const records = await db.collection('allocation_records').get();
   for (const d of records.docs) {
+    const x = d.data();
     files.allocation_records.push(row('allocation_records',
-        Object.assign({}, base, d.data())));
+        Object.assign({}, base, x, {sequenceVersion: sequenceVersionOf(x),
+          runIn: analysisSetOf(null, x.researchId) === 'run_in',
+          analysisSet: analysisSetOf(null, x.researchId)})));
   }
   const safety = await db.collection('safety_events').get();
   for (const d of safety.docs) {
@@ -345,7 +400,8 @@ function generateSynthetic(opts) {
   const base = {dataset: 'synthetic'};
   const w0Base = '2026-11-01';
   for (let i = 0; i < n; i++) {
-    const researchId = `PB-S${String(i + 1).padStart(3, '0')}`;
+    // 10/20: shaped like the randomised analysis set (RCT-, sequence v2).
+    const researchId = `RCT-S${String(i + 1).padStart(3, '0')}`;
     const arm = i % 2 === 0 ? 'A' : 'B';
     const stratum = i % 4 < 2 ? 'low' : 'high';
     const w0Date = addDays(w0Base, Math.floor(i / 4) * 3);
@@ -356,13 +412,16 @@ function generateSynthetic(opts) {
       companionVariantAtRegistration: pick(['feminine', 'masculine']),
       enrolledAt: `${w0Date}T03:00:00.000Z`,
       ageGroup: pick(['65-69', '70-74', '75-79', '80+']),
-      baselineUclaScore: 30 + Math.floor(rand() * 40), withdrawn})));
+      baselineUclaScore: 30 + Math.floor(rand() * 40), withdrawn,
+      allocatedArm: arm, receivedArm: arm, sequenceVersion: 'v2',
+      runIn: false, analysisSet: 'rct'})));
     if (withdrawn) {
       files.allocation_records.push(row('allocation_records',
           Object.assign({}, base, {researchId, studyPeriod: 'B', stratum,
             arm, sequencePosition: i + 1,
             allocatedAt: `${w0Date}T03:00:00.000Z`,
-            withdrawnAt: `${addDays(w0Date, 20)}T03:00:00.000Z`})));
+            withdrawnAt: `${addDays(w0Date, 20)}T03:00:00.000Z`,
+            sequenceVersion: 'v2', runIn: false, analysisSet: 'rct'})));
     }
     const djgAnswers = () => {
       const a = {};

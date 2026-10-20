@@ -10,8 +10,9 @@
  * clashes; exhaustion; the logged correction; the sequence upload guard;
  * assignArm after registration; the blinded export carries no arm.
  *
- * T21 (registry v8 C01, dev-tasks-1010b): IDs need the PB- or PILOT-
- * prefix (PA- and no prefix refused); PB- is marked cohort phase_b;
+ * T21 (registry v8 C01, dev-tasks-1010b): IDs need the RCT- or PILOT-
+ * prefix (PA- and no prefix refused; 10/19: PB- retired); RCT- draws from
+ * the v2 sequence and is marked cohort rct (dev-tasks-1020 §C, 1020b §1);
  * PILOT- takes the researcher's version, no score and no sequence
  * position, starts on the registration date, is logged in
  * pilot_assignment_log, gets Arm A memory and stays out of the blinded
@@ -63,7 +64,7 @@ async function setup({enabled = true, upload = true} = {}) {
   if (enabled) await db.doc(R.CONFIG_DOC).set({enabled: true});
   if (upload) {
     const r = await seqTool.upload(db, R.generateSequences(SEED),
-        {operator: "k1@example.org"});
+        {operator: "k1@example.org", version: "v2"});
     assert.ok(r.ok, r.lines.join("\n"));
   }
 }
@@ -96,7 +97,7 @@ const report = [];
 test("switch off (default): registration refused", async () => {
   await setup({enabled: false});
   await account("u1");
-  assert.strictEqual(await enrolCode(R.enrol(db, K1, input("u1", "PB-001", 1),
+  assert.strictEqual(await enrolCode(R.enrol(db, K1, input("u1", "RCT-001", 1),
       {now: NOW})), "disabled");
 });
 
@@ -105,7 +106,7 @@ test("only the unblinded role may register", async () => {
   await account("u1");
   for (const role of ["blinded", "pi", "researcher", null]) {
     assert.strictEqual(await enrolCode(R.enrol(db,
-        {uid: "x", email: null, role}, input("u1", "PB-001", 1), {now: NOW})),
+        {uid: "x", email: null, role}, input("u1", "RCT-001", 1), {now: NOW})),
     "not_unblinded_researcher", String(role));
   }
 });
@@ -114,14 +115,14 @@ test("input checks: score, ID, pairing, W0 date, confirmation", async () => {
   await setup();
   await account("u1");
   const cases = [
-    [input("u1", "PB-001", 4), "invalid_score"],
-    [input("u1", "PB-001", 1.5), "invalid_score"],
-    [input("u1", "PB-001", "2"), "invalid_score"],
+    [input("u1", "RCT-001", 4), "invalid_score"],
+    [input("u1", "RCT-001", 1.5), "invalid_score"],
+    [input("u1", "RCT-001", "2"), "invalid_score"],
     [input("u1", "PB 001", 1), "invalid_research_id"],
-    [input("u1", "PB-001", 1, {w0Date: "2026-10-09"}), "invalid_w0_date"],
-    [input("u1", "PB-001", 1, {confirmed: false}), "not_confirmed"],
-    [input("ghost", "PB-001", 1), "account_not_found"],
-    [input("keran", "PB-001", 1), "own_account"],
+    [input("u1", "RCT-001", 1, {w0Date: "2026-10-09"}), "invalid_w0_date"],
+    [input("u1", "RCT-001", 1, {confirmed: false}), "not_confirmed"],
+    [input("ghost", "RCT-001", 1), "account_not_found"],
+    [input("keran", "RCT-001", 1), "own_account"],
   ];
   for (const [inp, code] of cases) {
     assert.strictEqual(await enrolCode(R.enrol(db, K1, inp, {now: NOW})),
@@ -133,13 +134,13 @@ test("input checks: score, ID, pairing, W0 date, confirmation", async () => {
 test("dry run: account shown, no arm, nothing written", async () => {
   await setup();
   await account("u1");
-  const r = await R.enrol(db, K1, input("u1", "pb-001", 2,
+  const r = await R.enrol(db, K1, input("u1", "rct-001", 2,
       {dryRun: true, confirmed: false}), {now: NOW});
   assert.strictEqual(r.arm, null);
   assert.strictEqual(r.account.displayName, "Synthetic u1");
-  assert.strictEqual(r.researchId, "PB-001");
+  assert.strictEqual(r.researchId, "RCT-001");
   assert.strictEqual(r.stratum, "high");
-  assert.strictEqual((await db.doc("randomization_state/high").get())
+  assert.strictEqual((await db.doc("randomization_state/v2_high").get())
       .get("next"), 0);
   assert.strictEqual((await db.doc("users/u1").get()).get("arm"),
       undefined);
@@ -156,7 +157,7 @@ test("72 synthetic participants, two researchers at the same time",
       for (let i = 1; i <= 72; i++) {
         const uid = `syn${String(i).padStart(2, "0")}`;
         await account(uid);
-        people.push({uid, rid: `PB-${String(i).padStart(3, "0")}`,
+        people.push({uid, rid: `RCT-${String(i).padStart(3, "0")}`,
           score: rand(4)});
       }
       // Pairs submitted together, one per researcher.
@@ -190,7 +191,7 @@ test("72 synthetic participants, two researchers at the same time",
           maxGap = Math.max(maxGap, Math.abs(a - b));
         }
         assert.ok(maxGap <= 2, `${s}: gap ${maxGap} (blocks ≤ 4)`);
-        const next = (await db.doc(`randomization_state/${s}`).get())
+        const next = (await db.doc(`randomization_state/v2_${s}`).get())
             .get("next");
         assert.strictEqual(next, rows.length);
         stats[s] = {n: rows.length, a, b, finalGap: Math.abs(a - b), maxGap};
@@ -200,7 +201,7 @@ test("72 synthetic participants, two researchers at the same time",
         assert.strictEqual(u.arm, results[p.uid].arm);
         assert.strictEqual(u.armAssignmentMode, "randomise");
         assert.strictEqual(u.armAssignedBy, "server");
-        assert.strictEqual(u.cohort, "phase_b"); // T21
+        assert.strictEqual(u.cohort, "rct"); // 1020b §1
         assert.strictEqual(u.w0Date, "2026-10-06");
         assert.strictEqual(u.strataCell, p.score <= 1 ? 0 : 1);
         // T47: the researcher no longer writes the pairing; the elder's
@@ -228,8 +229,8 @@ test("resubmission returns the stored arm, logs it, uses no position",
     async () => {
       // Continues from the 72 above.
       const before = {
-        low: (await db.doc("randomization_state/low").get()).get("next"),
-        high: (await db.doc("randomization_state/high").get()).get("next"),
+        low: (await db.doc("randomization_state/v2_low").get()).get("next"),
+        high: (await db.doc("randomization_state/v2_high").get()).get("next"),
       };
       for (const uid of ["syn01", "syn02", "syn03", "syn04", "syn05"]) {
         const e = (await db.doc(`enrollments/${uid}`).get()).data();
@@ -247,7 +248,7 @@ test("resubmission returns the stored arm, logs it, uses no position",
         assert.strictEqual(changed.sameInput, false);
       }
       for (const s of R.STRATA) {
-        assert.strictEqual((await db.doc(`randomization_state/${s}`).get())
+        assert.strictEqual((await db.doc(`randomization_state/v2_${s}`).get())
             .get("next"), before[s]);
       }
       const resubmits = (await db.collection("arm_assignment_log")
@@ -260,10 +261,10 @@ test("the same participant submitted twice at once: one allocation",
       await setup();
       await account("u1");
       const out = await Promise.all([K1, K2, K1, K2].map((k) =>
-        R.enrol(db, k, input("u1", "PB-900", 0), {now: NOW})));
+        R.enrol(db, k, input("u1", "RCT-900", 0), {now: NOW})));
       assert.strictEqual(new Set(out.map((r) => r.arm)).size, 1);
       assert.strictEqual(out.filter((r) => !r.alreadyEnrolled).length, 1);
-      assert.strictEqual((await db.doc("randomization_state/low").get())
+      assert.strictEqual((await db.doc("randomization_state/v2_low").get())
           .get("next"), 1);
     });
 
@@ -273,9 +274,9 @@ test("two accounts, one research ID at once: one wins, one refused",
       await account("u1");
       await account("u2");
       const codes = await Promise.all(["u1", "u2"].map((uid) =>
-        enrolCode(R.enrol(db, K1, input(uid, "PB-777", 3), {now: NOW}))));
+        enrolCode(R.enrol(db, K1, input(uid, "RCT-777", 3), {now: NOW}))));
       assert.deepStrictEqual(codes.sort(), ["no error", "research_id_taken"]);
-      assert.strictEqual((await db.doc("randomization_state/high").get())
+      assert.strictEqual((await db.doc("randomization_state/v2_high").get())
           .get("next"), 1);
     });
 
@@ -286,34 +287,34 @@ test("refused: account with an arm, tester, other research ID", async () => {
   await account("u3");
   await db.doc("research_id_map/u3").set({researchId: "P0ZAHP5"});
   assert.strictEqual(await enrolCode(R.enrol(db, K1,
-      input("pilot", "PB-010", 1), {now: NOW})), "already_has_arm");
+      input("pilot", "RCT-010", 1), {now: NOW})), "already_has_arm");
   assert.strictEqual(await enrolCode(R.enrol(db, K1,
-      input("tester", "PB-011", 1), {now: NOW})), "tester_account");
+      input("tester", "RCT-011", 1), {now: NOW})), "tester_account");
   assert.strictEqual(await enrolCode(R.enrol(db, K1,
-      input("u3", "PB-012", 1), {now: NOW})), "account_has_other_research_id");
-  assert.strictEqual((await db.doc("randomization_state/low").get())
+      input("u3", "RCT-012", 1), {now: NOW})), "account_has_other_research_id");
+  assert.strictEqual((await db.doc("randomization_state/v2_low").get())
       .get("next"), 0);
 });
 
 test("sequence missing / exhausted", async () => {
   await setup({upload: false});
   await account("u1");
-  assert.strictEqual(await enrolCode(R.enrol(db, K1, input("u1", "PB-001", 1),
+  assert.strictEqual(await enrolCode(R.enrol(db, K1, input("u1", "RCT-001", 1),
       {now: NOW})), "sequence_missing");
-  await db.doc("randomization_sequences/low").set({arms: ["B", "A"],
+  await db.doc("randomization_sequences/v2_low").set({arms: ["B", "A"],
     blocks: [2], length: 2});
   await account("u2");
   await account("u3");
-  await R.enrol(db, K1, input("u1", "PB-001", 1), {now: NOW});
-  await R.enrol(db, K1, input("u2", "PB-002", 0), {now: NOW});
-  assert.strictEqual(await enrolCode(R.enrol(db, K1, input("u3", "PB-003", 1),
+  await R.enrol(db, K1, input("u1", "RCT-001", 1), {now: NOW});
+  await R.enrol(db, K1, input("u2", "RCT-002", 0), {now: NOW});
+  assert.strictEqual(await enrolCode(R.enrol(db, K1, input("u3", "RCT-003", 1),
       {now: NOW})), "sequence_exhausted");
 });
 
 test("correction: reason required, logged, position unchanged", async () => {
   await setup();
   await account("u1");
-  const r = await R.enrol(db, K1, input("u1", "PB-001", 1), {now: NOW});
+  const r = await R.enrol(db, K1, input("u1", "RCT-001", 1), {now: NOW});
   const other = r.arm === "A" ? "B" : "A";
   assert.strictEqual(await enrolCode(R.correctArm(db, {uid: "u1",
     arm: other, reason: "short", operator: "k1"})), "reason_required");
@@ -335,15 +336,17 @@ test("correction: reason required, logged, position unchanged", async () => {
 
 test("upload guard: no replace once uploaded or allocated", async () => {
   await setup();
-  const again = await seqTool.upload(db, R.generateSequences(SEED), {});
+  const again = await seqTool.upload(db, R.generateSequences(SEED),
+      {version: "v2"});
   assert.strictEqual(again.ok, false);
   await account("u1");
-  await R.enrol(db, K1, input("u1", "PB-001", 1), {now: NOW});
+  await R.enrol(db, K1, input("u1", "RCT-001", 1), {now: NOW});
   const replace = await seqTool.upload(db,
-      R.generateSequences("another-seed-0000001"), {replace: true});
+      R.generateSequences("another-seed-0000001"),
+      {replace: true, version: "v2"});
   assert.strictEqual(replace.ok, false);
   assert.match(replace.lines.join("\n"), /already allocated/);
-  const seq = (await db.doc("randomization_sequences/low").get()).data();
+  const seq = (await db.doc("randomization_sequences/v2_low").get()).data();
   assert.strictEqual(seq.sha256, R.generateSequences(SEED).low.sha256);
   assert.strictEqual(seq.seed, undefined, "the seed is never uploaded");
 });
@@ -352,7 +355,7 @@ test("assignArm after registration returns the allocated arm", async () => {
   await setup();
   await account("u1");
   await account("u2");
-  const r = await R.enrol(db, K1, input("u1", "PB-001", 2), {now: NOW});
+  const r = await R.enrol(db, K1, input("u1", "RCT-001", 2), {now: NOW});
   const a = await assignArm(db, "u1");
   assert.strictEqual(a.arm, r.arm);
   assert.strictEqual(a.assigned, false);
@@ -366,7 +369,7 @@ test("blinded export of registered participants carries no arm",
       await db.doc(blinding.CONFIG_DOC).set({enabled: true});
       for (let i = 1; i <= 8; i++) {
         await account(`b${i}`);
-        await R.enrol(db, K1, input(`b${i}`, `PB-10${i}`, i % 4),
+        await R.enrol(db, K1, input(`b${i}`, `RCT-10${i}`, i % 4),
             {now: NOW});
       }
       const built = await blinding.buildBlindedExport(db,
@@ -375,7 +378,7 @@ test("blinded export of registered participants carries no arm",
       assert.strictEqual(rows.length, 8);
       for (const row of rows) {
         assert.strictEqual(row.arm, undefined);
-        assert.ok(/^PB-10\d$/.test(row.researchId), row.researchId);
+        assert.ok(/^RCT-10\d$/.test(row.researchId), row.researchId);
         assert.ok(["Group_X", "Group_Y"].includes(row.groupCode));
       }
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), "t19-export-"));
@@ -395,10 +398,10 @@ function pilotInput(uid, rid, arm, more) {
     companionVariant: "feminine", confirmed: true}, more || {});
 }
 
-test("T21: PA- and IDs without PB- / PILOT- are refused", async () => {
+test("T21: PA- and IDs without RCT- / PILOT- are refused", async () => {
   await setup();
   await account("u1");
-  for (const rid of ["PA-001", "B001", "P001", "PB-", "PILOT-", "PB001",
+  for (const rid of ["PA-001", "B001", "P001", "RCT-", "PILOT-", "PB001",
     "PILOT01", "XPB-001"]) {
     assert.strictEqual(await enrolCode(R.enrol(db, K1,
         input("u1", rid, 1), {now: NOW})), "research_id_prefix", rid);
@@ -411,22 +414,55 @@ test("T21: PA- and IDs without PB- / PILOT- are refused", async () => {
       undefined);
 });
 
-test("T21: PB- registers into Phase B (cohort phase_b, studyPeriod B)",
+test("1020b §1: RCT- registers into Phase B from v2 (cohort rct, " +
+    "studyPeriod B, sequenceVersion + allocatedArm recorded)",
     async () => {
       await setup();
       await account("u1");
-      const r = await R.enrol(db, K1, input("u1", "pb-017", 2), {now: NOW});
-      assert.strictEqual(r.researchId, "PB-017");
+      const r = await R.enrol(db, K1, input("u1", "rct-017", 2), {now: NOW});
+      assert.strictEqual(r.researchId, "RCT-017");
       assert.strictEqual(r.studyPeriod, "B");
       const u = (await db.doc("users/u1").get()).data();
-      assert.strictEqual(u.cohort, "phase_b");
+      assert.strictEqual(u.cohort, "rct");
       assert.strictEqual(u.armAssignmentMode, "randomise");
       const e = (await db.doc("enrollments/u1").get()).data();
       assert.strictEqual(e.studyPeriod, "B");
       assert.strictEqual(e.sequencePosition, 1);
+      assert.strictEqual(e.sequenceVersion, "v2");
+      assert.strictEqual(e.allocatedArm, e.arm);
+      const v2 = (await db.doc("randomization_sequences/v2_high").get())
+          .get("arms");
+      assert.strictEqual(e.arm, v2[0], "first position of v2");
+      const log = (await db.collection("arm_assignment_log").get()).docs[0]
+          .data();
+      assert.strictEqual(log.sequenceVersion, "v2");
       assert.strictEqual((await db.collection("pilot_assignment_log")
           .get()).size, 0);
     });
+
+test("10/19: a new PB- is refused (research_id_prefix_retired); v1 " +
+    "documents are never read or touched", async () => {
+  await setup();
+  // A v1 sequence with four positions used, as on the real project.
+  await seqTool.upload(db, R.generateSequences("v1-seed-synthetic-0001"),
+      {version: "v1"});
+  await db.doc("randomization_state/low").set({next: 4});
+  const v1Before = (await db.doc("randomization_sequences/low").get())
+      .updateTime.toMillis();
+  await account("u1");
+  assert.strictEqual(await enrolCode(R.enrol(db, K1,
+      input("u1", "PB-005", 1), {now: NOW})), "research_id_prefix_retired");
+  assert.strictEqual(await enrolCode(R.enrol(db, K1,
+      input("u1", "PB-005", 1, {dryRun: true}), {now: NOW})),
+  "research_id_prefix_retired");
+  await R.enrol(db, K1, input("u1", "RCT-001", 1), {now: NOW});
+  assert.strictEqual((await db.doc("randomization_state/low").get())
+      .get("next"), 4, "v1 used count unchanged");
+  assert.strictEqual((await db.doc("randomization_sequences/low").get())
+      .updateTime.toMillis(), v1Before, "v1 sequence untouched");
+  assert.strictEqual((await db.doc("randomization_state/v2_low").get())
+      .get("next"), 1, "RCT-001 took v2 position 1");
+});
 
 test("T21: PILOT- input checks (version, pairing, confirmation)",
     async () => {
@@ -498,7 +534,7 @@ test("T21: PILOT- takes the researcher's version, no sequence, logged",
             .get("researchId"), rid);
       }
       for (const s of R.STRATA) {
-        assert.strictEqual((await db.doc(`randomization_state/${s}`).get())
+        assert.strictEqual((await db.doc(`randomization_state/v2_${s}`).get())
             .get("next"), 0, `${s}: no sequence position used`);
       }
       assert.strictEqual((await db.collection("arm_assignment_log").get())
@@ -557,12 +593,12 @@ test("T21: a pilot account stays out of the blinded export", async () => {
   await db.doc(blinding.CONFIG_DOC).set({enabled: true});
   await account("b1");
   await account("p1");
-  await R.enrol(db, K1, input("b1", "PB-201", 1), {now: NOW});
+  await R.enrol(db, K1, input("b1", "RCT-201", 1), {now: NOW});
   await R.enrol(db, K1, pilotInput("p1", "PILOT-04", "A"), {now: NOW});
   const built = await blinding.buildBlindedExport(db,
       {dateKey: "2026-10-11"});
   assert.deepStrictEqual(built.files.participants.map((r) => r.researchId),
-      ["PB-201"]);
+      ["RCT-201"]);
 });
 
 (async () => {

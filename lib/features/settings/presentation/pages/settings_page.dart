@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
@@ -14,7 +12,6 @@ import '../../data/tester_tools.dart';
 import '../widgets/tester_arm_switch_card.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
-import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import '../../../personalization/presentation/pages/personalization_page.dart';
@@ -78,7 +75,6 @@ class _SettingsPageState extends State<SettingsPage> {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final settings = AppSettingsScope.of(context);
-    final highContrast = settings.highContrast;
     final fontScale = settings.fontScale;
     final isEn = settings.locale.languageCode == 'en';
     final language = isEn ? _AppLanguage.english : _AppLanguage.cantonese;
@@ -228,15 +224,19 @@ class _SettingsPageState extends State<SettingsPage> {
             onChanged: (value) => settings.fontScale = value,
             isEn: isEn,
           ),
+          // 10/20 (dev-tasks-1020 §H): 高對比 moved one level down to
+          // 我的設定 → 顯示; the 通知 section (安靜時段, 今日休息) is gone —
+          // quiet hours are fixed on (22:00–08:00) and the server ignores
+          // quietHoursEnabled and quietTodayActivatedAt.
           const SizedBox(height: 14),
-          _SwitchTileCard(
-            icon: Icons.contrast_rounded,
-            title: isEn ? 'High-Contrast Mode' : '高對比模式',
-            subtitle: isEn
-                ? 'Stronger contrast between text and background.'
-                : '字體同背景顏色對比更加清楚。',
-            value: highContrast,
-            onChanged: (value) => settings.highContrast = value,
+          _NavTileCard(
+            key: const Key('settings_my_settings'),
+            icon: Icons.tune_rounded,
+            title: isEn ? 'My settings' : '我的設定',
+            subtitle: isEn ? 'Display: high contrast' : '顯示：高對比模式',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const MySettingsPage()),
+            ),
           ),
           // Language picker hidden while the app is Cantonese-only
           // (AppSettings.englishEnabled). Re-enable both together.
@@ -256,60 +256,6 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
           ],
-          const SizedBox(height: 28),
-          _SectionHeader(
-            icon: Icons.notifications_none_rounded,
-            title: isEn ? 'Notifications' : '通知',
-          ),
-          const SizedBox(height: 14),
-          _SwitchTileCard(
-            icon: Icons.nightlight_round,
-            title: isEn ? 'Quiet Hours' : '安靜時段',
-            subtitle: isEn
-                ? 'No reminders between 10 pm and 8 am.'
-                : '晚上 10 點到早上 8 點唔會出聲提醒。',
-            value: settings.quietHours,
-            onChanged: (value) {
-              settings.quietHours = value;
-              // 10/14: the server reads users/{uid}.quietHoursEnabled before
-              // sending a push (functions/quiet_hours.js); missing = on.
-              _syncQuietHoursToProfile(context, value);
-            },
-          ),
-          // 10/14 (lead): 「語音讀出內容」 is hidden — nothing reads it yet
-          // (backlog 97). The stored preference is kept so it can come back.
-          const SizedBox(height: 14),
-          // B.10 — 今日休息 dignified pause.  Defaults off; the flag also
-          // clears automatically at midnight local time (see
-          // UserProfile.isQuietToday).  B06 — it can now be toggled back
-          // off the same day instead of being locked on until midnight.
-          _SwitchTileCard(
-            icon: Icons.bedtime_outlined,
-            title: isEn ? 'Rest today' : '今日休息',
-            subtitle: isEn
-                ? 'No reminders or nudges today. Resumes tomorrow.'
-                : '今日唔會有任何提醒或推送。聽日自動回復。',
-            value: settings.profile?.isQuietToday ?? false,
-            onChanged: (value) async {
-              final profile = settings.profile;
-              if (profile == null) return;
-              final auth = AuthServiceScope.of(context);
-              if (value) {
-                final activated = await auth.activateQuietToday(profile);
-                if (activated) {
-                  settings.profile = profile.copyWith(
-                    quietTodayActivatedAt: DateTime.now(),
-                  );
-                  if (context.mounted) {
-                    await AnalyticsScope.of(context).logQuietTodayActivated();
-                  }
-                }
-              } else {
-                await auth.deactivateQuietToday(profile);
-                settings.profile = profile.copyWith(clearQuietToday: true);
-              }
-            },
-          ),
           const SizedBox(height: 28),
           _SectionHeader(
             icon: Icons.shield_outlined,
@@ -814,6 +760,7 @@ class _SwitchTileCard extends StatelessWidget {
   final ValueChanged<bool> onChanged;
 
   const _SwitchTileCard({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -1054,6 +1001,7 @@ class _NavTileCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const _NavTileCard({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -1219,19 +1167,40 @@ class _SurveyPreviewButtons extends StatelessWidget {
   }
 }
 
-/// 10/14 — mirror the 「安靜時段」 toggle onto the user document so the
-/// Cloud Functions that send pushes can honour it (`quietHoursEnabled`,
-/// missing = on). Fire-and-forget; the local preference is the source of
-/// truth for the page, the server only needs the latest value.
-void _syncQuietHoursToProfile(BuildContext context, bool enabled) {
-  final auth = AuthServiceScope.of(context);
-  final uid = AppSettingsScope.read(context).profile?.uid;
-  if (!auth.available || uid == null || uid.isEmpty) return;
-  FirebaseFirestore.instance
-      .collection('users')
-      .doc(uid)
-      .set({'quietHoursEnabled': enabled}, SetOptions(merge: true))
-      .catchError((Object e) {
-    if (kDebugMode) debugPrint('[settings] quietHoursEnabled write failed: $e');
-  });
+/// 10/20 (dev-tasks-1020 §H(1)) — 自己 → 我的設定: the settings that left the
+/// first level.  For now only 顯示 → 高對比模式 (same switch, same stored
+/// preference as before).
+class MySettingsPage extends StatelessWidget {
+  const MySettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = AppSettingsScope.of(context);
+    final isEn = settings.locale.languageCode == 'en';
+    return Scaffold(
+      appBar: AppBar(title: Text(isEn ? 'My settings' : '我的設定')),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          children: [
+            _SectionHeader(
+              icon: Icons.text_fields_rounded,
+              title: isEn ? 'Display' : '顯示',
+            ),
+            const SizedBox(height: 14),
+            _SwitchTileCard(
+              key: const Key('settings_high_contrast'),
+              icon: Icons.contrast_rounded,
+              title: isEn ? 'High-Contrast Mode' : '高對比模式',
+              subtitle: isEn
+                  ? 'Stronger contrast between text and background.'
+                  : '字體同背景顏色對比更加清楚。',
+              value: settings.highContrast,
+              onChanged: (value) => settings.highContrast = value,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

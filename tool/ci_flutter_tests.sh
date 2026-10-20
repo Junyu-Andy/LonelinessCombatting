@@ -36,6 +36,7 @@ run "phase A (default build)"
 run "phase B arm gating" --dart-define=PHASE_B=true \
   test/arm_gate_test.dart test/parity/ test/memory_v1_client_test.dart \
   test/djg_w2_test.dart test/phase_b_hidden_surfaces_test.dart \
+  test/suggestions_use_profile_test.dart \
   test/ada_test.dart test/safety_classifier_test.dart \
   test/weekly_schedule_test.dart test/weekly_bundle_flow_test.dart \
   test/tester_arm_switch_test.dart test/tester_weekly_bundle_page_test.dart \

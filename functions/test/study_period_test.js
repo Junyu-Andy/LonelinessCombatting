@@ -126,5 +126,41 @@ test("memory v1: pilot Arm A like Phase B Arm A; force_a and Arm B not",
           {arm: "A", armAssignmentMode: "pilot_designated"}), false);
     });
 
+test("10/19: RCT- is Phase B with sequence v2 and cohort rct; PB- still " +
+    "resolves but is retired", () => {
+  const rct = SP.periodForResearchId(R.normaliseResearchId(" rct-01 "));
+  assert.strictEqual(rct.studyPeriod, "B");
+  assert.strictEqual(rct.cohort, "rct");
+  assert.strictEqual(rct.sequenceVersion, "v2");
+  assert.notStrictEqual(rct.retired, true);
+  const pb = SP.periodForResearchId("PB-01");
+  assert.strictEqual(pb.retired, true);
+  assert.strictEqual(pb.cohort, "phase_b");
+  assert.strictEqual(SP.periodForResearchId("RCT-"), null);
+});
+
+test("1020b §1: one list per question — enrolled has run-in, rct, pilot; " +
+    "Phase B follow-up has run-in and rct", () => {
+  assert.deepStrictEqual(SP.ENROLLED_COHORTS, ["phase_b", "rct", "pilot"]);
+  assert.deepStrictEqual(SP.PHASE_B_COHORTS, ["phase_b", "rct"]);
+  for (const c of ["phase_b", "rct", "pilot"]) {
+    assert.strictEqual(SP.isEnrolled({cohort: c}), true, c);
+  }
+  assert.strictEqual(SP.isEnrolled({cohort: "phase_b_rct"}), false);
+  assert.strictEqual(SP.isPhaseBCohort({cohort: "rct"}), true);
+  assert.strictEqual(SP.isPhaseBCohort({cohort: "phase_b"}), true);
+  assert.strictEqual(SP.isPhaseBCohort({cohort: "pilot"}), false);
+  assert.strictEqual(SP.analysisSetForCohort("rct"), "rct");
+  assert.strictEqual(SP.analysisSetForCohort("phase_b"), "run_in");
+  assert.strictEqual(SP.analysisSetForCohort("pilot"), "pilot");
+  assert.strictEqual(SP.analysisSetForCohort(null), null);
+  // An RCT- account that is not a tester gets past the gate and the LLM.
+  assert.strictEqual(SP.llmRefusal({gateOn: true,
+    user: {cohort: "rct", arm: "A"}}), null);
+  assert.strictEqual(SP.skipsPhaseAWeek2Push({gateOn: true,
+    user: {cohort: "rct"}}), SP.skipsPhaseAWeek2Push({gateOn: true,
+    user: {cohort: "phase_b"}}), "rct like the run-in");
+});
+
 console.log(`\n${passed} passed, ${failures.length} failed`);
 process.exit(failures.length ? 1 : 0);

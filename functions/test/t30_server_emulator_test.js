@@ -43,7 +43,8 @@ const NOW = new Date("2026-10-20T04:00:00Z");
 async function reset() {
   for (const c of ["users", "meta", "app_config", "randomization_sequences",
     "randomization_state", "enrollments", "arm_assignment_log",
-    "sequence_upload_log", "research_id_map", "research_ids",
+    "sequence_upload_log", "sequence_versions", "research_id_map",
+    "research_ids",
     "safety_events", "pairing_change_log"]) {
     const docs = await db.collection(c).listDocuments();
     for (const d of docs) await db.recursiveDelete(d);
@@ -59,14 +60,18 @@ const code = async (p) => {
   return "no error";
 };
 
-const payload = (seed, replace) => {
-  const seqs = R.generateSequences(seed || SEED);
+// 10/19 (dev-tasks-1020 §C): uploads name their version (v2) and need
+// ≥ 80 positions per stratum.
+const payload = (seed, replace, opts) => {
+  const o = opts || {};
+  const seqs = R.generateSequences(seed || SEED, o.length || 80);
   const sequences = {};
   for (const s of R.STRATA) {
     sequences[s] = {arms: seqs[s].arms, blocks: seqs[s].blocks,
       sha256: seqs[s].sha256};
   }
-  return {sequences, replace: !!replace};
+  return {sequences, replace: !!replace,
+    version: "version" in o ? o.version : "v2"};
 };
 
 const tests = [];
@@ -90,26 +95,34 @@ test("sequence upload: switch off refuses; only the uploader role",
 test("sequence upload: validates, writes both strata + state, logs " +
     "without arms or seed; second upload refused", async () => {
   assert.strictEqual(await code(SU.uploadSequence(db, CALVIN,
-      {sequences: {low: {arms: ["A", "A"], blocks: [2]}}}, {now: NOW})),
+      {version: "v2", sequences: {low: {arms: ["A", "A"], blocks: [2]}}},
+      {now: NOW})),
   "invalid_sequences");
   const r = await SU.uploadSequence(db, CALVIN, payload(), {now: NOW});
   assert.strictEqual(r.replaced, false);
-  const seqs = R.generateSequences(SEED);
+  assert.strictEqual(r.version, "v2");
+  const seqs = R.generateSequences(SEED, 80);
   for (const s of R.STRATA) {
     assert.strictEqual(r.uploaded[s].sha256, seqs[s].sha256);
-    const doc = (await db.doc(`randomization_sequences/${s}`).get()).data();
+    const doc = (await db.doc(`randomization_sequences/v2_${s}`).get())
+        .data();
     assert.deepStrictEqual(doc.arms, seqs[s].arms);
+    assert.strictEqual(doc.version, "v2");
     assert.strictEqual(doc.uploadedBy, CALVIN.uid);
     assert.strictEqual(doc.via, "callable");
     assert.strictEqual(doc.seed, undefined);
-    assert.strictEqual((await db.doc(`randomization_state/${s}`).get())
+    assert.strictEqual((await db.doc(`randomization_state/v2_${s}`).get())
         .get("next"), 0);
   }
+  const v2 = (await db.doc("sequence_versions/v2").get()).data();
+  assert.strictEqual(v2.status, "active");
+  assert.strictEqual(v2.strata.low.sha256, seqs.low.sha256);
   const log = await db.collection("sequence_upload_log").get();
   assert.strictEqual(log.size, 1);
   const l = log.docs[0].data();
   assert.strictEqual(l.by, CALVIN.uid);
   assert.strictEqual(l.byEmail, CALVIN.email);
+  assert.strictEqual(l.version, "v2");
   assert.strictEqual(l.strata.low.length, seqs.low.length);
   assert.strictEqual(l.strata.high.sha256, seqs.high.sha256);
   const json = JSON.stringify(l);
@@ -126,12 +139,76 @@ test("sequence upload: validates, writes both strata + state, logs " +
 
 test("sequence upload: refused once anyone is allocated, even with replace",
     async () => {
-      await db.doc("randomization_state/low").set({next: 1});
+      await db.doc("randomization_state/v2_low").set({next: 1});
       assert.strictEqual(await code(SU.uploadSequence(db, CALVIN,
           payload(SEED, true), {now: NOW})), "already_allocated");
       assert.strictEqual(await code(SU.uploadSequence(db, CALVIN,
           payload(SEED, false), {now: NOW})), "already_allocated");
     });
+
+test("10/19 §C: version must be v2; ≥ 80 positions; nothing written " +
+    "when refused", async () => {
+  await reset();
+  await db.doc(R.CONFIG_DOC).set({enabled: true, sequenceUploadEnabled: true});
+  for (const v of [undefined, null, "v1", "v3", "V2", ""]) {
+    assert.strictEqual(await code(SU.uploadSequence(db, CALVIN,
+        payload(SEED, false, {version: v}), {now: NOW})), "version_required",
+    String(v));
+  }
+  assert.strictEqual(await code(SU.uploadSequence(db, CALVIN,
+      payload(SEED, false, {length: 60}), {now: NOW})), "too_short");
+  assert.strictEqual((await db.collection("randomization_sequences").get())
+      .size, 0);
+  assert.strictEqual((await db.collection("sequence_versions").get()).size,
+      0);
+});
+
+test("10/19 §C: v1 archived once (length, used, sha256 only) and left " +
+    "untouched; a v2 from v1's seed is refused", async () => {
+  await reset();
+  await db.doc(R.CONFIG_DOC).set({enabled: true, sequenceUploadEnabled: true});
+  // v1 as on the real project: ≥ 60 positions, 4 used in "low".
+  const V1_SEED = "v1-synthetic-seed-000001";
+  const v1 = R.generateSequences(V1_SEED, 60);
+  for (const s of R.STRATA) {
+    await db.doc(`randomization_sequences/${s}`).set({stratum: s,
+      arms: v1[s].arms, blocks: v1[s].blocks, length: v1[s].length,
+      sha256: v1[s].sha256});
+  }
+  await db.doc("randomization_state/low").set({next: 4});
+  await db.doc("randomization_state/high").set({next: 0});
+  const before = {};
+  for (const s of R.STRATA) {
+    before[s] = (await db.doc(`randomization_sequences/${s}`).get())
+        .updateTime.toMillis();
+  }
+  // Same seed, longer: starts with v1 → refused, nothing written.
+  assert.strictEqual(await code(SU.uploadSequence(db, CALVIN,
+      payload(V1_SEED), {now: NOW})), "same_seed_as_v1");
+  assert.strictEqual((await db.doc("sequence_versions/v1").get()).exists,
+      false);
+  // A new seed goes through and archives v1.
+  await SU.uploadSequence(db, CALVIN, payload(SEED), {now: NOW});
+  const rec = (await db.doc("sequence_versions/v1").get()).data();
+  assert.strictEqual(rec.status, "retired");
+  assert.deepStrictEqual(rec.strata.low, {length: v1.low.length, used: 4,
+    sha256: v1.low.sha256});
+  assert.deepStrictEqual(rec.strata.high, {length: v1.high.length, used: 0,
+    sha256: v1.high.sha256});
+  assert.ok(!JSON.stringify(rec).includes("arms"), "no arms in the record");
+  for (const s of R.STRATA) {
+    assert.strictEqual((await db.doc(`randomization_sequences/${s}`).get())
+        .updateTime.toMillis(), before[s], `v1 ${s} untouched`);
+  }
+  assert.strictEqual((await db.doc("randomization_state/low").get())
+      .get("next"), 4);
+  // A replace before any v2 allocation keeps the first v1 record.
+  const retiredAt = rec.retiredAt.toMillis();
+  await SU.uploadSequence(db, CALVIN,
+      payload("another-local-seed-00000003", true), {now: new Date()});
+  assert.strictEqual((await db.doc("sequence_versions/v1").get())
+      .get("retiredAt").toMillis(), retiredAt);
+});
 
 async function seedProcessParticipants() {
   await reset();

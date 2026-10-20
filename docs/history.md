@@ -14,6 +14,43 @@
 - 回忆 v2（第二节起）另由两个分支做（App、服务器），合在一个 PR。
 - 1020e：#134 加两处语音字样（旧小欣签到开场「寫幾句都得。」；旧小欣签到、通通、反思对话输入框「寫低你想講嘅嘢。」）。
 - 1020e 一.(9)「决策编号由开发编」：main 上 8 份 NNNN 草稿编为 0043–0050（文件名只把 NNNN 换成号码，英文名不变，旧文档里的 `NNNN-<名字>` 仍按名字找得到）：0043 clear-raw-output-on-delete、0044 companion-prompts-v2-tone-slot、0045 five-font-levels、0046 hide-transcript-retention-switch、0047 home-mood-entry-and-suggestions-profile、0048 home-safety-card-simplified、0049 tester-arm-self-switch、0050 tester-tools-unlock-without-pin。各 PR 里的草稿从 0051 起，合并前改名。
+## 2026-10-20 dev-tasks-1020e 二.13：「想重新聯絡嘅人」只传勾了「可以講」的人
+
+- 1020e 是 Junyu 对第 1 至 4 批和 #129–#131、#134 待定事项的回复。各项按 PR 分派；本段只记 #127 里这一项。
+- `researcher_intake.intakeFactsFor`：「想重新聯絡嘅人」和「重要嘅人」一样只取 `share` 为真的人；建议页同样过滤。旧资料没有 `share`，当作不传。
+- 新脚本 `tool/rewrite_reconnect_memory.js`：按入组文档重新写录入事实（和重新录入同一个函数），只动录入来的事实；默认预演，不打名字。emulator 测试 3 项。
+- 测试改动：`researcher_intake_emulator_test` 的合成资料加一个不分享的人；`suggestions_use_profile_test` 改为只传分享的人。
+
+## 2026-10-20 dev-tasks-1020c 第一节：#126 两个开关定开，开之前修两处
+
+- Junyu 定开 `appFontScaleOnlyEnabled`、`suggestionsUseProfileEnabled`（10/20 手机测试过后、10/21 第一位 RCT- 登记前）。开关表、`tool/check_prelaunch_values.js` 改为期望 true。
+- 查代码时发现：建议页带小欣的 agentId 请求记忆，服务器把它当一次新聊天，会放进到期「跟进」并标成已问，小欣之后就不会问。改为 `m6_suggestions` 和问候一样不放跟进（`memory.js`），加 emulator 测试（先确认改前失败）。
+- 字号开关一开只看 App 字号，手机字号大的人会从 1.30 变回 1.06。改为开关打开后第一次按当时大小取不比它小的一档，只做一次（`app_settings.dart`、`app.dart`），加单元测试。
+- 新测试 `test/suggestions_use_profile_test.dart`：Hybrid 开关开时传哪些字段；规则组开或关一字不差、零 LLM 调用。
+- 报告第十节重写：逐项列出传给 DeepSeek 的内容和是否本来就在记忆里；「想重新聯絡嘅人」记忆和建议页都不看「可以讲」，待 Junyu 定；登记表两行草稿。
+
+## 2026-10-19 dev-tasks-1020b：C 定案做完（RCT- 标 rct、一份 cohort 清单、序列 v2）、给 Qingyang 的上传步骤、#126 开关、语音次数（#127）
+
+- 1020b 存进 `docs/dev-tasks/`。#127 先合了最新 main（#126）。
+- C：`study_period.js` 加 RCT-（cohort `rct`，序列 v2），PB- 标 `retired`（新登记拒，旧账号照认）；`ENROLLED_COHORTS`、`PHASE_B_COHORTS` 两份清单；App `lib/core/study/cohorts.dart`；规则 `enrolledCohort()`。`weekly_schedule`、`blinding`、`djg_w2`、`tester_arm`、`analysis_export`、App `isEnrolled`／周程改读清单。防漏测试 `cohort_list_guard_test.js`。
+- 序列版本：`sequence_upload.js` 重写（版本 v2、≥ 80、v2 已分配拒、同种子拒、`sequence_versions/` 记 v1 停用和 v2 使用中；读 v1 用字段过滤，不读组别）；`randomization.enrol` 从 `v2_low`／`v2_high` 取组，登记和日志加 `sequenceVersion`、`allocatedArm`；`tool/randomization_sequence.js` 要 `--version=v2`、默认 80；`check_prelaunch_values.js` 列 v1／v2 长度、已用、指纹。
+- 测试：`rct_cohort_emulator_test.js`（非测试员 RCT- 和 PB- 走完全周程和三个导出）；两个分配测试改 RCT-／v2；规则测试加 rct 和 `sequence_versions`。盲法导出没有 cohort 列（检查脚本禁止），靠编号前缀分。W8（T35）还没做，第 56 天只核对周数。
+- 给 Qingyang 的步骤：`docs/release/sequence-v2-upload-20261020.md`，接 prelaunch-checklist G 节。开发只写不跑。
+- #126 四个开关进开关表（10/21 false），上线检查期望「没有或 false」。两个开关的四个问题答在批 1 报告第十节；「想重新聯絡嘅人」传给 DeepSeek 时不看 `share`，待 Junyu 定。
+- 只读脚本加自 10/15 起每人语音转写次数（只计数）。
+- 决策记录 `NNNN-rct-cohort-and-sequence-v2.md`（已采纳），0037 顶上标部分取代。
+- 第 2 批（小欣页）同时开工，在另一个分支。
+
+## 2026-10-19 dev-tasks-1020 第 1 批：设定页、安静时段固定开、今日休息取消、语音隐藏、导出加列、只读核对脚本；C 的序列版本方案待批（PR 草稿，分支 `claude/zealous-fermat-8rgqtg`）
+
+- #125 合并后分支从 main 重开（快进），按「一批一个 PR」做第 1 批。dev-tasks-1020 存进 `docs/dev-tasks/`，T 号 T50–T60。
+- H：`settings_page.dart` 去掉「通知」节，新 `MySettingsPage`（我的設定 → 顯示 → 高對比）；`quiet_hours.js` 不再看 `quietHoursEnabled`；`reminders.js`、`weeklyLonelinessProbe`、App `reminder_service.dart` 不再看 `quietTodayActivatedAt`。三个 emulator 测试按新规则改。
+- I：麦克风本来就全经 `VoiceInputButton` 一个开关，代码不用改；要在控制台关开关。`check_prelaunch_values.js` 期望值改成 10/21 的。
+- J：研究员录入页两句说明按代码改（记忆和鼓励方式下一句就用到；兴趣和唔想提起嘅话题要重开 App）。
+- C(5)：`analysis_export.js` 加五列，`delete_participant.js` 留下的分配记录加 `sequenceVersion`；合成数据编号改 `RCT-S…`。
+- C(2) 方案（v2 另存为 `v2_low`/`v2_high`、`sequence_versions/` 记停用、cohort 建议仍用 `phase_b` 加 `analysisSet`）写在 `docs/dev-reports/T50-T60-batch1-20261019.md`，等 Junyu 批。
+- 只读核对：`tool/readonly_check_1020.js`（保留开关、行动计划推送、今日休息、过期未展示的 Brief PR）。开发没有生产权限，要 Junyu 跑。代码能答的两题已答：保留开关关掉时 `turns`／`sessions` 照写（本来无原文）；服务器不把 `shortTermBuffer` 给聊天模型。
+- 顺带：#123 的冲突已由另一窗口合 main 解决，本地扫描确认无误。
 
 ## 2026-10-19 W0 现场第三批（Junyu 定）：只认 App 字號、Brief PR 卡上首页、记忆页分组、资料卡和热线卡缩小（PR 草稿，分支 `feat/1019-ui-round3`，接 #122）
 

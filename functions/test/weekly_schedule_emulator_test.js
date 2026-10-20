@@ -116,14 +116,14 @@ test("quiet hours postpone the push to the next tick", async () => {
   const c1 = await run(m, hk(7, 20), undefined, quiet);
   assert.strictEqual(c1.quiet_hours, 3);
   assert.strictEqual(m.sent.length, 0);
-  // Toggle off for ub: it goes out even inside the window.
+  // 10/20 (dev-tasks-1020 §H(2)): an old "off" on ub is ignored.
   await db.doc("users/ub").set({quietHoursEnabled: false}, {merge: true});
   const c2 = await run(m, hk(7, 20), undefined, quiet);
-  assert.strictEqual(c2.pushed, 1);
-  assert.strictEqual(m.sent[0].token, "tok-ub");
-  // 21:00: the window is over, the rest go out.
+  assert.strictEqual(c2.quiet_hours, 3);
+  assert.strictEqual(m.sent.length, 0);
+  // 21:00: the window is over, all three go out.
   const c3 = await run(m, hk(7, 21), undefined, quiet);
-  assert.strictEqual(c3.pushed, 2);
+  assert.strictEqual(c3.pushed, 3);
 });
 
 test("W1 timeline (W0 Monday): day 7 19:00 nothing; 20:00 push per " +

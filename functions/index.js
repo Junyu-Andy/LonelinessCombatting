@@ -1471,23 +1471,12 @@ exports.weeklyLonelinessProbe = onSchedule(
     const usersSnap = await db.collection("users").get();
     const writes = [];
     const now = admin.firestore.FieldValue.serverTimestamp();
-    const todayKey = new Date()
-        .toLocaleDateString("en-CA", {timeZone: "Asia/Hong_Kong"});
     for (const userDoc of usersSnap.docs) {
       const data = userDoc.data() || {};
       const enabled = data.weeklyProbeEnabled === true;
       if (!enabled) continue;
-      // B.10 — respect 今日休息.  If the user activated quiet-today
-      // (HK local day matches today), skip enqueueing the probe.
-      const quietRaw = data.quietTodayActivatedAt;
-      if (quietRaw) {
-        const quietDate = typeof quietRaw === "string" ?
-          quietRaw.slice(0, 10) :
-          (quietRaw.toDate ? quietRaw.toDate()
-              .toLocaleDateString("en-CA", {timeZone: "Asia/Hong_Kong"}) :
-              null);
-        if (quietDate === todayKey) continue;
-      }
+      // 10/20 (dev-tasks-1020 §H(3)): 今日休息 (quietTodayActivatedAt) is
+      // ignored — the App no longer offers it.
       writes.push(
         db.collection("pending_loneliness_probes").doc(userDoc.id).set({
           uid: userDoc.id,
@@ -2140,8 +2129,9 @@ const _ENROL_ERRORS = {
   research_id_taken: "already-exists",
   account_has_other_research_id: "already-exists",
   own_account: "invalid-argument",
-  // T21: PB- / PILOT- only; the pilot needs a version.
+  // T21: RCT- / PILOT- only (PB- retired 10/19); the pilot needs a version.
   research_id_prefix: "invalid-argument",
+  research_id_prefix_retired: "failed-precondition",
   invalid_pilot_arm: "invalid-argument",
 };
 
@@ -2259,9 +2249,14 @@ const _UPLOAD_ERRORS = {
   invalid_sequences: "invalid-argument",
   already_uploaded: "already-exists",
   already_allocated: "failed-precondition",
+  // 10/19 (dev-tasks-1020 §C): versioned uploads.
+  version_required: "invalid-argument",
+  too_short: "invalid-argument",
+  same_seed_as_v1: "failed-precondition",
 };
 
-// Calvin (`sequence_uploader`) uploads the sequences he generated locally.
+// The `sequence_uploader` uploads the sequences they generated locally
+// (10/19: version v2, functions/sequence_upload.js).
 exports.uploadRandomizationSequence = onCall(
     {region: "asia-east2", enforceAppCheck: false, maxInstances: 1},
     async (request) => {
