@@ -26,6 +26,8 @@
    ```
 
    左边点最上面的 **Runner** → 中间选 **Signing & Capabilities** → 勾 **Automatically manage signing** → **Team** 选团队 ID 是 `LD7U7N7ZY8` 的那个（就是上传 TestFlight 用的团队）。没有报红就关掉 Xcode。
+4. **和 Xcode 配对**：Xcode → Window → Devices and Simulators，左边点这台设备，如果有「Pair」按钮就点一下，在设备上确认。不配对的话，Xcode 列表里看得到设备，`flutter devices` 却看不到（10/20 iPad mini，iPadOS 26）。第一次连接 Xcode 可能还要「Preparing」几分钟，设备保持解锁等它做完。
+5. 设备系统要 iOS / iPadOS 15 或更新（App 的最低要求）。
 
 ### iOS 要用新版 Flutter（10/20 实测）
 
