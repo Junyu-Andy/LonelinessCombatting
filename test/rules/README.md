@@ -54,3 +54,9 @@ fields (`finalText`, `flags`, `generatedAt`, `deletedSentences`,
 `runs/` archive are never client-writable; no deletes; the enrolment gate
 applies.  `reminiscence_v2` and `reminiscence_chapter_ratings` stay under
 the generic owner rule.
+`intake_gate_rules.test.js` — 1020e §2.14 `users/{uid}.intakeGateUnlockedAt`
+(the researcher unlocked the explanation gate before the intake): the owner
+writes it once, as the server time only (both arms, enrolment gate on or
+off); a phone time, null, a second write, a change or a removal → denied;
+ordinary profile saves that leave it out still pass; no assignment field or
+`isTester` rides along.

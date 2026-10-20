@@ -54,6 +54,7 @@ rules_version = '2';
 //   weekly_status/{uid}                          -> T24 weekly bundle status, research ID, push times (server only)
 //   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events (owner: create only; server stamps research ID, study day, uploadedLate)
 //   intake_audit_log/{id}                        -> T47 researcher-recorded intake log (server-only)
+//   users/{uid}.intakeGateUnlockedAt             -> 1020e §2.14 explanation gate unlocked (owner: once, server time only)
 //   ops_daily/{uid}/days/{dayKey}, ops_audit_log/{id} -> T39 operations dashboard: stored day rows + open log (server only)
 //   users/{uid}/reminiscence_chapters/week_{N}   -> 1020d 小篇章 (owner: request, rule text, edits; server: result fields;
 //                                                   .../runs/{requestId} archive is server only)
@@ -182,13 +183,35 @@ service cloud.firestore {
         .hasAny(['isTester']);
     }
 
+    // 1020e §2.14: `intakeGateUnlockedAt` — when the researcher unlocked
+    // the explanation gate in front of the intake (three taps in the
+    // centre of the waiting page; switch researcherIntakeGateEnabled).
+    // The owner may write it once, and only as the server time: never a
+    // phone time, never changed or removed afterwards (so "unlocked" can
+    // not be undone or back-dated from the App).  The App's profile saves
+    // leave it out, so they pass unchanged.  The console / Admin SDK can
+    // still clear it, e.g. to show a tester the gate again.
+    function createIntakeGateOk(data) {
+      return !('intakeGateUnlockedAt' in data)
+        || data.intakeGateUnlockedAt == request.time;
+    }
+
+    function updateIntakeGateOk() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['intakeGateUnlockedAt'])
+        || (!('intakeGateUnlockedAt' in resource.data)
+            && request.resource.data.intakeGateUnlockedAt == request.time);
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)
         && createLeavesAssignmentEmpty(request.resource.data)
-        && createLeavesTesterEmpty(request.resource.data);
+        && createLeavesTesterEmpty(request.resource.data)
+        && createIntakeGateOk(request.resource.data);
       allow update: if isOwner(uid) && updateLeavesAssignmentUntouched()
-        && updateLeavesTesterUntouched();
+        && updateLeavesTesterUntouched()
+        && updateIntakeGateOk();
       allow delete: if false;
     }
 
