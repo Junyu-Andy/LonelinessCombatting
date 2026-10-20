@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-20 1020h：急性中断后当天不再重开 check-in；「当天」用香港日期；登记表 C06 小篇章来源确认（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-1020h`，接冻结合并 #139）
+
+- `siu_yan_chat_page.dart`：`_findResumable` 改为 `_todayStops`，一次读当天的 check-in 行，分出「标了误触、可续问」和「急性中断、没标误触」两种。后者和 `done` 一样进聊天（`_seedChatOpener`），不再 `_beginCheckIn`。不加开关，放在误触续问的同一条路上。
+- `mood_recorder.dart`：`dateIsoFor` 改为香港日期（UTC+8），和 `functions/pi_alert.js hkDateKey`、`false_alarm.js` 一致（1020g 第二节 (2)）。
+- 测试：`check_in_chat_v2_test.dart` 两组「没标误触再进 → 聊天开场、不新开一行」、「昨天中断 → 今天从 Q0」、香港日期边界；原有「标误触 → 续问」「第二天不续问」照旧通过。
+- 登记表（仓库副本 `docs/spec/feature-registry.md`）v10.1：C06 写入回忆 v2 和小篇章的组间差异，状态改为已确认（Junyu 10/20）。
+
 ## 2026-10-20 冻结合并（1020g）：11 个草稿 PR 按 Fable 的顺序合成一条分支，加第一节七项修正（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-freeze`）
 
 - 合并顺序：#134 → #127 → #128 → #131 → #133 → #132 → #135 → #137 → #136 → #130 → #138。冲突都是两边各加几行（开关表、测试清单、规则测试清单、`pubspec.yaml` 资源目录、提示词清单），两边都留；手工合并两处：`functions/index.js`（#137 的小篇章触发器放在 #132 的 19:00 推送前面，丢掉 #137 带进来的旧 `dailyMoodReminder`）、`chat_session_recorder.dart`（`entrySurface` 和回忆 v2 的两个字段都写进会话行）；`ops_dashboard.js` 用 #130 的 `LAST_USE_SCAN` 加 #137 的小篇章查询。

@@ -61,6 +61,7 @@ import 'package:app_demo/features/crisis/presentation/pages/emergency_support_pa
 import 'package:app_demo/features/rule_replies/data/rule_reply_history_store.dart';
 import 'package:app_demo/features/rule_replies/data/rule_reply_pool.dart';
 import 'package:app_demo/features/researcher_dashboard/presentation/widgets/safety_alerts_section.dart';
+import 'package:app_demo/features/today/data/mood_recorder.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1073,12 +1074,49 @@ void main() {
       expect(_says(CheckInChatCopy.q3b), findsNothing);
     });
 
-    testWidgets('not marked (a real crisis stop): no resume', (tester) async {
+    // 1020h 一 — a crisis stop today that the researcher did not mark
+    // counts as today's check-in (as the server's P2 rule): reopening the
+    // window gives the chat, as when the check-in was done — never Q0 again.
+    for (final arm in [ArmAssignment.b, ArmAssignment.a]) {
+      final tag = arm == ArmAssignment.b ? 'rule' : 'Hybrid';
+      testWidgets('$tag: not marked (a real crisis stop): no resume, no new '
+          'check-in — the chat opener', (tester) async {
+        final run = _Run(arm);
+        run.store.docs['ci_old'] = stoppedRow(marked: false);
+        await _open(tester, run, _page(run));
+        expect(_says(CheckInChatCopy.q1), findsNothing, reason: 'no restart');
+        expect(_says(CheckInChatCopy.q3b), findsNothing, reason: 'no resume');
+        expect(_says('早晨！想問下你尋日嘅情況，幾條就得。'), findsNothing);
+        if (arm == ArmAssignment.b) {
+          expect(_says(CheckInChatCopy.sy0), findsOneWidget);
+          expect(run.prompts.map((p) => p.$1), ['SY0']);
+          expect(run.llm.calls, isEmpty);
+        } else {
+          expect(run.llm.calls.single.suffix,
+              contains('[開場·check-in 已做]'));
+        }
+        expect(run.store.docs.keys, ['ci_old'], reason: 'no new row');
+      }, skip: arm == ArmAssignment.b ? !_ruleTestable : !_hybridTestable);
+    }
+
+    testWidgets('not marked yesterday: today a new check-in from Q0',
+        (tester) async {
       final run = _Run(_ruleTestable ? ArmAssignment.b : ArmAssignment.a);
-      run.store.docs['ci_old'] = stoppedRow(marked: false);
+      run.store.docs['ci_old'] =
+          stoppedRow(date: '2026-10-20', marked: false);
       await _open(tester, run, _page(run));
       expect(_says(CheckInChatCopy.q1), findsOneWidget);
-      expect(_says(CheckInChatCopy.q3b), findsNothing);
+      expect(_says(CheckInChatCopy.sy0), findsNothing);
+    });
+
+    test('1020h 一 (4): "today" is the Hong Kong date, whatever the phone '
+        'time zone', () {
+      expect(MoodRecorder.dateIsoFor(DateTime.utc(2026, 10, 20, 15, 59)),
+          '2026-10-20');
+      expect(MoodRecorder.dateIsoFor(DateTime.utc(2026, 10, 20, 16, 0)),
+          '2026-10-21', reason: '00:00 in Hong Kong');
+      expect(MoodRecorder.dateIsoFor(DateTime.utc(2026, 10, 21, 2, 0)),
+          '2026-10-21');
     });
 
     testWidgets('already resumed once today: no second resume',

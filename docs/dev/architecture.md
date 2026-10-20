@@ -48,6 +48,7 @@
 > 2026-10-20 第 4 批按 1020e 改（取代上一行的每周问卷部分）：`weeklyReminderV2Enabled` 开时 App 和服务器的 W1–W4 窗口改为整日（第 1–3 周第 7 天 00:00 至第 9 天 23:59；第 4 周第 26 天 00:00 至评估员录入 W4 那天结束，最晚第 42 天结束），推送都在 10:00（预告、开放、提醒，`v2StepsFor`），电邮在第 9、16、23、28 天；新服务器字段 `users/{uid}.w4RecordedOn`（`assessor.js` 写，规则只许服务器写，App `UserProfile.w4RecordedOn` 读）、各部分 `outsideWindow`；App `RemoteFeatureFlags.weeklyReminderV2Enabled`、`WeeklySchedule.openBundlesAt` / `WeeklyBundleDue.firstNotDone`（W4 与 W5/W6 重叠时取第一个未做完的）；P1 跳过已做 check-in 的人，P2 每周问卷推送日照发，check-in 因危机中断算做过、`falseAlarm: true` 的不算；测试推送按钮改名并加新 kind。PR 草稿。
 > 2026-10-20 1020f 第一节：PGIC（`pgic_page.dart`）、Brief PR（`brief_pr_flow_page.dart` 的 `briefPrItems`、`brief_pr_page.dart`）照已批问卷包 B.5、B.3；`WeeklyPrItems` 以「呢個禮拜」开头；`MoodFace.label` 和 `AppMoodEncoding` 同一套五个字；每周问卷各部分页标题 = `weeklyPartTitle`。字段、存储、计分不变；无开关。
 > 2026-10-20 1020g 冻结合并：`QuestionnaireRowInfo.resolve` 收 `week4RecordedOn`，按 `openBundlesAt` 顺序取第一个未完成的问卷包（同 `PendingPromptsService.weeklyBundleDue`）；小篇章推送只看安静时段；决策 0051–0060 落号。
+> 2026-10-20 1020h：`SiuYanChatPage._todayStops`——当天（香港日期）急性中断且没标误触 → 进聊天（同 check-in 已做）；标了误触 → 续问。`MoodRecorder.dateIsoFor` 用香港日期。
 
 ## 1. 一句话
 
