@@ -33,6 +33,7 @@ import '../../data/m3_session_store.dart';
 import '../../data/reminiscence_themes.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
+import '../../../crisis/presentation/widgets/crisis_chat_message.dart';
 
 /// M3 — Reminiscence, Arm A.
 ///
@@ -484,6 +485,7 @@ clay-pot rice stand..."
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final history = _turns
         .take(_turns.length - 1)
+        .where((t) => !t.crisis)
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
     final themeTitle = isEn ? widget.theme.titleEn : widget.theme.titleZh;
@@ -583,11 +585,11 @@ clay-pot rice stand..."
     final modality = usedVoice ? InputModality.voice : InputModality.text;
     final moduleId = 'm3_reminiscence_w${widget.theme.weekIndex}';
     if (response.shortCircuited) {
-      // S-2 — acute: template instead of any reply; session ends `crisis`.
+      // S-2 — acute: the fixed safety message instead of any reply
+      // (1020m 第三节: [CrisisChatMessage]); session ends `crisis`.
       setState(() {
         _busy = false;
-        _turns.add(_Turn.system(
-            SafetyCopy.acuteAck(AgentRegistry.ahJanAhBakId, isEn: isEn)));
+        _turns.add(_Turn.crisis());
       });
       unawaited(_recorder?.logTurn(TurnRecord(
         agentId: AgentRegistry.ahJanAhBakId,
@@ -619,6 +621,8 @@ clay-pot rice stand..."
     final moderateAck = escalation.interrupts
         ? SafetyCopy.moderateAck(AgentRegistry.ahJanAhBakId, isEn: isEn)
         : null;
+    // 1020m 第三节: acute on the reply scan → the fixed safety message.
+    final crisis = escalation.level == DistressLevel.acute;
 
     // S-6 — fallback line from JSON on LLM failure.
     final replyText = response.isFallback
@@ -630,6 +634,7 @@ clay-pot rice stand..."
       _turns.add(_Turn.bot(replyText,
           promptHash: response.metadata.systemPromptHash));
       if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
+      if (crisis) _turns.add(_Turn.crisis());
     });
     final turnIndex = _turns.lastIndexWhere((t) => !t.fromUser && !t.isSystem);
     final turnDocId = await _recorder?.logTurn(TurnRecord(
@@ -644,7 +649,7 @@ clay-pot rice stand..."
       userText: text,
       detector: escalation,
       shortCircuited: false,
-      ackShown: moderateAck != null,
+      ackShown: moderateAck != null || crisis,
       response: response,
     ));
     if (mounted && turnDocId != null && turnIndex >= 0) {
@@ -710,6 +715,7 @@ clay-pot rice stand..."
       _showingSummary = true;
     });
     final history = _turns
+        .where((t) => !t.crisis)
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
     final response = await core.llm.send(
@@ -1026,14 +1032,20 @@ class _Turn {
 
   /// L-1 — id of the logged `turns/{turnId}` doc (assistant turns only).
   final String? turnDocId;
+
+  /// 1020m 第三节: shown as [CrisisChatMessage]; never sent to the model.
+  final bool crisis;
   const _Turn._(this.fromUser, this.isSystem, this.text,
-      {this.promptHash, this.turnDocId});
+      {this.promptHash, this.turnDocId, this.crisis = false});
   factory _Turn.user(String t) => _Turn._(true, false, t);
   factory _Turn.bot(String t, {String? promptHash}) =>
       _Turn._(false, false, t, promptHash: promptHash);
   factory _Turn.system(String t) => _Turn._(false, true, t);
-  _Turn withTurnDocId(String id) =>
-      _Turn._(fromUser, isSystem, text, promptHash: promptHash, turnDocId: id);
+
+  /// 1020m 第三节: the fixed safety message after an acute trigger.
+  factory _Turn.crisis() => _Turn._(false, true, '', crisis: true);
+  _Turn withTurnDocId(String id) => _Turn._(fromUser, isSystem, text,
+      promptHash: promptHash, turnDocId: id, crisis: crisis);
 }
 
 class _Bubble extends StatelessWidget {
@@ -1041,6 +1053,7 @@ class _Bubble extends StatelessWidget {
   const _Bubble({required this.turn});
   @override
   Widget build(BuildContext context) {
+    if (turn.crisis) return const CrisisChatMessage();
     final theme = Theme.of(context);
     // UX-polish: bot bubble was previously surfaceContainerHighest,
     // which read as background. Use secondaryContainer so the

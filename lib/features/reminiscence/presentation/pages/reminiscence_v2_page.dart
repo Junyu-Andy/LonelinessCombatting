@@ -71,6 +71,7 @@ import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../crisis/presentation/widgets/crisis_chat_message.dart';
 import '../../../rule_replies/data/rule_reply_pool.dart';
 import '../../data/reminiscence_themes.dart';
 import '../../data/reminiscence_v2_copy.dart';
@@ -104,9 +105,16 @@ class ReminiscenceV2Page extends StatefulWidget {
 enum _Stage { loading, answer, followupAnswer, waiting, finish, chapter, extra }
 
 class _Ack {
-  _Ack(this.afterCount, this.text);
+  _Ack(this.afterCount, this.text) : crisis = false;
+
+  /// 1020m 第三节: the fixed safety message after an acute trigger
+  /// ([CrisisChatMessage]), both arms alike.
+  _Ack.crisis(this.afterCount)
+      : text = '',
+        crisis = true;
   final int afterCount;
   final String text;
+  final bool crisis;
 }
 
 class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
@@ -781,13 +789,17 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     final i = s.messages.indexOf(msg);
     if (i >= 0) s.messages[i] = msg.copyWith(safety: flag.level.tierCode);
     final acute = flag.level == DistressLevel.acute;
+    // 1020m 第三节: acute → the fixed safety message (the crisis page's
+    // numbers); moderate_interrupt → the per-agent moderate template.
+    final moderate =
+        acute ? null : SafetyCopy.moderateAck(_agent, isEn: false);
     final ack = acute
-        ? SafetyCopy.acuteAck(_agent, isEn: false)
-        : SafetyCopy.moderateAck(_agent, isEn: false);
+        ? _Ack.crisis(s.messages.length)
+        : (moderate == null ? null : _Ack(s.messages.length, moderate));
     _safetyStopped = true;
     if (mounted) {
       setState(() {
-        if (ack != null) _acks.add(_Ack(s.messages.length, ack));
+        if (ack != null) _acks.add(ack);
         _busy = false;
         _stage = _stage == _Stage.extra || msg.kind == ReminiscenceMessageKind.extra
             ? _Stage.chapter
@@ -1177,7 +1189,10 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     }
     void acksAt(int count) {
       for (final a in _acks) {
-        if (a.afterCount == count) out.add(_SystemBubble(text: a.text));
+        if (a.afterCount != count) continue;
+        out.add(a.crisis
+            ? const CrisisChatMessage()
+            : _SystemBubble(text: a.text));
       }
     }
 

@@ -28,19 +28,26 @@ void main() {
     expect(SafetyCopy.crisis.headlineZh.length, lessThanOrEqualTo(20));
   });
 
-  test('S-4: acute templates name a hotline that is item 1 or 2 of the page',
-      () {
+  test('S-4: the {{HOTLINE_*}} reference is item 1 or 2 of the page', () {
     final ref = SafetyCopy.crisis.acuteReference!;
     final idx = SafetyCopy.crisis.resources.indexOf(ref);
     expect(idx, lessThanOrEqualTo(1));
+  });
+
+  // 1020m 第三节: after acute every chat shows CrisisChatMessage (the crisis
+  // page's whole list); no per-agent template names a hotline or a number.
+  test('1020m: the moderate templates name no hotline and no number', () {
+    final names = [
+      for (final r in SafetyCopy.crisis.resources) ...[r.nameZh, r.nameEn],
+    ];
     for (final agent in ['siu_yan', 'ah_jan_ah_bak', 'tung_tung']) {
-      final zh = SafetyCopy.acuteAck(agent, isEn: false);
-      final en = SafetyCopy.acuteAck(agent, isEn: true);
-      expect(zh, contains(ref.nameZh));
-      expect(zh, contains(ref.number));
-      expect(en, contains(ref.nameEn));
-      expect(en, contains(ref.number));
-      expect(zh, isNot(contains('{{')));
+      for (final isEn in [false, true]) {
+        final t = SafetyCopy.moderateAck(agent, isEn: isEn) ?? '';
+        expect(t, isNot(matches(RegExp(r'\d{3}'))), reason: '$agent $isEn');
+        for (final n in names) {
+          expect(t, isNot(contains(n)), reason: '$agent $isEn');
+        }
+      }
     }
   });
 
@@ -52,8 +59,6 @@ void main() {
     expect(SafetyCopy.moderateAck('tung_tung', isEn: false), '呢度有支援資源，要唔要睇下？');
     expect(SafetyCopy.moderateAck('tung_tung', isEn: true),
         "There's support here — would you like to see it?");
-    expect(SafetyCopy.acuteAck('ah_jan_ah_bak', isEn: false), endsWith('我都喺度。'));
-    expect(SafetyCopy.acuteAck('ah_jan_ah_bak', isEn: true), endsWith("I'll be here."));
     // Ah Jan's moderate template must not end the conversation any more.
     expect(SafetyCopy.moderateAck('ah_jan_ah_bak', isEn: false),
         isNot(contains('唔好繼續')));
