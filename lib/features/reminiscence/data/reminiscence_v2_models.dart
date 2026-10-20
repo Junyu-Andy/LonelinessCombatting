@@ -16,6 +16,10 @@ import 'reminiscence_v2_copy.dart';
 
 /// `messages[].kind` (contract with the server agent).
 enum ReminiscenceMessageKind {
+  /// 1020o (4a): the week's scene picture with one line, the first bubble
+  /// of the week (before the opener).  Shown only; never sent to the model,
+  /// no reply expected.
+  scene('scene'),
   opener('opener'),
   question('question'),
   answer('answer'),

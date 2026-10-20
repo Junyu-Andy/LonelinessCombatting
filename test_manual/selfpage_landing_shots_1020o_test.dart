@@ -161,7 +161,10 @@ Future<void> _pump(WidgetTester tester, Widget home,
   final memory = MemoryStore(available: false);
   final state = DistressState();
   await tester.pumpWidget(AppSettingsScope(
-    settings: AppSettings(locale: const Locale('zh'), profile: _profile(variant)),
+    settings: AppSettings(
+        locale: const Locale('zh'),
+        highContrast: highContrast,
+        profile: _profile(variant)),
     child: AuthServiceScope(
       authService: AuthService(available: false),
       child: AnalyticsScope(

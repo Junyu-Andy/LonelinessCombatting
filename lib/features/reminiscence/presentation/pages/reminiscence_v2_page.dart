@@ -41,6 +41,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agent_context/agent_context_service.dart';
@@ -152,6 +153,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
   // Fixed for the page's life.
   bool _ruleArm = true;
   bool _available = false;
+  AssetBundle? _bundle;
   String? _uid;
   UserProfile? _profile;
   AnalyticsService? _analytics;
@@ -195,6 +197,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     _started = true;
     _ruleArm = !Arm.isA(context);
     _available = AuthServiceScope.of(context).available;
+    _bundle = DefaultAssetBundle.of(context);
     _profile = AppSettingsScope.read(context).profile;
     _uid = _profile?.uid;
     _analytics = AnalyticsScope.of(context);
@@ -233,7 +236,15 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     state ??= ReminiscenceWeekState(weekIndex: _week, arm: arm);
     _state = state;
     if (state.messages.isEmpty) {
-      // First visit of the week: the opener (three bubbles), then Q1.
+      // First visit of the week: the scene picture with its line (1020o
+      // (4a); only if the App has the picture), the opener (three
+      // bubbles), then Q1.  The scene does not wait for a reply.
+      final scene = await _hasScene();
+      if (!mounted) return;
+      if (scene) {
+        _add(ReminiscenceMessageKind.scene, ReminiscenceV2Copy.sceneLines[_week]!,
+            copyId: 'scene_$_week');
+      }
       final name = AgentRegistry.ahJanAhBakName(_profile?.ahJanAhBakVariant);
       final opener = ReminiscenceV2Copy.openerFor(_week, name: name);
       for (var i = 0; i < opener.length; i++) {
@@ -249,6 +260,22 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     if (!mounted) return;
     setState(() => _stage = _Stage.waiting);
     await _advance();
+  }
+
+  /// Whether the week's scene picture ships with the App (asset manifest).
+  Future<bool> _hasScene() async {
+    final bundle = _bundle;
+    if (bundle == null || !ReminiscenceV2Copy.sceneLines.containsKey(_week)) {
+      return false;
+    }
+    try {
+      final manifest = await AssetManifest.loadFromAssetBundle(bundle);
+      return manifest
+          .listAssets()
+          .contains(ReminiscenceV2Copy.sceneAsset(_week));
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _save() async {
@@ -295,6 +322,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     final last = _messages.last;
     final q = last.questionIndex;
     switch (last.kind) {
+      case ReminiscenceMessageKind.scene:
       case ReminiscenceMessageKind.opener:
         _askQuestion(1);
         await _save();
@@ -668,11 +696,14 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
   }
 
   /// The week so far as alternating model turns (flagged messages and the
-  /// message being answered left out; the last 16 turns).
+  /// message being answered left out; the last 16 turns).  1020o (4a): the
+  /// scene bubble is left out too — the model cannot see the picture and
+  /// has no description of it, and the line asks for no reply.
   List<LlmTurn> _history(int upTo) {
     final out = <LlmTurn>[];
     for (final m in _messages.take(upTo)) {
       if (m.flagged || m.text.trim().isEmpty) continue;
+      if (m.kind == ReminiscenceMessageKind.scene) continue;
       final fromUser = m.fromUser;
       if (out.isNotEmpty && out.last.fromUser == fromUser) {
         final prev = out.removeLast();
@@ -1350,6 +1381,11 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final m = message;
+    if (m.kind == ReminiscenceMessageKind.scene) {
+      final week = int.tryParse(m.copyId?.replaceFirst('scene_', '') ?? '');
+      if (week == null) return const SizedBox.shrink();
+      return _SceneBubble(weekIndex: week, text: m.text);
+    }
     final color = m.fromUser
         ? theme.colorScheme.primaryContainer
         : theme.colorScheme.secondaryContainer;
@@ -1378,6 +1414,59 @@ class _MessageBubble extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 1020o (4a) — the week's picture (4:3, rounded, as wide as a chat
+/// bubble) with its line underneath, in the companion's bubble colour.  If
+/// the picture cannot load, the whole bubble is left out.
+class _SceneBubble extends StatelessWidget {
+  const _SceneBubble({required this.weekIndex, required this.text});
+  final int weekIndex;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final width = MediaQuery.of(context).size.width * 0.88;
+    return Image.asset(
+      ReminiscenceV2Copy.sceneAsset(weekIndex),
+      key: ValueKey('reminiscence_scene_$weekIndex'),
+      fit: BoxFit.cover,
+      excludeFromSemantics: true,
+      // The whole bubble, built around the picture.
+      frameBuilder: (context, picture, _, __) => Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          key: const Key('reminiscence_scene_bubble'),
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          width: width,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AspectRatio(aspectRatio: 4 / 3, child: picture),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: RichChatText(
+                  text: text,
+                  style: TextStyle(
+                    fontSize: 17,
+                    height: 1.4,
+                    color: theme.colorScheme.onSecondaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
     );
   }
 }
