@@ -31,7 +31,7 @@
 
 **iOS 不能用 3.35.3 编译。** 仓库里的 iOS 工程（`ios/Runner/AppDelegate.swift`、`Info.plist` 的 UIScene 设置）从 10/04 第一次导入起，就是新版 Flutter（3.38 以上）的写法。用 3.35.3 编译会报 `Cannot find type 'FlutterImplicitEngineDelegate'`。以前的 TestFlight 包都是用 Mac 上的 3.44.1 打的。所以：
 
-- **iOS 用 3.44.1**：命令里的 `flutter` 一律写成 `~/dev/flutter/bin/flutter`。
+- **iOS 用 3.44.1**：先找到它的完整路径：`for f in $(which -a flutter); do echo "$f"; "$f" --version | head -1; done`，选显示 3.44.1 的那个。下面命令里的 `$FLUTTER_IOS` 换成这个路径，或者先运行 `FLUTTER_IOS=<那个路径>`。
 - 安卓和本地测试照旧用 3.35.3（直接写 `flutter`）。
 - 两个版本之间切换后，第一次编译前先跑一次 `flutter clean`（用接下来要用的那个版本）。
 - 新版 Xcode 还要求 `ios/Podfile` 里所有组件的最低系统是 15.0。改法见 1020j 开发窗口记录；以后会提交进仓库。
@@ -43,8 +43,8 @@
 ```bash
 cd ~/dev/LonelinessCombatting
 git checkout main && git pull
-~/dev/flutter/bin/flutter devices                 # 找到 iPad 那一行，第二列是设备 id
-~/dev/flutter/bin/flutter run --release -d <设备id> \
+$FLUTTER_IOS devices                 # 找到 iPad 那一行，第二列是设备 id
+$FLUTTER_IOS run --release -d <设备id> \
   --dart-define=PHASE_B=true --dart-define=RULE_TEMPLATE_REPLIES=true \
   --dart-define=TESTER_PIN=<测试员 PIN>
 ```
