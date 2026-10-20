@@ -200,7 +200,7 @@ if wants analyze; then
   fi
   if [ $NODE_OK = 1 ] || have node; then
     run_step "小讀本 HTML 检查" "$LOGDIR/reader_html.log" \
-      sh -c 'node tool/check_reader_html.js && node test/reader_html_check/check_reader_html_test.js'
+      sh -c 'node tool/check_reader_html.js && node test/reader_html_check/check_reader_html_test.js && node test/reader_html_check/add_readers_test.js'
   else
     skip_step "小讀本 HTML 检查" "没有 node"
   fi

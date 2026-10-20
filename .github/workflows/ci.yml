@@ -34,11 +34,14 @@ jobs:
       # 1020c §3 — every 小讀本 file in assets/readers/ (no external
       # resources, no network APIs, no phone numbers, no 「AI」「模型」
       # 「機械人」「版本」「組」, data-section, .txt, manifest, < 1 MB), then
-      # the checker's own tests.  Node is preinstalled on the runner.
+      # the checker's own tests and (1021) tool/add_readers.sh's tests.
+      # Node is preinstalled on the runner.
       - name: Reader HTML check
         run: |
           node tool/check_reader_html.js
           node test/reader_html_check/check_reader_html_test.js
+          bash -n tool/add_readers.sh
+          node test/reader_html_check/add_readers_test.js
       # Existing infos/warnings are known (ARCHITECTURE_NOTES.md); only
       # errors fail the build.
       - name: Analyze
