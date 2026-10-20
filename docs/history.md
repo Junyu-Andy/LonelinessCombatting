@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-20 1020f 第一节：量表文字改回已批问卷包（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-1020f`，从 `main` 开）
+
+- 依据 decisions-log 10/20 第 48 至 50 条和已批问卷包（7/17 提交版）附录 B.3、B.5。按修 bug 处理，两组相同，不加开关。
+- `pgic_page.dart`：题干、七个选项照 B.5；标题「同開始用嗰時比較」。`brief_pr_flow_page.dart`、`brief_pr_page.dart`：四题照 B.3，每题自己的两端和中点文字；一题一屏页顶「今次傾偈：〈名字〉」。`weekly_pr_response.dart`：12 题「頭先」→「呢個禮拜」。`check_in_shared.dart`（`MoodFace.label`）、`app_mood_encoding.dart`（图例）：同一套五个字。`weekly_bundle_flow_page.dart`：DJG、S12 页标题用部分名；`weekly_pr_page.dart`、`pgic_page.dart` 标题同样改。
+- 只读核对（1020f 第一节第 6 项）：小篇章两次模型调用前的文字都过 `stripPII`（#137 `reminiscence_chapter.js` `normaliseInput`，`index.js` 传入）；「改一改」两组都走 `saveChapterEdit` → 共享安全检测（输入点 `reminiscence_summary_edit`）；后备收件人字段是 `meta/alert_config.backupEmail`，生产值由 Junyu 用 `tool/check_prelaunch_values.js` 查（脚本已期望「没有」）。
+- `tool/check_prelaunch_values.js` 加 1020d、1020e 的七个新开关，期望值 10/20 晚由 Junyu 定（先只显示）。
+- 新测试 `test/instrument_wording_1020f_test.dart`；截图 `docs/dev-reports/1020f-shots/`。
+
 ## 2026-10-19 W0 现场第三批（Junyu 定）：只认 App 字號、Brief PR 卡上首页、记忆页分组、资料卡和热线卡缩小（PR 草稿，分支 `feat/1019-ui-round3`，接 #122）
 
 - 两个开关默认关：`appFontScaleOnlyEnabled`（`app.dart` 只用 `settings.fontScale`，不乘系统 textScaler）、`briefPrHomeBannerEnabled`（`today_page.dart` 问候语下面放同一个 `BriefPrCardHost`，调度规则不变）。

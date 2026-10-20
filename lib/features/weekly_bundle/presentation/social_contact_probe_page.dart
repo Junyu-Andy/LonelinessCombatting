@@ -18,7 +18,7 @@ class SocialContactProbePage extends StatefulWidget {
     super.key,
     required this.store,
     this.part,
-    this.title = '每週問卷',
+    this.title = '過去 7 日同人見面、聯絡',
   });
 
   final SocialContactStore store;

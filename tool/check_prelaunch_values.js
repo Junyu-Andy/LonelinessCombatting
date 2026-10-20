@@ -34,6 +34,23 @@ const CHECKS = [
     'T31 S7 说明，和 layersEnabled 一起开（10/19）'],
   ['app_config/feature_flags', 'testerArmSwitchEnabled', null,
     '测试员切组（PR #112，合了才有）'],
+  // 1020f 第三节: switches added by 1020d / 1020e.  Junyu sets the
+  // expected values on the evening of 10/20 (until then "—", shown only).
+  // The 1020f 第一节 fixes (measure wording) have no switch.
+  ['app_config/feature_flags', 'safetyFalseAlarmMarkEnabled', null,
+    '1020e 二.9「誤觸」标记（#128），期望值 10/20 晚定'],
+  ['app_config/feature_flags', 'actionPlanSimplifiedEnabled', null,
+    '1020e 二.7 (1) 行动计划少填、可改可删（#135），期望值 10/20 晚定'],
+  ['app_config/feature_flags', 'actionPlanMemoryEnabled', null,
+    '1020e 二.7 (2) 计划接上小欣记忆（#135），期望值 10/20 晚定'],
+  ['app_config/feature_flags', 'researcherIntakeGateEnabled', null,
+    '1020e 二.14 研究员讲解闸门（#136），期望值 10/20 晚定'],
+  ['app_config/feature_flags', 'reminiscenceV2Enabled', null,
+    '1020d 回忆 v2（#137），期望值 10/20 晚定'],
+  ['app_config/feature_flags', 'leaveButtonV2Enabled', null,
+    '1020d 离开按钮（#137），期望值 10/20 晚定'],
+  ['app_config/feature_flags', 'weeklyReminderV2Enabled', null,
+    '1020e 每周问卷新窗口和 10:00 提醒（#132），期望值 10/20 晚定'],
   ['app_config/feature_flags', 'sessionBriefPrV2Enabled', 'absent',
     '放错位置的键，应删掉（正确位置在 phase_b）'],
   ['app_config/phase_b', 'sessionBriefPrV2Enabled', true, 'T25 收尾按钮'],

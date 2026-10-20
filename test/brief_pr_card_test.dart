@@ -184,12 +184,14 @@ void main() {
         (tester) async {
       await open(tester);
       expect(find.text('1/4'), findsOneWidget);
-      expect(find.text(BriefPrFlowPage.stem), findsOneWidget);
-      expect(find.text('通通 明白我。'), findsOneWidget);
+      // 1020f: the companion is named with 「今次傾偈」; the items are the
+      // approved package's questions about 「佢」, each with its own anchors.
+      expect(find.text('今次傾偈：通通'), findsOneWidget);
+      expect(find.text('啱啱嘅傾偈，你覺得佢有幾明白你？'), findsOneWidget);
       // Full-text anchors under the scale.
-      expect(find.text('完全唔係咁'), findsOneWidget);
+      expect(find.text('完全唔明白'), findsOneWidget);
       expect(find.text('一半半'), findsOneWidget);
-      expect(find.text('完全係咁'), findsOneWidget);
+      expect(find.text('非常明白'), findsOneWidget);
       // 10/19: the seven points sit side by side in one row, 1 → 7 left to
       // right, with the anchors underneath.
       final y1 = tester.getCenter(find.byKey(const Key('brief_pr_option_1'))).dy;
@@ -199,7 +201,7 @@ void main() {
         expect(c.dx,
             greaterThan(tester.getCenter(find.byKey(Key('brief_pr_option_${v - 1}'))).dx));
       }
-      expect(tester.getCenter(find.text('完全唔係咁')).dy, greaterThan(y1));
+      expect(tester.getCenter(find.text('完全唔明白')).dy, greaterThan(y1));
       // Next is disabled until an option is tapped.
       expect(tester.widget<FilledButton>(find.byKey(const Key('brief_pr_next'))).onPressed,
           isNull);
@@ -209,7 +211,9 @@ void main() {
       await tester.tap(find.byKey(const Key('brief_pr_next')));
       await tester.pumpAndSettle();
       expect(find.text('2/4'), findsOneWidget);
-      expect(find.text('通通 尊重我。'), findsOneWidget);
+      expect(find.text('佢有幾認同、接受你嘅諗法同感受？'), findsOneWidget);
+      expect(find.text('完全唔認同'), findsOneWidget);
+      expect(find.text('非常認同'), findsOneWidget);
       // Back returns to the previous question with the answer kept.
       await tester.tap(find.byKey(const Key('brief_pr_back')));
       await tester.pumpAndSettle();
@@ -225,8 +229,10 @@ void main() {
       await tester.tap(find.byKey(const Key('brief_pr_next')));
       await tester.pumpAndSettle();
       expect(find.text('4/4'), findsOneWidget);
-      expect(find.text('通通 嘅回應好似搞錯重點，或者唔在乎。'), findsOneWidget);
+      expect(find.text('佢嘅反應有冇令你覺得唔舒服、或者唔顧你感受？'), findsOneWidget);
+      expect(find.text('完全冇'), findsOneWidget);
       expect(find.text('有少少'), findsOneWidget);
+      expect(find.text('非常'), findsOneWidget);
       expect(find.text(BriefPrFlowPage.submitLabel), findsOneWidget);
       await tester.tap(find.byKey(const Key('brief_pr_option_2')));
       await tester.pump();

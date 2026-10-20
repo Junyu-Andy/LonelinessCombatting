@@ -27,6 +27,7 @@
 > 读者：项目负责人、新加入的开发者。先读这份，再按需要读各专题文档。
 > 2026-10-19 第二轮：`AuthGate` 缓存 `profileChanges()` 流，登录后重读开关只把 `configRevision` 加一传给 `StaffGate`（不再换流、不再重建 `MainShell`）；`AppAppBar` 标题动画 `layoutBuilder` 靠左；设定页删 `_ProfileCard`／`_SignOutButton`，登出移到 `PersonalizationPage` 底部（键 `profile_sign_out`）；`SafetyFooterCard` 两部分（18111 + 「如果唔安全，睇更多支援熱線」），无 999 行；`AppFontScale` 五档 1.06–1.30（`standard`/`slightlyLarge`/`large`/`larger`/`xLarge`，旧名照旧）+ `combinedTextScale`（封顶 1.3）；字号卡去预览、换档后 `_FontSizeCheck` 问太大／太细可返回；`ui_text_scale_sweep_test.dart` 可用 `SWEEP_SCALES` 指定字号。PR 草稿。
 > 2026-10-19 测试员工具解锁多一条路：`isTester` + `app_config/feature_flags.testerToolsEnabled` 时 7 次点击直接解锁（`tester_gate.dart`）；新页 `tester_weekly_bundle_page.dart`（每周问卷预览不写库、`AppClock` 模拟到推送日）；`WeeklyPrPage`、`PgicPage`、`WeeklyBundleFlowPage` 加 `preview`；Brief PR v2 选项横排；注册页错处滚动聚焦和服务器错误落到格子；人生回顧时间线去锁可点；`transcriptRetentionToggleEnabled` 控制「保留對話紀錄」一行（默认不显示）。PR 草稿。
+> 2026-10-20 1020f 第一节：PGIC（`pgic_page.dart`）、Brief PR（`brief_pr_flow_page.dart` 的 `briefPrItems`、`brief_pr_page.dart`）照已批问卷包 B.5、B.3；`WeeklyPrItems` 以「呢個禮拜」开头；`MoodFace.label` 和 `AppMoodEncoding` 同一套五个字；每周问卷各部分页标题 = `weeklyPartTitle`。字段、存储、计分不变；无开关。
 
 ## 1. 一句话
 
