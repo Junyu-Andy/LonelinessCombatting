@@ -43,6 +43,10 @@ const CHECKS = [
     '#126，被第 3 批 D 节取代'],
   ['app_config/feature_flags', 'appFontScaleOnlyEnabled', true,
     '#126，1020c 定开（10/20 手机测试过后、第一位 RCT- 前）'],
+  // 1020l §二 (2): iPad only (phones never change); expected value set by
+  // Junyu.
+  ['app_config/feature_flags', 'wideScreenFrameEnabled', null,
+    '1020l iPad 等大屏内容限宽 600、居中（手机不变，两组相同），期望值待 Junyu 定'],
   ['app_config/feature_flags', 'suggestionsUseProfileEnabled', true,
     '#126，1020c 定开（同上）'],
   ['app_config/feature_flags', 'usageEventsEnabled', true, 'T40 使用事件'],

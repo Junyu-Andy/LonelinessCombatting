@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-10-20 1020l 第二节 (2)：iPad 上页面限宽 600、居中，手机不变（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-ipad-1020l`）
+
+- 结论：iPad 上内容放在中间一栏，最阔 600，两边用 App 的底色；手机完全不变。新开关 `wideScreenFrameEnabled`，默认关。两组相同。
+- 做法：只改一处。新文件 `lib/app/wide_screen_frame.dart`（`WideScreenFrame`），装在 `app.dart` 的 `MaterialApp.builder` 里、字号那一层下面，所有页面都经过它。条件：开关开、屏幕较短一边 ≥ 600、宽度 > 600。栏里的 MediaQuery 宽度报 600，按屏幕宽度排版的地方（聊天气泡等）当成 600 宽的设备；左右安全区减去两边空位，上下安全区和键盘高度不变。弹出框、底部弹出、提示条、底部分页按钮都在栏里。
+- 手机为什么不变：手机较短一边都小于 600，横放也不会出这一栏；这时只多一个不画任何东西的 `KeyedSubtree`。它带 GlobalKey，iPad 分屏缩放、这一栏出现或消失时，打开着的页面不会跳回首页。
+- 为什么加开关：PI 规则「新行为放在开关后」。开关只管 iPad，Junyu 在 iPad 真机看过再开；上线检查脚本 `tool/check_prelaunch_values.js` 已列出，期望值待定。
+- 测试：`test/wide_screen_1020l_test.dart` 24 个，三种构建都跑（已加进 CI 两套 Phase B 清单）。手机 360×800、412×915（直放、横放，字號 1.06、1.30）整棵渲染树和「完全没有这一层」逐项一样；真 App（`MyApp`）手机上开关开、关画出来一样；iPad 820×1180、1180×820 内容 600 宽、居中，弹出框、提示条、底部弹出在栏里，键盘和安全区正确，分屏缩放不丢页面。`ui_text_scale_sweep_test.dart` 照旧通过。
+- 截图 `docs/dev-reports/1020l-shots/ipad/`：iPad 直放、横放首页（开关关 / 开对比）和小欣聊天窗口；手机 360×800 字號 1.06、1.30 首页（和没有这一层逐个像素比对过）。生成脚本 `test_manual/wide_screen_shots_1020l_test.dart`。
+- 没写决策记录：只是排版修正，不改研究设计，也不改两组的差别。
+
 ## 2026-10-20 1020i：Mac 本地测试脚本（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-mac-tests`）；本地只读看板先答四个问题
 
 - 新加 `tool/run_local_tests_mac.sh`：在 Mac 上一行跑完 CI 的全部测试（`flutter analyze`、小讀本 HTML 检查、六套 Flutter 测试、Functions 单元测试、规则和模拟器测试、隐私脚本测试）。每步打印通过或失败，失败不中断，最后汇总和总用时；`--only` 只跑一部分。只连本机模拟器：开头发现指向正式项目的环境变量就停。说明在 `docs/release/local-tests-mac.md`。

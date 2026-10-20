@@ -9,6 +9,8 @@
 #   3. PHASE_B + FORCE_ARM=B  — Arm B pages (rule-based Tung Tung)
 #      (1020e §2.14: the researcher intake gate runs in 1, 2 and 3 — the
 #      same page and flow for both arms)
+#      (1020l: test/wide_screen_1020l_test.dart runs in 1, 2 and 3 — the
+#      iPad column; phones unchanged, same for both arms)
 #      (1020c 小讀本: test/reader_test.dart runs in 2 and 3 for the
 #      「問下通通」 split — Hybrid only, no LLM path for the rule arm)
 #   4. MEMORY_V1=true         — memory v1 client tests (memory branch)
@@ -53,6 +55,7 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/reminiscence_v2_test.dart \
   test/profile_editor_keyboard_test.dart \
   test/home_v2_test.dart test/mood_row_v2_test.dart \
+  test/wide_screen_1020l_test.dart \
   test/researcher_intake_gate_test.dart \
   test/reader_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
@@ -62,6 +65,7 @@ run "phase B arm B pages" \
   test/memory_handover_pages_test.dart \
   test/keyboard_compact_header_test.dart \
   test/home_v2_test.dart test/mood_row_v2_test.dart \
+  test/wide_screen_1020l_test.dart \
   test/action_plan_simplified_test.dart \
   test/researcher_intake_gate_test.dart \
   test/reader_test.dart \
