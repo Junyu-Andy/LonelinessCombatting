@@ -38,7 +38,7 @@ import 'package:app_demo/features/context/data/check_in_chat_copy.dart';
 import 'package:app_demo/features/context/presentation/pages/siu_yan_chat_page.dart';
 import 'package:app_demo/features/crisis/presentation/widgets/safety_footer_card.dart';
 import 'package:app_demo/features/me/presentation/pages/me_page.dart';
-import 'package:app_demo/features/me/presentation/widgets/me_list_item.dart';
+import 'package:app_demo/features/me/presentation/widgets/me_tool_card.dart';
 import 'package:app_demo/features/talk/presentation/pages/talk_page.dart';
 import 'package:app_demo/features/today/data/home_v2_copy.dart';
 import 'package:app_demo/features/today/data/mood_row_copy.dart';
@@ -56,6 +56,7 @@ import 'package:app_demo/features/today/presentation/widgets/today_todo_rows.dar
 import 'package:app_demo/features/today/presentation/widgets/week1_nudge_banner.dart';
 import 'package:app_demo/features/weekly_bundle/data/weekly_bundle.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'home_v2_harness.dart';
@@ -683,52 +684,73 @@ void main() {
   });
 
   group('做啲嘢 tool pictures', () {
-    const expected = {
-      'me_tool_thought': ('assets/tools/tool_thought.png', 0xFFEFE9F8, '望一望心入面'),
-      'me_tool_plan': ('assets/tools/tool_plan.png', 0xFFFCEEE0, '跟進計劃'),
-      'me_tool_reading': ('assets/tools/tool_reading.png', 0xFFE3F4EC, '讀少少'),
-      'me_tool_small_action': (
-        'assets/tools/tool_small_action.png',
-        0xFFFBE9E4,
-        '一啲社交小行動'
-      ),
-    };
+    // 1020m 一 (10/19 第 37 条): four big cards in this order, titles and
+    // lines of 10/19 第 37 条 (2), the batch 3 pictures; no switch, the old
+    // list is gone.
+    const expected = [
+      ('me_tool_small_action', 'assets/tools/tool_small_action.png',
+          0xFFFBE9E4, '今日小行動', '諗下今日可以同邊個做啲咩'),
+      ('me_tool_plan', 'assets/tools/tool_plan.png', 0xFFFCEEE0, '我嘅計劃',
+          '訂個小計劃，睇返做咗未'),
+      ('me_tool_reading', 'assets/tools/tool_reading.png', 0xFFE3F4EC,
+          '讀少少', '幾分鐘睇完嘅短文'),
+      ('me_tool_thought', 'assets/tools/tool_thought.png', 0xFFEFE9F8,
+          '望一望心入面', '了解吓自己嘅心情'),
+    ];
 
     for (final arm in testableArms) {
-      testWidgets('${arm == ArmAssignment.a ? 'Hybrid' : 'rule arm'}: on → '
-          'the four pictures on their tiles, labels unchanged',
+      testWidgets('${arm == ArmAssignment.a ? 'Hybrid' : 'rule arm'}: '
+          'four big cards in order, 10/19 第 37 条 words, the pictures',
           (tester) async {
         final run = HomeRun(arm);
         await pumpHome(tester, run, const Scaffold(body: MePage()));
-        for (final MapEntry(key: key, value: (asset, colour, label))
-            in expected.entries) {
-          final item = tester.widget<MeListItem>(find.byKey(ValueKey(key)));
-          expect(item.image, asset, reason: key);
-          expect(item.tileColor, Color(colour), reason: key);
-          expect(item.label, label, reason: key);
+        double? lastTop;
+        for (final (key, asset, colour, title, line) in expected) {
+          final card = tester.widget<MeToolCard>(find.byKey(ValueKey(key)));
+          expect(card.image, asset, reason: key);
+          expect(card.tileColor, Color(colour), reason: key);
+          expect(card.title, title, reason: key);
+          expect(card.subtitle, line, reason: key);
           final image = find.descendant(
               of: find.byKey(ValueKey(key)), matching: find.byType(Image));
           expect(image, findsOneWidget);
           // The tile, ~8% margin each side.
           expect(tester.getSize(image).width,
-              closeTo(MeListItem.imageTileSize * 0.84, 0.5));
+              closeTo(MeToolCard.imageTileSize * 0.84, 0.5));
+          final top = tester.getTopLeft(find.byKey(ValueKey(key))).dy;
+          if (lastTop != null) expect(top, greaterThan(lastTop), reason: key);
+          lastTop = top;
         }
+        expect(find.text('自己隨時用'), findsOneWidget);
+        expect(find.text('一啲社交小行動'), findsNothing);
+        expect(find.text('跟進計劃'), findsNothing);
         expect(MeToolArt.all.map((a) => a.$1).toSet(),
-            expected.values.map((e) => e.$1).toSet());
+            expected.map((e) => e.$2).toSet());
       });
     }
 
-    testWidgets('off: the old icons, no pictures', (tester) async {
-      RemoteFeatureFlags.current = const RemoteFeatureFlags();
+    testWidgets('360 wide at the largest text: every title on one line',
+        (tester) async {
       final run = HomeRun(testableArms.first);
-      await pumpHome(tester, run, const Scaffold(body: MePage()));
-      expect(find.byType(Image), findsNothing);
-      for (final key in expected.keys) {
-        expect(tester.widget<MeListItem>(find.byKey(ValueKey(key))).image,
-            isNull);
+      await pumpHome(tester, run, const Scaffold(body: MePage()),
+          size: const Size(360, 800), textScale: 1.30);
+      expect(tester.takeException(), isNull);
+      expect(tester.getSize(find.byType(MePage)).width, 360);
+      for (final (key, _, _, title, _) in expected) {
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await tester.pumpAndSettle();
+        final p = tester.renderObject<RenderParagraph>(find.descendant(
+            of: find.text(title), matching: find.byType(RichText)));
+        expect(p.getBoxesForSelection(TextSelection(
+                    baseOffset: 0, extentOffset: title.length))
+                .map((b) => b.top)
+                .toSet()
+                .length,
+            1,
+            reason: '$title on one line');
       }
-      expect(find.byIcon(Icons.lightbulb_outline), findsOneWidget);
     });
+
   });
 
   test('the four pictures are bundled', () {

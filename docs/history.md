@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-20 1020m 第一节：「做啲嘢」四张大卡片（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-tools-page`）
+
+- 顺序改为今日小行動 → 我嘅計劃 → 讀少少 → 望一望心入面；四张大卡片，图用第 3 批已经做好的 `assets/tools/` 四张（`docs/dev-reports/T53-T54-batch3-20261020.md` 1.6 节）；标题和小字照 10/19 第 37 条 (2)；页顶只留「自己隨時用」。两组相同。
+- Junyu 10/20 晚定：直接改，不加开关，旧版本删掉。所以「做啲嘢」不再看 `homeLayoutV2Enabled`，旧列表（`MeListItem`）已删除。
+- 最大字号、360 宽手机上四个标题都在一行（图块 72）。
+- 教训：之前估这项「要 Junyu 给图、3–4 小时」，是没有先查 `docs/dev-reports/`；图第 3 批早就做了。以后开工前先查。
+
 ## 2026-10-20 1020k：反向题前的过渡句、Weekly PR 反向三题固定第三页（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-scale-cues`）
 
 - 起因：Maria 测试时发现老人在一串同方向的题里容易把反向题答反。Junyu 定了三处文字（decisions-log 10/20 第 77–79 条）。
