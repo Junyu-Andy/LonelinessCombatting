@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../features/analytics/presentation/analytics_scope.dart';
+import '../../shared/widgets/top_notice_area.dart';
 import '../feature_flags/remote_feature_flags.dart';
 import 'transcription_repository.dart';
 import 'voice_copy.dart';
@@ -99,7 +100,9 @@ class VoiceInputController {
 ///   - Failure (server retried once): S6 appears in a small card anchored
 ///     to the mic, next to the input box — not a chat bubble, not written
 ///     to turns or memory — and a `voice_transcription_failed` event is
-///     logged with the failure category only.
+///     logged with the failure category only.  1020l §一 (2): on a page
+///     with a top notice area (the 小欣 chat window) S6 and the
+///     microphone-permission note show there, under the app bar, instead.
 ///
 /// No file is written: the clip lives in a [BytesBuilder] until upload and
 /// is dropped right after.  No on-device / platform recogniser is used.
@@ -341,9 +344,25 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   // Notices
   // ---------------------------------------------------------------------
 
+  /// 1020l §一 (2): the S6 card's id in a page's top notice area.
+  static const _s6TopId = 'voice_s6';
+
   void _showS6Notice() {
     if (!mounted) return;
     _noticeTimer?.cancel();
+    // A page with a top notice area (the 小欣 chat window) shows S6 there,
+    // under the app bar, not over the newest message; same words, same
+    // time on screen.
+    final top = TopNotices.maybeOf(context);
+    if (top != null) {
+      top.showText(
+          _s6TopId,
+          _isEn
+              ? VoiceCopy.s6TranscriptionFailedEn
+              : VoiceCopy.s6TranscriptionFailed,
+          duration: VoiceInputButton.noticeDuration);
+      return;
+    }
     setState(() => _showNotice = true);
     _overlay.show();
     _noticeTimer = Timer(VoiceInputButton.noticeDuration, _hideNotice);
@@ -353,6 +372,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
     _noticeTimer?.cancel();
     _noticeTimer = null;
     if (!mounted) return;
+    TopNotices.maybeOf(context)?.dismiss(_s6TopId);
     if (_overlay.isShowing) _overlay.hide();
     if (_showNotice) setState(() => _showNotice = false);
   }
@@ -361,13 +381,21 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   /// nothing was recorded, so no failure event either.
   void _showPermissionHint() {
     if (!mounted) return;
+    final text = _isEn
+        ? 'Please allow the microphone in Settings to use voice input.'
+        : '想用聲音輸入，請喺「設定」允許使用麥克風。';
+    const duration = Duration(seconds: 6);
+    // 1020l §一 (2): at the top on a page with a top notice area.
+    final top = TopNotices.maybeOf(context);
+    if (top != null) {
+      top.showText('voice_mic_permission', text, duration: duration);
+      return;
+    }
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
-        content: Text(_isEn
-            ? 'Please allow the microphone in Settings to use voice input.'
-            : '想用聲音輸入，請喺「設定」允許使用麥克風。'),
-        duration: const Duration(seconds: 6),
+        content: Text(text),
+        duration: duration,
       ));
   }
 

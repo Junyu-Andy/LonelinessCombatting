@@ -44,10 +44,20 @@ class DistressRouter {
   /// [onModerateSheetShown] fires right before the moderate_interrupt
   /// bottom sheet is pushed so the calling page can log
   /// `moderate_sheet_shown` (L-1 events).
+  ///
+  /// 1020l §一 (2): [showModerateInline] — a page that shows the same
+  /// moderate notice ([DistressModerateSheet] with `onClose`) at its top,
+  /// under the app bar, instead of as a bottom sheet over its input bar
+  /// (the 小欣 chat window, both arms alike).  When the page passes it, it
+  /// is called where the sheet would be pushed, and its future (done when
+  /// the notice is closed) is awaited as the sheet was.  Null: the bottom
+  /// sheet, as before.  Levels, events, words and timing are the same
+  /// either way; only the place (and, inline, tighter spacing) differs.
   Future<void> route(
     DistressMatch match, {
     required BuildContext context,
     void Function()? onModerateSheetShown,
+    Future<void> Function()? showModerateInline,
   }) async {
     if (match.level == DistressLevel.moderateReview) {
       // S-1: review-only.  Not reported to the pill state either.
@@ -65,6 +75,10 @@ class DistressRouter {
         // we add the bottom sheet to the route stack.
         await Future<void>.delayed(Duration.zero);
         if (!context.mounted) return;
+        if (showModerateInline != null) {
+          await showModerateInline();
+          return;
+        }
         await DistressModerateSheet.show(context);
         return;
       case DistressLevel.acute:
@@ -84,7 +98,26 @@ class DistressRouter {
 /// in the order recommended by §Safety: settle (breathing), reach out,
 /// or continue. Tapping outside dismisses (== "continue").
 class DistressModerateSheet extends StatelessWidget {
-  const DistressModerateSheet({super.key});
+  const DistressModerateSheet({super.key, this.onClose});
+
+  /// 1020l §一 (2): shown inside a page (see `showModerateInline` on
+  /// [DistressRouter.route]) — the three choices call this to close it
+  /// instead of popping the sheet's route, and the spacing is tighter so
+  /// the whole notice fits under the app bar on a phone at the largest
+  /// text.  Same words, same three choices, same order.  Null: the bottom
+  /// sheet, exactly as before.
+  final VoidCallback? onClose;
+
+  bool get _inline => onClose != null;
+
+  void _close(BuildContext context) {
+    final close = onClose;
+    if (close != null) {
+      close();
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
 
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet<void>(
@@ -99,9 +132,12 @@ class DistressModerateSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
+    final inline = _inline;
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+        padding: inline
+            ? const EdgeInsets.fromLTRB(16, 12, 16, 4)
+            : const EdgeInsets.fromLTRB(24, 20, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -121,21 +157,22 @@ class DistressModerateSheet extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: inline ? 6 : 10),
             Text(
               isEn
                   ? 'Want to do something to help yourself settle?'
                   : '要唔要做啲嘢，幫自己 settle 啲？',
               style: theme.textTheme.bodyLarge,
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: inline ? 12 : 20),
             _ActionButton(
+              dense: inline,
               icon: Icons.air,
               label: isEn
                   ? 'Quiet a moment (4-4-6 breathing)'
                   : '靜一靜（4-4-6 呼吸）',
               onPressed: () {
-                Navigator.of(context).pop();
+                _close(context);
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const CalmPage(),
@@ -143,14 +180,15 @@ class DistressModerateSheet extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: inline ? 8 : 12),
             _ActionButton(
+              dense: inline,
               icon: Icons.phone_in_talk_outlined,
               label: isEn ? 'Reach someone' : '搵人傾',
               onPressed: () {
                 AnalyticsScope.of(context)
                     .logEvent(PhaseAEvents.moderateSheetOpenedResources);
-                Navigator.of(context).pop();
+                _close(context);
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) =>
@@ -161,9 +199,9 @@ class DistressModerateSheet extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => _close(context),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: EdgeInsets.symmetric(vertical: inline ? 4 : 10),
                 child: Text(
                   isEn ? 'I\'m OK, keep going' : '我冇事，繼續',
                   style: const TextStyle(fontSize: 16),
@@ -181,10 +219,14 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
+
+  /// 1020l: tighter inside a page (see [DistressModerateSheet.onClose]).
+  final bool dense;
   const _ActionButton({
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.dense = false,
   });
 
   @override
@@ -194,7 +236,7 @@ class _ActionButton extends StatelessWidget {
       onPressed: onPressed,
       icon: Icon(icon, size: 24),
       label: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: EdgeInsets.symmetric(vertical: dense ? 8 : 14),
         child: Text(
           label,
           style: TextStyle(
