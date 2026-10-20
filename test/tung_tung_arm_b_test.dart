@@ -22,11 +22,11 @@ import 'package:app_demo/core/memory/memory_store.dart';
 import 'package:app_demo/core/safety/distress_detector.dart';
 import 'package:app_demo/core/safety/distress_router.dart';
 import 'package:app_demo/core/safety/distress_state.dart';
-import 'package:app_demo/core/safety/safety_copy.dart';
 import 'package:app_demo/features/analytics/data/analytics_service.dart';
 import 'package:app_demo/features/analytics/presentation/analytics_scope.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
 import 'package:app_demo/features/auth/presentation/auth_service_scope.dart';
+import 'package:app_demo/features/crisis/presentation/widgets/crisis_chat_message.dart';
 import 'package:app_demo/features/curious_companion/data/tung_tung_rule_pool.dart';
 import 'package:app_demo/features/curious_companion/data/tung_tung_search_intent.dart';
 import 'package:app_demo/features/curious_companion/presentation/pages/tung_tung_page.dart';
@@ -154,11 +154,10 @@ void main() {
 
     expect(client.calls, 0);
     // Router pushes the crisis page on top; the chat page underneath
-    // carries the same acute template Arm A shows (hotline from the
-    // crisis-resources config).
-    final acute = SafetyCopy.acuteAck('tung_tung', isEn: false);
-    expect(find.textContaining(acute, findRichText: true,
-        skipOffstage: false), findsWidgets);
+    // carries the same fixed safety message Arm A shows (1020m 第三节:
+    // the crisis page's numbers, from the crisis-resources config).
+    expect(find.byType(CrisisChatMessage, skipOffstage: false),
+        findsOneWidget);
     expect(find.textContaining('原來係咁', findRichText: true,
         skipOffstage: false), findsNothing);
   }, skip: !(FeatureFlags.phaseB && _armB));

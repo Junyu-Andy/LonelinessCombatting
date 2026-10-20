@@ -2,15 +2,18 @@
 /// change wording without a code edit (Phase A baseline S-3 / S-4 / S-6):
 ///
 ///   • `functions/prompts/safety_acknowledgements.json` — per-agent
-///     moderate / acute templates (shared with the Cloud Function bundle).
+///     moderate templates (shared with the Cloud Function bundle).  The
+///     file's `acute` entries are no longer shown: 1020m 第三节 replaced
+///     them in every chat with one fixed message listing the crisis page's
+///     numbers (`CrisisChatMessage`, lib/features/crisis/).
 ///   • `functions/prompts/crisis_resources.json` — the four HREC §8.1
 ///     crisis resources in order, plus the verification date.
 ///   • `assets/config/llm_fallback_messages.json` — per-agent line shown
 ///     when the LLM call fails.
 ///
 /// `{{HOTLINE_NAME}}` / `{{HOTLINE_NUMBER}}` in a template are filled from
-/// the resource flagged `acuteTemplateReference`, so the acute template can
-/// never drift from the crisis page.
+/// the resource flagged `acuteTemplateReference`, so a template can never
+/// drift from the crisis page.
 ///
 /// All getters are synchronous after [SafetyCopy.load]; before that (or if
 /// an asset fails to load) they fall back to a minimal built-in string so a
@@ -183,18 +186,10 @@ class SafetyCopy {
   static String? moderateAck(String agentId, {required bool isEn}) =>
       _ack(agentId, 'moderate', isEn);
 
-  /// S-3 — acute template for [agentId] (shown *instead of* any reply).
-  /// Falls back to a hotline-only system line if the JSON is missing.
-  static String acuteAck(String agentId, {required bool isEn}) {
-    final t = _ack(agentId, 'acute', isEn);
-    if (t != null && t.isNotEmpty) return t;
-    final ref = _crisis.acuteReference;
-    final name = ref?.name(isEn) ?? '';
-    final num = ref?.number ?? '999';
-    return isEn
-        ? "What you've just said is heavy. Please call $name $num now."
-        : '你頭先講嘅嘢好重。請即刻打$name $num。';
-  }
+  // 1020m 第三节: the per-agent acute template (`acuteAck`) is gone.  After
+  // an acute trigger every chat shows `CrisisChatMessage` instead — one
+  // fixed message, both arms, listing exactly [crisis] (the crisis page's
+  // numbers).
 
   static String? _ack(String agentId, String level, bool isEn) {
     final agent = _acks[agentId];

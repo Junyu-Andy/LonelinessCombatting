@@ -12,6 +12,18 @@
 - 计划没有日期，所以「计划的日子」定为它的跟进提醒那天（存好后 24 小时那天）。「做咗」写进现有的 `outcome: happened`，加 `followUpSource: home_row`（不用 `source`，那个字段已经是订计划的入口）。「改日」只记状态 `later`：第一次把计划和提醒挪到明天同一钟点，第二次不再挪、提醒取消，第三天首页改回问句；计划一直留在「我嘅計劃」。
 - 跟进推送：App 在「做咗」／「改日」时删掉或挪走提醒；服务器推送前也查计划（`moved_home_later`、`skipped_home_answered`）。使用事件多五种 `home_small_action_*`，规则和测试一起加。
 - 待 Junyu 定：「改日」挪一次还是两次（决策 0064 写了读法）；计划日子按提醒日算是否可以；五句文字和截图（`docs/dev-reports/1020m-shots/smallaction/`）。
+## 2026-10-20 1020m 第一节：「做啲嘢」四张大卡片（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-tools-page`）
+
+- 顺序改为今日小行動 → 我嘅計劃 → 讀少少 → 望一望心入面；四张大卡片，图用第 3 批已经做好的 `assets/tools/` 四张（`docs/dev-reports/T53-T54-batch3-20261020.md` 1.6 节）；标题和小字照 10/19 第 37 条 (2)；页顶只留「自己隨時用」。两组相同。
+- Junyu 10/20 晚定：直接改，不加开关，旧版本删掉。所以「做啲嘢」不再看 `homeLayoutV2Enabled`，旧列表（`MeListItem`）已删除。
+- 最大字号、360 宽手机上四个标题都在一行（图块 72）。
+- 教训：之前估这项「要 Junyu 给图、3–4 小时」，是没有先查 `docs/dev-reports/`；图第 3 批早就做了。以后开工前先查。
+## 2026-10-20 1020m 第三节：急性之后聊天里只显示一条固定安全消息，号码和危机页一致（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-crisismsg-1020m`，按修 bug 处理，不加开关，直接替换）
+
+- 起因：Maria 发现急性触发后，危机页列四个号码，聊天里却写「請即刻打撒瑪利亞會 2896 0000」（decisions-log 10/20 第 84 条）。
+- 查到的来源：两组、所有聊天页都是安全流程里的同一句固定话（`safety_acknowledgements.json` 的 `acute`，热线名和号码取自危机页配置里标了 `acuteTemplateReference` 的撒瑪利亞會），经 `SafetyCopy.acuteAck` 显示。不是模型写的，也不是规则组模板；提示词里没有叫模型提撒瑪利亞會。旧的四个聊天页还会把这句话当陪伴者的话发给模型。
+- 做法：新组件 `CrisisChatMessage`（开头一句【草稿】+ 危机页配置里的全部机构名和号码 +「打開緊急求助頁」按钮），所有会触发急性的聊天页两组都用它；删掉 `acuteAck`；Hybrid 组模型回复被扫出急性时也显示；这条消息不发给模型；规则组旧 check-in、回忆表单急性后也显示（以前什么都没有）。没有开关（Junyu 改的指示）。号码、检测、危机页、告警都不变。决策草稿 0065。
+- 测试：`test/crisis_chat_message_1020m_test.dart`（三种构建都跑，已加进 CI 两个 Phase B 清单）：每个聊天页两组各触发一次急性，核对消息里的号码和危机页同一份配置一致、聊天里没有别的号码、按钮打开危机页、规则组零 LLM、中度不受影响、模型回复里的号码照旧变成链接。截图在 `docs/dev-reports/1020m-shots/crisis/`（危机页的拨号按钮字在测试画图里显示成方块，是测试字体的问题，真机正常）。
 
 ## 2026-10-20 1020k：反向题前的过渡句、Weekly PR 反向三题固定第三页（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-scale-cues`）
 

@@ -42,6 +42,7 @@ import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../crisis/presentation/widgets/crisis_chat_message.dart';
 import '../../../response_feedback/presentation/widgets/thumbs_feedback.dart';
 import '../../data/negative_cognition_detector.dart';
 import '../../../../core/memory/memory_mode.dart';
@@ -251,6 +252,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
 
     final history = _turns
         .take(_turns.length - 1)
+        .where((t) => !t.crisis)
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
 
@@ -295,11 +297,11 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     if (!mounted) return;
     final modality = usedVoice ? InputModality.voice : InputModality.text;
     if (response.shortCircuited) {
-      // S-2 — acute: template instead of any reply; session ends `crisis`.
+      // S-2 — acute: the fixed safety message instead of any reply
+      // (1020m 第三节: [CrisisChatMessage]); session ends `crisis`.
       setState(() {
         _busy = false;
-        _turns.add(_Turn.system(
-            SafetyCopy.acuteAck(AgentRegistry.ahJanAhBakId, isEn: isEn)));
+        _turns.add(_Turn.crisis());
       });
       unawaited(_recorder?.logTurn(TurnRecord(
         agentId: AgentRegistry.ahJanAhBakId,
@@ -328,6 +330,8 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
     final moderateAck = escalation.interrupts
         ? SafetyCopy.moderateAck(AgentRegistry.ahJanAhBakId, isEn: isEn)
         : null;
+    // 1020m 第三节: acute on the reply scan → the fixed safety message.
+    final crisis = escalation.level == DistressLevel.acute;
     final turnKey = 'turn_${DateTime.now().microsecondsSinceEpoch}';
     final replyShownAt = DateTime.now();
     setState(() {
@@ -339,6 +343,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
         promptHash: response.metadata.systemPromptHash,
       ));
       if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
+      if (crisis) _turns.add(_Turn.crisis());
     });
     final turnDocId = await _recorder?.logTurn(TurnRecord(
       agentId: AgentRegistry.ahJanAhBakId,
@@ -351,7 +356,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       userText: text,
       detector: escalation,
       shortCircuited: false,
-      ackShown: moderateAck != null,
+      ackShown: moderateAck != null || crisis,
       response: response,
     ));
     if (mounted && turnDocId != null) {
@@ -413,6 +418,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
         profile: profile,
         userTurn: text,
         recentTurns: _turns
+            .where((t) => !t.crisis)
             .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
             .toList(),
         localeCode: isEn ? 'en' : 'zh',
@@ -485,7 +491,7 @@ reference 用戶具體細節，唔分析、唔解讀、唔重 frame。
       );
       // Build history that excludes the bad turn but keeps prior context.
       final history = _turns
-          .where((t) => t.key != key)
+          .where((t) => t.key != key && !t.crisis)
           .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
           .toList();
       final response = await core.llm.send(
@@ -744,12 +750,16 @@ class _Turn {
   /// L-1 — id of the logged `turns/{turnId}` doc.
   final String? turnDocId;
 
+  /// 1020m 第三节: shown as [CrisisChatMessage]; never sent to the model.
+  final bool crisis;
+
   const _Turn._(this.fromUser, this.isSystem, this.text,
       {this.key,
       this.sourceUserInput,
       this.repaired = false,
       this.promptHash,
-      this.turnDocId});
+      this.turnDocId,
+      this.crisis = false});
 
   factory _Turn.user(String t) => _Turn._(true, false, t);
   factory _Turn.bot(String t,
@@ -758,19 +768,24 @@ class _Turn {
           key: key, sourceUserInput: sourceUserInput, promptHash: promptHash);
   factory _Turn.system(String t) => _Turn._(false, true, t);
 
+  /// 1020m 第三节: the fixed safety message after an acute trigger.
+  factory _Turn.crisis() => _Turn._(false, true, '', crisis: true);
+
   _Turn markRepaired() => _Turn._(fromUser, isSystem, text,
       key: key,
       sourceUserInput: sourceUserInput,
       repaired: true,
       promptHash: promptHash,
-      turnDocId: turnDocId);
+      turnDocId: turnDocId,
+      crisis: crisis);
 
   _Turn withTurnDocId(String id) => _Turn._(fromUser, isSystem, text,
       key: key,
       sourceUserInput: sourceUserInput,
       repaired: repaired,
       promptHash: promptHash,
-      turnDocId: id);
+      turnDocId: id,
+      crisis: crisis);
 }
 
 class _TurnBubble extends StatelessWidget {
@@ -784,6 +799,7 @@ class _TurnBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (turn.crisis) return const CrisisChatMessage();
     final theme = Theme.of(context);
     final color = turn.fromUser
         ? theme.colorScheme.primaryContainer

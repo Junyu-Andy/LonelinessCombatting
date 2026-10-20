@@ -58,6 +58,7 @@ import 'package:app_demo/features/context/presentation/pages/check_in_arm_b.dart
 import 'package:app_demo/features/context/presentation/pages/check_in_page.dart';
 import 'package:app_demo/features/context/presentation/pages/siu_yan_chat_page.dart';
 import 'package:app_demo/features/crisis/presentation/pages/emergency_support_page.dart';
+import 'package:app_demo/features/crisis/presentation/widgets/crisis_chat_message.dart';
 import 'package:app_demo/features/rule_replies/data/rule_reply_history_store.dart';
 import 'package:app_demo/features/rule_replies/data/rule_reply_pool.dart';
 import 'package:app_demo/features/researcher_dashboard/presentation/widgets/safety_alerts_section.dart';
@@ -688,7 +689,8 @@ void main() {
       for (final e in RuleReplyPool.checkInChatEntries) {
         expect(_says(e.zh), findsNothing);
       }
-      expect(_says(SafetyCopy.acuteAck('siu_yan', isEn: false)), findsOneWidget);
+      // 1020m 第三节: the fixed safety message, not a per-agent template.
+      expect(find.byType(CrisisChatMessage), findsOneWidget);
       expect(_says(CheckInChatCopy.q4), findsNothing);
       expect(run.record['stopped_by_safety'], isTrue);
       expect(run.record['completed'], isFalse);
