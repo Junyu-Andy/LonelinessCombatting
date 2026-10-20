@@ -11,7 +11,9 @@ import 'dart:io';
 
 import 'package:app_demo/core/config/phase_b_config.dart';
 import 'package:app_demo/core/feature_flags/feature_flags.dart';
+import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
 import 'package:app_demo/core/scheduling/study_week.dart';
+import 'package:app_demo/core/scheduling/w0_date.dart';
 import 'package:app_demo/core/scheduling/weekly_schedule.dart';
 import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:app_demo/features/weekly_bundle/data/weekly_bundle.dart';
@@ -236,4 +238,146 @@ void main() {
       expect(src.contains('arm_scope'), false, reason: f);
     }
   });
+
+  // -------------------------------------------------------------------------
+  // 1020e 二.1–二.3: weeklyReminderV2Enabled (same fixture as the server).
+  // -------------------------------------------------------------------------
+  group('v2 windows (weeklyReminderV2Enabled)', () {
+    final v2 = table['v2'] as Map<String, dynamic>;
+    final w0 = dateKey(v2['w0'] as String);
+    const mode = WeeklyScheduleMode.standard;
+    final bundles = WeeklySchedule.bundlesFor(cfg, mode);
+
+    test('switch: only a literal true in app_config/feature_flags', () {
+      expect(const RemoteFeatureFlags().weeklyReminderV2Enabled, false);
+      expect(RemoteFeatureFlags.fromMap({'weeklyReminderV2Enabled': true})
+          .weeklyReminderV2Enabled, true);
+      expect(RemoteFeatureFlags.fromMap({'weeklyReminderV2Enabled': 'true'})
+          .weeklyReminderV2Enabled, false);
+      expect(RemoteFeatureFlags.fromMap({}).weeklyReminderV2Enabled, false);
+    });
+
+    test('shared table: W1–W3 whole days, W4 to day 42, W5–W7 as T24', () {
+      final expected = (v2['bundles'] as List).cast<Map<String, dynamic>>();
+      for (var i = 0; i < expected.length; i++) {
+        final e = expected[i];
+        final w = WeeklySchedule.windowFor(bundles[i], w0, cfg, v2: true);
+        expect(bundles[i].id, e['id']);
+        expect(w.open, hkLocal(e['open'] as String), reason: '${e['id']} open');
+        expect(w.close, hkLocal(e['close'] as String), reason: '${e['id']} close');
+      }
+      expect(bundles.map(WeeklySchedule.isV2Bundle).toList(),
+          [true, true, true, true, false, false, false]);
+    });
+
+    test('flag off (explicit or default): exactly the T24 table', () {
+      final std = (table['standard'] as Map<String, dynamic>)['bundles'] as List;
+      for (var i = 0; i < std.length; i++) {
+        final e = std[i] as Map<String, dynamic>;
+        for (final w in [
+          WeeklySchedule.windowFor(bundles[i], w0, cfg, v2: false,
+              week4RecordedOn: DateTime(2026, 11, 15)),
+          WeeklySchedule.windowFor(bundles[i], w0, cfg),
+        ]) {
+          expect(w.open, hkLocal(e['open'] as String), reason: '${e['id']}');
+          expect(w.close, hkLocal(e['close'] as String), reason: '${e['id']}');
+        }
+      }
+    });
+
+    test('flag on in RemoteFeatureFlags.current → callers that pass nothing '
+        'get the v2 windows', () {
+      final saved = RemoteFeatureFlags.current;
+      addTearDown(() => RemoteFeatureFlags.current = saved);
+      RemoteFeatureFlags.current =
+          const RemoteFeatureFlags(weeklyReminderV2Enabled: true);
+      expect(WeeklySchedule.v2Default, true);
+      final w1 = WeeklySchedule.windowFor(bundles[0], w0, cfg);
+      expect(w1.open, DateTime(2026, 10, 26));
+      expect(w1.close, DateTime(2026, 10, 29));
+      expect(WeeklySchedule.openBundleAt(cfg, mode, w0,
+          DateTime(2026, 10, 26, 0, 1))!.bundle.id, 'W1');
+      final (start, end) =
+          WeeklySchedule.referentRangeFor(bundles[1], w0, cfg, mode);
+      final r = v2['referentRangeW2'] as Map<String, dynamic>;
+      expect(start, hkLocal(r['start'] as String));
+      expect(end, hkLocal(r['end'] as String));
+    });
+
+    test('week-4 close by the recorded W4 visit (early, before opening, '
+        'late, after day 42, none)', () {
+      for (final c in (v2['week4Close'] as List).cast<Map<String, dynamic>>()) {
+        final rec = c['w4RecordedOn'] == null
+            ? null
+            : dateKey(c['w4RecordedOn'] as String);
+        expect(WeeklySchedule.week4CloseV2(w0, rec, bundles[3]),
+            hkLocal(c['close'] as String), reason: c['case'] as String);
+        expect(WeeklySchedule.windowFor(bundles[3], w0, cfg,
+                v2: true, week4RecordedOn: rec).close,
+            hkLocal(c['close'] as String), reason: c['case'] as String);
+      }
+    });
+
+    test('open at a moment: day 7 00:00 to day 9 23:59:59; W4 closes the '
+        'night the visit is recorded', () {
+      ({WeeklyBundle bundle, WeeklyWindow window})? at(DateTime t,
+              {DateTime? rec}) =>
+          WeeklySchedule.openBundleAt(cfg, mode, w0, t,
+              v2: true, week4RecordedOn: rec);
+      expect(at(DateTime(2026, 10, 25, 23, 59)), null); // day 6
+      expect(at(DateTime(2026, 10, 26))!.bundle.id, 'W1'); // day 7 00:00
+      expect(at(DateTime(2026, 10, 28, 23, 59, 59))!.bundle.id, 'W1');
+      expect(at(DateTime(2026, 10, 29)), null); // day 10
+      expect(at(DateTime(2026, 11, 14))!.bundle.id, 'W4'); // day 26
+      final rec = DateTime(2026, 11, 15); // recorded on day 27
+      expect(at(DateTime(2026, 11, 15, 23, 59), rec: rec)!.bundle.id, 'W4');
+      expect(at(DateTime(2026, 11, 16), rec: rec), null);
+      expect(at(DateTime(2026, 11, 16))!.bundle.id, 'W4',
+          reason: 'not recorded: still open');
+      // Day 43: W4 closed at the end of day 42; W6 (day 42 20:00) is open.
+      expect(at(DateTime(2026, 12, 1))!.bundle.id, 'W6');
+      expect(at(DateTime(2026, 11, 30, 23, 59))!.bundle.id, 'W4');
+    });
+
+    test('W4 open to day 42 overlaps W5 / W6; the card takes the first one '
+        'still to do', () async {
+      final t = DateTime(2026, 11, 23, 21); // day 35, W5 open since 20:00
+      final open = WeeklySchedule.openBundlesAt(cfg, mode, w0, t, v2: true);
+      expect(open.map((o) => o.bundle.id).toList(), ['W4', 'W5']);
+      final done = _MapStore({'W4': 'completed'});
+      expect((await WeeklyBundleDue.firstNotDone(open, done))!.bundle.id, 'W5');
+      expect((await WeeklyBundleDue.firstNotDone(open, _MapStore({})))!
+          .bundle.id, 'W4');
+      expect(await WeeklyBundleDue.firstNotDone(
+          open, _MapStore({'W4': 'completed', 'W5': 'completed'})), null);
+      // Flag off: W4 closed on day 29, only W5.
+      expect(WeeklySchedule.openBundlesAt(cfg, mode, w0, t, v2: false)
+          .map((o) => o.bundle.id).toList(), ['W5']);
+    });
+
+    test('w4RecordedOn: read from the profile, never written back', () {
+      final p = UserProfile.fromMap('u', {
+        'email': 'e', 'displayName': 'n', 'cohort': 'rct',
+        'w0Date': '2026-10-19', 'w4RecordedOn': '2026-11-15',
+      });
+      expect(p.w4RecordedOn, '2026-11-15');
+      expect(w4RecordedOnFor(p), DateTime(2026, 11, 15));
+      expect(w4RecordedOnFor(p.copyWith(displayName: 'm')),
+          DateTime(2026, 11, 15));
+      expect(p.toMap().containsKey('w4RecordedOn'), false);
+      expect(w4RecordedOnFor(UserProfile.fromMap(
+          'u', {'email': 'e', 'w4RecordedOn': '2026-02-30'})), null);
+      expect(w4RecordedOnFor(null), null);
+    });
+  });
+}
+
+/// Every part of a bundle has the status in [byBundle] (null = not started).
+class _MapStore implements WeeklyBundleStore {
+  _MapStore(this.byBundle);
+  final Map<String, String> byBundle;
+
+  @override
+  Future<Map<WeeklyPart, String?>> partStatus(WeeklyBundle bundle) async =>
+      {for (final p in bundle.parts) p: byBundle[bundle.id]};
 }

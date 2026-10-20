@@ -250,29 +250,30 @@ class PendingPromptsService {
     );
   }
 
-  /// T24 — the bundle whose window contains [now] with a part still open,
-  /// or null.  W0 from [w0DateFor]; mode by cohort.  A read error hides
-  /// the card (fail closed, as [_hasDoc]).
+  /// T24 — the first bundle whose window contains [now] with a part still
+  /// open, or null.  W0 from [w0DateFor]; mode by cohort.  A read error
+  /// hides the card (fail closed, as [_hasDoc]).  1020e: with
+  /// `weeklyReminderV2Enabled` ([v2], default [WeeklySchedule.v2Default])
+  /// the windows are the v2 ones and W4 closes on the day its visit was
+  /// recorded ([w4RecordedOnFor]); W4 may then overlap W5 / W6, so a done
+  /// bundle no longer hides a later open one.
   Future<WeeklyBundleDue?> weeklyBundleDue(
     String uid,
     UserProfile? profile,
     DateTime now, {
     PhaseBConfig? config,
     WeeklyBundleStore? store,
+    bool? v2,
   }) async {
     final cfg = config ?? PhaseBConfig.current;
     final mode = WeeklySchedule.modeForCohort(profile?.cohort);
     final w0 = w0DateFor(profile);
     if (mode == null || w0 == null) return null;
-    // W4 visit date: T30 is not merged yet, so no extension today.
-    final open = WeeklySchedule.openBundleAt(cfg, mode, w0, now);
-    if (open == null) return null;
+    final open = WeeklySchedule.openBundlesAt(cfg, mode, w0, now,
+        week4RecordedOn: w4RecordedOnFor(profile), v2: v2);
     try {
-      final st = await (store ?? FirestoreWeeklyBundleStore(uid, db: _db))
-          .partStatus(open.bundle);
-      final due = WeeklyBundleDue(
-          bundle: open.bundle, window: open.window, status: st);
-      return due.allDone ? null : due;
+      return await WeeklyBundleDue.firstNotDone(
+          open, store ?? FirestoreWeeklyBundleStore(uid, db: _db));
     } catch (_) {
       return null;
     }

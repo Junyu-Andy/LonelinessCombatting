@@ -158,6 +158,17 @@
 ///                               day's chat check-in.  Researcher tool only;
 ///                               nothing changes for participants until a
 ///                               researcher marks an alert.
+///   - [weeklyReminderV2Enabled] — 1020 G / 1020e 二.1–二.2 (batch 4): the
+///                               weekly questionnaire's v2 windows — weeks
+///                               1–3 open day 7 00:00 → end of day 9 (14–16,
+///                               21–23); week 4 opens day 26 00:00 and closes
+///                               at the end of the day the W4 visit was
+///                               recorded (`users/{uid}.w4RecordedOn`), at
+///                               the latest the end of day 42
+///                               (`WeeklySchedule`).  The server reads the
+///                               same flag for the pushes, the missed marks
+///                               and the research lead's e-mail
+///                               (functions/weekly_schedule.js).  Both arms.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 library;
@@ -195,6 +206,7 @@ class RemoteFeatureFlags {
     this.homeLayoutV2Enabled = false,
     this.moodRowV2Enabled = false,
     this.safetyFalseAlarmMarkEnabled = false,
+    this.weeklyReminderV2Enabled = false,
   });
 
   final bool webSearchEnabled;
@@ -238,6 +250,7 @@ class RemoteFeatureFlags {
   /// 1020 D / E (1): the M-3 daily mood sheet (DailyMoodPrompt) pops up only
   /// while both the new layout and the mood row are off.
   bool get dailyMoodPopupActive => !homeLayoutV2Enabled && !moodRowV2Enabled;
+  final bool weeklyReminderV2Enabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -303,6 +316,7 @@ class RemoteFeatureFlags {
         moodRowV2Enabled: map['moodRowV2Enabled'] == true,
         safetyFalseAlarmMarkEnabled:
             map['safetyFalseAlarmMarkEnabled'] == true,
+        weeklyReminderV2Enabled: map['weeklyReminderV2Enabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

@@ -14,6 +14,25 @@
 - 回忆 v2（第二节起）另由两个分支做（App、服务器），合在一个 PR。
 - 1020e：#134 加两处语音字样（旧小欣签到开场「寫幾句都得。」；旧小欣签到、通通、反思对话输入框「寫低你想講嘅嘢。」）。
 - 1020e 一.(9)「决策编号由开发编」：main 上 8 份 NNNN 草稿编为 0043–0050（文件名只把 NNNN 换成号码，英文名不变，旧文档里的 `NNNN-<名字>` 仍按名字找得到）：0043 clear-raw-output-on-delete、0044 companion-prompts-v2-tone-slot、0045 five-font-levels、0046 hide-transcript-retention-switch、0047 home-mood-entry-and-suggestions-profile、0048 home-safety-card-simplified、0049 tester-arm-self-switch、0050 tester-tools-unlock-without-pin。各 PR 里的草稿从 0051 起，合并前改名。
+## 2026-10-20 第 4 批按 dev-tasks-1020e 改：每周问卷整日窗口和 10:00 推送、W4 录入即关、P1／P2 新规则（同一 PR 草稿 #132）
+
+- 1020e 回复了第 4 批的待定项。每周问卷：第 1–3 周第 7 天 00:00 至第 9 天 23:59；第 4 周第 26 天 00:00 至评估员录入 W4 那天结束、最晚第 42 天；推送都在 10:00（预告、开放、提醒），电邮第 9、16、23、28 天。第 5–7 周不变。
+- 窗口 App 和服务器一起改，都在 `weeklyReminderV2Enabled` 后：服务器 `weekly_schedule.js` `windowFor`／`week4CloseV2`／`v2StepsFor`，App `weekly_schedule.dart` 同一算法、同一张表（`v2` 节）；App 加 `RemoteFeatureFlags.weeklyReminderV2Enabled`。
+- App 要知道 W4 关了：新字段 `users/{uid}.w4RecordedOn`（`assessor.js` 第一次录入 W4 时写；规则只许服务器写；`UserProfile` 读）。W4 最长开到第 42 天，会和 W5、W6 重叠，首页卡改为取第一个没做完的（`openBundlesAt`、`firstNotDone`）。
+- 各部分记录开关开时多盖 `outsideWindow`；先存草稿后提交的，提交时补盖一次。缺失标记按新窗口。
+- P1 跳过当天已做 check-in 的人；P2 每周问卷推送日照发；check-in 因危机中断算做过，`falseAlarm: true`（第 2 批的「誤觸」标记）不算。
+- 测试员工具测试推送按钮改名，加 P2 和每周问卷新推送的按钮。
+- 测试：`pushes_email_1020_emulator_test.js` 13 项、`weekly_schedule_test.js` 和 `test/weekly_schedule_test.dart` 加 v2 共用表、规则测试加 `w4RecordedOn`、`outsideWindow`；整套后端和 Flutter 六套测试通过。
+
+## 2026-10-20 dev-tasks-1020 第 4 批：08:30／19:00 check-in 推送、每周问卷三天提醒、第三天电邮（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-batch4`）
+
+- 从第 1 批分支（381f9a5）开。只改服务器和文档，App 不用改。报告：`docs/dev-reports/T55-T56-batch4-20261020.md`。
+- F (5)：`functions/daily_checkin_push.js`。`checkInChatV2Enabled` 开时新定时函数 `dailyCheckInMorningPush`（08:30）按人发 P1；`dailyMoodReminder` 改每天 19:00，按人发 P2（当天没做完 check-in、当天又没有每周问卷推送的人）。做完的判断认三样：旧表单行、第 2 批 `chat_v2` 行（`completed` 或危机中断）、`check_in_submitted` 事件。关时照旧周一至六广播。
+- G (1)：`weekly_schedule.js` 的 `dispatchWeeklyBundles` 在 `weeklyReminderV2Enabled` 开时对 W1–W4 用新文字、第二／三天（第 4 周关闭日前一天／当天）20:00 只推未完成者；第 4 周关闭日读 `weekly_status.w4VisitDate`。第 5–7 周不变。
+- G (3)：`functions/weekly_email.js` + 定时函数 `weeklyIncompleteEmail`（10:00），复用 `pi_alert.js` 的收件人和发信；`meta/weekly_email_test.send` 触发测试邮件（`onWeeklyEmailTestRequested`）。
+- 文字草稿 `functions/push_copy.js` ＝ `docs/spec/copy/push-and-email-1020.md`（`push_copy_test.js` 逐字比对）。`sendTestPush` 开关开时「每日心情提醒」发 P1、「每週問卷提醒」发 W1，供手机测试。
+- 测试：`pushes_email_1020_emulator_test.js` 11 项（模拟时钟）；整套后端测试通过。决策草稿 `NNNN-daily-and-weekly-pushes-1020.md`。
+- 发现：第 1–3 周 W2／W3 文字比实际窗口早一天；W4 面访日期只能事后录入、App 读不到，面访延后其实延不了。都列给 Junyu 定。
 ## 2026-10-20 dev-tasks-1020e 二.13：「想重新聯絡嘅人」只传勾了「可以講」的人
 
 - 1020e 是 Junyu 对第 1 至 4 批和 #129–#131、#134 待定事项的回复。各项按 PR 分派；本段只记 #127 里这一项。

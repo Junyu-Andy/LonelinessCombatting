@@ -36,6 +36,9 @@ const opsDashboard = require("./ops_dashboard");
 const researcherIntake = require("./researcher_intake");
 const testerArm = require("./tester_arm");
 const promptRegistry = require("./prompt_registry");
+const dailyCheckInPush = require("./daily_checkin_push");
+const weeklyEmail = require("./weekly_email");
+const pushCopy = require("./push_copy");
 
 admin.initializeApp();
 
@@ -1776,6 +1779,13 @@ exports.blindedDataExport = onSchedule(
 // (when the Weekly PR banner is live), so the two never collide.
 //
 // Copy is gentle Cantonese, "想答先答" — never nagging, never guilt-tripping.
+//
+// dev-tasks-1020 F(5) (switch app_config/feature_flags.checkInChatV2Enabled,
+// functions/daily_checkin_push.js): with the switch on there is no daily
+// broadcast any more — P1 at 08:30 and P2 at 19:00 go per person, every
+// day, and P2 skips whoever finished today's check-in or gets a weekly-
+// questionnaire push today (the per-person form of the Sunday rule above).
+// Off: the paragraphs above hold unchanged.
 // ---------------------------------------------------------------------------
 
 async function sendDoorbell(title, body, analyticsLabel) {
@@ -1978,21 +1988,87 @@ exports.memorySummaryDeleted = onDocumentDeleted(
       }
     });
 
-exports.dailyMoodReminder = onSchedule(
-  {
-    schedule: "0 19 * * 1-6", // Mon–Sat 19:00 (Sunday handled by weekly)
-    timeZone: "Asia/Hong_Kong",
-    region: "asia-east2",
-    retryCount: 0,
-  },
-  async (_event) => {
-    await sendDoorbell(
-      "陪住",
+// 19:00 every day.  Switch checkInChatV2Enabled off: exactly as before —
+// the topic broadcast Monday to Saturday (Sunday handled by the weekly
+// reminder), nothing on Sunday.  On: P2 per person (1020 F(5),
+// functions/daily_checkin_push.js runEveningPush).
+const DAILY_EVENING_PUSH = {
+  schedule: "0 19 * * *",
+  timeZone: "Asia/Hong_Kong",
+  region: "asia-east2",
+  retryCount: 0,
+};
+
+/**
+ * The 19:00 topic broadcast as it was before 1020 F(5) (switch off).
+ * @return {Promise<void>}
+ */
+function legacyDailyDoorbell() {
+  return sendDoorbell("陪住",
       "今日過得點？得閒入嚟同我哋講兩句，想講先講，唔講都冇所謂。",
-      "daily_mood_reminder",
-    );
-  },
-);
+      "daily_mood_reminder");
+}
+
+exports.dailyMoodReminder = onSchedule(DAILY_EVENING_PUSH, async () => {
+  await dailyCheckInPush.runEveningPush(admin.firestore(), admin.messaging(),
+      {legacyDoorbell: legacyDailyDoorbell});
+});
+
+// 1020 F(5): 08:30 every day, P1 to every registered participant, per
+// person, both arms identical.  Does nothing unless checkInChatV2Enabled.
+const DAILY_MORNING_PUSH = {
+  schedule: "30 8 * * *",
+  timeZone: "Asia/Hong_Kong",
+  region: "asia-east2",
+  retryCount: 0,
+};
+
+exports.dailyCheckInMorningPush = onSchedule(DAILY_MORNING_PUSH, async () => {
+  await dailyCheckInPush.sendMorningPush(admin.firestore(), admin.messaging());
+});
+
+// 1020 G(3): 10:00 every day, the research lead's e-mail E1 — research
+// IDs whose weekly questionnaire is on its last reminder day (day 3; W4:
+// the closing day) and not complete.  Nothing unless
+// weeklyReminderV2Enabled; no e-mail when nobody is incomplete
+// (functions/weekly_email.js).
+const WEEKLY_EMAIL_SCHEDULE = {
+  schedule: "0 10 * * *",
+  timeZone: "Asia/Hong_Kong",
+  region: "asia-east2",
+  retryCount: 0,
+  secrets: [SMTP_HOST, SMTP_USER, SMTP_PASS, PI_EMAIL],
+};
+
+exports.weeklyIncompleteEmail = onSchedule(WEEKLY_EMAIL_SCHEDULE, async () => {
+  const out = await weeklyEmail.sendDailyIncompleteEmail(admin.firestore(), {
+    now: new Date(),
+    smtp: readSmtpSecrets(),
+    auth: admin.auth(),
+    serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+  });
+  console.log(`weeklyIncompleteEmail: ${out.status} count=${out.count}`);
+});
+
+// 1020 G(3) phone test: the research lead sets `send: true` on
+// meta/weekly_email_test in the console → one E1 with three synthetic
+// research IDs and a 【测试】 subject to the real recipients.  Reads no
+// participant data.
+const WEEKLY_EMAIL_TEST = {
+  document: weeklyEmail.TEST_DOC,
+  region: "asia-east2",
+  secrets: [SMTP_HOST, SMTP_USER, SMTP_PASS, PI_EMAIL],
+};
+
+exports.onWeeklyEmailTestRequested = onDocumentWritten(WEEKLY_EMAIL_TEST,
+    async (event) => {
+      const side = (k) => (event.data && event.data[k] &&
+        event.data[k].exists ? event.data[k].data() : null);
+      const result = await weeklyEmail.handleTestRequest(admin.firestore(),
+          side("before"), side("after"),
+          {now: new Date(), smtp: readSmtpSecrets(), auth: admin.auth()});
+      if (result) console.log(`weekly e-mail test: ${result}`);
+    });
 
 exports.weeklySurveyReminder = onSchedule(
   {
@@ -2774,6 +2850,38 @@ const _TEST_PUSH_COPY = {
   w2_push: "入嚟兩個禮拜喇，有幾條短問題想問下你。得閒先答，唔急。",
 };
 
+/**
+ * The text a test push of `kind` sends.  1020 batch 4: the batch-4 texts
+ * by kind (functions/push_copy.js TEST_PUSH_KINDS: P1, P2 and the weekly
+ * texts, week 1 / week 4).  Older App builds have only the three old
+ * buttons, so with checkInChatV2Enabled on the 「每日心情提醒」 kind sends
+ * P1 (the 08:30 push that replaces the old daily reminder), and with
+ * weeklyReminderV2Enabled on the 「每週問卷提醒」 kind sends the week-1
+ * opening push.  Both switches off: the old texts, unchanged.
+ * @param {object} db admin.firestore()
+ * @param {*} kind requested kind
+ * @return {Promise<?{kind: string, body: string, extra: object}>} null =
+ *     unknown kind; extra = {copyId} when a batch-4 text is sent
+ */
+async function testPushCopy(db, kind) {
+  const has = (o) => typeof kind === "string" &&
+    Object.prototype.hasOwnProperty.call(o, kind);
+  let pick = has(pushCopy.TEST_PUSH_KINDS) ?
+    pushCopy.TEST_PUSH_KINDS[kind] : null;
+  if (!pick && !has(_TEST_PUSH_COPY)) return null;
+  if (kind === "daily_mood_reminder" &&
+      await featureFlags.isFeatureEnabled(db, dailyCheckInPush.FLAG)) {
+    pick = pushCopy.TEST_PUSH_KINDS.checkin_p1;
+  }
+  const weeklyFlag = weeklySchedule.REMINDER_V2_FLAG;
+  if (kind === "weekly_survey_reminder" &&
+      await featureFlags.isFeatureEnabled(db, weeklyFlag)) {
+    pick = pushCopy.TEST_PUSH_KINDS.weekly_open;
+  }
+  if (!pick) return {kind, body: _TEST_PUSH_COPY[kind], extra: {}};
+  return {kind, body: pushCopy.testKindText(pick), extra: {copyId: pick.id}};
+}
+
 exports.sendTestPush = onCall(
   {region: "asia-east2", enforceAppCheck: false, maxInstances: 3, timeoutSeconds: 60},
   async (request) => {
@@ -2787,8 +2895,8 @@ exports.sendTestPush = onCall(
       throw new HttpsError("permission-denied", "tester accounts only");
     }
     const payload = request.data || {};
-    const kind = payload.kind;
-    if (!Object.prototype.hasOwnProperty.call(_TEST_PUSH_COPY, kind)) {
+    const pick = await testPushCopy(db, payload.kind);
+    if (!pick) {
       throw new HttpsError("invalid-argument", "unknown kind");
     }
     const delay = Math.max(0, Math.min(45, Number(payload.delaySeconds) || 0));
@@ -2804,9 +2912,9 @@ exports.sendTestPush = onCall(
       try {
         await admin.messaging().send({
           token,
-          notification: {title: "陪住（測試）", body: _TEST_PUSH_COPY[kind]},
+          notification: {title: "陪住（測試）", body: pick.body},
           android: {priority: "high"},
-          data: {kind, test: "1"},
+          data: {kind: pick.kind, test: "1"},
         });
         delivered++;
       } catch (err) {
@@ -2815,10 +2923,12 @@ exports.sendTestPush = onCall(
     }
     await userSnap.ref.collection("events").add({
       name: "test_push_sent",
-      params: {kind, tokens: tokens.length, delivered, delay},
+      params: Object.assign({kind: pick.kind, tokens: tokens.length,
+        delivered, delay}, pick.extra),
       source: "cf_sendTestPush",
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     });
-    return {tokens: tokens.length, delivered, errors};
+    return Object.assign({tokens: tokens.length, delivered, errors},
+        pick.extra);
   },
 );

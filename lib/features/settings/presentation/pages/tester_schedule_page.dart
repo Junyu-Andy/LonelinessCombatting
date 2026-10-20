@@ -191,10 +191,22 @@ class _TesterSchedulePageState extends State<TesterSchedulePage> {
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
+            // 1020 batch 4: the server decides the text per kind
+            // (functions/push_copy.js TEST_PUSH_KINDS); the first two
+            // send the new texts when their switches are on.
             for (final (kind, label) in const [
-              ('daily_mood_reminder', '每日心情提醒（19:00 嗰條）'),
-              ('weekly_survey_reminder', '每週問卷提醒（星期日 20:00 嗰條）'),
-              ('w2_push', '第 2 週問卷推送（10:00 嗰條）'),
+              ('daily_mood_reminder',
+                  '每日 check-in 推送 P1（08:30；開關未開時係舊 19:00 提醒）'),
+              ('checkin_p2', '未做 check-in 提醒 P2（19:00）'),
+              ('weekly_survey_reminder',
+                  '每週問卷開咗（第一週；開關未開時係舊星期日提醒）'),
+              ('weekly_pre', '每週問卷：前一日預告（第一週，10:00）'),
+              ('weekly_rem1', '每週問卷：聽日截止（第一週，10:00）'),
+              ('weekly_rem2', '每週問卷：最後一日（第一週，10:00）'),
+              ('weekly4_pre', '第四週問卷：前一日預告（10:00）'),
+              ('weekly4_open', '第四週問卷開咗（10:00）'),
+              ('weekly4_rem', '第四週問卷：仲未答完（10:00）'),
+              ('w2_push', '第 2 週問卷推送（舊，10:00 嗰條）'),
             ])
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),

@@ -49,7 +49,7 @@ async function seed(col, id, data) {
 
 const SERVER_ONLY = ['studyWeek', 'studyDay', 'submittedStudyDay', 'pushedAt',
   'windowStart', 'windowEnd', 'missed', 'missedAt', 'scheduleMode',
-  'stampedAt', 'studyWeekBasis'];
+  'stampedAt', 'studyWeekBasis', 'outsideWindow'];
 
 describe('T24 study-week fields are server-only', () => {
   beforeEach(async () => {

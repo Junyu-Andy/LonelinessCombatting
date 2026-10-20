@@ -29,6 +29,11 @@ const CHECKS = [
     'T58 语音输入隐藏（10/21 关）'],
   ['app_config/feature_flags', 'transcriptRetentionToggleEnabled', false,
     'T51 不显示「保留對話紀錄」'],
+  // dev-tasks-1020 §3, batch 4 (also batch 2's switch for the App).
+  ['app_config/feature_flags', 'checkInChatV2Enabled', true,
+    'T55 check-in 对话化 + 08:30 P1、19:00 P2（10/21 开）'],
+  ['app_config/feature_flags', 'weeklyReminderV2Enabled', true,
+    'T56 每周问卷整日窗口、10:00 提醒、给 Junyu 的电邮（1020e；装新构建后开）'],
   // 1020b §2: two of #126's switches stay off for 10/21; 1020c 一: Junyu
   // turns the other two on once the 10/20 phone test passes, before the
   // first RCT- registration.

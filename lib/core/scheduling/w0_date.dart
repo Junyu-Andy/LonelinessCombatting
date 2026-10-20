@@ -17,6 +17,12 @@ DateTime? w0DateFor(UserProfile? profile) {
   return registered ?? profile?.createdAt;
 }
 
+/// 1020e 二.2: the day the W4 visit was recorded
+/// (`users/{uid}.w4RecordedOn`), or null.  Closes the in-App W4
+/// questionnaire with `weeklyReminderV2Enabled` (WeeklySchedule.windowFor).
+DateTime? w4RecordedOnFor(UserProfile? profile) =>
+    _parseDateKey(profile?.w4RecordedOn);
+
 DateTime? _parseDateKey(String? raw) {
   if (raw == null) return null;
   final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(raw);

@@ -20,9 +20,26 @@
 ///   maps to it any more.
 ///
 /// Every window is `[open, close)`: open = push instant, close exclusive.
+///
+/// 1020e 二.1–二.2 (batch 4) — with `app_config/feature_flags
+/// .weeklyReminderV2Enabled` on ([RemoteFeatureFlags]; only a literal true
+/// turns it on) W1–W4 use whole days instead, the same as the server
+/// (functions/weekly_schedule.js windowFor, same fixture):
+///   W1–W3  open at 00:00 of the push day (7, 14, 21), close at the end of
+///          the push day + [PhaseBConfig.weeklyWindowDays] − 1 (day 9, 16,
+///          23 at 23:59:59).
+///   W4     opens at 00:00 of day 26; closes at the end of the day the W4
+///          visit was recorded (`users/{uid}.w4RecordedOn`, server-written
+///          by the assessor's entry, `UserProfile.w4RecordedOn`) — never
+///          before the end of day 26 — and at the latest at the end of day
+///          [week4LatestCloseDayV2] (42).
+///   W5–W7  unchanged.
+/// Callers that do not pass `v2` get [RemoteFeatureFlags.current]; with the
+/// flag off everything is exactly as before.
 library;
 
 import '../config/phase_b_config.dart';
+import '../feature_flags/remote_feature_flags.dart';
 import '../study/cohorts.dart';
 import 'study_week.dart';
 
@@ -161,10 +178,23 @@ class WeeklySchedule {
   /// First instant after calendar day [d] (its 24:00).
   static DateTime _endOfDay(DateTime d) => DateTime(d.year, d.month, d.day + 1);
 
+  /// 1020e 二.2(1): with v2 on, W4 closes at the end of this study day at
+  /// the latest (server: V2_WEEK4_LATEST_CLOSE_DAY).
+  static const int week4LatestCloseDayV2 = 42;
+
+  /// The flag value used when a caller does not pass `v2`.
+  static bool get v2Default =>
+      RemoteFeatureFlags.current.weeklyReminderV2Enabled;
+
+  /// Is [bundle] one the v2 windows cover?  W1–W3 and W4; never W5–W7.
+  static bool isV2Bundle(WeeklyBundle bundle) =>
+      bundle.closeRule == WeeklyCloseRule.week4 ||
+      (bundle.closeRule == WeeklyCloseRule.window && bundle.index < 3);
+
   /// Week-4 close: the end of study day [PhaseBConfig.week4CloseDay], or
   /// of the W4 visit day when that is later.  The visit date is the
   /// assessor's administration date from T30 (not merged yet: callers
-  /// pass null today, so the window closes on day 29).
+  /// pass null today, so the window closes on day 29).  v2 off only.
   static DateTime week4CloseFor(DateTime w0, DateTime? w4VisitDate, PhaseBConfig cfg) {
     final byDay = _endOfDay(dateOfStudyDay(w0, cfg.week4CloseDay));
     if (w4VisitDate == null) return byDay;
@@ -172,10 +202,33 @@ class WeeklySchedule {
     return byVisit.isAfter(byDay) ? byVisit : byDay;
   }
 
+  /// 1020e 二.2: week-4 close with v2 on — the end of the day the W4 visit
+  /// was recorded ([recordedOn]), never before the end of the opening day,
+  /// never after the end of day [week4LatestCloseDayV2]; nothing recorded:
+  /// the end of day 42.
+  static DateTime week4CloseV2(DateTime w0, DateTime? recordedOn, WeeklyBundle bundle) {
+    final latest = _endOfDay(dateOfStudyDay(w0, week4LatestCloseDayV2));
+    if (recordedOn == null) return latest;
+    final earliest = _endOfDay(dateOfStudyDay(w0, bundle.pushDay));
+    var close = _endOfDay(recordedOn);
+    if (close.isBefore(earliest)) close = earliest;
+    return close.isAfter(latest) ? latest : close;
+  }
+
   /// `[open, close)` of [bundle] for a participant whose W0 is [w0].
+  /// [v2] defaults to [v2Default]; [week4RecordedOn] is
+  /// `users/{uid}.w4RecordedOn` (v2 only), [w4VisitDate] T24's hook (v2
+  /// off only).
   static WeeklyWindow windowFor(WeeklyBundle bundle, DateTime w0, PhaseBConfig cfg,
-      {DateTime? w4VisitDate}) {
+      {DateTime? w4VisitDate, DateTime? week4RecordedOn, bool? v2}) {
     final pushDate = dateOfStudyDay(w0, bundle.pushDay);
+    if ((v2 ?? v2Default) && isV2Bundle(bundle)) {
+      final open = DateTime(pushDate.year, pushDate.month, pushDate.day);
+      final close = bundle.closeRule == WeeklyCloseRule.week4
+          ? week4CloseV2(w0, week4RecordedOn, bundle)
+          : _endOfDay(dateOfStudyDay(w0, bundle.pushDay + bundle.windowDays - 1));
+      return WeeklyWindow(open, close);
+    }
     final open = DateTime(pushDate.year, pushDate.month, pushDate.day, cfg.weeklyPushHour);
     final close = bundle.closeRule == WeeklyCloseRule.week4
         ? week4CloseFor(w0, w4VisitDate, cfg)
@@ -183,31 +236,54 @@ class WeeklySchedule {
     return WeeklyWindow(open, close);
   }
 
-  /// The bundle whose window contains [now], or null.
+  /// Every bundle whose window contains [now], in push order.  With v2 the
+  /// W4 window can run to day 42 and overlap W5 / W6, so a caller that
+  /// shows one card picks the first one still to do (pending_prompts).
+  static List<({WeeklyBundle bundle, WeeklyWindow window})> openBundlesAt(
+    PhaseBConfig cfg,
+    WeeklyScheduleMode mode,
+    DateTime w0,
+    DateTime now, {
+    DateTime? w4VisitDate,
+    DateTime? week4RecordedOn,
+    bool? v2,
+  }) {
+    final out = <({WeeklyBundle bundle, WeeklyWindow window})>[];
+    for (final b in bundlesFor(cfg, mode)) {
+      final w = windowFor(b, w0, cfg,
+          w4VisitDate: w4VisitDate, week4RecordedOn: week4RecordedOn, v2: v2);
+      if (w.contains(now)) out.add((bundle: b, window: w));
+    }
+    return out;
+  }
+
+  /// The first bundle whose window contains [now], or null.
   static ({WeeklyBundle bundle, WeeklyWindow window})? openBundleAt(
     PhaseBConfig cfg,
     WeeklyScheduleMode mode,
     DateTime w0,
     DateTime now, {
     DateTime? w4VisitDate,
+    DateTime? week4RecordedOn,
+    bool? v2,
   }) {
-    for (final b in bundlesFor(cfg, mode)) {
-      final w = windowFor(b, w0, cfg, w4VisitDate: w4VisitDate);
-      if (w.contains(now)) return (bundle: b, window: w);
-    }
-    return null;
+    final all = openBundlesAt(cfg, mode, w0, now,
+        w4VisitDate: w4VisitDate, week4RecordedOn: week4RecordedOn, v2: v2);
+    return all.isEmpty ? null : all.first;
   }
 
   /// Sessions counted for the Weekly PR referent of [bundle]: from the
   /// start of the first day of its study week (pilot: the previous push,
-  /// or W0 midnight for the first bundle) to the push instant.
+  /// or W0 midnight for the first bundle) to the window's opening (T24:
+  /// the push instant; v2: 00:00 of the push day).
   static (DateTime, DateTime) referentRangeFor(
-      WeeklyBundle bundle, DateTime w0, PhaseBConfig cfg, WeeklyScheduleMode mode) {
-    final end = windowFor(bundle, w0, cfg).open;
+      WeeklyBundle bundle, DateTime w0, PhaseBConfig cfg, WeeklyScheduleMode mode,
+      {bool? v2}) {
+    final end = windowFor(bundle, w0, cfg, v2: v2).open;
     if (mode == WeeklyScheduleMode.pilot) {
       if (bundle.index == 0) return (DateTime(w0.year, w0.month, w0.day), end);
       final prev = bundlesFor(cfg, mode)[bundle.index - 1];
-      return (windowFor(prev, w0, cfg).open, end);
+      return (windowFor(prev, w0, cfg, v2: v2).open, end);
     }
     final firstDay = 7 * (bundle.studyWeek - 1) + 1;
     return (dateOfStudyDay(w0, firstDay), end);

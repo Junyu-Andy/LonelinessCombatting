@@ -109,10 +109,14 @@ service cloud.firestore {
     // only, like the arm.
     // T21: so is cohort (the study period from the research-ID prefix,
     // decision 0011 labels) — it decides whether the account is enrolled.
+    // 1020e 二.2: so is w4RecordedOn (the day the assessor recorded the W4
+    // visit, functions/assessor.js) — it closes the in-App W4
+    // questionnaire, so the owner may read it but never write it.
     function assignmentFields() {
       return ['arm', 'strataCell', 'armAssignmentMode', 'armAssignedBy',
               'armAssignedAt', 'memoryWithdrawnAt', 'w0Date',
-              'armAssignmentMethod', 'armCorrectedAt', 'cohort'];
+              'armAssignmentMethod', 'armCorrectedAt', 'cohort',
+              'w4RecordedOn'];
     }
 
     function createLeavesAssignmentEmpty(data) {
@@ -121,7 +125,8 @@ service cloud.firestore {
         && !data.keys().hasAny(['armAssignmentMode', 'armAssignedBy',
                                 'armAssignedAt', 'memoryWithdrawnAt',
                                 'w0Date', 'armAssignmentMethod',
-                                'armCorrectedAt', 'cohort']);
+                                'armCorrectedAt', 'cohort',
+                                'w4RecordedOn']);
     }
 
     // T21 — enrolment gate (app_config/feature_flags.enrollmentGateEnabled,
@@ -196,10 +201,12 @@ service cloud.firestore {
       return ['brief_pr', 'weekly_pr', 'pgic', 'social_contact_probes'];
     }
 
+    // 1020e: outsideWindow is stamped with weeklyReminderV2Enabled on.
     function serverOnlyWeekFields() {
       return ['studyWeek', 'studyDay', 'submittedStudyDay', 'pushedAt',
               'windowStart', 'windowEnd', 'missed', 'missedAt',
-              'scheduleMode', 'stampedAt', 'studyWeekBasis'];
+              'scheduleMode', 'stampedAt', 'studyWeekBasis',
+              'outsideWindow'];
     }
 
     function leavesWeekStampsAlone(collection) {

@@ -47,10 +47,20 @@ class _TesterWeeklyBundlePageState extends State<TesterWeeklyBundlePage> {
     ));
   }
 
-  void _simulate(WeeklyWindow window) {
-    AppClock.instance.simulate(window.open.add(const Duration(minutes: 30)));
+  /// Half an hour after the push (T24: the window opens at the push;
+  /// 1020e v2: the window opens at 00:00, the push is at 10:00).
+  void _simulate(WeeklyWindow window, int pushHour) {
+    final o = window.open;
+    AppClock.instance.simulate(DateTime(o.year, o.month, o.day, pushHour, 30));
     Navigator.of(context).popUntil((r) => r.isFirst);
   }
+
+  /// The push hour of [b]: 10:00 for W1–W4 with weeklyReminderV2Enabled
+  /// (functions/weekly_schedule.js V2_PUSH_HOUR), else weeklyPushHour.
+  static int _pushHourOf(WeeklyBundle b, PhaseBConfig cfg) =>
+      WeeklySchedule.v2Default && WeeklySchedule.isV2Bundle(b)
+          ? 10
+          : cfg.weeklyPushHour;
 
   @override
   Widget build(BuildContext context) {
@@ -117,12 +127,18 @@ class _TesterWeeklyBundlePageState extends State<TesterWeeklyBundlePage> {
             for (final b in bundles)
               _BundleCard(
                 bundle: b,
-                window: w0 == null ? null : WeeklySchedule.windowFor(b, w0, cfg),
-                pushHour: cfg.weeklyPushHour,
+                window: w0 == null
+                    ? null
+                    : WeeklySchedule.windowFor(b, w0, cfg,
+                        week4RecordedOn: w4RecordedOnFor(profile)),
+                pushHour: _pushHourOf(b, cfg),
                 onPreview: () => _preview(b),
                 onSimulate: simulateBlocked != null || w0 == null
                     ? null
-                    : () => _simulate(WeeklySchedule.windowFor(b, w0, cfg)),
+                    : () => _simulate(
+                        WeeklySchedule.windowFor(b, w0, cfg,
+                            week4RecordedOn: w4RecordedOnFor(profile)),
+                        _pushHourOf(b, cfg)),
               ),
           ],
         ),
