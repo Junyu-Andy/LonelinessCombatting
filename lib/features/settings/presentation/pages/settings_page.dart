@@ -15,8 +15,9 @@ import '../../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import '../../../personalization/presentation/pages/personalization_page.dart';
+import '../../../reminiscence/data/reminiscence_v2_copy.dart';
+import '../../../reminiscence/presentation/pages/reminiscence_chapters_page.dart';
 import '../../../memory/presentation/pages/remembered_page.dart';
-import '../../../my_story/presentation/pages/my_story_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
 import '../../../../core/config/phase_a_schedule_config.dart';
@@ -96,8 +97,8 @@ class _SettingsPageState extends State<SettingsPage> {
           // 2026-07 IA cleanup: 「關於我」grab-bag split into 個人資料
           // (who I am) and 反饋／問卷 (research instruments); the weekly
           // recap tile removed (你嘅一個禮拜 lives behind Today's 進度
-          // shortcut). 人生回顧 stays here TEMPORARILY pending its new
-          // home (likely 搵人傾) — removing it now would orphan M3.
+          // shortcut).  1020o: 人生回顧 (the old My Story page) became
+          // 我嘅人生小篇章, the reminiscence v2 chapters page.
           const SizedBox(height: 24),
           _SectionHeader(
             icon: Icons.person_outline,
@@ -126,14 +127,20 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 10),
+          // 1020o 第一节: same page as the 「我嘅人生小篇章」 button on the
+          // 阿珍／阿伯 page (both arms).
           _NavTileCard(
+            key: const Key('me_life_chapters_entry'),
             icon: Icons.menu_book_outlined,
-            title: isEn ? 'Life-review progress' : '人生回顧',
+            title: isEn
+                ? 'My life chapters'
+                : ReminiscenceV2Copy.chaptersPageTitle,
             subtitle: isEn
-                ? 'Take your time — skip anything you\'d rather not discuss.'
-                : '慢慢嚟，可以跳過唔想講嘅時期。',
+                ? 'After each week, your short write-up is kept here.'
+                : ReminiscenceV2Copy.chaptersEntrySubtitle,
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const MyStoryPage()),
+              MaterialPageRoute<void>(
+                  builder: (_) => const ReminiscenceChaptersPage()),
             ),
           ),
           // C20 / decision 0020: the participant's own off switch for

@@ -86,8 +86,6 @@ import 'package:app_demo/features/education/presentation/pages/education_library
 import 'package:app_demo/features/education/presentation/pages/reader_page.dart';
 import 'package:app_demo/features/education/presentation/reader/reader_surface.dart';
 import 'package:app_demo/features/memory/presentation/pages/remembered_page.dart';
-import 'package:app_demo/features/my_story/presentation/pages/my_story_page.dart';
-import 'package:app_demo/features/my_story/presentation/widgets/story_thread_timeline.dart';
 import 'package:app_demo/features/onboarding/data/intake_repository.dart';
 import 'package:app_demo/features/onboarding/data/intake_response.dart';
 import 'package:app_demo/features/onboarding/presentation/pages/agent_onboarding_page.dart';
@@ -96,6 +94,8 @@ import 'package:app_demo/features/onboarding/presentation/pages/intake_short_pag
 import 'package:app_demo/features/personalization/presentation/pages/personalization_page.dart';
 import 'package:app_demo/features/reflective_dialogue/presentation/pages/reflective_dialogue_page.dart';
 import 'package:app_demo/features/reminiscence/data/reminiscence_themes.dart';
+import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_chapters_page.dart';
+import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_landing.dart';
 import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_arm_a_page.dart';
 import 'package:app_demo/features/settings/data/tester_arm_switch.dart';
 import 'package:app_demo/features/settings/presentation/pages/faq_page.dart';
@@ -846,15 +846,15 @@ final _flows = <String, _Flow>{
     expect(find.byType(BriefPrFlowPage), findsNothing,
         reason: 'all four questions answered');
   },
-  '人生回顧（時間線 → 開第二個主題）': (c) async {
-    await _pumpHome(c, const Scaffold(body: MyStoryPage()));
-    await c.shot('my_story_top');
-    await _scrollTap(c, find.byType(StoryThreadTimeline));
-    await c.shot('my_story_timeline');
-    await _scrollTap(c, find.byKey(const Key('story_theme_2')));
-    await _dismissIntro(c);
-    await c.shot('my_story_theme_2');
-    await _back(c);
+  // 1020o: the old 人生回顧 (My Story) page is gone; 自己 now opens
+  // 我嘅人生小篇章, and the 人生點滴 landing has the companion's bubble.
+  '人生點滴（首頁 → 我嘅人生小篇章）': (c) async {
+    await _pumpHome(c, const ReminiscenceLandingPage());
+    await c.shot('landing_top');
+    await _scrollInto(c, find.text('想留畀下一代嘅說話'));
+    await c.shot('landing_bottom');
+    await _pushPage(c, const ReminiscenceChaptersPage());
+    await c.shot('chapters');
   },
   '每週問卷 W1（預覽：DJG 六題 → 夥伴評估 → 同開始比較）': (c) async {
     final bundle = WeeklySchedule.bundlesFor(

@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-10-20 1020o 第一、四节：「自己」页改为「我嘅人生小篇章」，旧「我的故事」页删除；回忆首页加阿珍／阿伯气泡和主题图片（分支 `claude/zealous-fermat-8rgqtg-selfpage-1020o`，未开 PR，不加开关）
+
+- 结论：两组相同、不调用模型、不加开关（Junyu 第 87 条：直接改，旧版本删掉）。老人看得到的新文字都是草稿，等 Junyu 定。
+- 第一节：「自己」页（`settings_page.dart`）「人生回顧」改名「我嘅人生小篇章」、加一行说明，打开回忆 v2 的小篇章页 `ReminiscenceChaptersPage`。阿珍／阿伯页上的同名按钮照留（两处都留还是只留一处，待 Junyu 定）。旧页 `MyStoryPage` 和只给它用的四个小组件、两个测试删掉；`MyStoryProgress`（「接著傾」卡片和首页小结在用）保留。
+- 删除前只读检查旧页：① **「反思傾偈」**（Hybrid 组，和阿珍／阿伯自由倾偈）的固定入口只有这一处；另一条路是小欣／通通聊天里的转介卡「好，過去傾」（只在模型判断要转介时出现）。为了不让它消失，卡片原样搬到回忆首页最下面，仍只给 Hybrid 组（决策 0006 不变），转介那条路没动。② 「今週」卡片和「故事線」打开某一周的回忆页——回忆首页本来就有四个主题，不会少。③ 「完成咗嘅回憶」列表打开旧版（v1）每周摘要页 `M3SessionDetailPage`——回忆首页在 `reminiscenceV2Enabled` 关时有「我嘅回憶」按钮通往同一页；开关开时只剩小篇章，旧版摘要在 App 里看不到（数据不动）。正式参与者 10/21 起用 v2，没有旧版摘要；只影响试跑时用过旧版回忆的帐号。
+- 小篇章页（普通和高对比）截图核对过：白底黑字，看得清，不用改。
+- 第四节：回忆首页 `reminiscence_landing.dart` 顶上换成阿珍／阿伯头像（按 `ahJanAhBakVariant`，读不出图显示「伯」／「珍」，沿用 1020l 的 `AgentAvatar`）加气泡。气泡文字可以被 `app_config/usage_copy` 的 `reminiscence_landing_intro_zh`（英文 `_en`）整句替换，替换的文字里 `{name}`、`{weeks}` 也会换；如果正式环境这个字段已经有值，会显示那个旧值而不是新句，要删掉或改成新句。原来的 S3 那句（`short-texts.md`）不再使用。
+- 主题卡：删「第 N 週」，加一行主题说明（按周数对应）；左边数字方块改为图片 `assets/reminiscence/theme_1.png` 至 `theme_4.png`，底色和「做啲嘢」卡片一样。图片还没进仓库：`pubspec.yaml` 登记整个文件夹，文件夹里放 `.gitkeep`，所以现在构建和测试都能过，卡片显示原来的数字方块。**图片到了：把四张图放到 `assets/reminiscence/theme_N.png`（N = 1 至 4，按主题周数），不用改代码和 pubspec**，重新构建即可。
+- 顺手修：回忆首页在没登录（访客／测试）时，主题卡滑出屏幕再滑回来会报错（「已完成」那条数据流只能听一次），改成可以重复听。
+- 测试：新加 `test/selfpage_landing_1020o_test.dart`（两组、阿珍／阿伯、高对比文字对比度、滑动、旧页已删且没有地方引用），加进 `tool/ci_flutter_tests.sh` 两个 Phase B 列表；`test/reminiscence_v2_copy_test.dart` 逐字比对 `reminiscence-v2.md` 新加的 L-INTRO、L-THEME-1 至 4、L-ME。截图在 `docs/dev-reports/1020o-shots/selfpage/` 和 `docs/dev-reports/1020o-shots/landing/`。
+
 ## 2026-10-20 1020m 第二节：首页「今日要做嘅事」的小行动一行（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-smallaction-1020m`）
 
 - 结论：第一页在 check-in 一行和问卷一行之后加一行：没有计划时「今日想做啲咩小行動？」+「遲啲先」（收起 3 天）；当天有计划时「今日計劃：{做咩}」+「做咗」「改日」。两组相同，不调用模型。**不加开关，直接替换旧的一行**（Junyu 10/20 晚定；旧的计划跟进一行 `ActivePlanBanner` 从第一页拿走，它在第一页本来也不会出现，因为没有计划有 `scheduledFor`）。
