@@ -17,11 +17,11 @@ import 'package:app_demo/core/memory/memory_store.dart';
 import 'package:app_demo/core/safety/distress_detector.dart';
 import 'package:app_demo/core/safety/distress_router.dart';
 import 'package:app_demo/core/safety/distress_state.dart';
-import 'package:app_demo/core/safety/safety_copy.dart';
 import 'package:app_demo/features/analytics/data/analytics_service.dart';
 import 'package:app_demo/features/analytics/presentation/analytics_scope.dart';
 import 'package:app_demo/features/auth/data/auth_service.dart';
 import 'package:app_demo/features/auth/presentation/auth_service_scope.dart';
+import 'package:app_demo/features/crisis/presentation/widgets/crisis_chat_message.dart';
 import 'package:app_demo/core/voice/transcription_repository.dart';
 import 'package:app_demo/core/voice/voice_input_button.dart';
 import 'package:app_demo/core/voice/voice_recorder.dart';
@@ -258,9 +258,9 @@ void main() {
       await send(tester, '天氣咁差，我真係想死');
       expect(find.textContaining(TungTungSearchIntent.reply(isEn: false),
           findRichText: true, skipOffstage: false), findsNothing);
-      final acute = SafetyCopy.acuteAck('tung_tung', isEn: false);
-      expect(find.textContaining(acute, findRichText: true,
-          skipOffstage: false), findsWidgets);
+      // 1020m 第三节: the fixed safety message (crisis page's numbers).
+      expect(find.byType(CrisisChatMessage, skipOffstage: false),
+          findsOneWidget);
     });
 
     // T27 — the server transcript is only put into the input box; sending
@@ -293,9 +293,9 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       await tester.pumpAndSettle();
       expect(client.calls, 0, reason: 'acute input never reaches the model');
-      final acute = SafetyCopy.acuteAck('tung_tung', isEn: false);
-      expect(find.textContaining(acute, findRichText: true,
-          skipOffstage: false), findsWidgets);
+      // 1020m 第三节: the fixed safety message (crisis page's numbers).
+      expect(find.byType(CrisisChatMessage, skipOffstage: false),
+          findsOneWidget);
     });
 
     testWidgets('voice on: a failed transcription shows S6 by the box, '

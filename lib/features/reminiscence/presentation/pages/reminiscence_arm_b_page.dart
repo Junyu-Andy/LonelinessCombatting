@@ -14,6 +14,7 @@ import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/rule_submission_flow.dart';
 import '../../../context/presentation/pages/check_in_shared.dart';
+import '../../../crisis/presentation/widgets/crisis_chat_message.dart';
 import '../../../rule_replies/data/rule_reply_history_store.dart';
 import '../../../rule_replies/data/rule_reply_pool.dart';
 import '../../../rule_replies/data/rule_reply_service.dart';
@@ -68,6 +69,11 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
   MoodFace? _face; // optional
   String? _ruleReply;
   ChatSessionRecorder? _rec;
+
+  /// 1020m 第三节: the saved memory tripped acute → the fixed safety
+  /// message ([CrisisChatMessage], the crisis page's numbers) under it, as
+  /// the Hybrid reminiscence chat shows it.
+  bool _acute = false;
 
   @override
   void dispose() {
@@ -190,6 +196,7 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
       _saved = true;
       _ruleReply = ruleReply;
       _rec = rec;
+      _acute = distress.level == DistressLevel.acute;
     });
     // T7 already wrote the event (checkUserText above); route only.
     if (distress.level != DistressLevel.none) {
@@ -290,6 +297,10 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
                 ),
                 textAlignVertical: TextAlignVertical.top,
               ),
+              if (_acute) ...[
+                const SizedBox(height: 12),
+                const CrisisChatMessage(),
+              ],
               if (_ruleReplies && _ruleReply != null) ...[
                 const SizedBox(height: 12),
                 RuleReplyBubble(

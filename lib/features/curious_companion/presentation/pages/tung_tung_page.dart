@@ -55,6 +55,7 @@ import '../../data/tung_tung_rule_pool.dart';
 import '../../data/tung_tung_rule_responder.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
+import '../../../crisis/presentation/widgets/crisis_chat_message.dart';
 
 class TungTungPage extends StatefulWidget {
   /// Optional article body / title injected by M8's "問下呢篇" entry.
@@ -465,6 +466,7 @@ class _TungTungPageState extends State<TungTungPage> {
 
     final history = _turns
         .take(_turns.length - 1)
+        .where((t) => !t.crisis)
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
     final response = await core.llm.send(
@@ -503,11 +505,11 @@ class _TungTungPageState extends State<TungTungPage> {
     final modality = usedVoice ? InputModality.voice : InputModality.text;
     final mode = widget.articleContext != null ? 'A' : 'B';
     if (response.shortCircuited) {
-      // S-2 — acute: template instead of any reply; session ends `crisis`.
+      // S-2 — acute: the fixed safety message instead of any reply
+      // (1020m 第三节: [CrisisChatMessage]); session ends `crisis`.
       setState(() {
         _busy = false;
-        _turns.add(_Turn.system(
-            SafetyCopy.acuteAck(AgentRegistry.tungTungId, isEn: isEn)));
+        _turns.add(_Turn.crisis());
       });
       unawaited(_recorder?.logTurn(TurnRecord(
         agentId: AgentRegistry.tungTungId,
@@ -541,12 +543,16 @@ class _TungTungPageState extends State<TungTungPage> {
     final moderateAck = escalation.interrupts
         ? SafetyCopy.moderateAck(AgentRegistry.tungTungId, isEn: isEn)
         : null;
+    // 1020m 第三节: acute on the reply scan → the fixed safety message
+    // under the reply (the crisis page opens below, as before).
+    final crisis = escalation.level == DistressLevel.acute;
     final replyShownAt = DateTime.now();
     setState(() {
       _busy = false;
       _turns.add(_Turn.bot(replyText,
           promptHash: response.metadata.systemPromptHash));
       if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
+      if (crisis) _turns.add(_Turn.crisis());
     });
     final turnIndex = _turns.lastIndexWhere((t) => !t.fromUser && !t.isSystem);
     final turnDocId = await _recorder?.logTurn(TurnRecord(
@@ -560,7 +566,7 @@ class _TungTungPageState extends State<TungTungPage> {
       userText: text,
       detector: escalation,
       shortCircuited: false,
-      ackShown: moderateAck != null,
+      ackShown: moderateAck != null || crisis,
       response: response,
       tungTungMode: mode,
       tungTungArticleId: widget.articleId,
@@ -728,10 +734,10 @@ class _TungTungPageState extends State<TungTungPage> {
         );
 
     if (flag.level == DistressLevel.acute) {
+      // 1020m 第三节: the same fixed safety message as the Hybrid page.
       setState(() {
         _busy = false;
-        _turns.add(_Turn.system(
-            SafetyCopy.acuteAck(AgentRegistry.tungTungId, isEn: isEn)));
+        _turns.add(_Turn.crisis());
       });
       unawaited(_recorder?.logTurn(record('', acute: true, ack: true)));
       unawaited(_recorder?.end(SessionEndReason.crisis));
@@ -1112,6 +1118,7 @@ class _TurnBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (turn.crisis) return const CrisisChatMessage();
     final theme = Theme.of(context);
     final color = turn.fromUser
         ? theme.colorScheme.primaryContainer
@@ -1430,12 +1437,18 @@ class _Turn {
 
   /// L-1 — id of the logged `turns/{turnId}` doc (assistant turns only).
   final String? turnDocId;
+
+  /// 1020m 第三节: shown as [CrisisChatMessage]; never sent to the model.
+  final bool crisis;
   const _Turn._(this.fromUser, this.isSystem, this.text,
-      {this.promptHash, this.turnDocId});
+      {this.promptHash, this.turnDocId, this.crisis = false});
   factory _Turn.user(String t) => _Turn._(true, false, t);
   factory _Turn.bot(String t, {String? promptHash}) =>
       _Turn._(false, false, t, promptHash: promptHash);
   factory _Turn.system(String t) => _Turn._(false, true, t);
-  _Turn withTurnDocId(String id) =>
-      _Turn._(fromUser, isSystem, text, promptHash: promptHash, turnDocId: id);
+
+  /// 1020m 第三节: the fixed safety message after an acute trigger.
+  factory _Turn.crisis() => _Turn._(false, true, '', crisis: true);
+  _Turn withTurnDocId(String id) => _Turn._(fromUser, isSystem, text,
+      promptHash: promptHash, turnDocId: id, crisis: crisis);
 }

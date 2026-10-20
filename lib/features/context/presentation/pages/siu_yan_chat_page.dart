@@ -33,7 +33,9 @@
 /// moderate_interrupt and acute get no template and the safety flow runs.
 /// Acute ends the check-in early (both arms); once the researcher marks the
 /// alert a false alarm (誤觸), the same day's next visit resumes it at the
-/// question where it stopped (1020e 二.9).
+/// question where it stopped (1020e 二.9).  1020m 第三节: after acute the
+/// chat shows the fixed [CrisisChatMessage] (the crisis page's numbers and
+/// 「打開緊急求助頁」), both arms alike.
 ///
 /// Records: `check_in_responses` ([CheckInChatRecord]); a completed
 /// check-in marks its session valid ([ChatSessionRecorder.markCheckInCompleted]);
@@ -108,6 +110,7 @@ import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../crisis/presentation/widgets/crisis_chat_message.dart';
 import '../../../reflective_dialogue/data/negative_cognition_detector.dart';
 import '../../../rule_replies/data/rule_reply_history_store.dart';
 import '../../../rule_replies/data/rule_reply_picker.dart';
@@ -987,16 +990,16 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     return (r.match, turnId);
   }
 
-  /// Acute: the safety template instead of any reply, session ends
+  /// Acute: the fixed safety message instead of any reply (1020m 第三节:
+  /// [CrisisChatMessage], the crisis page's numbers), session ends
   /// `crisis`, crisis page (as every chat page, both arms).
   Future<void> _ruleAcute(
       _FreeInput input, DistressMatch flag, String turnId) async {
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final core = CoreServicesScope.of(context);
     _safetyFlagged.add(input.bubble);
     setState(() {
       _busy = false;
-      _bubbles.add(_Bubble.system(SafetyCopy.acuteAck(_siuYan, isEn: isEn)));
+      _bubbles.add(_Bubble.crisis());
     });
     unawaited(_logTurn(
       input: input,
@@ -1199,7 +1202,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       if (input != null) _safetyFlagged.add(input.bubble);
       setState(() {
         _busy = false;
-        _bubbles.add(_Bubble.system(SafetyCopy.acuteAck(_siuYan, isEn: isEn)));
+        _bubbles.add(_Bubble.crisis());
       });
       unawaited(_logTurn(
         input: input,
@@ -1219,6 +1222,9 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     final ack = escalation.interrupts
         ? SafetyCopy.moderateAck(_siuYan, isEn: isEn)
         : null;
+    // 1020m 第三节: the reply scan found acute → the fixed safety message
+    // under the reply (the crisis page opens below, as before).
+    final crisis = escalation.level == DistressLevel.acute;
     if (response.hasEscalation && input != null) _safetyFlagged.add(input.bubble);
     final id = response.isFallback ? 'llm_fallback' : 'llm';
     setState(() {
@@ -1226,12 +1232,13 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       _bubbles.add(_Bubble.bot(replyText,
           copyId: id, promptHash: response.metadata.systemPromptHash));
       if (ack != null) _bubbles.add(_Bubble.system(ack));
+      if (crisis) _bubbles.add(_Bubble.crisis());
     });
     final turnDocId = await _logTurn(
       input: input,
       flag: escalation,
       response: response,
-      ackShown: ack != null,
+      ackShown: ack != null || crisis,
     );
     await _appendToBuffer(fromUser: false, text: response.text, response: response);
     if (mounted && escalation.level != DistressLevel.none) {
@@ -1368,7 +1375,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       _safetyFlagged.add(bubble);
       setState(() {
         _busy = false;
-        _bubbles.add(_Bubble.system(SafetyCopy.acuteAck(_siuYan, isEn: isEn)));
+        _bubbles.add(_Bubble.crisis());
       });
       unawaited(_logTurn(
         input: input,
@@ -1389,6 +1396,8 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     final ack = escalation.interrupts
         ? SafetyCopy.moderateAck(_siuYan, isEn: isEn)
         : null;
+    // 1020m 第三节: acute on the reply scan → the fixed safety message.
+    final crisis = escalation.level == DistressLevel.acute;
     if (response.hasEscalation) _safetyFlagged.add(bubble);
 
     // Phase A spec §2.6 — Siu Yan's Thought Exercise offer.
@@ -1411,12 +1420,13 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
           copyId: response.isFallback ? 'llm_fallback' : 'llm',
           promptHash: response.metadata.systemPromptHash));
       if (ack != null) _bubbles.add(_Bubble.system(ack));
+      if (crisis) _bubbles.add(_Bubble.crisis());
     });
     final turnDocId = await _logTurn(
       input: input,
       flag: escalation,
       response: response,
-      ackShown: ack != null,
+      ackShown: ack != null || crisis,
       teOfferText: teOfferText,
     );
     await _appendToBuffer(fromUser: false, text: response.text, response: response);
@@ -2021,16 +2031,27 @@ class _ReplyOutcome {
 
 class _Bubble {
   _Bubble._(this.fromUser, this.isSystem, this.text,
-      {this.copyId, this.freeText = false, this.promptHash});
+      {this.copyId,
+      this.freeText = false,
+      this.promptHash,
+      this.crisis = false});
   factory _Bubble.user(String t, {bool freeText = false}) =>
       _Bubble._(true, false, t, freeText: freeText);
   factory _Bubble.bot(String t, {String? copyId, String? promptHash}) =>
       _Bubble._(false, false, t, copyId: copyId, promptHash: promptHash);
   factory _Bubble.system(String t) => _Bubble._(false, true, t);
 
+  /// 1020m 第三节: the fixed safety message after an acute trigger
+  /// ([CrisisChatMessage]).  A system line: never sent to the model.
+  factory _Bubble.crisis() =>
+      _Bubble._(false, true, '', copyId: CrisisChatMessage.from, crisis: true);
+
   final bool fromUser;
   final bool isSystem;
   final String text;
+
+  /// Shown as [CrisisChatMessage] (1020m 第三节).
+  final bool crisis;
 
   /// Siu Yan's lines: the copy id (Q1, X2-1, SY4, …) or `llm`.
   final String? copyId;
@@ -2049,6 +2070,7 @@ class _BubbleView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final b = bubble;
+    if (b.crisis) return const CrisisChatMessage();
     final color = b.fromUser
         ? theme.colorScheme.primaryContainer
         : b.isSystem
