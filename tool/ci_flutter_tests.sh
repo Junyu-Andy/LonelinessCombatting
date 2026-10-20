@@ -70,6 +70,7 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/scale_direction_cues_1020k_test.dart \
   test/reminiscence_avatar_1020l_test.dart \
   test/crisis_chat_message_1020m_test.dart \
+  test/faq_1020o_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
@@ -87,6 +88,7 @@ run "phase B arm B pages" \
   test/scale_direction_cues_1020k_test.dart \
   test/reminiscence_avatar_1020l_test.dart \
   test/crisis_chat_message_1020m_test.dart \
+  test/faq_1020o_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \
   --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
