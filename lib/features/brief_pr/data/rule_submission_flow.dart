@@ -23,6 +23,9 @@ class RuleSubmissionFlow {
   /// Record [text] as a one-turn rule-based session and close it
   /// (`crisis` when [detector] is acute, otherwise `user_left`).
   /// [safetyTurnId] is the id the safety check used (T26, decision 0033).
+  /// [shownReply] (decision 0069, research transcript only): what the page shows
+  /// under the submission — the template or saved line, or after acute the
+  /// fixed safety message; default [replyText] (nothing after acute).
   static Future<ChatSessionRecorder> record({
     required String? uid,
     required String agentId,
@@ -38,6 +41,7 @@ class RuleSubmissionFlow {
     int? voiceDurationMs,
     String? safetyTurnId,
     SessionRules? rules,
+    List<String>? shownReply,
   }) async {
     final rec = ChatSessionRecorder(
       uid: uid,
@@ -76,6 +80,7 @@ class RuleSubmissionFlow {
         status: acute ? LlmStatus.shortCircuited : LlmStatus.ruleBased,
         turnId: safetyTurnId,
       ),
+      shownReply: shownReply ?? [if (!acute) replyText],
     ));
     await rec.end(acute
         ? SessionEndReason.crisis

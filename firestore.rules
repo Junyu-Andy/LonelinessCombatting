@@ -638,11 +638,27 @@ service cloud.firestore {
     // enrolled participants and testers.  Write-once: no client reads,
     // updates or deletes it — not even the elder; the Admin SDK reads it
     // (unblinded tools) and tool/delete_participant.js deletes it.
+    //
+    // Decision 0069 — schema 2 adds `role` and `userInput`:
+    //   role 'elder'     — one message of the elder (userInput 'text',
+    //                      'voice' or 'button'; null = none known) and, in
+    //                      replyText, every companion bubble shown after it;
+    //   role 'companion' — companion bubbles with no elder message before
+    //                      them (an opener): userText, userInput and
+    //                      userSentAt null, replyText not empty.
+    // Schema 1 rows (App builds before the freeze) are still accepted.
     // ============================================================
-    function transcriptKeys() {
+    function transcriptKeysV1() {
       return ['sessionId', 'turnId', 'agentId', 'moduleId', 'userText',
               'replyText', 'replyStatus', 'userSentAt', 'replyShownAt',
               'receivedAt', 'schemaVersion'];
+    }
+
+    // Schema 2 (the current App).
+    function transcriptKeys() {
+      return ['sessionId', 'turnId', 'agentId', 'moduleId', 'role',
+              'userText', 'userInput', 'replyText', 'replyStatus',
+              'userSentAt', 'replyShownAt', 'receivedAt', 'schemaVersion'];
     }
 
     function transcriptSwitchOn() {
@@ -650,10 +666,9 @@ service cloud.firestore {
         .data.get('researchTranscriptEnabled', false) == true;
     }
 
-    function transcriptValid(turnId, d) {
-      return d.keys().hasOnly(transcriptKeys())
-        && d.keys().hasAll(transcriptKeys())
-        && d.turnId == turnId
+    // Fields both schemas share, with their limits.
+    function transcriptCommonValid(turnId, d) {
+      return d.turnId == turnId
         && d.sessionId is string
         && d.sessionId.size() > 0 && d.sessionId.size() <= 128
         && d.agentId is string && d.agentId.size() <= 64
@@ -662,10 +677,36 @@ service cloud.firestore {
             || (d.userText is string && d.userText.size() <= 5000))
         && d.replyText is string && d.replyText.size() <= 10000
         && d.replyStatus is string && d.replyStatus.size() <= 32
-        && d.userSentAt is timestamp
         && d.replyShownAt is timestamp
-        && d.receivedAt == request.time
+        && d.receivedAt == request.time;
+    }
+
+    function transcriptValidV1(turnId, d) {
+      return d.keys().hasOnly(transcriptKeysV1())
+        && d.keys().hasAll(transcriptKeysV1())
+        && transcriptCommonValid(turnId, d)
+        && d.userSentAt is timestamp
         && d.schemaVersion == 1;
+    }
+
+    function transcriptValidV2(turnId, d) {
+      return d.keys().hasOnly(transcriptKeys())
+        && d.keys().hasAll(transcriptKeys())
+        && transcriptCommonValid(turnId, d)
+        && d.schemaVersion == 2
+        && ((d.role == 'elder'
+              && d.userSentAt is timestamp
+              && (d.userInput == null
+                  || d.userInput in ['text', 'voice', 'button']))
+            || (d.role == 'companion'
+              && d.userText == null
+              && d.userInput == null
+              && d.userSentAt == null
+              && d.replyText.size() > 0));
+    }
+
+    function transcriptValid(turnId, d) {
+      return transcriptValidV2(turnId, d) || transcriptValidV1(turnId, d);
     }
 
     match /users/{uid}/chat_transcripts/{turnId} {

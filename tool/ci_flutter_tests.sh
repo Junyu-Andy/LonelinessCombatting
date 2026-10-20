@@ -28,6 +28,9 @@
 #      3 — the week's scene picture before the opener, both arms, no model)
 #      (10/20 item 98: test/pgic_whole_days_1020_test.dart runs in 1, 2 and
 #      3 — weeks 5–7 PGIC on whole days and the home row's words, both arms)
+#      (decision 0069: test/research_transcript_v2_test.dart runs in 1, 2 and 3 —
+#      every elder message and companion bubble in chat_transcripts, one
+#      session per chat page per arm, zero model calls in the rule arm)
 #   4. MEMORY_V1=true         — memory v1 client tests (memory branch)
 #   5. RULE_TEMPLATE_REPLIES=true — final templates on (T33: no placeholder
 #      left, so the switch alone turns them on)
@@ -85,6 +88,7 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/quiet_hours_settings_1020o_test.dart \
   test/reminiscence_scene_1020o_test.dart \
   test/pgic_whole_days_1020_test.dart \
+  test/research_transcript_v2_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
@@ -108,6 +112,7 @@ run "phase B arm B pages" \
   test/quiet_hours_settings_1020o_test.dart \
   test/reminiscence_scene_1020o_test.dart \
   test/pgic_whole_days_1020_test.dart \
+  test/research_transcript_v2_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \
   --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart

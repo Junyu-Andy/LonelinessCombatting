@@ -94,6 +94,7 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
     final core = CoreServicesScope.of(context);
     final analytics = AnalyticsScope.of(context);
     final nav = Navigator.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final agent = AgentRegistry.byId(AgentRegistry.ahJanAhBakId);
     final displayName =
         agent.resolveVariant(profile?.ahJanAhBakVariant).displayNameZh;
@@ -189,6 +190,10 @@ class _ReminiscenceArmBPageState extends State<ReminiscenceArmBPage> {
       voiceDurationMs: voiceMs,
       safetyTurnId: safetyTurnId,
       replyText: ruleReply ?? '',
+      // Decision 0069: after acute the page shows the fixed safety message.
+      shownReply: distress.level == DistressLevel.acute
+          ? [CrisisChatMessage.transcriptText(isEn: isEn)]
+          : null,
     );
     if (!mounted) return;
     setState(() {

@@ -61,6 +61,9 @@ async function seedUser(uid) {
     'turns/t1': {participantId: uid, input: {charCount: 12}},
     // 1020l: the research transcript (the elder's words and the reply).
     'chat_transcripts/t1': {userText: SECRET, replyText: SECRET},
+    // Decision 0069: schema 2 — a companion row (an opener) has no turns row.
+    'chat_transcripts/c1': {role: 'companion', userText: null,
+      replyText: SECRET, schemaVersion: 2},
     'events/e1': {name: 'open'},
     'brief_pr/b1': {understanding: 5},
     'daily_mood/d1': {mood: 3},
@@ -172,7 +175,7 @@ test('dry run lists everything and deletes nothing', async () => {
   assert.strictEqual(by['users/{uid}/ada_responses/*'], 1);
   assert.strictEqual(by['users/{uid}/day7_open_responses/*'], 1);
   assert.strictEqual(by['users/{uid}/social_contact_probes/*'], 1);
-  assert.strictEqual(by['users/{uid}/chat_transcripts/*'], 1);
+  assert.strictEqual(by['users/{uid}/chat_transcripts/*'], 2);
   for (const c of ['llm_calls', 'safety_events', 'safety_event_dedup',
     'pi_alerts', 'te_audit_queue', 'stt_usage',
     'pending_loneliness_probes', 'ada_status', 'weekly_status']) {
@@ -197,8 +200,8 @@ test('--confirm deletes everything of that person, nothing else', async () => {
   const n = again.found.firestore.reduce((s, g) => s + g.count, 0);
   // incl. djg_es + djg_responses (T18), ada + day-7 (T17), ada_status
   // (T17b), social_contact_probes + weekly_status (T24), chat_transcripts
-  // (1020l)
-  assert.strictEqual(n, 35);
+  // (1020l; decision 0069: an elder row and a companion row)
+  assert.strictEqual(n, 36);
   assert.strictEqual(again.found.auth, 1);
   // Exports are only counted by default.
   assert.strictEqual(r.exportsPolicy, 'counted only, files not modified');

@@ -15,6 +15,15 @@
 - 测试只改 `test/reader_test.dart` 的外壳主题（改用 App 主题；原来用 Flutter 默认主题，新版换页变慢，3 至 4 个测试等不到页面关完）。`flutter analyze` 两个版本都是同样的 92 条，0 error。
 - 没做的：Android 模拟器走查（这里没有 KVM 和 Android SDK）；真机清单 `docs/release/flutter-3441-phone-check.md`。`CLAUDE.md` 的「Flutter 固定 3.35.3」那行要 Junyu 改（开发窗口不改 CLAUDE.md）。
 
+## 2026-10-20 研究原文补全：陪伴者的每一句都存（decisions-log 第 65、80、99/100 条，分支 `claude/zealous-fermat-8rgqtg-transcript2`，并入 #151）
+
+- 结论：研究用原文（`chat_transcripts`）现在存下老人的每一句（含按的按钮）和陪伴者显示的每一个气泡，两组相同。不加新开关，仍看 `researchTranscriptEnabled`。老人看到的不变，`turns` 和埋点不变，规则组零 LLM 不变。决策 0069（部分取代 0063）。
+- 先查后改。改之前漏的：所有开场白（小欣 check-in 的 Q0、Q1，规则组 SY0，Hybrid 开场，回忆开场三句和第一题，通通开场，想法练习对话页顶那句，旧 check-in 页开场）；check-in 的 Q2–Q6 和按钮回答（按钮只在 `check_in_responses` 有代码和字）；回复后面的下一题和回忆收尾句；中度安全句、急性后安全消息（存成空字）；想法练习对话的「呢個諗法聽落好沉重」和 👎 之后的新回复；模型失败时存了模型的字而不是屏幕上的后备句；回忆 v2 的 Hybrid 回复被安全扫描拦下时，存了老人没看到的模型原字。
+- 现在：老人一句一行，`replyText` 是这句之后、下一句之前所有气泡，中间空一行；老人开口前的存成 `role: companion` 一行；按钮存按钮上的字（`userInput: button`）；急性后存安全消息的字（开头一句 + 危机页的机构名和号码 + 「〔打開緊急求助頁〕」）。每周回忆大图那一句不存。回忆 v2 隔天回来，等回答的那一题在新会话开头再存一次（`shown_again`）。
+- 一行在老人下一句、会话结束、离开页面、App 退到后台时写出。一句没说就离开：没有会话，开场白不存。
+- `firestore.rules`：新格式（schema 2）字段和取值限死；旧格式（schema 1，冻结前的 App）照旧接受；只许本人新建、登记或测试员、开关开、长度上限、谁都不能读改删，都不变。要随冻结构建部署，可以先部署。
+- 测试：新加 `test/research_transcript_v2_test.dart`（每个聊天页每组一段模拟对话，逐行核对；两组对照；规则组每段都断言零模型调用），已加进 `tool/ci_flutter_tests.sh` 两个 Phase B 列表；规则测试加 schema 2 七组；盲法检查把原文字段列为禁止字段；删除测试加一行陪伴者行。
+- 没做：读取工具（1020l 起就欠着）；进程在前台被杀时最后一行会丢；规则组回忆在「答了但回复还没出」时被杀、下次补回复，那一行原话为空（`turns` 同样）。
 ## 2026-10-20 安卓通知小图标（第 99–100 条）
 
 - 结论：加了专门的通知小图标。陪住图标做成白色剪影（两个人和一张桌，茶杯是镂空），透明底，五种密度都有（`android/app/src/main/res/drawable-*/ic_stat_peizhu.png`）。AndroidManifest 设了 FCM 的默认通知图标和颜色（主题色 #C2703F）。App 没有本地通知，所有通知都经 FCM，所以都用这个图标。两组相同。

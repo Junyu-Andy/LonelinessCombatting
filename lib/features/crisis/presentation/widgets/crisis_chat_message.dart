@@ -46,6 +46,17 @@ class CrisisChatMessage extends StatelessWidget {
   static Key numberKey(String resourceId) =>
       Key('crisis_chat_message_number_$resourceId');
 
+  /// Decision 0069 — this message as plain text for the research
+  /// transcript (`chat_transcripts`): the opening sentence, one line per
+  /// resource (name and number, exactly as shown), then the button label
+  /// in 〔〕.  Read from the same [SafetyCopy.crisis] the message shows; no
+  /// number is written here.  Nothing on screen changes.
+  static String transcriptText({bool isEn = false}) => [
+        isEn ? openingEn : openingZh,
+        for (final r in SafetyCopy.crisis.resources) '${r.name(isEn)} ${r.number}',
+        '〔${isEn ? buttonEn : buttonZh}〕',
+      ].join('\n');
+
   /// The crisis page, opened as the acute flow opens it.
   static Future<void> openCrisisPage(BuildContext context) {
     return Navigator.of(context, rootNavigator: true).push(

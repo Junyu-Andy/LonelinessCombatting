@@ -225,6 +225,9 @@ class _TungTungPageState extends State<TungTungPage> {
           DateTime.now().difference(DateTime.utc(2026)).inDays;
       final opener = TungTungRulePool.openerFor(_openerOffset);
       setState(() => _turns.add(_Turn.bot(isEn ? opener.en : opener.zh)));
+      // Decision 0069: the opener opens the research transcript (both arms).
+      _recorder?.transcriptCompanion(isEn ? opener.en : opener.zh,
+          status: LlmStatus.ruleBased);
       unawaited(AnalyticsScope.of(context).logEvent('tung_tung_opener_shown', {
         'opener_id': opener.id,
         'pool_version': TungTungRulePool.version,
@@ -240,6 +243,7 @@ class _TungTungPageState extends State<TungTungPage> {
           ? 'I read the piece you opened. Ask me anything about it.'
           : '我睇完你揀嘅嗰篇。有咩想問都得。';
       setState(() => _turns.add(_Turn.bot(opener)));
+      _recorder?.transcriptCompanion(opener);
       return;
     }
 
@@ -257,6 +261,8 @@ class _TungTungPageState extends State<TungTungPage> {
         if (!mounted) return;
         if (cached != null && cached.isNotEmpty) {
           setState(() => _turns.add(_Turn.bot(cached)));
+          // Written by the model earlier (agent_greetings).
+          _recorder?.transcriptCompanion(cached, status: LlmStatus.ok);
           return;
         }
       } catch (_) {
@@ -278,6 +284,7 @@ class _TungTungPageState extends State<TungTungPage> {
             : '你好啊。最近有冇咩想知或者想傾嘅嘢？');
     if (mounted) {
       setState(() => _turns.add(_Turn.bot(opener)));
+      _recorder?.transcriptCompanion(opener);
     }
   }
 
@@ -527,6 +534,7 @@ class _TungTungPageState extends State<TungTungPage> {
         tungTungMode: mode,
         tungTungArticleId: widget.articleId,
         tungTungSearchInvoked: searchThisTurn,
+        shownReply: [CrisisChatMessage.transcriptText(isEn: isEn)],
       )));
       unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
@@ -571,6 +579,13 @@ class _TungTungPageState extends State<TungTungPage> {
       tungTungMode: mode,
       tungTungArticleId: widget.articleId,
       tungTungSearchInvoked: searchThisTurn,
+      // Decision 0069: as shown — the fallback line, the safety line, the crisis
+      // message.
+      shownReply: [
+        replyText,
+        if (moderateAck != null) moderateAck,
+        if (crisis) CrisisChatMessage.transcriptText(isEn: isEn),
+      ],
     ));
     if (mounted && turnDocId != null && turnIndex >= 0) {
       setState(() =>
@@ -650,6 +665,7 @@ class _TungTungPageState extends State<TungTungPage> {
       ),
       tungTungMode: 'B',
       tungTungSearchInvoked: false,
+      shownReply: [replyText],
     ));
     unawaited(analytics.logEvent('tung_tung_search_off_reply', {
       'arm': 'A',
@@ -705,7 +721,11 @@ class _TungTungPageState extends State<TungTungPage> {
           .match;
     }
 
-    TurnRecord record(String reply, {required bool acute, bool ack = false}) =>
+    // Decision 0069: [shown] = the bubbles added in reply (research transcript).
+    TurnRecord record(String reply,
+            {required bool acute,
+            bool ack = false,
+            required List<String> shown}) =>
         TurnRecord(
           agentId: AgentRegistry.tungTungId,
           moduleId: 'tung_tung_chat',
@@ -731,6 +751,7 @@ class _TungTungPageState extends State<TungTungPage> {
             turnId: safetyTurnId,
           ),
           tungTungMode: 'B',
+          shownReply: shown,
         );
 
     if (flag.level == DistressLevel.acute) {
@@ -739,7 +760,10 @@ class _TungTungPageState extends State<TungTungPage> {
         _busy = false;
         _turns.add(_Turn.crisis());
       });
-      unawaited(_recorder?.logTurn(record('', acute: true, ack: true)));
+      unawaited(_recorder?.logTurn(record('',
+          acute: true,
+          ack: true,
+          shown: [CrisisChatMessage.transcriptText(isEn: isEn)])));
       unawaited(_recorder?.end(SessionEndReason.crisis));
       if (!mounted) return;
       await core.distressRouter.route(flag, context: context);
@@ -781,8 +805,10 @@ class _TungTungPageState extends State<TungTungPage> {
       if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
     });
     if (searchOff) _logS1aShown(arm: 'B');
-    final turnDocId = await _recorder
-        ?.logTurn(record(replyText, acute: false, ack: moderateAck != null));
+    final turnDocId = await _recorder?.logTurn(record(replyText,
+        acute: false,
+        ack: moderateAck != null,
+        shown: [replyText, if (moderateAck != null) moderateAck]));
     unawaited(analytics.logEvent('tung_tung_rule_reply', {
       'template_id': reply.id,
       'responder_version': TungTungRuleResponder.version,

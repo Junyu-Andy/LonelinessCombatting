@@ -222,11 +222,12 @@ class _CheckInArmAState extends State<CheckInArmA> {
         _resolvingMood = false;
         _moodGateResolved = true;
         final prev = widget.previousMoodValue;
-        _turns.add(_Turn.bot(
-          (prev != null && prev != widget.initialMoodValue)
-              ? _moodChangeOpener(isEn, prev, widget.initialMoodValue!)
-              : _openingLine(isEn),
-        ));
+        final opener = (prev != null && prev != widget.initialMoodValue)
+            ? _moodChangeOpener(isEn, prev, widget.initialMoodValue!)
+            : _openingLine(isEn);
+        _turns.add(_Turn.bot(opener));
+        // Decision 0069: the opener opens the research transcript.
+        _recorder?.transcriptCompanion(opener);
       } else {
         // Entered via the agent tile — look up today's mood first; if
         // none, fall back to the most recent record so Siu Yan can at
@@ -269,6 +270,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
         _moodValueAlreadyInDailyMood = moodValue;
         _moodGateResolved = true;
         _turns.add(_Turn.bot(_openingLine(isEn)));
+        _recorder?.transcriptCompanion(_openingLine(isEn));
       } else {
         // Not logged today → show the mood gate first; the opener is
         // seeded once the user picks (see _onGatePicked).
@@ -312,6 +314,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
       _resolvedMoodIsToday = true;
       _moodGateResolved = true;
       _turns.add(_Turn.bot(_openingLine(isEn)));
+      _recorder?.transcriptCompanion(_openingLine(isEn));
     });
   }
 
@@ -670,6 +673,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
         shortCircuited: true,
         ackShown: true,
         response: response,
+        shownReply: [CrisisChatMessage.transcriptText(isEn: isEn)],
       )));
       unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
@@ -731,6 +735,13 @@ class _CheckInArmAState extends State<CheckInArmA> {
       ackShown: moderateAck != null || crisis,
       response: response,
       teOfferText: teOfferText,
+      // Decision 0069: as shown — the fallback line, the safety line, the crisis
+      // message (the thought-exercise card is not a chat bubble).
+      shownReply: [
+        replyText,
+        if (moderateAck != null) moderateAck,
+        if (crisis) CrisisChatMessage.transcriptText(isEn: isEn),
+      ],
     ));
     if (mounted && turnDocId != null && turnIndex >= 0) {
       setState(() => _turns[turnIndex] = _turns[turnIndex].withTurnDocId(turnDocId));

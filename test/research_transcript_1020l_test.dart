@@ -8,6 +8,8 @@
 //   - every TurnRecord built anywhere in lib/ passes `userText:`, so no
 //     chat page (either arm) silently drops the elder's words.
 // The rules themselves: test/rules/chat_transcripts_rules.test.js.
+// Decision 0069: rows are schema 2 now (`role`, `userInput`; the
+// reply as shown) — test/research_transcript_v2_test.dart has the rest.
 import 'dart:io';
 
 import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
@@ -63,6 +65,8 @@ void main() {
     final m = _turn().transcriptMap(sessionId: 's1', turnId: 't1');
     expect(m.keys.toSet(), _rulesKeys().toSet());
     expect(m.keys, isNot(contains('arm')));
+    expect(m['role'], 'elder');
+    expect(m['userInput'], 'text');
     expect(m['sessionId'], 's1');
     expect(m['turnId'], 't1');
     expect(m['agentId'], 'siu_yan');
@@ -74,7 +78,7 @@ void main() {
     expect(m['replyShownAt'],
         Timestamp.fromDate(_t0.add(const Duration(seconds: 3))));
     expect(m['receivedAt'], isA<FieldValue>());
-    expect(m['schemaVersion'], 1);
+    expect(m['schemaVersion'], 2);
   });
 
   test('rule template, crisis short-circuit, no free text', () {
@@ -91,6 +95,7 @@ void main() {
         _turn(userText: null).transcriptMap(sessionId: 's', turnId: 't');
     expect(buttons.containsKey('userText'), isTrue);
     expect(buttons['userText'], isNull);
+    expect(buttons['userInput'], isNull);
   });
 
   test('texts clipped to the rules limits (5000 / 10000)', () {
