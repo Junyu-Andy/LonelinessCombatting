@@ -43,7 +43,11 @@ assert.ok(calls.length >= 3,
 calls.forEach((rest, i) => {
   const body = rest.slice(rest.indexOf("body: {"), rest.indexOf("messages:"));
   assert.ok(body.startsWith("body: {"), `call ${i + 1}: no body`);
-  assert.ok(body.includes("model: DEEPSEEK_MODEL,"),
+  // 1021 (T-R6): the proxy's call picks deepseek-v4-pro for 通通's
+  // article / 小讀本 Q&A (article_qa.js), DEEPSEEK_MODEL otherwise.
+  assert.ok(body.includes("model: DEEPSEEK_MODEL,") ||
+      body.includes(
+          "model: articleQaCall ? articleQa.ARTICLE_QA_MODEL : DEEPSEEK_MODEL,"),
       `call ${i + 1}: model is not DEEPSEEK_MODEL`);
   assert.ok(body.includes("thinking: DEEPSEEK_THINKING,"),
       `call ${i + 1}: thinking is not DEEPSEEK_THINKING`);

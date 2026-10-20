@@ -82,7 +82,7 @@ void main() {
         expect(e.zh, row[2], reason: id);
         expect(e.band, _moodBand[row[1]], reason: id);
       }
-      expect(RuleReplyPool.version, '2026-10-10-final');
+      expect(RuleReplyPool.version, '2026-10-21-help-line');
     });
 
     test('every text is verbatim, in the right agent and mood group', () {
