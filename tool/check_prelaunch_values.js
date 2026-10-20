@@ -88,8 +88,8 @@ const CHECKS = [
     '第 3 批心情一行（#133），须和 homeLayoutV2Enabled 同开同关'],
   ['app_config/feature_flags', 'keyboardCompactHeaderEnabled', null,
     '1020c 键盘打开时顶栏变一行（#131），真机测过就开'],
-  ['app_config/feature_flags', 'htmlReadersEnabled', null,
-    '1020c 小讀本（#130），真机测不完就整项留到 Phase B 之后'],
+  ['app_config/feature_flags', 'htmlReadersEnabled', true,
+    '小讀本 14 篇随冻结构建进包（decisions-log 10/21 第 109–113 条）'],
   // 1020k (decisions-log 10/20 items 77–79): the lines before the reverse
   // items and the Weekly PR pages.  Expected value set by Junyu.
   ['app_config/feature_flags', 'scaleDirectionCuesEnabled', null,
