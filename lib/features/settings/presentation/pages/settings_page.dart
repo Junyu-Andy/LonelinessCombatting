@@ -434,10 +434,11 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 10),
             _NavTileCard(
               icon: Icons.sentiment_satisfied_outlined,
-              title: isEn ? 'Weekly mood change' : '每週感受變化',
+              // 1020f: named like the PGIC part and its new stem.
+              title: isEn ? 'Compared with when you started' : '同開始用嗰時比較',
               subtitle: isEn
-                  ? '7-point loneliness change rating'
-                  : '過去一週，孤單感有冇變化？',
+                  ? 'Loneliness compared with before you started'
+                  : '同開始用之前比，孤獨感有冇變？',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const PgicPage()),
               ),
@@ -1151,10 +1152,13 @@ class _SurveyPreviewButtons extends StatelessWidget {
           ),
         ),
         btn('PGIC', const PgicPage()),
-        btn(
-          isEn ? 'DJG-ES (Week 2, 6 items)' : 'DJG-ES（第 2 週，6 題）',
-          const DjgEsPage(timepoint: 'week2'),
-        ),
+        // 1020f: the Phase A DJG-ES page; a Phase B build shows only the
+        // Phase B DJG W2 below, so testers cannot open the wrong one.
+        if (!FeatureFlags.phaseB)
+          btn(
+            isEn ? 'DJG-ES (Week 2, 6 items)' : 'DJG-ES（第 2 週，6 題）',
+            const DjgEsPage(timepoint: 'week2'),
+          ),
         // T18 — Phase B W2 DJG preview for reviewers; saves nothing.
         btn(
           isEn ? 'DJG W2 (Phase B, 6 items, preview — not saved)' : 'DJG W2（Phase B，6 題，預覽，不儲存）',

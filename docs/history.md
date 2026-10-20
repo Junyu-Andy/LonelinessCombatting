@@ -13,6 +13,7 @@
 - 只读核对（1020f 第一节第 6 项）：小篇章两次模型调用前的文字都过 `stripPII`（#137 `reminiscence_chapter.js` `normaliseInput`，`index.js` 传入）；「改一改」两组都走 `saveChapterEdit` → 共享安全检测（输入点 `reminiscence_summary_edit`）；后备收件人字段是 `meta/alert_config.backupEmail`，生产值由 Junyu 用 `tool/check_prelaunch_values.js` 查（脚本已期望「没有」）。
 - `tool/check_prelaunch_values.js` 加 1020d、1020e 的七个新开关，期望值 10/20 晚由 Junyu 定（先只显示）。
 - 新测试 `test/instrument_wording_1020f_test.dart`；截图 `docs/dev-reports/1020f-shots/`。
+- Junyu 10/20 追加（同一 PR）：测试员工具「反饋／問卷」的 PGIC 一格改为「同開始用嗰時比較／同開始用之前比，孤獨感有冇變？」；「預覽量表」在 Phase B 构建里不再显示 Phase A 的「DJG-ES（第 2 週，6 題）」，只留「DJG W2（Phase B）」。测试 `test/tester_tools_1020f_test.dart`（两种构建）。Brief PR 一题一屏页顶「今次傾偈：〈陪伴者〉」Junyu 已定。
 
 ## 2026-10-19 W0 现场第三批（Junyu 定）：只认 App 字號、Brief PR 卡上首页、记忆页分组、资料卡和热线卡缩小（PR 草稿，分支 `feat/1019-ui-round3`，接 #122）
 
