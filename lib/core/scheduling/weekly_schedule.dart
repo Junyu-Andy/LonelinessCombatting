@@ -20,7 +20,8 @@
 ///   5, 7, 1-day windows) is kept only for the shared table test; no cohort
 ///   maps to it any more.
 ///
-/// Every window is `[open, close)`: open = push instant, close exclusive.
+/// Every window is `[open, close)`, close exclusive: open = the push instant
+/// (T24), or 00:00 of the push day (v2, below).
 ///
 /// 1020e 二.1–二.2 (batch 4) and 10/20 item 98 (decision 0067) — with
 /// `app_config/feature_flags.weeklyReminderV2Enabled` on
