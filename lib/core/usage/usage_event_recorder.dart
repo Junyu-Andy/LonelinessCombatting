@@ -46,13 +46,16 @@
 /// 1020m 第二节 — page 1's small-action row (「今日要做嘅事」, both arms)
 /// rides on the same collection, switch and enrolment check
 /// ([recordHomeSmallAction]):
-///   `home_small_action_shown`    + `rowState` (`ask` / `plan` / `done`),
-///                                  + `planId` unless `ask`
+///   `home_small_action_shown`    + `rowState` (`ask` / `plan` / `done` /
+///                                  `next_day_plan` — 1020n), + `planId`
+///                                  unless `ask` (one row per plan line)
 ///   `home_small_action_open`     (the 「今日想做啲咩小行動？」 row tapped)
 ///   `home_small_action_later`    (「遲啲先」)
 ///   `home_small_action_done`     + `planId` (「做咗」)
 ///   `home_small_action_postpone` + `planId`, `moved` (「改日」; `moved` is
 ///                                  false on the second press)
+///   `home_small_action_more`     (1020n: 「仲有冇其他計劃？」 tapped)
+///   `home_small_action_list`     (1020n: 「仲有 N 個計劃」 tapped)
 /// A plan id that is not [kPlanIdPattern] is dropped here and refused by
 /// the rules.
 ///
@@ -95,7 +98,12 @@ const int kReaderMaxSeconds = 86400;
 final RegExp kPlanIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
 
 /// `rowState` values of `home_small_action_shown` (1020m).
-const Set<String> kHomeSmallActionRowStates = {'ask', 'plan', 'done'};
+const Set<String> kHomeSmallActionRowStates = {
+  'ask',
+  'plan',
+  'done',
+  'next_day_plan',
+};
 
 /// 1020o: "HH:mm" in `quiet_hours_changed` (the same pattern is in
 /// firestore.rules `hhmmOk`).
@@ -115,6 +123,9 @@ enum UsageEventType {
   homeSmallActionLater('home_small_action_later'),
   homeSmallActionDone('home_small_action_done'),
   homeSmallActionPostpone('home_small_action_postpone'),
+  // 1020n 第三节.
+  homeSmallActionMore('home_small_action_more'),
+  homeSmallActionList('home_small_action_list'),
   // 1020o 第三节 — 安靜時段 changed in 我的設定.
   quietHoursChanged('quiet_hours_changed');
 
@@ -366,6 +377,8 @@ class UsageEventRecorder {
       case UsageEventType.homeSmallActionLater:
       case UsageEventType.homeSmallActionDone:
       case UsageEventType.homeSmallActionPostpone:
+      case UsageEventType.homeSmallActionMore:
+      case UsageEventType.homeSmallActionList:
       case UsageEventType.quietHoursChanged:
         return false;
     }
@@ -379,7 +392,7 @@ class UsageEventRecorder {
   /// `home_small_action_*` type; what each needs: `shown` → [rowState]
   /// (one of [kHomeSmallActionRowStates]) and, unless `ask`, [planId];
   /// `done` → [planId]; `postpone` → [planId] and [moved]; `open` /
-  /// `later` → nothing.  Anything malformed is dropped, not written.
+  /// `later` / `more` / `list` → nothing.  Anything malformed is dropped, not written.
   /// Returns whether a row was written.
   bool recordHomeSmallAction(
     UsageEventType type, {
@@ -402,6 +415,8 @@ class UsageEventRecorder {
         moved = null;
       case UsageEventType.homeSmallActionOpen:
       case UsageEventType.homeSmallActionLater:
+      case UsageEventType.homeSmallActionMore:
+      case UsageEventType.homeSmallActionList:
         rowState = null;
         planId = null;
         moved = null;

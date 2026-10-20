@@ -311,6 +311,8 @@ Future<void> _expectCrisisMessage(WidgetTester tester, _Run run) async {
         findsOneWidget,
         reason: r.id);
   }
+  // 1020n 第一节: the final opening sentence.
+  expect(CrisisChatMessage.openingZh, '如果你而家好唔開心、好難頂，請即刻打以下電話，有人會聽你講：');
   expect(
       find.descendant(of: message, matching: find.text(CrisisChatMessage.openingZh)),
       findsOneWidget);

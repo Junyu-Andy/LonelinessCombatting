@@ -121,11 +121,12 @@ test("1020c: the four reader rows are stamped like the lifecycle rows", () => {
   }
 });
 
-test("1020m: the five small-action rows are stamped like the others", () => {
+test("1020m / 1020n: small-action rows are stamped like the others", () => {
   assert.deepStrictEqual(UE.HOME_SMALL_ACTION_TYPES, [
     "home_small_action_shown", "home_small_action_open",
     "home_small_action_later", "home_small_action_done",
-    "home_small_action_postpone"]);
+    "home_small_action_postpone", "home_small_action_more",
+    "home_small_action_list"]);
   for (const type of UE.HOME_SMALL_ACTION_TYPES) {
     assert.ok(UE.TYPES.indexOf(type) >= 0, type);
     assert.ok(UE.LIFECYCLE_TYPES.indexOf(type) < 0, type);

@@ -27,7 +27,7 @@ const DEFAULT_END = "08:00";
 const HK_OFFSET_MS = 8 * 3600 * 1000;
 
 /**
- * 1020o: what the elder may pick (【待 Junyu 定】).  Change it here AND in
+ * 1020o: what the elder may pick (Junyu 10/20).  Change it here AND in
  * lib/core/notifications/quiet_hours_range.dart (the App's pickers) AND in
  * firestore.rules (quietStartValues / quietEndValues);
  * functions/test/quiet_hours_test.js fails while the three differ.  The

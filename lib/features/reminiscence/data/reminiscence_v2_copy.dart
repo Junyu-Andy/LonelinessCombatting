@@ -251,6 +251,42 @@ class ReminiscenceV2Copy {
   static String chapterReady(int weekIndex) => '第 $weekIndex 章整理好喇';
 
   // ---------------------------------------------------------------------
+  // 1020o — the 自己 page entry and the 人生點滴 landing page (both arms;
+  // no switch).  Drafts until Junyu signs them off.
+  // ---------------------------------------------------------------------
+
+  /// Line under 「我嘅人生小篇章」 on the 自己 page.
+  static const chaptersEntrySubtitle = '每個禮拜講完，整理好嘅小文章都喺度。';
+
+  /// The companion's speech bubble at the top of the landing page.
+  /// `{name}` = 阿珍 / 阿伯 by the elder's pairing.  May be replaced as a
+  /// whole by `app_config/usage_copy.reminiscence_landing_intro_zh`.
+  static const landingIntro =
+      '我係{name}。我哋一共講四個題目，一個禮拜講一個，每次大約十五至二十五分鐘。冇標準答案，記得幾多講幾多。';
+
+  /// Tester view in English only.
+  static const landingIntroEn =
+      'I\'m {name}. We\'ll talk about four topics, one a week, about 15 to 25 '
+      'minutes each time. There\'s no right answer — share as much as you '
+      'remember.';
+
+  /// One small line per theme on the landing cards, by week index (the
+  /// theme's id), not by display order.
+  static const themeLines = <int, String>{
+    1: '細個住嘅地方、屋企嘅人',
+    2: '後生嗰陣做過嘅嘢，返工或者打理屋企都算',
+    3: '一路以嚟陪住你嘅朋友',
+    4: '做人嘅道理，想話畀後生一代知嘅嘢',
+  };
+
+  static const themeLinesEn = <int, String>{
+    1: 'Where you lived as a child, your family',
+    2: 'What you did when you were young — work or running a home',
+    3: 'The friends who have been with you along the way',
+    4: 'Life lessons you would like the next generation to know',
+  };
+
+  // ---------------------------------------------------------------------
   // Chapter rating (section 7) — one at a time, 1–7, words at both ends.
   // ---------------------------------------------------------------------
 

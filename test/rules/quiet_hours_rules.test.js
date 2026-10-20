@@ -3,7 +3,7 @@
  * 安靜時段 (自己 → 我的設定, 「由」 / 「到」, both arms).
  *
  *   - users/{uid}.quietHoursStart / quietHoursEnd: the owner may set each
- *     to an allowed value only (【待 Junyu 定】 start 20:00–23:00, end
+ *     to an allowed value only (Junyu 10/20: start 20:00–23:00, end
  *     06:00–08:00, half-hour steps; the same lists as
  *     functions/quiet_hours.js and lib/core/notifications/
  *     quiet_hours_range.dart).  Out-of-range, off-step, malformed or

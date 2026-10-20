@@ -1,7 +1,7 @@
 # 0066：「安靜時段」回到「我的設定」，老人自己定开始和结束时间（在允许范围内），两组相同
 
 - 日期：2026-10-20
-- 状态：提议中（Junyu 10/20 深夜定：做，进 10/21 冻结构建；允许范围【待 Junyu 定，先按这个做】）
+- 状态：已采纳（Junyu 10/20 深夜定：做，进 10/21 冻结构建；允许范围已定）
 - 影响范围：phase_b、rct、pilot × 两组；所有逐人推送
 - 相关代码：分支 `claude/zealous-fermat-8rgqtg-quiethours-1020o`；`functions/quiet_hours.js`、`functions/reminders.js`、`functions/index.js`（`dispatchReminders` 时间）、`firestore.rules`、`functions/usage_events.js`；App：`lib/core/notifications/quiet_hours_range.dart`（新）、`lib/features/settings/presentation/widgets/quiet_hours_card.dart`（新）、`lib/features/settings/data/quiet_hours_store.dart`（新）、`settings_page.dart`（`MySettingsPage`）、`user_profile.dart`、`usage_event_recorder.dart`、`app_settings.dart`、`auth_gate.dart`
 
@@ -12,7 +12,7 @@
 ## 决定
 
 1. 「自己 → 我的設定」加一项「安靜時段」：一句「呢段時間 App 唔會彈出通知。」和两个选择「由」「到」。默认 22:00 到 08:00。**没有开关**。
-2. 允许范围（【待 Junyu 定，先按这个做】）：「由」20:00–23:00，「到」06:00–08:00，每半小时一格。选择框只列出这些时间。范围写在三处，内容一样：App `quiet_hours_range.dart`、服务器 `quiet_hours.js` 的 `RANGE`、`firestore.rules` 的两张表；三处不一致时测试会失败。
+2. 允许范围（Junyu 已定）：「由」20:00–23:00，「到」06:00–08:00，每半小时一格。选择框只列出这些时间。范围写在三处，内容一样：App `quiet_hours_range.dart`、服务器 `quiet_hours.js` 的 `RANGE`、`firestore.rules` 的两张表；三处不一致时测试会失败。
 3. 存在 `users/{uid}.quietHoursStart`、`quietHoursEnd`（香港时间 "HH:mm"）。每次只写改动的那一项。个人资料的其他保存不带这两项，所以不会抹掉，也不会被旧值盖回。
 4. 服务器 `inQuietHours()`：先看本人的值（一项一项看），没有就用 `app_config/reminders` 的全局值（默认 22:00–08:00）。本人的值超出范围，按最近的边界算；格式不对就当没有。`firestore.rules` 只接受选择框里的那些值，删除也拒绝。
 5. 安静时段内的逐人推送照旧等到时段结束再发。计划提醒的派发由每天 08:00–21:45 改为 06:00–22:45（每 15 分钟），这样个人时段 06:00 结束或 23:00 才开始时也能准时；时段内的提醒按「时段结束」算过期（12 小时），20:00–08:00 这种 12 小时的时段也不会丢提醒。没有设过的人，结果和以前完全一样（派发程序正常运行时；它停了几个小时才恢复的话，夜里的提醒以前可能算过期，现在照发）。

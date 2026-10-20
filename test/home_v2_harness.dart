@@ -188,6 +188,9 @@ class HomeRun {
   /// 1020m: how often the small-action row opened its (stub) page.
   int smallActionPageOpens = 0;
 
+  /// 1020n: how often 「仲有 N 個計劃」 opened 我嘅計劃 (stub page).
+  int myPlansPageOpens = 0;
+
   /// Usage events (T40 / 1020c / 1020m), switch on, kept in memory.
   final usageSink = InMemoryUsageEventSink();
   late final usage = UsageEventRecorder(
@@ -271,6 +274,10 @@ Widget homeHarness(HomeRun run,
     smallActionPage: () {
       run.smallActionPageOpens++;
       return const Scaffold(body: Text('今日小行動 page'));
+    },
+    myPlansPage: () {
+      run.myPlansPageOpens++;
+      return const Scaffold(body: Text('我嘅計劃 page'));
     },
     child: AppSettingsScope(
       settings: AppSettings(

@@ -16,49 +16,93 @@
 /// (the next day) does not move it again: its reminder is dropped, and from
 /// the day after the row asks 「今日想做啲咩小行動？」 again.  The plan is
 /// never deleted and keeps no `outcome`, so it stays in 「我嘅計劃」.
+///
+/// 1020n 第三节 (decisions-log 10/20 items 86–88): one line per plan.
+/// Several plans can be for the same day (each `action_plans` document is
+/// its own plan with its own reminder; nothing ever limited that — only
+/// this row showed one).  Each plan's 「做咗」 / 「改日」 counts on its own
+/// (its own `homeRow*` fields).  At most [maxPlanLines] plan lines; more →
+/// 「仲有 N 個計劃」 (opens 我嘅計劃).  The day a plan is made (its day is
+/// tomorrow): 「聽日計劃：{…}」 lines without buttons and 「仲有冇其他計劃？」
+/// (opens 今日小行動), no 「遲啲先」.
 library;
 
 import '../../../core/reminders/reminder_service.dart';
 import '../../today/data/mood_recorder.dart';
 import 'action_plan.dart';
 
-/// What the row shows.
-enum HomeSmallActionView {
+/// One line of the row.
+enum HomeSmallActionLineKind {
   /// 「今日想做啲咩小行動？」 + 「遲啲先」.
   ask,
 
   /// 「今日計劃：{…}」 + 「做咗」「改日」.
   plan,
 
-  /// 「今日計劃：{…}」 with a tick (做咗 today).
+  /// 「今日計劃：{…}」 with a tick (做咗).
   done,
 
-  /// Nothing (改日 today, or 遲啲先 within 3 days).
-  hidden,
+  /// 1020n: 「聽日計劃：{…}」, no buttons (made today, for tomorrow).
+  nextDayPlan,
+
+  /// 1020n: 「仲有冇其他計劃？」 → 今日小行動 (with [nextDayPlan] lines).
+  more,
+
+  /// 1020n: 「仲有 N 個計劃」 → 我嘅計劃 (more than [HomeSmallAction.maxPlanLines]).
+  overflow,
 }
 
-class HomeSmallActionState {
-  const HomeSmallActionState(this.view, [this.plan]);
+class HomeSmallActionLine {
+  const HomeSmallActionLine(this.kind, {this.plan, this.count = 0});
 
-  final HomeSmallActionView view;
+  final HomeSmallActionLineKind kind;
 
-  /// The plan shown ([HomeSmallActionView.plan] / [HomeSmallActionView.done]).
+  /// The plan of a plan / done / nextDayPlan line.
   final ActionPlan? plan;
 
-  /// `rowState` of the `home_small_action_shown` usage event.
-  String get rowState => view.name;
+  /// [HomeSmallActionLineKind.overflow]: the plans not shown.
+  final int count;
+
+  /// `rowState` of the `home_small_action_shown` usage event; null for
+  /// the more / overflow lines (not logged as shown).
+  String? get rowState => switch (kind) {
+        HomeSmallActionLineKind.ask => 'ask',
+        HomeSmallActionLineKind.plan => 'plan',
+        HomeSmallActionLineKind.done => 'done',
+        HomeSmallActionLineKind.nextDayPlan => 'next_day_plan',
+        HomeSmallActionLineKind.more => null,
+        HomeSmallActionLineKind.overflow => null,
+      };
 
   @override
   bool operator ==(Object other) =>
-      other is HomeSmallActionState &&
-      other.view == view &&
-      other.plan?.id == plan?.id;
+      other is HomeSmallActionLine &&
+      other.kind == kind &&
+      other.plan?.id == plan?.id &&
+      other.count == count;
 
   @override
-  int get hashCode => Object.hash(view, plan?.id);
+  int get hashCode => Object.hash(kind, plan?.id, count);
 
   @override
-  String toString() => 'HomeSmallActionState(${view.name}, ${plan?.id})';
+  String toString() =>
+      '${kind.name}${plan == null ? '' : '(${plan!.id})'}'
+      '${kind == HomeSmallActionLineKind.overflow ? '($count)' : ''}';
+}
+
+/// What the row shows: its lines, top to bottom (none = folded away).
+class HomeSmallActionState {
+  const HomeSmallActionState(this.lines);
+
+  final List<HomeSmallActionLine> lines;
+
+  bool get isEmpty => lines.isEmpty;
+
+  /// The line kinds, in order (tests).
+  List<HomeSmallActionLineKind> get kinds => [for (final l in lines) l.kind];
+
+  @override
+  String toString() => 'HomeSmallActionState($lines)';
 }
 
 /// What one 「改日」 does.
@@ -158,6 +202,9 @@ class HomeSmallAction {
   /// 「遲啲先」: hidden on the day pressed and the next two; back on day 4.
   static const int snoozeDays = 3;
 
+  /// 1020n 第三节 (4): at most this many plan lines (Junyu, item 88 (3)).
+  static const int maxPlanLines = 2;
+
   /// Key of the one log entry in [doneUpdate] / [postponeUpdate]; the
   /// repository appends it to the plan's `homeRowLog` array.
   static const String logEntryKey = 'homeRowLogEntry';
@@ -191,13 +238,17 @@ class HomeSmallAction {
         today.compareTo(addDays(laterMark, snoozeDays)) < 0;
   }
 
-  /// The row for [now]:
-  ///   1. a plan answered on the row today → its tick (做咗) or nothing
-  ///      (改日): one answer a day, never asked again that day;
-  ///   2. else the oldest plan for today without an outcome → 「今日計劃」;
-  ///      one already answered on the 「件事點呀？」 page → its tick
-  ///      (happened) or nothing;
-  ///   3. else 「今日想做啲咩小行動？」, unless 「遲啲先」 is in its 3 days.
+  /// The row for [now] (1020n: one line per plan):
+  ///   1. Today's plans — the plan's day is today, or it was answered on the
+  ///      row today — in the order they were made: no answer yet →
+  ///      「今日計劃」 with 「做咗」「改日」; 做咗 today (or `happened` on the
+  ///      「件事點呀？」 page) → a tick; 改日 today (or another answer on
+  ///      that page) → no line for the rest of the day.  Any line left →
+  ///      these lines ([capped]).
+  ///   2. Else the plans made today for a later day → 「聽日計劃」 lines
+  ///      ([capped]) and 「仲有冇其他計劃？」.  No 「遲啲先」.
+  ///   3. Else, if today had plans (all answered / moved) → nothing.
+  ///   4. Else 「今日想做啲咩小行動？」, unless 「遲啲先」 is in its 3 days.
   /// Soft-deleted plans never show.
   static HomeSmallActionState resolve(Iterable<ActionPlan> plans,
       DateTime now,
@@ -205,31 +256,57 @@ class HomeSmallAction {
     final today = dayOf(now);
     final live = plans.where((p) => p.deletedAt == null).toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    for (final p in live) {
-      if (p.homeRowAnsweredDate == today) {
-        return p.homeRowStatus == statusDone
-            ? HomeSmallActionState(HomeSmallActionView.done, p)
-            : const HomeSmallActionState(HomeSmallActionView.hidden);
-      }
-    }
-    final dueToday = [
+    final todays = [
       for (final p in live)
-        if (dueDateOf(p) == today) p,
+        if (dueDateOf(p) == today || p.homeRowAnsweredDate == today) p,
     ];
-    for (final p in dueToday) {
-      if (p.outcome == null) {
-        return HomeSmallActionState(HomeSmallActionView.plan, p);
-      }
+    final todayLines = [
+      for (final p in todays) ?_todayLine(p, today),
+    ];
+    if (todayLines.isNotEmpty) return HomeSmallActionState(capped(todayLines));
+    final madeToday = [
+      for (final p in live)
+        if (p.isPending &&
+            dayOf(p.createdAt) == today &&
+            dueDateOf(p).compareTo(today) > 0)
+          HomeSmallActionLine(HomeSmallActionLineKind.nextDayPlan, plan: p),
+    ];
+    if (madeToday.isNotEmpty) {
+      return HomeSmallActionState([
+        ...capped(madeToday),
+        const HomeSmallActionLine(HomeSmallActionLineKind.more),
+      ]);
     }
-    for (final p in dueToday) {
-      return p.outcome == FollowUpOutcome.happened
-          ? HomeSmallActionState(HomeSmallActionView.done, p)
-          : const HomeSmallActionState(HomeSmallActionView.hidden);
+    if (todays.isNotEmpty || snoozed(laterMark, today)) {
+      return const HomeSmallActionState([]);
     }
-    if (snoozed(laterMark, today)) {
-      return const HomeSmallActionState(HomeSmallActionView.hidden);
+    return const HomeSmallActionState(
+        [HomeSmallActionLine(HomeSmallActionLineKind.ask)]);
+  }
+
+  /// One of today's plans: its line, or null when it folded away today.
+  static HomeSmallActionLine? _todayLine(ActionPlan p, String today) {
+    if (p.homeRowAnsweredDate == today) {
+      return p.homeRowStatus == statusDone
+          ? HomeSmallActionLine(HomeSmallActionLineKind.done, plan: p)
+          : null;
     }
-    return const HomeSmallActionState(HomeSmallActionView.ask);
+    if (p.outcome == null) {
+      return HomeSmallActionLine(HomeSmallActionLineKind.plan, plan: p);
+    }
+    return p.outcome == FollowUpOutcome.happened
+        ? HomeSmallActionLine(HomeSmallActionLineKind.done, plan: p)
+        : null;
+  }
+
+  /// At most [maxPlanLines] plan lines; the rest as one 「仲有 N 個計劃」.
+  static List<HomeSmallActionLine> capped(List<HomeSmallActionLine> lines) {
+    if (lines.length <= maxPlanLines) return lines;
+    return [
+      ...lines.take(maxPlanLines),
+      HomeSmallActionLine(HomeSmallActionLineKind.overflow,
+          count: lines.length - maxPlanLines),
+    ];
   }
 
   /// 「做咗」: the existing follow-up answer (`outcome: happened`, as the

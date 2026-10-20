@@ -2,8 +2,9 @@
  * 1020m 第二节 — Firestore rules for page 1's small-action row
  * (「今日想做啲咩小行動？」 / 「今日計劃：{…}」 「做咗」「改日」; both arms).
  *
- *   - usage_events: the five home_small_action_* rows with exactly their
- *     own extra fields — rowState (ask / plan / done), planId (an
+ *   - usage_events: the home_small_action_* rows (five from 1020m, _more
+ *     and _list from 1020n) with exactly their own extra fields —
+ *     rowState (ask / plan / done / next_day_plan), planId (an
  *     action_plans id: letters, digits, _ and -), moved (bool).  No text
  *     fits; before registration nothing is written; no reads.
  *   - action_plans: the owner's 「做咗」 / 「改日」 merges (outcome,
@@ -82,7 +83,7 @@ const PLAN = 'Xy7Qk2LmN0pRs3TuVw9a'; // a Firestore auto id
 describe('1020m: home_small_action_* usage rows', () => {
   for (const [cohort, arm] of [['phase_b', 'A'], ['rct', 'B'],
     ['pilot', 'B']]) {
-    it(`ALLOWS the five rows for an enrolled owner (${cohort}, ${arm})`,
+    it(`ALLOWS the rows for an enrolled owner (${cohort}, ${arm})`,
       async () => {
         await seed('users/u1', { uid: 'u1', cohort, arm });
         const db = me();
@@ -100,6 +101,12 @@ describe('1020m: home_small_action_* usage rows', () => {
           row('home_small_action_postpone', { planId: PLAN, moved: true })));
         await assertSucceeds(addDoc(usage(db),
           row('home_small_action_postpone', { planId: 'p_1-b', moved: false })));
+        // 1020n 第三节.
+        await assertSucceeds(addDoc(usage(db),
+          row('home_small_action_shown',
+            { rowState: 'next_day_plan', planId: PLAN })));
+        await assertSucceeds(addDoc(usage(db), row('home_small_action_more')));
+        await assertSucceeds(addDoc(usage(db), row('home_small_action_list')));
       });
   }
 
@@ -137,6 +144,15 @@ describe('1020m: home_small_action_* usage rows', () => {
     await assertFails(addDoc(usage(db),
       row('home_small_action_shown', { rowState: 'ask', planId: PLAN })));
     await assertFails(addDoc(usage(db), row('home_small_action_shown')));
+    // 1020n: next_day_plan needs the plan id; more / list carry nothing.
+    await assertFails(addDoc(usage(db),
+      row('home_small_action_shown', { rowState: 'next_day_plan' })));
+    await assertFails(addDoc(usage(db),
+      row('home_small_action_more', { planId: PLAN })));
+    await assertFails(addDoc(usage(db),
+      row('home_small_action_list', { count: 3 })));
+    await assertFails(addDoc(usage(db),
+      row('home_small_action_more', { text: '仲有冇其他計劃？' })));
     // open / later: nothing extra.
     await assertFails(addDoc(usage(db),
       row('home_small_action_open', { planId: PLAN })));

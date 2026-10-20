@@ -207,8 +207,8 @@ service cloud.firestore {
     // 1020o 第三节 (decision 0066): the elder's own 安靜時段 —
     // `quietHoursStart` (「由」) and `quietHoursEnd` (「到」), Hong Kong
     // "HH:mm".  Only the values the App's pickers offer are accepted
-    // (【待 Junyu 定】: start 20:00–23:00, end 06:00–08:00, half-hour
-    // steps; the same lists as functions/quiet_hours.js RANGE and
+    // (Junyu 10/20: start 20:00–23:00, end 06:00–08:00, half-hour steps;
+    // the same lists as functions/quiet_hours.js RANGE and
     // lib/core/notifications/quiet_hours_range.dart).  Checked only when a
     // write sets or changes the field, so ordinary profile saves (which
     // leave both out) pass whatever is stored; removing one is refused.
@@ -521,11 +521,13 @@ service cloud.firestore {
     // tool/check_reader_html.js), so no text can ride along.
     //
     // 1020m 第二节 — page 1's small-action row (both arms) shares it too:
-    // home_small_action_shown (+ rowState ask / plan / done; + planId
-    // unless ask), home_small_action_open, home_small_action_later,
-    // home_small_action_done (+ planId), home_small_action_postpone
-    // (+ planId, moved).  A plan id is an action_plans document id
-    // (letters, digits, _ and -), so no text fits.
+    // home_small_action_shown (+ rowState ask / plan / done /
+    // next_day_plan (1020n); + planId unless ask), home_small_action_open,
+    // home_small_action_later, home_small_action_more and
+    // home_small_action_list (1020n), home_small_action_done (+ planId),
+    // home_small_action_postpone (+ planId, moved).  A plan id is an
+    // action_plans document id (letters, digits, _ and -), so no text
+    // fits.
     // ============================================================
     function isEnrolledParticipant(uid) {
       let u = get(/databases/$(database)/documents/users/$(uid)).data;
@@ -588,10 +590,11 @@ service cloud.firestore {
       return (d.type == 'home_small_action_shown'
             && ((d.get('rowState', null) == 'ask'
                  && usageReaderOnly(d, ['rowState']))
-              || (d.get('rowState', null) in ['plan', 'done']
+              || (d.get('rowState', null) in ['plan', 'done', 'next_day_plan']
                  && usageReaderOnly(d, ['rowState', 'planId'])
                  && planIdOk(d.planId))))
-        || (d.type in ['home_small_action_open', 'home_small_action_later']
+        || (d.type in ['home_small_action_open', 'home_small_action_later',
+                       'home_small_action_more', 'home_small_action_list']
             && d.keys().hasOnly(usageEventClientKeys()))
         || (d.type == 'home_small_action_done'
             && usageReaderOnly(d, ['planId'])

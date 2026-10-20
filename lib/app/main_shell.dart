@@ -151,7 +151,7 @@ class _MainShellState extends State<MainShell> {
             index: _current.index,
             children: const [
               TodayPage(),
-              TalkPage(),     // ← was MyStoryPage; now 搵人傾 (3 agent rooms)
+              TalkPage(),     // ← was the My Story tab (deleted 1020o); now 搵人傾
               MePage(),       // ← repurposed as 做啲嘢 (tools)
               SettingsPage(), // ← repurposed as 自己 (Progress + Profile + admin)
             ],

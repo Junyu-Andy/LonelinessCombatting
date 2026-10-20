@@ -20,7 +20,7 @@ void main() {
     testWidgets('FAQ skip answer, arm ${arm.name}: today\'s text by default',
         (tester) async {
       await openSkipAnswer(tester, arm);
-      expect(find.textContaining('就算一整個星期冇填'), findsOneWidget);
+      expect(find.textContaining('每個禮拜最少用五次'), findsOneWidget);
     });
 
     testWidgets('FAQ skip answer, arm ${arm.name}: configured line',
@@ -29,7 +29,7 @@ void main() {
           UsageCopy.fromMap({'faq_skip_checkin_answer_zh': '定稿文字'});
       await openSkipAnswer(tester, arm);
       expect(find.text('定稿文字'), findsOneWidget);
-      expect(find.textContaining('就算一整個星期冇填'), findsNothing);
+      expect(find.textContaining('每個禮拜最少用五次'), findsNothing);
     });
   }
 }

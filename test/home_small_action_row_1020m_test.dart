@@ -1,5 +1,5 @@
-// 1020m 第二节 — page 1's small-action row in 「今日要做嘅事」
-// (HomeSmallActionRow; decision 0064).  Synthetic accounts only, both arms
+// 1020m 第二节 / 1020n 第三节、第五节 — page 1's small-action row in
+// 「今日要做嘅事」 (HomeSmallActionRow; decision 0064).  Synthetic accounts only, both arms
 // (each Phase B build shows the arms it can), a fake clock for the days.
 // No switch of its own: it is part of page 1 (homeLayoutV2Enabled) and
 // replaced the old plan follow-up banner there (home_v2_test checks the
@@ -29,14 +29,21 @@ const _on = RemoteFeatureFlags(
   checkInChatV2Enabled: true,
 );
 
-final _ask = find.byKey(const ValueKey('today_todo_small_action_ask'));
-final _later = find.byKey(const ValueKey('today_todo_small_action_later'));
-final _planRow = find.byKey(const ValueKey('today_todo_small_action_plan'));
-final _doneRow = find.byKey(const ValueKey('today_todo_small_action_done'));
-final _doneBtn =
-    find.byKey(const ValueKey('today_todo_small_action_done_button'));
-final _postponeBtn =
-    find.byKey(const ValueKey('today_todo_small_action_postpone_button'));
+final _ask = find.byKey(HomeSmallActionRow.askKey);
+final _later = find.byKey(HomeSmallActionRow.laterKey);
+final _more = find.byKey(HomeSmallActionRow.moreKey);
+final _overflow = find.byKey(HomeSmallActionRow.overflowKey);
+Finder _planOf(String id) => find.byKey(HomeSmallActionRow.planKey(id));
+Finder _doneOf(String id) => find.byKey(HomeSmallActionRow.doneKey(id));
+Finder _nextOf(String id) => find.byKey(HomeSmallActionRow.nextDayKey(id));
+Finder _doneBtnOf(String id) =>
+    find.byKey(HomeSmallActionRow.doneButtonKey(id));
+Finder _postponeBtnOf(String id) =>
+    find.byKey(HomeSmallActionRow.postponeButtonKey(id));
+final _planRow = _planOf('p1');
+final _doneRow = _doneOf('p1');
+final _doneBtn = _doneBtnOf('p1');
+final _postponeBtn = _postponeBtnOf('p1');
 
 /// The row as page 1 shows it (inside 「今日要做嘅事」).
 Widget _page() => const Scaffold(
@@ -69,6 +76,9 @@ Future<void> _restart(WidgetTester tester, HomeRun run) async {
   await tester.pumpWidget(homeHarness(run, home: _page()));
   await settle(tester);
 }
+
+double _top(Finder f) =>
+    (f.evaluate().single.renderObject! as RenderBox).localToGlobal(Offset.zero).dy;
 
 Future<void> _tap(WidgetTester tester, Finder f) async {
   await tester.ensureVisible(f);
@@ -123,6 +133,21 @@ class _StoreRepo extends ActionPlanRepository {
           ActionPlan.fromMap(e.key, e.value),
     ];
   }
+}
+
+/// 1020n 第五节: the plan text fills two lines and ends in 「…」.
+void _expectTwoLines(WidgetTester tester, Finder title) {
+  expect(title, findsOneWidget);
+  final text = tester.widget<Text>(title);
+  expect(text.maxLines, 2);
+  expect(text.overflow, TextOverflow.ellipsis);
+  final para = tester.renderObject<RenderParagraph>(title);
+  expect(para.didExceedMaxLines, isTrue, reason: 'cut, with …');
+  final lineHeight = para.text.style!.fontSize! * 1.30 * 1.3;
+  expect(para.size.height, greaterThan(lineHeight * 1.5),
+      reason: 'wraps to a second line');
+  expect(para.size.height, lessThan(lineHeight * 2.5),
+      reason: 'two lines, not more');
 }
 
 void main() {
@@ -193,48 +218,86 @@ void main() {
       expect(HomeSmallAction.snoozed(null, '2026-10-20'), isFalse);
     });
 
-    test('resolve: answered today first, then today\'s plan, then ask', () {
-      HomeSmallActionView view(List<ActionPlan> ps, {String? mark}) =>
-          HomeSmallAction.resolve(ps, today, laterMark: mark).view;
-      expect(view([]), HomeSmallActionView.ask);
-      expect(view([], mark: '2026-10-19'), HomeSmallActionView.hidden);
-      expect(view([plan('a')]), HomeSmallActionView.plan);
+    test('resolve: one line per plan; today\'s first, then the day a plan '
+        'is made, then ask', () {
+      const ask = HomeSmallActionLineKind.ask;
+      const planL = HomeSmallActionLineKind.plan;
+      const doneL = HomeSmallActionLineKind.done;
+      const next = HomeSmallActionLineKind.nextDayPlan;
+      const more = HomeSmallActionLineKind.more;
+      const over = HomeSmallActionLineKind.overflow;
+      List<HomeSmallActionLineKind> kinds(List<ActionPlan> ps,
+              {String? mark}) =>
+          HomeSmallAction.resolve(ps, today, laterMark: mark).kinds;
+      expect(kinds([]), [ask]);
+      expect(kinds([], mark: '2026-10-19'), isEmpty);
+      expect(kinds([plan('a')]), [planL]);
       // A plan for today beats 遲啲先.
-      expect(view([plan('a')], mark: '2026-10-20'), HomeSmallActionView.plan);
-      // Tomorrow's plan (made today) is not today's.
-      expect(view([plan('a', createdAt: today)]), HomeSmallActionView.ask);
+      expect(kinds([plan('a')], mark: '2026-10-20'), [planL]);
+      // Made today (its day is tomorrow): 聽日計劃 + 仲有冇其他計劃？, also
+      // during 遲啲先 (no 遲啲先 in this state).
+      expect(kinds([plan('a', createdAt: today)]), [next, more]);
+      expect(kinds([plan('a', createdAt: today)], mark: '2026-10-20'),
+          [next, more]);
+      // Made earlier for a later day (not today's, not made today): ask.
+      expect(kinds([plan('a', createdAt: DateTime(2026, 10, 18), due:
+          '2026-10-25')]), [ask]);
       // A plan overdue from yesterday is not today's either.
-      expect(view([plan('a', createdAt: DateTime(2026, 10, 18, 10))]),
-          HomeSmallActionView.ask);
+      expect(kinds([plan('a', createdAt: DateTime(2026, 10, 18, 10))]),
+          [ask]);
       expect(
-          view([plan('a', answered: '2026-10-20', status: 'done',
+          kinds([plan('a', answered: '2026-10-20', status: 'done',
               outcome: FollowUpOutcome.happened)]),
-          HomeSmallActionView.done);
+          [doneL]);
+      // 改日 today: that line folds away; nothing else today → nothing.
       expect(
-          view([plan('a', answered: '2026-10-20', status: 'later',
+          kinds([plan('a', answered: '2026-10-20', status: 'later',
               due: '2026-10-21', laterCount: 1)]),
-          HomeSmallActionView.hidden);
-      // One answer a day: another plan for today waits.
+          isEmpty);
+      // Each plan on its own: another plan for today still asks.
+      final mixed = HomeSmallAction.resolve([
+        plan('a', answered: '2026-10-20', status: 'later',
+            due: '2026-10-21', laterCount: 1),
+        plan('b', createdAt: DateTime(2026, 10, 19, 12)),
+        plan('c', createdAt: DateTime(2026, 10, 19, 13),
+            answered: '2026-10-20', status: 'done',
+            outcome: FollowUpOutcome.happened),
+      ], today);
+      expect(mixed.kinds, [planL, doneL]);
+      expect([for (final l in mixed.lines) l.plan!.id], ['b', 'c']);
+      // 改日 today, then a new plan made today: 聽日計劃 for the new one.
       expect(
-          view([
+          kinds([
             plan('a', answered: '2026-10-20', status: 'later',
                 due: '2026-10-21', laterCount: 1),
-            plan('b', createdAt: DateTime(2026, 10, 19, 12)),
+            plan('n', createdAt: today),
           ]),
-          HomeSmallActionView.hidden);
+          [next, more]);
       // Answered on the 件事點呀 page: a tick (happened) or nothing.
-      expect(view([plan('a', outcome: FollowUpOutcome.happened)]),
-          HomeSmallActionView.done);
-      expect(view([plan('a', outcome: FollowUpOutcome.didNotHappen)]),
-          HomeSmallActionView.hidden);
+      expect(kinds([plan('a', outcome: FollowUpOutcome.happened)]), [doneL]);
+      expect(kinds([plan('a', outcome: FollowUpOutcome.didNotHappen)]),
+          isEmpty);
       // Deleted plans never show.
-      expect(view([plan('a', deletedAt: today)]), HomeSmallActionView.ask);
-      // The oldest of today's plans.
-      final s = HomeSmallAction.resolve([
+      expect(kinds([plan('a', deletedAt: today)]), [ask]);
+      expect(kinds([plan('a', createdAt: today, deletedAt: today)]), [ask]);
+      // In the order they were made; at most two, then 仲有 N 個計劃.
+      final three = HomeSmallAction.resolve([
         plan('late', createdAt: DateTime(2026, 10, 19, 15)),
         plan('early', createdAt: DateTime(2026, 10, 19, 8)),
+        plan('mid', createdAt: DateTime(2026, 10, 19, 11)),
+        plan('last', createdAt: DateTime(2026, 10, 19, 14, 30)),
       ], today);
-      expect(s.plan!.id, 'early');
+      expect(three.kinds, [planL, planL, over]);
+      expect([three.lines[0].plan!.id, three.lines[1].plan!.id],
+          ['early', 'mid']);
+      expect(three.lines[2].count, 2);
+      final threeNext = HomeSmallAction.resolve([
+        for (final id in ['x', 'y', 'z']) plan(id, createdAt: today),
+      ], today);
+      expect(threeNext.kinds, [next, next, over, more]);
+      expect(threeNext.lines[2].count, 1);
+      expect([for (final l in threeNext.lines) l.rowState],
+          ['next_day_plan', 'next_day_plan', null, null]);
     });
 
     test('改日: the first press moves to tomorrow, the second does not', () {
@@ -326,6 +389,31 @@ void main() {
       expect(rec.recordHomeSmallAction(t, rowState: 'plan', planId: 'Ab_9-z'),
           isTrue);
       expect(rec.recordHomeSmallAction(t, rowState: 'plan'), isFalse);
+      // 1020n: next_day_plan needs the plan id; more / list carry nothing.
+      expect(rec.recordHomeSmallAction(t, rowState: 'next_day_plan'), isFalse);
+      final probe = InMemoryUsageEventSink();
+      final rec2 = UsageEventRecorder(
+          sink: probe, enabled: () => true, appVersion: '0', buildNumber: '0')
+        ..setProfile(homeProfile(ArmAssignment.a));
+      expect(
+          rec2.recordHomeSmallAction(t,
+              rowState: 'next_day_plan', planId: 'p9'),
+          isTrue);
+      expect(
+          rec2.recordHomeSmallAction(UsageEventType.homeSmallActionMore,
+              planId: 'p9'),
+          isTrue);
+      expect(rec2.recordHomeSmallAction(UsageEventType.homeSmallActionList),
+          isTrue);
+      expect([for (final e in probe.events) e.toMap()..remove('clientAt')], [
+        {'type': 'home_small_action_shown', 'appVersion': '0',
+          'buildNumber': '0', 'platform': 'unknown', 'schemaVersion': 1,
+          'rowState': 'next_day_plan', 'planId': 'p9'},
+        {'type': 'home_small_action_more', 'appVersion': '0',
+          'buildNumber': '0', 'platform': 'unknown', 'schemaVersion': 1},
+        {'type': 'home_small_action_list', 'appVersion': '0',
+          'buildNumber': '0', 'platform': 'unknown', 'schemaVersion': 1},
+      ]);
       expect(rec.recordHomeSmallAction(t, rowState: 'hidden'), isFalse);
       expect(
           rec.recordHomeSmallAction(UsageEventType.homeSmallActionDone,
@@ -359,7 +447,11 @@ void main() {
           isFalse);
     });
 
-    test('the copy (SA1–SA5)', () {
+    test('the copy (SA1–SA8)', () {
+      expect(HomeV2Copy.smallActionNextDay('飲茶'), '聽日計劃：飲茶');
+      expect(HomeV2Copy.smallActionMore, '仲有冇其他計劃？');
+      expect(HomeV2Copy.smallActionOverflow(1), '仲有 1 個計劃');
+      expect(HomeV2Copy.smallActionOverflow(3), '仲有 3 個計劃');
       expect(HomeV2Copy.smallActionAsk, '今日想做啲咩小行動？');
       expect(HomeV2Copy.smallActionLater, '遲啲先');
       expect(HomeV2Copy.smallActionPlan('飲茶'), '今日計劃：飲茶');
@@ -552,8 +644,150 @@ void main() {
         expect(find.text('同阿明飲茶'), findsOneWidget);
       });
 
-      testWidgets('long plan text: one line ending in …, at 1.30 on a '
-          '360-wide phone', (tester) async {
+      testWidgets('1020n: the day a plan is made → 聽日計劃 + 仲有冇其他計劃？ '
+          '(no 遲啲先); tap it → 今日小行動 → a second plan; the next day each '
+          'plan 做咗 / 改日 on its own', (tester) async {
+        final run = HomeRun(arm);
+        // Made this morning (via 今日小行動): its day is tomorrow.
+        run.smallActions.addPlan('p1',
+            action: '同阿明去公園行下', createdAt: DateTime(2026, 10, 20, 9));
+        await _pump(tester, run);
+        expect(_nextOf('p1'), findsOneWidget);
+        expect(find.text('聽日計劃：同阿明去公園行下'), findsOneWidget);
+        expect(_more, findsOneWidget);
+        expect(find.text(HomeV2Copy.smallActionMore), findsOneWidget);
+        expect(_later, findsNothing, reason: 'no 遲啲先 in this state');
+        expect(_ask, findsNothing);
+        expect(_doneBtnOf('p1'), findsNothing, reason: 'no buttons today');
+        expect(_postponeBtnOf('p1'), findsNothing);
+        // 仲有冇其他計劃？ → 今日小行動, where the elder saves another plan.
+        await _tap(tester, _more);
+        expect(run.smallActionPageOpens, 1);
+        expect(find.text('今日小行動 page'), findsOneWidget);
+        run.smallActions.addPlan('p2',
+            action: '打電話畀阿芳', createdAt: DateTime(2026, 10, 20, 9, 40));
+        run.navKey.currentState!.pop();
+        await settle(tester);
+        expect(_nextOf('p1'), findsOneWidget);
+        expect(_nextOf('p2'), findsOneWidget);
+        expect(_more, findsOneWidget);
+        expect(_overflow, findsNothing);
+        expect(_top(_nextOf('p1')) < _top(_nextOf('p2')), isTrue);
+        expect(_top(_nextOf('p2')) < _top(_more), isTrue);
+        // The next day: one line each, each with its own buttons.
+        await _toDay(tester, run, DateTime(2026, 10, 21, 9, 30));
+        expect(_planOf('p1'), findsOneWidget);
+        expect(_planOf('p2'), findsOneWidget);
+        expect(find.text('今日計劃：同阿明去公園行下'), findsOneWidget);
+        expect(find.text('今日計劃：打電話畀阿芳'), findsOneWidget);
+        expect(_more, findsNothing);
+        await _tap(tester, _doneBtnOf('p1'));
+        expect(_doneOf('p1'), findsOneWidget, reason: 'p1 ticked');
+        expect(_doneBtnOf('p2'), findsOneWidget, reason: 'p2 still asks');
+        expect(_postponeBtnOf('p2'), findsOneWidget);
+        await _tap(tester, _postponeBtnOf('p2'));
+        expect(_planOf('p2'), findsNothing, reason: 'p2 folded for today');
+        expect(_doneOf('p1'), findsOneWidget, reason: 'p1 tick stays');
+        final d1 = run.smallActions.planDocs['p1']!;
+        final d2 = run.smallActions.planDocs['p2']!;
+        expect((d1['outcome'], d1['homeRowStatus'], d1['homeRowLaterCount']),
+            ('happened', 'done', null));
+        expect((d2['outcome'], d2['homeRowStatus'], d2['homeRowLaterCount'],
+            d2['homeRowDueDate']), (null, 'later', 1, '2026-10-22'));
+        expect(run.smallActions.remindersOf('p1'), isEmpty);
+        expect(run.smallActions.remindersOf('p2').single['fireAt'],
+            '2026-10-22T09:40:00.000');
+        // Day after: only p2 (moved), its own second 改日 does not move it.
+        await _toDay(tester, run, DateTime(2026, 10, 22, 9));
+        expect(_planOf('p2'), findsOneWidget);
+        expect(_planOf('p1'), findsNothing);
+        expect(_doneOf('p1'), findsNothing);
+        await _tap(tester, _postponeBtnOf('p2'));
+        expect(run.smallActions.planDocs['p2']!['homeRowLaterCount'], 2);
+        expect(run.smallActions.planDocs['p2']!['homeRowDueDate'],
+            '2026-10-22');
+        expect(_usageCodes(run), [
+          'shown:next_day_plan:p1',
+          'more',
+          'shown:next_day_plan:p2',
+          'shown:plan:p1',
+          'shown:plan:p2',
+          'done:p1',
+          'shown:done:p1',
+          'postpone:p2:moved=true',
+          'shown:plan:p2',
+          'postpone:p2:moved=false',
+        ]);
+      });
+
+      testWidgets('1020n: three plans → two lines + 「仲有 1 個計劃」 → 我嘅計劃; '
+          'the same the day they are made', (tester) async {
+        final run = HomeRun(arm);
+        for (final (i, id) in ['p1', 'p2', 'p3'].indexed) {
+          _seedPlan(run, id, action: '計劃$id', hour: 9 + i);
+        }
+        await _pump(tester, run);
+        expect(_planOf('p1'), findsOneWidget);
+        expect(_planOf('p2'), findsOneWidget);
+        expect(_planOf('p3'), findsNothing);
+        expect(_overflow, findsOneWidget);
+        expect(find.text('仲有 1 個計劃'), findsOneWidget);
+        expect(_top(_planOf('p2')) < _top(_overflow), isTrue);
+        await _tap(tester, _overflow);
+        expect(run.myPlansPageOpens, 1);
+        expect(find.text('我嘅計劃 page'), findsOneWidget);
+        run.navKey.currentState!.pop();
+        await settle(tester);
+        // 改日 on p1 folds it away: p2 and p3 now fit, no 仲有 N 個計劃.
+        await _tap(tester, _postponeBtnOf('p1'));
+        expect(_planOf('p2'), findsOneWidget);
+        expect(_planOf('p3'), findsOneWidget);
+        expect(_overflow, findsNothing);
+        expect(_usageCodes(run), [
+          'shown:plan:p1',
+          'shown:plan:p2',
+          'list',
+          'postpone:p1:moved=true',
+          'shown:plan:p3',
+        ]);
+        // Made today: two 聽日計劃 lines, 仲有 1 個計劃, 仲有冇其他計劃？.
+        final made = HomeRun(arm);
+        for (final (i, id) in ['n1', 'n2', 'n3'].indexed) {
+          made.smallActions.addPlan(id,
+              action: '聽日$id', createdAt: DateTime(2026, 10, 20, 8, i));
+        }
+        await tester.pumpWidget(const SizedBox());
+        HomeSmallActionRow.resetShownLog();
+        await _pump(tester, made);
+        expect(_nextOf('n1'), findsOneWidget);
+        expect(_nextOf('n2'), findsOneWidget);
+        expect(_nextOf('n3'), findsNothing);
+        expect(find.text('仲有 1 個計劃'), findsOneWidget);
+        expect(_more, findsOneWidget);
+        expect(_top(_overflow) < _top(_more), isTrue);
+        await _tap(tester, _overflow);
+        expect(made.myPlansPageOpens, 1);
+      });
+
+      testWidgets('1020n: 仲有 N 個計劃 opens the real 我嘅計劃 page listing '
+          'every plan', (tester) async {
+        final run = HomeRun(arm);
+        for (final (i, id) in ['p1', 'p2', 'p3', 'p4'].indexed) {
+          _seedPlan(run, id, action: '計劃$id', hour: 9 + i);
+        }
+        await _pump(tester, run);
+        expect(find.text('仲有 2 個計劃'), findsOneWidget);
+        ActionPlanRepository.testOverride = _StoreRepo(run.smallActions);
+        unawaited(run.navKey.currentState!.push(MaterialPageRoute<void>(
+            builder: (_) => const ActionLoopLandingPage())));
+        await settle(tester);
+        for (final id in ['p1', 'p2', 'p3', 'p4']) {
+          expect(find.text('計劃$id'), findsOneWidget, reason: id);
+        }
+      });
+
+      testWidgets('long plan text (30+ characters): two lines, then …, at '
+          '1.30 on a 360-wide phone — 今日計劃 and 聽日計劃', (tester) async {
         final run = HomeRun(arm);
         const long = '星期六朝早同阿明、阿芳同埋舊同事一齊去公園行一個鐘，'
             '之後去茶樓飲早茶，再去街市買餸返屋企煮飯';
@@ -561,18 +795,20 @@ void main() {
         await _pump(tester, run, size: const Size(360, 800), textScale: 1.30);
         final title = find.text('今日計劃：$long');
         expect(title, findsOneWidget);
-        final text = tester.widget<Text>(title);
-        expect(text.maxLines, 1);
-        expect(text.overflow, TextOverflow.ellipsis);
-        final para = tester.renderObject<RenderParagraph>(title);
-        expect(para.didExceedMaxLines, isTrue);
-        final lineHeight = para.text.style!.fontSize! * 1.30 * 1.3;
-        expect(para.size.height, lessThan(lineHeight * 1.5),
-            reason: 'one line, not several');
-        expect(tester.takeException(), isNull);
-        // Short plans and the buttons fit too.
+        expect(long.length, greaterThan(30));
+        _expectTwoLines(tester, title);
+        // The buttons fit too.
         expect(_doneBtn, findsOneWidget);
         expect(_postponeBtn, findsOneWidget);
+        // The day a plan is made: 聽日計劃, same rule.
+        run.smallActions.addPlan('n1',
+            action: long, createdAt: DateTime(2026, 10, 20, 9));
+        run.smallActions.planDocs.remove('p1');
+        run.smallActions.addPlan('n2', action: '飲茶',
+            createdAt: DateTime(2026, 10, 20, 9, 5));
+        await settle(tester);
+        _expectTwoLines(tester, find.text('聽日計劃：$long'));
+        expect(tester.takeException(), isNull);
       });
     });
   }

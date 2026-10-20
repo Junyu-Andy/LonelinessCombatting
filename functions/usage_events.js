@@ -31,8 +31,9 @@
  * LIFECYCLE_TYPES for opens and foreground minutes.
  *
  * 1020m 第二节: page 1's small-action row (home_small_action_shown / _open
- * / _later / _done / _postpone; a row state, a plan id and a bool only —
- * firestore.rules) is stamped the same way; not a lifecycle row either.
+ * / _later / _done / _postpone, and 1020n _more / _list; a row state, a
+ * plan id and a bool only — firestore.rules) is stamped the same way; not
+ * a lifecycle row either.
  *
  * 1020o 第三节: 「安靜時段」 in 我的設定 (quiet_hours_changed; field start /
  * end, from, to — "HH:mm" times only, firestore.rules) is stamped the same
@@ -48,7 +49,9 @@ const READER_TYPES = ["reader_open", "reader_section", "reader_cta",
   "reader_close"];
 const HOME_SMALL_ACTION_TYPES = ["home_small_action_shown",
   "home_small_action_open", "home_small_action_later",
-  "home_small_action_done", "home_small_action_postpone"];
+  "home_small_action_done", "home_small_action_postpone",
+  // 1020n 第三节: 「仲有冇其他計劃？」 and 「仲有 N 個計劃」 tapped.
+  "home_small_action_more", "home_small_action_list"];
 // 1020o 第三节: 安靜時段 changed in 我的設定.
 const QUIET_HOURS_TYPES = ["quiet_hours_changed"];
 const TYPES = LIFECYCLE_TYPES.concat(READER_TYPES, HOME_SMALL_ACTION_TYPES,

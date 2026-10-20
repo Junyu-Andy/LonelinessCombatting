@@ -95,7 +95,7 @@ Future<void> _tap(WidgetTester tester, Finder f) async {
 }
 
 void main() {
-  group('QuietHoursRange (【待 Junyu 定】 start 20:00–23:00, end 06:00–08:00)',
+  group('QuietHoursRange (start 20:00–23:00, end 06:00–08:00, half hours)',
       () {
     test('half-hour steps inside the range only', () {
       expect(QuietHoursRange.startOptions, [

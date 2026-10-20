@@ -4,7 +4,7 @@
 /// the push senders (functions/quiet_hours.js) hold personal pushes inside
 /// it until it ends.
 ///
-/// The allowed range is 【待 Junyu 定，先按这个做】.  Change it HERE and in
+/// The allowed range (Junyu 10/20, decided).  Change it HERE and in
 /// `functions/quiet_hours.js` (RANGE) and in `firestore.rules`
 /// (`quietStartValues` / `quietEndValues`); `functions/test/
 /// quiet_hours_1020o_test.js` fails while the three differ.  The research
