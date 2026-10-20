@@ -50,6 +50,11 @@
 - 测试 `test/siu_yan_prompts_mood_1020l_test.dart`（量位置：在标题栏下、不压输入框、最新一句完整可见；按钮同宽同高、一行、居中），加进 CI 两个 Phase B 组。截图在 `docs/dev-reports/1020l-shots/siuyan/`。
 - 五个表情的心情按钮（`MoodFacePicker`，`check_in_shared.dart`）也改用 `EqualButtonGrid`：同宽同高，表情和字居中，字一行（Junyu 说的「五个按钮同宽」应是开关关着时的旧签到页）。用在旧签到页 A／B、规则组回忆页、旧首页心情框，按修 bug 处理、不加开关，两组相同。截图 `mood_face_picker_*`。
 - 中度提示的三个选项都点过测试（页顶和原来的底部弹出两种）：靜一靜开呼吸页、搵人傾记事件并开同一个求助页、我冇事，繼續收起；回来后聊天照常、签到接着问。代码改为先取 Navigator 再关提示，关掉后不再用已移除的 context。
+## 2026-10-20 1020j 第二节：Android 固定签名钥匙（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-signing`）
+
+- 原因：Build APK 的正式包一直用 CI 机器的调试钥匙签名。每台 CI 机器的调试钥匙都是新生成的，所以每个新包签名都不同，装新版本要先卸载、再登录（10/15 第 12 条 (4) 原定的正式签名没做成）。
+- 改法：`build.gradle.kts` 有环境变量就用固定钥匙签。工作流从四个仓库 Secret 还原钥匙，缺了就让构建失败，不再退回随机钥匙。每次构建在运行摘要里打印证书 SHA-256；设了仓库变量 `ANDROID_SIGNING_SHA256`，不一致就失败。
+- 不改 App 代码；版本号仍取 `pubspec.yaml`。Junyu 要做的一次性步骤见 `docs/release/android-signing.md`。
 
 ## 2026-10-20 1020i：Mac 本地测试脚本（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-mac-tests`）；本地只读看板先答四个问题
 
