@@ -92,7 +92,9 @@ flutter run --release -d <设备id> \
 
 1. App Store Connect → 我的 App → 陪住 → **TestFlight**。
 2. 先找到现在每次都会收到新版本的那个组（比如以前建的测试组）。在左边栏它在哪一栏下面：
-   - 在 **Internal Testing（内部测试）** 下面：点进去 → 把 **Automatic Distribution（自动分发）** 关掉；或者这个组已经没用了，就整个删掉（组页面右上角）。
+   - 在 **Internal Testing（内部测试）** 下面：点进去 → 把 **Automatic Distribution（自动分发）** 关掉。**不用删人**：关掉以后这个组只收到你手动加的版本（大版本时在它的 **Builds** 页「+」）。已经发给它的旧版本，不想让它装就在 Builds 页「从组里移除」；不要点「Expire Build」，那会让所有组都装不了。
+   - 同一个人同时在两个内部组里，两个组的版本都会收到。只想让他看大版本，就别把他放进 dev 组。
+   - 「用户和访问」里删人是把人移出整个团队，和测试组无关，不要为这个去删。
    - 在 **External Testing（外部测试）** 下面：点进去 → **Builds** 页，把不该发给它们的版本移除。以后上传时选「TestFlight Internal Only」（见下面），新版本就进不了外部组。
 3. 建 dev 组：左边 **Internal Testing** 旁边的「+」→ 组名 `dev` → 勾 **Enable automatic distribution** → 把要测试的人加进去。内部组只能加 App Store Connect 团队里的人：先在「用户和访问」（Users and Access）里邀请他们，角色选「开发者」或「营销」都行。
 
