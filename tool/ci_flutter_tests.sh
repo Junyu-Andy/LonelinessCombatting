@@ -24,6 +24,8 @@
 #      My Story page and test/my_story_arm_test.dart are gone)
 #      (1020o 第三节: test/quiet_hours_settings_1020o_test.dart runs in 1, 2
 #      and 3 — 我的設定 → 安靜時段 「由」/「到」, same for both arms)
+#      (1020o (4a): test/reminiscence_scene_1020o_test.dart runs in 1, 2 and
+#      3 — the week's scene picture before the opener, both arms, no model)
 #      (10/20 item 98: test/pgic_whole_days_1020_test.dart runs in 1, 2 and
 #      3 — weeks 5–7 PGIC on whole days and the home row's words, both arms)
 #   4. MEMORY_V1=true         — memory v1 client tests (memory branch)
@@ -78,8 +80,10 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/reminiscence_avatar_1020l_test.dart \
   test/crisis_chat_message_1020m_test.dart \
   test/faq_1020o_test.dart \
+  test/crisis_verified_date_1020p_test.dart \
   test/selfpage_landing_1020o_test.dart \
   test/quiet_hours_settings_1020o_test.dart \
+  test/reminiscence_scene_1020o_test.dart \
   test/pgic_whole_days_1020_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 run "phase B arm B pages" \
@@ -99,8 +103,10 @@ run "phase B arm B pages" \
   test/reminiscence_avatar_1020l_test.dart \
   test/crisis_chat_message_1020m_test.dart \
   test/faq_1020o_test.dart \
+  test/crisis_verified_date_1020p_test.dart \
   test/selfpage_landing_1020o_test.dart \
   test/quiet_hours_settings_1020o_test.dart \
+  test/reminiscence_scene_1020o_test.dart \
   test/pgic_whole_days_1020_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \

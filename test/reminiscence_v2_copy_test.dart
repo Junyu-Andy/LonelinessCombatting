@@ -118,6 +118,15 @@ void main() {
       }
     });
 
+    // 1020o (4a): the line under each week's scene picture.
+    test('scene lines', () {
+      expect(ReminiscenceV2Copy.sceneLines.keys, [1, 2, 3, 4]);
+      for (final w in [1, 2, 3, 4]) {
+        expect(ReminiscenceV2Copy.sceneLines[w], rows['SCENE-$w']![2]);
+        expect(rows['SCENE-$w']![1], contains('scene_$w.jpg'));
+      }
+    });
+
     test('the three rating items and the rating buttons', () {
       final items = ReminiscenceV2Copy.ratingItems;
       expect(items, hasLength(3));

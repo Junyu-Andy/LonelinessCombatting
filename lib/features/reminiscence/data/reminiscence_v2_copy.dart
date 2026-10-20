@@ -61,6 +61,23 @@ class ReminiscenceV2Copy {
   static const hardshipQuestion = 7;
 
   // ---------------------------------------------------------------------
+  // 1020o (4a) — the scene picture, the first bubble of each week (before
+  // the opener; Junyu 10/20 第 91 条).  Both arms; no reply expected.
+  // ---------------------------------------------------------------------
+
+  /// The line under the week's picture, by week index.
+  static const sceneLines = <int, String>{
+    1: '睇吓呢幅圖，有冇令你諗起細個嘅日子？',
+    2: '睇吓呢幅圖，有冇令你諗起後生嗰陣做嘢嘅日子？',
+    3: '睇吓呢幅圖，有冇令你諗起一個老朋友？',
+    4: '睇吓呢幅圖。今個禮拜，想聽下你想留畀後生一代嘅說話。',
+  };
+
+  /// The week's landscape picture (1024 × 768, 4:3).
+  static String sceneAsset(int weekIndex) =>
+      'assets/reminiscence/scene_$weekIndex.jpg';
+
+  // ---------------------------------------------------------------------
   // Openers (section 3) — three bubbles.
   // ---------------------------------------------------------------------
 
@@ -252,7 +269,7 @@ class ReminiscenceV2Copy {
 
   // ---------------------------------------------------------------------
   // 1020o — the 自己 page entry and the 人生點滴 landing page (both arms;
-  // no switch).  Drafts until Junyu signs them off.
+  // no switch).  Final (Junyu, 10/20).
   // ---------------------------------------------------------------------
 
   /// Line under 「我嘅人生小篇章」 on the 自己 page.
