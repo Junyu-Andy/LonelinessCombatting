@@ -47,7 +47,7 @@ Future<void> _shot(
   String name, {
   required bool highContrast,
 }) async {
-  tester.view.physicalSize = const Size(360, 2680) * 2;
+  tester.view.physicalSize = const Size(360, 3000) * 2;
   tester.view.devicePixelRatio = 2.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);

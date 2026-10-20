@@ -12,7 +12,7 @@ void main() {
 
   Future<void> openSkipAnswer(WidgetTester tester, ArmAssignment arm) async {
     await tester.pumpWidget(wrapWithArm(arm: arm, child: const FaqPage()));
-    await tester.tap(find.text('我冇填 check-in 會唔會有事？'));
+    await tester.tap(find.text('有一日冇 check-in，會唔會有問題？'));
     await tester.pumpAndSettle();
   }
 

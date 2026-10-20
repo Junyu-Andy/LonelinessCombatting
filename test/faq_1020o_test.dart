@@ -1,6 +1,8 @@
-// 1020o 二 — 常見問題: answers 2–6 rewritten, question 5 renamed.  Both
-// arms see the same six entries, word for word, and all six open without
-// overflow on a small phone at the largest App text (1.30).
+// 1020o 二 補充 (decisions-log 10/20 item 93) — 常見問題, whole page
+// replaced: the line on top and all six questions and answers, each
+// question with its icon.  Both arms see the same page, word for word, and
+// all six open without overflow on a small phone at the largest App text
+// (1.30), normal and high contrast.
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
 import 'package:app_demo/app/app_theme.dart';
@@ -11,29 +13,47 @@ import 'package:app_demo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+// Written out again here (not read from FaqCopy) so a change to the page
+// text fails this test.
+const _intro = '平時用 App 有咩唔清楚，可以先睇下呢度。搵唔到答案，隨時問研究人員都得。';
+
 const _faq = [
   (
-    '呢個 app 係咪用嚟代替醫生？',
-    '唔係。佢可以幫你整理感受同諗下下一步，但唔可以取代醫生、治療或者緊急支援。'
-        '如果有即時需要，請聯絡屋企人或者撥 999。',
+    Icons.medical_services_outlined,
+    '呢個 App 可以代替睇醫生嗎？',
+    '唔可以。佢可以陪你傾偈、幫你理清下心情，但始終唔係醫生。身體或者情緒有需要，'
+        '記得搵醫生或者身邊信得過嘅人；有緊急情況，即刻打 999。',
   ),
   (
-    '我嘅資料會唔會畀第二個人睇到？',
+    Icons.lock_outline,
+    '我講嘅嘢，邊個會睇到？',
     '你喺 App 入面講嘅嘢、填嘅問卷同使用紀錄，會儲存喺研究用嘅伺服器。'
-        '研究團隊會睇同分析呢啲資料，只用嚟做研究，唔會交畀研究團隊以外嘅人做其他用途。'
-        '詳情請睇你簽嘅同意書，有問題可以問研究人員。',
+        '只有研究團隊會睇同分析，用嚟做研究，唔會交畀研究團隊以外嘅人做其他用途。'
+        '想知多啲，可以睇返你簽嘅同意書，或者問研究人員。',
   ),
   (
-    '點樣改字體大細？',
-    '你可以去「自己」入面嘅「顯示設定」揀字體大小，由標準到特大一共五級，'
-        '揀咗之後成個 App 嘅字即刻跟住變。如果仲係睇唔清，可以入「我的設定」打開「高對比模式」。',
+    Icons.text_fields,
+    '啲字太細，睇得好辛苦，點算？',
+    '入「自己」嘅「顯示設定」，可以將字調大，由標準到特大一共五級，一揀就即刻變。'
+        '仲係睇唔清嘅話，可以喺「我的設定」打開「高對比模式」，啲字會再清楚啲。',
   ),
-  ('我冇填 check-in 會唔會有事？', '唔會有事。不過建議你每日都入嚟傾下，每個禮拜最少用五次。'),
-  ('點解夜晚冇通知？可唔可以改時間？', '晚上十點到朝早八點，App 唔會彈出通知。想改呢段時間，可以入「我的設定」嘅「安靜時段」。'),
   (
-    '我覺得好唔開心，應該點做？',
-    '先慢慢深呼吸幾下。首頁下面有「想搵人傾吓？」，撳一下就會打去情緒通 18111。'
-        '如果覺得唔安全，可以撳「睇更多支援熱線」，或者直接打 999。',
+    Icons.event_available_outlined,
+    '有一日冇 check-in，會唔會有問題？',
+    '唔會有問題，唔使擔心。不過都建議你每日入嚟傾下，每個禮拜最少用五次。',
+  ),
+  (
+    Icons.bedtime_outlined,
+    '點解夜晚收唔到通知？',
+    '為咗唔阻住你休息，晚上十點到朝早八點，App 唔會彈通知出嚟。'
+        '想早啲或者遲啲開始，可以入「我的設定」嘅「安靜時段」自己改。',
+  ),
+  (
+    Icons.favorite_border,
+    '覺得好唔開心，可以點做？',
+    '先慢慢深呼吸幾下，唔使一個人頂住。首頁下面有「想搵人傾吓？」，'
+        '撳一下就會打去情緒通 18111，有人聽你講。'
+        '如果覺得唔安全，撳「睇更多支援熱線」，或者即刻打 999。',
   ),
 ];
 
@@ -80,7 +100,7 @@ Future<void> _pumpFaq(
 /// lazy: entries scrolled far off are no longer built).
 Future<Map<String, String>> _openAll(WidgetTester tester) async {
   final shown = <String, String>{};
-  for (final (question, _) in _faq) {
+  for (final (_, question, _) in _faq) {
     final q = find.text(question);
     await tester.scrollUntilVisible(
       q,
@@ -109,19 +129,62 @@ String _answerText(WidgetTester tester, String question) {
       .join();
 }
 
+/// The icon in front of [question]'s text: the one in the nearest row
+/// holding the question.
+Icon _iconOf(WidgetTester tester, String question) {
+  final row = find
+      .ancestor(of: find.text(question), matching: find.byType(Row))
+      .first;
+  return tester.widget<Icon>(
+    find.descendant(of: row, matching: find.byType(Icon)),
+  );
+}
+
 void main() {
   tearDown(() => UsageCopy.current = const UsageCopy());
 
   for (final arm in [ArmAssignment.a, ArmAssignment.b]) {
     for (final highContrast in [false, true]) {
       testWidgets(
-        'arm ${arm.name}${highContrast ? ', high contrast' : ''}: six '
-        'entries word for word, all open at 特大 on 360 × 800',
+        'arm ${arm.name}${highContrast ? ', high contrast' : ''}: line on '
+        'top, six entries word for word with their icons, all open at 特大 '
+        'on 360 × 800',
         (tester) async {
           await _pumpFaq(tester, arm: arm, highContrast: highContrast);
+          expect(
+            tester.widget<Text>(find.byKey(const Key('faq_intro'))).data,
+            _intro,
+          );
+          final context = tester.element(find.byType(FaqPage));
+          final theme = Theme.of(context);
+          final titleSize =
+              theme.textTheme.titleMedium!.fontSize! *
+              AppFontScale.xLarge.multiplier;
+          for (final (icon, question, _) in _faq) {
+            final q = find.text(question);
+            await tester.scrollUntilVisible(
+              q,
+              120,
+              scrollable: find.byType(Scrollable).first,
+            );
+            final shownIcon = _iconOf(tester, question);
+            expect(shownIcon.icon, icon, reason: question);
+            expect(
+              shownIcon.color,
+              theme.colorScheme.primary,
+              reason: question,
+            );
+            expect(shownIcon.size, closeTo(titleSize, 0.01), reason: question);
+          }
+          await tester.scrollUntilVisible(
+            find.byKey(const Key('faq_intro')),
+            -400,
+            scrollable: find.byType(Scrollable).first,
+          );
           final shown = await _openAll(tester);
           expect(tester.takeException(), isNull);
-          for (final (question, answer) in _faq) {
+          expect(shown.length, 6);
+          for (final (_, question, answer) in _faq) {
             expect(shown[question], answer, reason: question);
           }
         },
@@ -129,21 +192,24 @@ void main() {
     }
   }
 
-  testWidgets('old wording is gone (phone-only data, 跟進 switches, 溫馨提示)', (
+  testWidgets('old wording is gone (設定 contact line, old questions)', (
     tester,
   ) async {
     await _pumpFaq(tester, arm: ArmAssignment.a);
-    final shown = await _openAll(tester);
     for (final old in [
-      '只會留喺你部電話度',
-      '點樣關掉提醒？',
-      '設定 > 通知',
-      '溫馨提示',
-      '上面會即時見到預覽',
-      '就算一整個星期冇填',
+      '如果呢度搵唔到答案',
+      '呢個 app 係咪用嚟代替醫生？',
+      '我嘅資料會唔會畀第二個人睇到？',
+      '點樣改字體大細？',
+      '我冇填 check-in 會唔會有事？',
+      '點解夜晚冇通知？可唔可以改時間？',
+      '我覺得好唔開心，應該點做？',
     ]) {
+      expect(find.textContaining(old), findsNothing, reason: old);
+    }
+    final shown = await _openAll(tester);
+    for (final old in ['只會留喺你部電話度', '溫馨提示', '上面會即時見到預覽']) {
       expect(shown.values.any((a) => a.contains(old)), isFalse, reason: old);
-      expect(shown.keys.any((q) => q.contains(old)), isFalse, reason: old);
     }
   });
 
@@ -153,6 +219,6 @@ void main() {
     });
     await _pumpFaq(tester, arm: ArmAssignment.b);
     final shown = await _openAll(tester);
-    expect(shown['我冇填 check-in 會唔會有事？'], '研究團隊定稿');
+    expect(shown['有一日冇 check-in，會唔會有問題？'], '研究團隊定稿');
   });
 }
