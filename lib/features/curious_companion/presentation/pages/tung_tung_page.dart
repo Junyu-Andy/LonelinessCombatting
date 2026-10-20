@@ -367,6 +367,7 @@ class _TungTungPageState extends State<TungTungPage> {
           modality: usedVoice ? InputModality.voice : InputModality.text,
           voiceMs: voiceMs,
           charCount: text.length,
+          userText: text,
         );
         return;
       }
@@ -516,6 +517,7 @@ class _TungTungPageState extends State<TungTungPage> {
         modality: modality,
         voiceDurationMs: voiceMs,
         charCount: text.length,
+        userText: text,
         detector: response.inputFlag,
         shortCircuited: true,
         ackShown: true,
@@ -555,6 +557,7 @@ class _TungTungPageState extends State<TungTungPage> {
       modality: modality,
       voiceDurationMs: voiceMs,
       charCount: text.length,
+      userText: text,
       detector: escalation,
       shortCircuited: false,
       ackShown: moderateAck != null,
@@ -606,6 +609,7 @@ class _TungTungPageState extends State<TungTungPage> {
     required InputModality modality,
     required int? voiceMs,
     required int charCount,
+    required String userText,
   }) async {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final analytics = AnalyticsScope.of(context);
@@ -623,6 +627,7 @@ class _TungTungPageState extends State<TungTungPage> {
       modality: modality,
       voiceDurationMs: voiceMs,
       charCount: charCount,
+      userText: userText,
       detector: flag,
       shortCircuited: false,
       ackShown: false,
@@ -703,6 +708,7 @@ class _TungTungPageState extends State<TungTungPage> {
           modality: modality,
           voiceDurationMs: voiceMs,
           charCount: text.length,
+          userText: text,
           detector: flag,
           shortCircuited: acute,
           ackShown: ack,

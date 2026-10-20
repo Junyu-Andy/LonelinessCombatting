@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-20 1020l (1)：对话原文修复（1020j 第一节 (4)，PR 草稿，分支 `claude/zealous-fermat-8rgqtg-transcript`）
+
+- 每一轮聊天在原有记录之外，再存一份老人原话和屏幕上的回复（`users/{uid}/chat_transcripts`），两组都存。新开关 `researchTranscriptEnabled` 默认关。
+- 规则保证：只有本人登记后能新建，谁都读不到、改不了、删不掉；只有管理权限能读；删除参与者脚本一并删除；不进盲法导出。
+- 测试：规则 12 项、删除脚本、盲法导出、Dart 5 项（含「每个聊天页都把原话传进来」的检查）。决策草稿 0063。
+- 还没做：读取／导出工具（给操纵检验编码和看板「查看對話」用），见 backlog。
+
 ## 2026-10-20 1020i：Mac 本地测试脚本（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-mac-tests`）；本地只读看板先答四个问题
 
 - 新加 `tool/run_local_tests_mac.sh`：在 Mac 上一行跑完 CI 的全部测试（`flutter analyze`、小讀本 HTML 检查、六套 Flutter 测试、Functions 单元测试、规则和模拟器测试、隐私脚本测试）。每步打印通过或失败，失败不中断，最后汇总和总用时；`--only` 只跑一部分。只连本机模拟器：开头发现指向正式项目的环境变量就停。说明在 `docs/release/local-tests-mac.md`。

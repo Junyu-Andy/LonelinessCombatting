@@ -52,6 +52,8 @@ const HELD_BACK_FILES = [
   // 1020d: reminiscence v2, the weekly 小篇章 and its ratings (`source`
   // hybrid / rule names the arm; the chapter carries text).
   "reminiscence_v2", "reminiscence_chapters", "reminiscence_chapter_ratings",
+  // 1020l: the research transcript (the elder's words and the replies).
+  "chat_transcripts",
 ];
 
 // Field names (at any depth) that must not appear.

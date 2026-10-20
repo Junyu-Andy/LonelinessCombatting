@@ -149,7 +149,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
   AnalyticsService? _analytics;
 
   /// Voice / time of the elder's message being answered (turn log).
-  ({DateTime sentAt, bool voice, int? voiceMs, int chars})? _input;
+  ({DateTime sentAt, bool voice, int? voiceMs, int chars, String text})? _input;
 
   ChatSessionRecorder? _recorder;
   bool _briefPrSurfaced = false;
@@ -389,6 +389,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
       voice: usedVoice,
       voiceMs: voiceMs,
       chars: text.length,
+      text: text,
     );
     final q = _state!.currentQuestion;
     setState(() {
@@ -473,6 +474,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
       modality: input?.voice == true ? InputModality.voice : InputModality.text,
       voiceDurationMs: input?.voiceMs,
       charCount: input?.chars ?? 0,
+      userText: input?.text,
       detector: flag,
       shortCircuited: false,
       ackShown: false,
@@ -744,6 +746,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
       modality: input0?.voice == true ? InputModality.voice : InputModality.text,
       voiceDurationMs: input0?.voiceMs,
       charCount: input0?.chars ?? input.text.length,
+      userText: input0?.text ?? input.text,
       detector: escalation,
       shortCircuited: false,
       ackShown: false,
@@ -807,6 +810,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
             input0?.voice == true ? InputModality.voice : InputModality.text,
         voiceDurationMs: input0?.voiceMs,
         charCount: input0?.chars ?? msg.text.length,
+        userText: input0?.text ?? msg.text,
         detector: flag,
         shortCircuited: acute,
         ackShown: ack != null,

@@ -63,6 +63,7 @@ class RuleSubmissionFlow {
       modality: modality,
       voiceDurationMs: voiceDurationMs,
       charCount: text.length,
+      userText: text,
       detector: detector,
       shortCircuited: acute,
       ackShown: false,
