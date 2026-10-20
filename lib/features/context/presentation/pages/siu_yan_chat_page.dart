@@ -68,6 +68,7 @@ import '../../../../core/scheduling/w0_date.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
+import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_a_page.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_b_page.dart';
@@ -1668,7 +1669,11 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
             child: Column(
               children: [
                 Expanded(
-                  child: ListView(
+                  // 1020c 二: back to the newest message when the keyboard
+                  // opens (switch keyboardCompactHeaderEnabled).
+                  child: KeyboardScrollToLatest(
+                    keyboardOpen: KeyboardCompact.active(context),
+                    child: ListView(
                     // Newest at the bottom edge; follows the keyboard up.
                     reverse: true,
                     padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
@@ -1706,6 +1711,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
                               setState(() => _pendingReferral = null),
                         ),
                     ].reversed.toList(),
+                  ),
                   ),
                 ),
                 if (_pendingOffline != null)

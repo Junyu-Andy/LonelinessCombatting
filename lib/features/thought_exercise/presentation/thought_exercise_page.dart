@@ -21,6 +21,7 @@ import '../../auth/presentation/auth_service_scope.dart';
 import '../data/thought_exercise_entry.dart';
 import '../../../core/safety/safety_check.dart';
 import '../../../core/session/chat_session_recorder.dart';
+import '../../../shared/widgets/keyboard_compact.dart';
 
 class ThoughtExercisePage extends StatefulWidget {
   /// Pre-fill for Field 3 when launched from Siu Yan's offer pathway.
@@ -214,7 +215,10 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
     return ToolSessionScope(
       toolId: 'thought_exercise',
       child: Scaffold(
-      appBar: AppBar(
+      // 1020c 二: one-line bar while the keyboard is open (switch
+      // keyboardCompactHeaderEnabled; off = the same AppBar as before).
+      appBar: keyboardCompactAppBar(
+        context,
         title: Text(_showingExit
             ? (isEn ? 'Before / after' : '前後對照')
             : (isEn ? 'Look at a thought' : '望一望心入面')),

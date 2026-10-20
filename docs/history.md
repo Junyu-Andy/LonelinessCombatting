@@ -51,6 +51,13 @@
 - C(2) 方案（v2 另存为 `v2_low`/`v2_high`、`sequence_versions/` 记停用、cohort 建议仍用 `phase_b` 加 `analysisSet`）写在 `docs/dev-reports/T50-T60-batch1-20261019.md`，等 Junyu 批。
 - 只读核对：`tool/readonly_check_1020.js`（保留开关、行动计划推送、今日休息、过期未展示的 Brief PR）。开发没有生产权限，要 Junyu 跑。代码能答的两题已答：保留开关关掉时 `turns`／`sessions` 照写（本来无原文）；服务器不把 `shortTermBuffer` 给聊天模型。
 - 顺带：#123 的冲突已由另一窗口合 main 解决，本地扫描确认无误。
+## 2026-10-20 1020c 第二项：键盘遮挡，打字时顶栏缩成一行（分支 `claude/zealous-fermat-8rgqtg-keyboard`，接第 2 批，PR 草稿）
+
+- 结论：Junyu 报告老人打字时顶栏不让位、对话看不全，两组一样。量过：360×640、字体 1.30、键盘 300 时，聊天区只剩 99–155 像素。新开关 `keyboardCompactHeaderEnabled`（默认关）开时，键盘打开顶栏 72 → 48（「今日傾到呢度」／返回键原样保留），收键盘恢复；聊天页跳回最新一条；通通文章问答的「根據文章」条一起收起。每页多 24 像素（文章问答多 80）。没有新文字。
+- 共用写法 `lib/shared/widgets/keyboard_compact.dart`（`KeyboardCompact.active`、`keyboardCompactAppBar`、`KeyboardScrollToLatest`）；`companionAppBar` 改用它，所以陪伴者页面两组一起变；表格页（望一望、行动计划两组、行动跟进、回忆总结修改、回忆详情）各改一行。
+- 页面清单、量出来的数字、截图（测试渲染，不是真机）和真机步骤：`docs/dev-reports/keyboard-20261020.md`。测试 `test/keyboard_compact_header_test.dart`（加进 CI 两套 Phase B）。
+- 待 Junyu：开不开开关、缩小后标题要不要一句新话、表格页要不要也缩、决策编号（草稿 `NNNN-keyboard-compact-header.md`）。另发现「個人資料 → 修改」弹出框键盘一出就溢出（另一个问题，没改）。
+- 10/20 跟进（1020e 一.(11)）：Junyu 接受以上做法，开关真机测过再开。同一 PR 修弹出框（不放开关，两组一样）：`personalization_page.dart` 四格放进 `SingleChildScrollView`（`Flexible`），「儲存」固定在下面，`useSafeArea: true`；新测试 `test/profile_editor_keyboard_test.dart`（360×640、1.30、键盘 300：无溢出、「儲存」按得到；旧代码 5 个全失败）。修前修后截图在同一截图夹。
 ## 2026-10-19 第 2 批跟进（1020e 二.5、二.8、二.9、二.10、二.12；PR #128）
 
 - 结论：Hybrid 组 Q4 唔講住改叫模型（一句、不建议、不提问，失败回落 R4b）；规则组中度复核用 SN；check-in 因急性停下后，研究员标「誤觸」，老人当天可从停下那题接着做；Q1 按钮由低到高；输入框提示只讲打字。

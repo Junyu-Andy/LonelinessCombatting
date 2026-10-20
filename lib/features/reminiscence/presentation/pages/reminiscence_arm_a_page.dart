@@ -22,6 +22,7 @@ import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
+import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
@@ -850,8 +851,12 @@ clay-pot rice stand..."
 
     if (_showingSummary) {
       return Scaffold(
-        appBar: AppBar(
-            title: const CompanionTitle(agentId: AgentRegistry.ahJanAhBakId)),
+        // 1020c 二: one-line bar while the keyboard is open (switch
+        // keyboardCompactHeaderEnabled; off = the same AppBar as before).
+        appBar: keyboardCompactAppBar(context,
+            title: const CompanionTitle(agentId: AgentRegistry.ahJanAhBakId),
+            compactTitle: const CompanionTitle(
+                agentId: AgentRegistry.ahJanAhBakId, compact: true)),
         body: SafeArea(
           // 10/15: scrolling page so the keyboard never hides the field
           // or the save button (was a fixed column).
@@ -942,7 +947,11 @@ clay-pot rice stand..."
         child: Column(
           children: [
             Expanded(
-              child: ListView(
+              // 1020c 二: back to the newest message when the keyboard opens
+              // (switch keyboardCompactHeaderEnabled).
+              child: KeyboardScrollToLatest(
+                keyboardOpen: KeyboardCompact.active(context),
+                child: ListView(
                 // 10/15: newest message at the bottom edge; the list follows the
                 // keyboard up instead of leaving the last turn under the composer.
                 reverse: true,
@@ -987,6 +996,7 @@ clay-pot rice stand..."
                       ),
                     ),
                 ].reversed.toList(),
+              ),
               ),
             ),
             if (_pendingOffline != null)

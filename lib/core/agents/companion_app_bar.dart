@@ -10,6 +10,10 @@
 ///   top-right  nothing.
 ///
 /// Both arms must look the same (blinding), so the Arm B pages use it too.
+///
+/// 1020c item 二 (switch `keyboardCompactHeaderEnabled`, default off):
+/// while the keyboard is open the bar is one line (48 px, avatar 24 +
+/// name), S9 / back kept as is (`keyboard_compact.dart`).
 library;
 
 import 'package:flutter/material.dart';
@@ -17,13 +21,17 @@ import 'package:flutter/material.dart';
 import '../../app/app_settings_scope.dart';
 import '../../features/brief_pr/data/brief_pr_v2.dart';
 import '../../features/brief_pr/presentation/widgets/session_close_button.dart';
+import '../../shared/widgets/keyboard_compact.dart';
 import 'agent_avatar.dart';
 import 'agent_registry.dart';
 
-/// Avatar + name, for `AppBar.title`.
+/// Avatar + name, for `AppBar.title`.  [compact]: the one-line bar shown
+/// while the keyboard is open (smaller avatar; the name takes the bar's
+/// smaller title style).
 class CompanionTitle extends StatelessWidget {
   final String agentId;
-  const CompanionTitle({super.key, required this.agentId});
+  final bool compact;
+  const CompanionTitle({super.key, required this.agentId, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -39,10 +47,10 @@ class CompanionTitle extends StatelessWidget {
         AgentAvatar(
           agent: agent,
           selectedVariant: pairing,
-          size: 32,
+          size: compact ? 24 : 32,
           openProfileOnTap: true,
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: compact ? 8 : 10),
         Flexible(
           child: Text(
             isEn ? variant.displayNameEn : variant.displayNameZh,
@@ -78,12 +86,15 @@ double sessionCloseLeadingWidth(BuildContext context) {
 
 /// The AppBar every companion chat / form page uses.  [onClose] runs when
 /// S9 is tapped (v2 on); pages that only need to leave pass a `maybePop`.
+/// Keyboard open + switch on: the one-line bar ([keyboardCompactAppBar]).
 AppBar companionAppBar(BuildContext context,
     {required String agentId, required VoidCallback onClose}) {
   final v2 = BriefPrV2.enabled;
-  return AppBar(
+  return keyboardCompactAppBar(
+    context,
     leading: v2 ? SessionCloseButton(onPressed: onClose) : null,
     leadingWidth: v2 ? sessionCloseLeadingWidth(context) : null,
     title: CompanionTitle(agentId: agentId),
+    compactTitle: CompanionTitle(agentId: agentId, compact: true),
   );
 }
