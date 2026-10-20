@@ -16,7 +16,7 @@
 |---|---|---|
 | 1 | 开关 `app_config/feature_flags.researchTranscriptEnabled` = 布尔 `true` | 控制台改。不是字符串 `"true"` |
 | 2 | 冻结分支的新 `firestore.rules` 已部署 | GitHub → Actions →「Deploy Firebase」→ Run workflow → 分支选 `claude/zealous-fermat-8rgqtg-freeze-1021`（PR #151）→ target 选 `rules` → 填 `loneliness-pilot-dev`。没部署的话，新 App 写的新格式（schema 2）行会被规则拒绝，App 不报错，原文里就什么都没有 |
-| 3 | 新 App | Build APK 第 22 次运行，冻结分支，提交 6833424，变体 `phase_b_templates`。下载：<https://github.com/Junyu-Andy/LonelinessCombatting/actions/runs/39464224386/artifacts/12284084140>（解压出 `app-release.apk`，直接装在旧版上面）。这个包就是冻结分支现在的最新提交，原文补全（决策 0069）已在里面，不用重打 |
+| 3 | 新 App | Build APK 第 22 次运行，冻结分支，提交 6833424，变体 `phase_b_templates`。下载：<https://github.com/Junyu-Andy/LonelinessCombatting/actions/runs/39464224386/artifacts/12284084140>（解压出 `app-release.apk`，直接装在旧版上面）。原文补全（决策 0069）已在里面。之后冻结分支只多了 07adb7e：规则组「好唔開心」那组的求助句改字、Hybrid「問下通通」换模型，和原文怎么存无关，这次测试不用重打包。下面 check-in 第一题按「幾好」，就碰不到那句旧求助句 |
 | 4 | 其他开关 | `checkInChatV2Enabled`、`reminiscenceV2Enabled`、`testerToolsEnabled`、`testerArmSwitchEnabled` 都是 `true`。前两个关着，小欣和阿珍／阿伯会走旧页面，下面的行数对不上 |
 | 5 | 两个测试员账号 | `users/{uid}.isTester` = `true`。查：`NODE_PATH=functions/node_modules node tool/set_tester.js --list --project=loneliness-pilot-dev --production-confirm=loneliness-pilot-dev`（只读，列出每个测试员的 uid 和电邮）。两个账号今天都**没做过 check-in**、都**没进过第 1 周回忆** |
 
