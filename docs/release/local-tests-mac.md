@@ -1,6 +1,7 @@
 # 在 Mac 上跑全部测试（和 CI 同一套）
 
 > 2026-10-20 第一版（1020i 第一节）。
+> 2026-10-20 1020j：Windows 电脑见 `local-tests-windows.md`（同一个脚本，在 Git Bash 里跑）；装 iPad 和安卓手机见 `dev-install-devices.md`。
 
 ## 结论
 

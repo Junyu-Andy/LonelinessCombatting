@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-20 1020j：Windows 也能跑本地测试；Mac 装 iPad、Windows 装安卓的说明；TestFlight 小版本只发 dev 组（PR 草稿，分支 `claude/admiring-faraday-hwpvvc`，接 1020i #141）
+
+- `tool/run_local_tests_mac.sh` 在 Windows 的 Git Bash 里也能跑。模拟器那两步把要跑的命令先写成脚本文件再交给 `firebase emulators:exec`（Windows 上它用 cmd 执行，不认 sh）；没有 `lsof` 时用 `netstat` 查端口。Mac 和 Linux 上的行为不变。云端试跑：Functions、规则和模拟器、隐私三组全部通过；故意让一个隐私测试失败，汇总报失败、退出码 1。Windows 本机还没有试跑。
+- `.gitattributes` 加 `*.sh text eol=lf`，Windows 拉代码时脚本不会被改成 CRLF。
+- 新说明：`docs/release/local-tests-windows.md`（实验室和家里两台电脑同一套准备；签名钥匙复制一次，手机不用卸载重装），`docs/release/dev-install-devices.md`（Mac 装 iPad、Windows 装安卓、编译参数一览；TestFlight 小版本选「TestFlight Internal Only」只到 dev 组，大版本才手动加进外部组）。
+- 不改 App 和 Functions 的行为。
+
 ## 2026-10-20 1020i：Mac 本地测试脚本（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-mac-tests`）；本地只读看板先答四个问题
 
 - 新加 `tool/run_local_tests_mac.sh`：在 Mac 上一行跑完 CI 的全部测试（`flutter analyze`、小讀本 HTML 检查、六套 Flutter 测试、Functions 单元测试、规则和模拟器测试、隐私脚本测试）。每步打印通过或失败，失败不中断，最后汇总和总用时；`--only` 只跑一部分。只连本机模拟器：开头发现指向正式项目的环境变量就停。说明在 `docs/release/local-tests-mac.md`。
