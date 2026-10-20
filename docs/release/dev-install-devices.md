@@ -27,13 +27,24 @@
 
    左边点最上面的 **Runner** → 中间选 **Signing & Capabilities** → 勾 **Automatically manage signing** → **Team** 选团队 ID 是 `LD7U7N7ZY8` 的那个（就是上传 TestFlight 用的团队）。没有报红就关掉 Xcode。
 
+### iOS 要用新版 Flutter（10/20 实测）
+
+**iOS 不能用 3.35.3 编译。** 仓库里的 iOS 工程（`ios/Runner/AppDelegate.swift`、`Info.plist` 的 UIScene 设置）从 10/04 第一次导入起，就是新版 Flutter（3.38 以上）的写法。用 3.35.3 编译会报 `Cannot find type 'FlutterImplicitEngineDelegate'`。以前的 TestFlight 包都是用 Mac 上的 3.44.1 打的。所以：
+
+- **iOS 用 3.44.1**：命令里的 `flutter` 一律写成 `~/dev/flutter/bin/flutter`。
+- 安卓和本地测试照旧用 3.35.3（直接写 `flutter`）。
+- 两个版本之间切换后，第一次编译前先跑一次 `flutter clean`（用接下来要用的那个版本）。
+- 新版 Xcode 还要求 `ios/Podfile` 里所有组件的最低系统是 15.0。改法见 1020j 开发窗口记录；以后会提交进仓库。
+
+两个版本统一的事记在 `docs/dev/backlog.md`。
+
 ### 每次装
 
 ```bash
 cd ~/dev/LonelinessCombatting
 git checkout main && git pull
-flutter devices                 # 找到 iPad 那一行，第二列是设备 id
-flutter run --release -d <设备id> \
+~/dev/flutter/bin/flutter devices                 # 找到 iPad 那一行，第二列是设备 id
+~/dev/flutter/bin/flutter run --release -d <设备id> \
   --dart-define=PHASE_B=true --dart-define=RULE_TEMPLATE_REPLIES=true \
   --dart-define=TESTER_PIN=<测试员 PIN>
 ```
