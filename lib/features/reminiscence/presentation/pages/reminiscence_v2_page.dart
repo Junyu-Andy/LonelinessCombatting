@@ -35,6 +35,14 @@
 ///
 /// Valid session (1020d 2 (5)): ≥ 3 of the week's questions answered in
 /// this visit, both arms ([ChatSessionRecorder.markReminiscenceQuestionAnswered]).
+///
+/// Research transcript (decision 0069; switch
+/// `researchTranscriptEnabled`), both arms alike: the opener and every
+/// question, follow-up, reply, fixed line, safety line and the closing line
+/// go into `chat_transcripts` as shown ([_transcribe], `shownReply`); 唔想講
+/// is the elder's button row.  On a later visit the question waiting for an
+/// answer is written again at the start of the new session (status
+/// `shown_again`).  The weekly scene picture and its line are never written.
 library;
 
 import 'dart:async';
@@ -249,9 +257,12 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
       final opener = ReminiscenceV2Copy.openerFor(_week, name: name);
       for (var i = 0; i < opener.length; i++) {
         _add(ReminiscenceMessageKind.opener, opener[i], copyId: 'opener_${i + 1}');
+        _transcribe(opener[i]);
       }
       _askQuestion(1);
       await _save();
+    } else {
+      _transcribeWaitingQuestion();
     }
     if (state.status != ReminiscenceWeekStatus.inProgress &&
         state.status != ReminiscenceWeekStatus.questionsDone) {
@@ -305,6 +316,36 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     s.currentQuestion = q;
     _add(ReminiscenceMessageKind.question, _copy.question(q),
         q: q, copyId: 'W$_week-Q$q');
+    _transcribe(_copy.question(q));
+  }
+
+  /// Decision 0069 — a companion line shown now that is not part of a logged
+  /// turn's reply (opener, question, closing, the reply shown after its
+  /// turn was logged), for the research transcript.  Never the scene line.
+  void _transcribe(String text, {LlmStatus status = LlmStatus.fixedReply}) =>
+      _recorder?.transcriptCompanion(text, status: status);
+
+  /// Decision 0069 — a later visit: the question (or follow-up) waiting for an
+  /// answer, with the companion lines just before it, is on screen again;
+  /// it opens the new session's transcript, marked `shown_again` (it may
+  /// already be in the earlier visit's rows).
+  void _transcribeWaitingQuestion() {
+    final msgs = _messages;
+    if (msgs.isEmpty) return;
+    final last = msgs.last.kind;
+    if (last != ReminiscenceMessageKind.question &&
+        last != ReminiscenceMessageKind.followup) {
+      return;
+    }
+    var i = msgs.length;
+    while (i > 0 &&
+        !msgs[i - 1].fromUser &&
+        msgs[i - 1].kind != ReminiscenceMessageKind.scene) {
+      i--;
+    }
+    for (final m in msgs.skip(i)) {
+      _recorder?.transcriptCompanion(m.text, shownAgain: true);
+    }
   }
 
   void _setStage(_Stage stage) {
@@ -380,6 +421,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
       s.status = ReminiscenceWeekStatus.questionsDone;
       _add(ReminiscenceMessageKind.closing, ReminiscenceV2Copy.closingLine,
           copyId: 'closing');
+      _transcribe(ReminiscenceV2Copy.closingLine);
       await _save();
       _setStage(_Stage.finish);
       return;
@@ -456,6 +498,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     if (_stage != _Stage.answer && _stage != _Stage.followupAnswer) return;
     final q = _state!.currentQuestion;
     _input = null;
+    final pressedAt = DateTime.now();
     setState(() {
       _busy = true;
       _stage = _Stage.waiting;
@@ -464,6 +507,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     });
     await _ensureSession();
     _recorder?.bumpActivity();
+    _recorder?.transcriptButton(ReminiscenceV2Copy.skipLabel, at: pressedAt);
     await _save();
     await _advance();
   }
@@ -523,6 +567,9 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
         status: _ruleArm ? LlmStatus.ruleBased : LlmStatus.fixedReply,
         turnId: turnId,
       ),
+      // The fixed line was just shown ([_fixedLine]); '' = none (after Q8
+      // the closing line follows, written with [_transcribe]).
+      shownReply: [if (text.isNotEmpty) text],
     ));
     if (_ruleArm && text.isNotEmpty) {
       unawaited(_analytics?.logEvent('rule_template_reply', {
@@ -668,6 +715,10 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     } else {
       _add(kind, text, q: q, copyId: copyId);
     }
+    // Decision 0069: the Hybrid turn was logged before this bubble (shownReply
+    // empty there); the line shown goes into that turn's row here.
+    _transcribe(text,
+        status: copyId == 'llm' ? LlmStatus.ok : LlmStatus.fallback);
   }
 
   /// The context block: first line one of the three markers, then
@@ -790,6 +841,9 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
       shortCircuited: false,
       ackShown: false,
       response: response,
+      // Decision 0069: the reply bubble is added after this ([_addAndShow]), the
+      // fixed line instead of a failed reply; it is written there.
+      shownReply: const [],
     ));
     if (response.isFallback) {
       if (kDebugMode) {
@@ -827,6 +881,15 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     final ack = acute
         ? _Ack.crisis(s.messages.length)
         : (moderate == null ? null : _Ack(s.messages.length, moderate));
+    // Decision 0069: what the transcript keeps of it (the model's flagged text, if
+    // any, is never shown and never written).
+    final ackShownText = ack == null
+        ? null
+        : ack.crisis
+            ? CrisisChatMessage.transcriptText(
+                isEn: mounted &&
+                    Localizations.localeOf(context).languageCode == 'en')
+            : ack.text;
     _safetyStopped = true;
     if (mounted) {
       setState(() {
@@ -869,6 +932,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
                   : (_ruleArm ? LlmStatus.ruleBased : LlmStatus.fixedReply),
               turnId: turnId,
             ),
+        shownReply: [if (ackShownText != null) ackShownText],
       ));
     }
     if (acute) unawaited(rec?.end(SessionEndReason.crisis));

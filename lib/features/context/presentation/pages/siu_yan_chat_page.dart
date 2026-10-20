@@ -37,6 +37,14 @@
 /// chat shows the fixed [CrisisChatMessage] (the crisis page's numbers and
 /// 「打開緊急求助頁」), both arms alike.
 ///
+/// Research transcript (decision 0069; switch
+/// `researchTranscriptEnabled`): every bubble Siu Yan shows is in
+/// `chat_transcripts`, both arms alike — the questions and openers
+/// ([_transcribe]), each button answer as the elder's row
+/// ([ChatSessionRecorder.transcriptButton]) and each reply as shown,
+/// with the safety line or crisis message under it (`shown:` of
+/// [_logTurn]).
+///
 /// Records: `check_in_responses` ([CheckInChatRecord]); a completed
 /// check-in marks its session valid ([ChatSessionRecorder.markCheckInCompleted]);
 /// chatting on stays in that session, which ends by the usual rules.  The
@@ -247,6 +255,11 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
   bool _recordWritten = false;
 
   ChatSessionRecorder? _recorder;
+
+  /// Decision 0069 — Siu Yan's lines shown before the first session's recorder
+  /// exists (Q0 + Q1, SY0, the opener), with how they were made and when;
+  /// handed to the recorder by [_ensureSession].
+  final List<(String, LlmStatus, DateTime)> _unrecorded = [];
   AnalyticsService? _analytics;
   bool _briefPrSurfaced = false;
   String? _closeReason;
@@ -494,6 +507,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       _busy = false;
       _bubbles.add(_Bubble.bot(text, copyId: id));
     });
+    _transcribe(text, id == 'llm_opener' ? LlmStatus.ok : LlmStatus.fallback);
   }
 
   /// 1020 E (5) — from M7 / M8.  Rule arm: O1–O5 / C1 / C2 (5.2), no LLM.
@@ -528,6 +542,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       _busy = false;
       _bubbles.add(_Bubble.bot(text, copyId: id));
     });
+    _transcribe(text, id == 'llm_opener' ? LlmStatus.ok : LlmStatus.fallback);
     widget.onPromptShown?.call(id, text, const []);
   }
 
@@ -536,11 +551,32 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
   // ---------------------------------------------------------------------
 
   /// A fixed Siu Yan line (question or opener).  Call inside setState.
+  /// The questions are the same in both arms (`fixed_reply`); the other
+  /// lines said here are the rule arm's openers (SY0, O1–O5, C1, C2).
   void _say(String id, String text, [List<CheckInOption> options = const []]) {
     _bubbles.add(_Bubble.bot(text, copyId: id));
     if (id.startsWith('Q')) _record?.questionsShown.add(id);
+    _transcribe(
+        text, id.startsWith('Q') ? LlmStatus.fixedReply : LlmStatus.ruleBased);
     widget.onPromptShown?.call(id, text, [for (final o in options) o.label]);
   }
+
+  /// Decision 0069 — a Siu Yan line that is not part of a logged reply, for the
+  /// research transcript (the recorder adds it to the open row, or starts
+  /// a companion row).  Before the first session's recorder exists it waits
+  /// in [_unrecorded].
+  void _transcribe(String text, LlmStatus status) {
+    final rec = _recorder;
+    if (rec != null) {
+      rec.transcriptCompanion(text, status: status);
+    } else {
+      _unrecorded.add((text, status, DateTime.now()));
+    }
+  }
+
+  /// 1020m 第三节's fixed safety message as the transcript stores it.
+  String _crisisText() => CrisisChatMessage.transcriptText(
+      isEn: Localizations.localeOf(context).languageCode == 'en');
 
   /// Show a question and wait for its answer.  Call inside setState.
   void _ask(_Stage stage, String id, String text, List<CheckInOption> options) {
@@ -565,12 +601,14 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     final qid = _questionId(stage);
     if (qid.isEmpty) return;
     _dismissModerateNotice();
+    final pressedAt = DateTime.now();
     setState(() {
       _stage = _Stage.waiting;
       _bubbles.add(_Bubble.user(o.label));
     });
     await _ensureSession();
     _recorder?.bumpActivity();
+    _recorder?.transcriptButton(o.label, at: pressedAt);
     final answer = <String, dynamic>{
       'question_id': qid,
       'value': o.code,
@@ -610,6 +648,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     if (stage != _Stage.q3b && stage != _Stage.q4) return;
     final qid = _questionId(stage);
     _dismissModerateNotice();
+    final pressedAt = DateTime.now();
     setState(() {
       _stage = _Stage.waiting;
       _bubbles.add(_Bubble.user(CheckInChatCopy.skipLabel));
@@ -617,6 +656,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     });
     await _ensureSession();
     _recorder?.bumpActivity();
+    _recorder?.transcriptButton(CheckInChatCopy.skipLabel, at: pressedAt);
     _record?.answers[qid] = {'question_id': qid, 'skipped': true, 'text': null};
     _persist();
     if (!mounted) return;
@@ -832,6 +872,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       input: input,
       flag: flag,
       response: _ruleResponse(entry.zh, flag, turnId),
+      shown: [entry.zh],
     );
     _logTemplate(entry.id, version, theme: 'check_in_chat', band: entry.band);
     if (mounted && flag.level != DistressLevel.none) {
@@ -875,6 +916,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     await _logTurn(
       input: null,
       flag: none,
+      shown: [text],
       response: _ruleArm
           ? _ruleResponse(text, none, null)
           : LlmResponse(
@@ -933,6 +975,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       input: input,
       flag: flag,
       response: _ruleResponse(entry.zh, flag, turnId),
+      shown: [entry.zh],
     );
     _logTemplate(entry.id, SiuYanRuleChatPool.version,
         theme: 'free_chat', band: entry.band);
@@ -1007,6 +1050,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       response: _ruleResponse('', flag, turnId, acute: true),
       shortCircuited: true,
       ackShown: true,
+      shown: [_crisisText()],
     ));
     unawaited(_recorder?.end(SessionEndReason.crisis));
     if (!mounted) return;
@@ -1030,6 +1074,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       flag: flag,
       response: _ruleResponse('', flag, turnId),
       ackShown: ack != null,
+      shown: [if (ack != null) ack],
     );
     if (mounted) await _route(flag, turnDocId);
   }
@@ -1210,6 +1255,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
         response: response,
         shortCircuited: true,
         ackShown: true,
+        shown: [_crisisText()],
       ));
       unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
@@ -1239,6 +1285,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       flag: escalation,
       response: response,
       ackShown: ack != null || crisis,
+      shown: [replyText, if (ack != null) ack, if (crisis) _crisisText()],
     );
     await _appendToBuffer(fromUser: false, text: response.text, response: response);
     if (mounted && escalation.level != DistressLevel.none) {
@@ -1294,6 +1341,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     await _logTurn(
       input: null,
       flag: r == null ? none : _higher(r.inputFlag, r.outputFlag),
+      shown: [text],
       response: r ??
           LlmResponse(
             text: '',
@@ -1383,6 +1431,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
         response: response,
         shortCircuited: true,
         ackShown: true,
+        shown: [_crisisText()],
       ));
       unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
@@ -1428,6 +1477,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       response: response,
       ackShown: ack != null || crisis,
       teOfferText: teOfferText,
+      shown: [replyText, if (ack != null) ack, if (crisis) _crisisText()],
     );
     await _appendToBuffer(fromUser: false, text: response.text, response: response);
     if (!mounted) return;
@@ -1642,10 +1692,13 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     if (c != null && !c.isCompleted) c.complete();
   }
 
+  /// [shown]: the bubbles added in reply, in order, as the elder saw them
+  /// (decision 0069, research transcript only).
   Future<String?> _logTurn({
     required _FreeInput? input,
     required DistressMatch flag,
     required LlmResponse response,
+    required List<String> shown,
     bool shortCircuited = false,
     bool ackShown = false,
     String? teOfferText,
@@ -1666,6 +1719,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       ackShown: ackShown,
       response: response,
       teOfferText: teOfferText,
+      shownReply: shown,
     ));
   }
 
@@ -1679,8 +1733,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
         ? SiuYanChatPage.checkInModule
         : SiuYanChatPage.chatModule;
     if (current == null || current.moduleId != module) {
-      current?.dispose();
-      _recorder = ChatSessionRecorder(
+      final next = ChatSessionRecorder(
         uid: _uid,
         agentId: _siuYan,
         moduleId: module,
@@ -1689,6 +1742,15 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
         onIdleTimeout: _onIdleTimeout,
         onSwitchedAway: _onSwitchedAway,
       );
+      // Decision 0069: lines shown since the last session ended, or before the
+      // first one, go into the transcript with the session starting now.
+      if (current != null) next.adoptTranscriptFrom(current);
+      current?.dispose();
+      for (final (text, status, at) in _unrecorded) {
+        next.transcriptCompanion(text, status: status, at: at);
+      }
+      _unrecorded.clear();
+      _recorder = next;
       // T27 — a failed transcription goes into this session's log.
       _voice.onTranscriptionFailed =
           (c) => _recorder?.logVoiceTranscriptionFailed(c);

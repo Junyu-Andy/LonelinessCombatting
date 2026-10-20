@@ -169,6 +169,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
+        // Decision 0069: research transcript rows wait for the next message again.
+        ChatSessionRecorder.transcriptAppResumed();
         if (!_sessionOpen) {
           _sessionOpen = true;
           _sessionStartedAt = DateTime.now();
@@ -186,6 +188,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
         ScreenDwellTracker.instance.backgroundAll();
+        // Decision 0069: write the research transcript rows still open (the OS may
+        // end the process in the background).
+        ChatSessionRecorder.transcriptAppPaused();
         if (_sessionOpen) {
           _sessionOpen = false;
           widget.analytics.logEvent(PhaseAEvents.appBackground);

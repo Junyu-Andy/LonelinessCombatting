@@ -285,6 +285,7 @@ clay-pot rice stand..."
         (ctxLines.isEmpty ? '' : '\n\n${ctxLines.join('\n')}');
 
     String openerText = fallback;
+    var fromModel = false;
     try {
       final response = await core.llm
           .send(
@@ -299,6 +300,7 @@ clay-pot rice stand..."
           .timeout(const Duration(seconds: 10));
       if (response.text.trim().isNotEmpty) {
         openerText = response.text.trim();
+        fromModel = true;
       }
     } catch (_) {
       // Network / timeout / LLM unavailable → keep the static fallback.
@@ -309,6 +311,9 @@ clay-pot rice stand..."
       _generatingOpener = false;
       _turns.add(_Turn.bot(openerText));
     });
+    // Decision 0069: the opener opens the research transcript.
+    _recorder?.transcriptCompanion(openerText,
+        status: fromModel ? LlmStatus.ok : LlmStatus.fallback);
   }
 
   /// Read summaries from earlier completed weeks (new schema:
@@ -605,6 +610,7 @@ clay-pot rice stand..."
         shortCircuited: true,
         ackShown: true,
         response: response,
+        shownReply: [CrisisChatMessage.transcriptText(isEn: isEn)],
       )));
       unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
@@ -651,6 +657,13 @@ clay-pot rice stand..."
       shortCircuited: false,
       ackShown: moderateAck != null || crisis,
       response: response,
+      // Decision 0069: as shown — the fallback line, the safety line, the crisis
+      // message.
+      shownReply: [
+        replyText,
+        if (moderateAck != null) moderateAck,
+        if (crisis) CrisisChatMessage.transcriptText(isEn: isEn),
+      ],
     ));
     if (mounted && turnDocId != null && turnIndex >= 0) {
       setState(() =>

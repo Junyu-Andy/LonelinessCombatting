@@ -305,6 +305,10 @@ class _CheckInArmBState extends State<CheckInArmB> {
       safetyTurnId: safetyTurnId,
       replyText:
           ruleReply ?? (isEn ? 'Saved. See you tomorrow.' : '收到喇。聽日再見。'),
+      // Decision 0069: after acute the page shows the fixed safety message.
+      shownReply: distress.level == DistressLevel.acute
+          ? [CrisisChatMessage.transcriptText(isEn: isEn)]
+          : null,
     );
     if (!mounted) return;
 

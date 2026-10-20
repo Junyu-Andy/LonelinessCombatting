@@ -14,6 +14,11 @@
 ///     `researchTranscriptEnabled`: the elder's message and the reply shown,
 ///     same id as the turn.  Write-once; no client reads it back
 ///     (firestore.rules); Admin SDK only ([TurnRecord.transcriptMap]).
+///     Decision 0069 (schema 2): every companion bubble the elder
+///     sees is in it — all bubbles after an elder message (reply, next
+///     question, safety message) in that message's row, button answers as
+///     elder rows, openers as `role: companion` rows ([TranscriptRow],
+///     [transcriptCompanion], [transcriptButton]).
 ///
 /// Session definition (M-7): an **agent session** starts when the first
 /// user message is sent on a chat page and ends when the participant leaves
@@ -138,6 +143,15 @@ class TurnRecord {
   final String? tungTungArticleId;
   final bool tungTungSearchInvoked;
 
+  /// Decision 0069 — the companion bubbles shown in reply to this
+  /// message, in order, exactly as the elder saw them: the fallback line
+  /// instead of a failed model reply, the moderate safety line and the
+  /// crisis message under it (`CrisisChatMessage.transcriptText`).  Null = only
+  /// [response.text].  Only the transcript row reads it; the `turns` row
+  /// is unchanged.  Bubbles shown later, before the elder's next message
+  /// (the next question), go in with [ChatSessionRecorder.transcriptCompanion].
+  final List<String>? shownReply;
+
   const TurnRecord({
     required this.agentId,
     required this.moduleId,
@@ -157,6 +171,7 @@ class TurnRecord {
     this.tungTungMode,
     this.tungTungArticleId,
     this.tungTungSearchInvoked = false,
+    this.shownReply,
   });
 
   bool get isFallback => response.isFallback;
@@ -227,34 +242,44 @@ class TurnRecord {
   }
 
   /// Longest texts kept in a transcript row (firestore.rules allows these).
-  static const maxUserChars = 5000;
-  static const maxReplyChars = 10000;
+  static const maxUserChars = TranscriptRow.maxUserChars;
+  static const maxReplyChars = TranscriptRow.maxReplyChars;
 
-  /// 1020l (1020j 一 (4)) — the `chat_transcripts/{turnId}` row: what the
-  /// elder wrote and the reply shown on screen (rule template, model reply,
-  /// fixed line or the empty crisis short-circuit — [LlmResponse.status]
-  /// says which).  No arm field; the status names the arm only for the rule
-  /// template, and the collection is held back from every blinded export.
+  /// Decision 0069 — the bubbles shown in reply ([shownReply], or the model /
+  /// template text), empty ones left out.
+  List<String> get transcriptReplyParts => [
+        for (final p in shownReply ?? [response.text])
+          if (p.trim().isNotEmpty) p,
+      ];
+
+  /// Decision 0069 — this turn as an elder row of the transcript (schema 2).
+  TranscriptRow transcriptRow(String turnId) => TranscriptRow.elder(
+        id: turnId,
+        agentId: agentId,
+        moduleId: moduleId,
+        userText: userText,
+        userInput: userText == null
+            ? null
+            : (modality == InputModality.voice
+                ? TranscriptRow.inputVoice
+                : TranscriptRow.inputText),
+        userSentAt: userSent,
+        status: response.status.code,
+        shownAt: replyShown,
+      )..parts.addAll(transcriptReplyParts);
+
+  /// 1020l (1020j 一 (4)); decision 0069 schema 2 — the `chat_transcripts/{turnId}`
+  /// row of this turn as written when nothing else is shown before the
+  /// elder's next message: what the elder wrote and the reply shown on
+  /// screen ([shownReply]; [LlmResponse.status] says rule template, model
+  /// reply, fixed line, fallback or crisis short-circuit).  No arm field;
+  /// the status names the arm only for the rule template, and the
+  /// collection is held back from every blinded export.
   Map<String, dynamic> transcriptMap({
     required String sessionId,
     required String turnId,
   }) =>
-      {
-        'sessionId': sessionId,
-        'turnId': turnId,
-        'agentId': agentId,
-        'moduleId': moduleId,
-        'userText': _clip(userText, maxUserChars),
-        'replyText': _clip(response.text, maxReplyChars),
-        'replyStatus': response.status.code,
-        'userSentAt': Timestamp.fromDate(userSent),
-        'replyShownAt': Timestamp.fromDate(replyShown),
-        'receivedAt': FieldValue.serverTimestamp(),
-        'schemaVersion': 1,
-      };
-
-  static String? _clip(String? s, int max) =>
-      s == null || s.length <= max ? s : s.substring(0, max);
+      transcriptRow(turnId).toMap(sessionId: sessionId);
 
   /// F1…F5 = the five CF flags in spec order; all null on fallback /
   /// short-circuit (spec §S-6) or when the CF did not return them.
@@ -272,6 +297,122 @@ class TurnRecord {
         'F${i + 1}': usable ? (r.llmFlags[order[i]] as bool?) : null,
     };
   }
+}
+
+/// Decision 0069 (decisions-log 10/20 items 65, 80, 99/100) — one row
+/// of the research transcript `users/{uid}/chat_transcripts/{id}`, schema 2.
+/// Both arms identical; written only while `researchTranscriptEnabled` is
+/// on ([ChatSessionRecorder]).
+///
+///   • `role: elder` — one message of the elder: typed or spoken
+///     (`userInput` `text` / `voice`) or a button they pressed (`button`,
+///     the label as shown).  `replyText` is every companion bubble shown
+///     after it, until the elder's next message, in order, joined by a blank
+///     line ([partSeparator]): the reply, the safety line under it, the next
+///     question.  A message logged as a turn has the turn's id; a button
+///     with no logged turn has an id of its own.
+///   • `role: companion` — companion bubbles with no elder message before
+///     them in the session (an opener, the first question): `userText`,
+///     `userInput` and `userSentAt` are null.
+///
+/// Cards with buttons (thought-exercise offer, referral card, 小篇章),
+/// the weekly scene picture with its line, and notices outside the chat
+/// list are never rows.  Nothing in a row is ever sent to a model.
+class TranscriptRow {
+  TranscriptRow.elder({
+    required this.id,
+    required this.agentId,
+    required this.moduleId,
+    required this.userText,
+    required this.userInput,
+    required DateTime this.userSentAt,
+    this.status,
+    this.shownAt,
+    this.sessionId,
+  }) : role = roleElder;
+
+  TranscriptRow.companion({
+    required this.id,
+    required this.agentId,
+    required this.moduleId,
+    this.status,
+    this.shownAt,
+    this.sessionId,
+  })  : role = roleCompanion,
+        userText = null,
+        userInput = null,
+        userSentAt = null;
+
+  static const roleElder = 'elder';
+  static const roleCompanion = 'companion';
+  static const inputText = 'text';
+  static const inputVoice = 'voice';
+  static const inputButton = 'button';
+
+  /// Between two bubbles in `replyText`.
+  static const partSeparator = '\n\n';
+
+  /// `replyStatus` of a companion row re-written when a page reopens on
+  /// lines from an earlier visit (回憶 v2: the question waiting for an
+  /// answer); the earlier visit's rows may hold them already.
+  static const statusShownAgain = 'shown_again';
+
+  /// Longest texts kept in a row (firestore.rules allows these).
+  static const maxUserChars = 5000;
+  static const maxReplyChars = 10000;
+
+  static const schemaVersion = 2;
+
+  String id;
+  final String role;
+  String? sessionId;
+  final String agentId;
+  String moduleId;
+  final String? userText;
+  final String? userInput;
+  final DateTime? userSentAt;
+
+  /// How the (first) reply was made: [LlmStatus.code] — `ok`, `fallback`,
+  /// `rule_based`, `fixed_reply`, `short_circuited`; [statusShownAgain]
+  /// for lines of an earlier visit shown again; `none` when nothing was
+  /// shown.
+  String? status;
+  DateTime? shownAt;
+  final List<String> parts = [];
+
+  /// A button row waiting for the turn its press leads to (no free text):
+  /// that turn's row is this row ([ChatSessionRecorder.logTurn]).
+  bool awaitsTurn = false;
+
+  void add(String text, {required String status, required DateTime at}) {
+    if (text.trim().isEmpty) return;
+    parts.add(text);
+    this.status ??= status;
+    shownAt ??= at;
+  }
+
+  String get replyText => _clip(
+      [for (final p in parts) if (p.trim().isNotEmpty) p].join(partSeparator),
+      maxReplyChars)!;
+
+  Map<String, dynamic> toMap({required String sessionId}) => {
+        'sessionId': sessionId,
+        'turnId': id,
+        'agentId': agentId,
+        'moduleId': moduleId,
+        'role': role,
+        'userText': _clip(userText, maxUserChars),
+        'userInput': userInput,
+        'replyText': replyText,
+        'replyStatus': status ?? 'none',
+        'userSentAt': userSentAt == null ? null : Timestamp.fromDate(userSentAt!),
+        'replyShownAt': Timestamp.fromDate(shownAt ?? userSentAt ?? DateTime.now()),
+        'receivedAt': FieldValue.serverTimestamp(),
+        'schemaVersion': schemaVersion,
+      };
+
+  static String? _clip(String? s, int max) =>
+      s == null || s.length <= max ? s : s.substring(0, max);
 }
 
 /// Detects a cross-referral phrasing in an agent reply (mirrors the
@@ -540,6 +681,8 @@ class ChatSessionRecorder {
   static void resetProcessStateForTest() {
     _lastAgentId = null;
     _open.clear();
+    _txPending.clear();
+    _txBackground = false;
   }
 
   /// Start the session if it is not already open.  Safe to call on every
@@ -577,6 +720,9 @@ class ChatSessionRecorder {
     _entrySurface = SessionEntrySurface.current;
     _reminiscenceQuestionsAnswered = 0;
     _open.add(this);
+    // Decision 0069: lines shown while no session was open (an opener) belong to
+    // this session; a row of the session before is written now.
+    _txFlush();
     _startIdleTimer();
     unawaited(analytics.logEvent(PhaseAEvents.sessionStart, {
       'sessionId': _sessionId,
@@ -679,21 +825,20 @@ class ChatSessionRecorder {
     }
     final u = uid;
     final s = _sessionId;
-    if (!available || u == null || s == null) return null;
-    final turnRef = _firestore.collection('users').doc(u).collection('turns').doc();
-    unawaited(_guard(() => turnRef.set(turn.toMap(participantId: u, sessionId: s))));
-    // 1020l (1020j 一 (4)): the research transcript, both arms, only while
-    // the switch is on.  Fire-and-forget like the rest: the SDK queues it
-    // offline; a refused write never reaches the page.
-    if (RemoteFeatureFlags.current.researchTranscriptEnabled) {
-      final tRef = _firestore
-          .collection('users')
-          .doc(u)
-          .collection('chat_transcripts')
-          .doc(turnRef.id);
-      unawaited(_guard(
-          () => tRef.set(turn.transcriptMap(sessionId: s, turnId: turnRef.id))));
+    final canWrite = available && u != null && s != null;
+    final turnRef = canWrite
+        ? _firestore.collection('users').doc(u).collection('turns').doc()
+        : null;
+    if (turnRef != null) {
+      unawaited(
+          _guard(() => turnRef.set(turn.toMap(participantId: u!, sessionId: s!))));
     }
+    // 1020l (1020j 一 (4)); Decision 0069: the research transcript, both arms, only
+    // while the switch is on — this message's row, same id as the turn.
+    // Fire-and-forget like the rest: the SDK queues it offline; a refused
+    // write never reaches the page.
+    _txTurn(turn, turnRef?.id);
+    if (turnRef == null) return null;
     unawaited(_guard(() => _sessionRef!.set({
           'userTurnCount': _userTurnCount,
           'fallbackCount': _fallbackCount,
@@ -720,6 +865,8 @@ class ChatSessionRecorder {
   /// Close the session.  Idempotent — the first reason wins.
   Future<void> end(String reason) async {
     if (_sessionId == null || _ended) return;
+    // Decision 0069: the transcript row still open belongs to this session.
+    _txFlush();
     _ended = true;
     _endReason = reason;
     _endedAt = _clock();
@@ -845,7 +992,184 @@ class ChatSessionRecorder {
   void dispose() {
     _idle?.dispose();
     _idle = null;
+    // Decision 0069: write the row still open; lines shown with no session at all
+    // (an opener the elder never answered) are not kept.
+    _txFlush(dropSessionless: true);
   }
+
+  // ---------------------------------------------------------------------
+  // Decision 0069 — the research transcript, schema 2
+  // ---------------------------------------------------------------------
+
+  /// The row still being built: companion bubbles shown after it are
+  /// added to it until the elder's next message (or the session's end,
+  /// the page closing, the App going to the background) writes it.
+  TranscriptRow? _tx;
+
+  /// Recorders with a row still open (written when the App is paused).
+  static final Set<ChatSessionRecorder> _txPending = <ChatSessionRecorder>{};
+
+  /// The App is in the background: every row is written at once.
+  static bool _txBackground = false;
+  static int _txDebugSeq = 0;
+
+  /// Tests: every transcript row goes here instead of Firestore (and even
+  /// with logging unavailable), as `(uid, docId, row)`.
+  @visibleForTesting
+  static void Function(String uid, String id, Map<String, dynamic> row)?
+      debugTranscriptSink;
+
+  bool get _txOn =>
+      RemoteFeatureFlags.current.researchTranscriptEnabled &&
+      (debugTranscriptSink != null || (available && uid != null));
+
+  String _txNewId() {
+    final u = uid;
+    if (debugTranscriptSink == null && available && u != null) {
+      try {
+        return _firestore
+            .collection('users')
+            .doc(u)
+            .collection('chat_transcripts')
+            .doc()
+            .id;
+      } catch (_) {}
+    }
+    _txDebugSeq++;
+    return 'tx$_txDebugSeq';
+  }
+
+  /// A companion bubble that is not part of a logged turn's reply
+  /// ([TurnRecord.shownReply]): an opener, a fixed question, the next
+  /// question after a reply, a line added after the turn was logged.  Goes
+  /// into the open row (after the elder's last message) or, with none,
+  /// starts a `companion` row.  Never for the weekly scene picture.
+  /// [shownAgain]: a line from an earlier visit shown again when the page
+  /// reopened (status [TranscriptRow.statusShownAgain]).
+  void transcriptCompanion(
+    String text, {
+    LlmStatus status = LlmStatus.fixedReply,
+    DateTime? at,
+    bool shownAgain = false,
+  }) {
+    if (!_txOn || text.trim().isEmpty) return;
+    final now = at ?? _clock();
+    var row = _tx;
+    if (row == null) {
+      row = _tx = TranscriptRow.companion(
+        id: _txNewId(),
+        agentId: agentId,
+        moduleId: moduleId,
+        sessionId: isOpen ? _sessionId : null,
+      );
+      _txPending.add(this);
+    }
+    row.add(text,
+        status: shownAgain ? TranscriptRow.statusShownAgain : status.code,
+        at: now);
+    if (_txBackground) _txFlush();
+  }
+
+  /// The elder pressed an answer button shown as their message (check-in
+  /// Q1–Q5, 唔講住, 唔想講): an elder row with the label.  When the next
+  /// logged turn has no free text, it is this press's turn and shares the
+  /// row ([logTurn]).  Call after the session is started.
+  void transcriptButton(String label, {DateTime? at}) {
+    if (!_txOn || label.trim().isEmpty) return;
+    _txFlush();
+    _tx = TranscriptRow.elder(
+      id: _txNewId(),
+      agentId: agentId,
+      moduleId: moduleId,
+      userText: label,
+      userInput: TranscriptRow.inputButton,
+      userSentAt: at ?? _clock(),
+      sessionId: isOpen ? _sessionId : null,
+    )..awaitsTurn = true;
+    _txPending.add(this);
+    if (_txBackground) _txFlush();
+  }
+
+  /// [logTurn]'s row: the button row it answers, or a new elder row.
+  void _txTurn(TurnRecord turn, String? turnId) {
+    if (!_txOn) return;
+    final id = turnId ?? _txNewId();
+    final open = _tx;
+    if (turn.userText == null &&
+        open != null &&
+        open.awaitsTurn &&
+        open.parts.isEmpty) {
+      open
+        ..id = id
+        ..moduleId = turn.moduleId
+        ..awaitsTurn = false
+        ..status = turn.response.status.code
+        ..shownAt = turn.replyShown
+        ..parts.addAll(turn.transcriptReplyParts);
+      open.sessionId ??= _sessionId;
+    } else {
+      _txFlush();
+      _tx = turn.transcriptRow(id)..sessionId = _sessionId;
+      _txPending.add(this);
+    }
+    // A crisis end can run before this (both unawaited): nothing follows.
+    if (_ended || _txBackground) _txFlush();
+  }
+
+  /// Write the open row.  A row with no session yet waits for the next
+  /// one ([ensureStarted]), or is dropped with [dropSessionless].
+  void _txFlush({bool dropSessionless = false}) {
+    final row = _tx;
+    if (row == null) return;
+    final s = row.sessionId ?? (isOpen ? _sessionId : null);
+    if (s == null) {
+      if (dropSessionless) {
+        _tx = null;
+        _txPending.remove(this);
+      }
+      return;
+    }
+    _tx = null;
+    _txPending.remove(this);
+    final map = row.toMap(sessionId: s);
+    final sink = debugTranscriptSink;
+    if (sink != null) {
+      sink(uid ?? '', row.id, map);
+      return;
+    }
+    final u = uid;
+    if (!available || u == null) return;
+    unawaited(_guard(() => _firestore
+        .collection('users')
+        .doc(u)
+        .collection('chat_transcripts')
+        .doc(row.id)
+        .set(map)));
+  }
+
+  /// Moves [other]'s row that has no session yet (lines shown after its
+  /// session ended) to this recorder, which replaces it on the page.
+  void adoptTranscriptFrom(ChatSessionRecorder other) {
+    final row = other._tx;
+    if (row == null || row.sessionId != null || _tx != null) return;
+    other._tx = null;
+    _txPending.remove(other);
+    row.moduleId = moduleId;
+    _tx = row;
+    _txPending.add(this);
+  }
+
+  /// The App went to the background (`paused` / `hidden` / `detached`):
+  /// write every open row now — the OS may end the process.  Until
+  /// [transcriptAppResumed], rows are written as soon as they change.
+  static void transcriptAppPaused() {
+    _txBackground = true;
+    for (final r in _txPending.toList()) {
+      r._txFlush();
+    }
+  }
+
+  static void transcriptAppResumed() => _txBackground = false;
 
   /// M-6 — attach thumbs feedback to a turn doc.
   static Future<void> updateFeedback({

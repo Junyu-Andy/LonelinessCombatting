@@ -2,6 +2,7 @@
 
 - 日期：2026-10-20
 - 状态：提议中（Junyu 10/20 晚 1020l 要求先做；开关什么时候开、知情同意怎么写，等 Junyu 定）
+- **部分被 0069 取代（Superseded in part，2026-10-20）**：存什么（第 2 条）和行的格式改为 0069——老人每一句（含按钮）和陪伴者显示的每一个气泡都存，`schemaVersion` 2。开关、权限、不进盲法导出、不调用模型照旧。
 - 影响范围：phase_b、pilot（含 RCT-）× 两组；测试员也写；开关打开后的聊天
 - 相关代码：分支 `claude/zealous-fermat-8rgqtg-transcript`；`lib/core/session/chat_session_recorder.dart`、各聊天页、`firestore.rules`、`lib/core/feature_flags/remote_feature_flags.dart`、`functions/blinding.js`、`tool/check_blinded_export.js`
 
