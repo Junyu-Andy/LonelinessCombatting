@@ -32,11 +32,18 @@ const _promptCache = {};
 //   （開場）」 (the opener when the elder comes in from the mood row's M7 /
 //   M8).  The chat window sends `siu_yan_v4` only while the App switch
 //   moodRowV2Enabled is on; off, it keeps sending `siu_yan_v3`.
+//   1020d §2 (2026-10-20): 阿珍／阿伯 v3 = v2 plus one section, 「每題之後」
+//   (one specific follow-up, then a reply with no question; the three
+//   markers [回憶·追問] / [回憶·回應] / [回憶·再講多啲]).  Only the
+//   reminiscence v2 page behind the App switch reminiscenceV2Enabled sends
+//   `ah_jan_ah_bak_v3`; every other 阿珍／阿伯 call still sends
+//   `ah_jan_ah_bak_v1` and gets v2.
 const PROMPT_FILES = {
   siu_yan_v1: "siu_yan.v2",
   siu_yan_v3: "siu_yan.v3",
   siu_yan_v4: "siu_yan.v4",
   ah_jan_ah_bak_v1: "ah_jan_ah_bak.v2",
+  ah_jan_ah_bak_v3: "ah_jan_ah_bak.v3",
   tung_tung_v1: "tung_tung.v3",
 };
 

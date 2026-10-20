@@ -275,6 +275,10 @@ const HELD_BACK = [
   // T40: foreground / background usage events (process data for the T39
   // dashboard; the research ID is stamped on each row, so never here).
   "usage_events",
+  // 1020d: reminiscence v2 conversation, the weekly 小篇章 (text, and
+  // `source` hybrid / rule names the arm) and its ratings (also carry
+  // `source`).  Metadata and ratings go to the process / analysis exports.
+  "reminiscence_v2", "reminiscence_chapters", "reminiscence_chapter_ratings",
 ];
 
 /**

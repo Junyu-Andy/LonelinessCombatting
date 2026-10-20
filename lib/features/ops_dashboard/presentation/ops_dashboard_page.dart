@@ -325,6 +325,9 @@ class _PersonTile extends StatelessWidget {
                 // 1020e 二.9: events the researcher marked 誤觸.
                 '誤觸 ${p.safety['falseAlarm'] ?? 0}　'
                 'W8 ${weeklyCellLabel(p.w8Status)}　Debrief 未做（T42）'),
+            if (p.chapters.isNotEmpty)
+              Text('小篇章：待核對 ${p.chapters['flagged'] ?? 0}　'
+                  '整理失敗 ${p.chapters['failed'] ?? 0}'),
           ],
         ),
         trailing: const Icon(Icons.chevron_right),

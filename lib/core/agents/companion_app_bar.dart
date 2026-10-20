@@ -14,6 +14,11 @@
 /// 1020c item 二 (switch `keyboardCompactHeaderEnabled`, default off):
 /// while the keyboard is open the bar is one line (48 px, avatar 24 +
 /// name), S9 / back kept as is (`keyboard_compact.dart`).
+///
+/// 1020d 8 (2)–(4) (switch `leaveButtonV2Enabled`, default off): S9 reads
+/// 「離開」; a page may pass [leaveLabel] (the v2 reminiscence page:
+/// 「離開（會暫存）」, shown there even while Brief PR v2 is off, because
+/// on that page it is the way out that keeps the week).
 library;
 
 import 'package:flutter/material.dart';
@@ -66,10 +71,10 @@ class CompanionTitle extends StatelessWidget {
 /// Width the S9 button needs so 「今日傾到呢度」 is never cut: measured
 /// with the page's real text scale (the fixed 168 clipped it at the larger
 /// font sizes).  The title (avatar + name) is short, so the bar has room.
-double sessionCloseLeadingWidth(BuildContext context) {
+double sessionCloseLeadingWidth(BuildContext context, {String? label}) {
   final painter = TextPainter(
     text: TextSpan(
-      text: SessionCloseButton.label,
+      text: label ?? SessionCloseButton.currentLabel,
       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
     ),
     textDirection: TextDirection.ltr,
@@ -88,12 +93,18 @@ double sessionCloseLeadingWidth(BuildContext context) {
 /// S9 is tapped (v2 on); pages that only need to leave pass a `maybePop`.
 /// Keyboard open + switch on: the one-line bar ([keyboardCompactAppBar]).
 AppBar companionAppBar(BuildContext context,
-    {required String agentId, required VoidCallback onClose}) {
-  final v2 = BriefPrV2.enabled;
+    {required String agentId,
+    required VoidCallback onClose,
+    String? leaveLabel}) {
+  final leaveV2 = SessionCloseButton.leaveV2;
+  final pageLabel = leaveV2 ? leaveLabel : null;
+  final show = BriefPrV2.enabled || pageLabel != null;
   return keyboardCompactAppBar(
     context,
-    leading: v2 ? SessionCloseButton(onPressed: onClose) : null,
-    leadingWidth: v2 ? sessionCloseLeadingWidth(context) : null,
+    leading:
+        show ? SessionCloseButton(onPressed: onClose, text: pageLabel) : null,
+    leadingWidth:
+        show ? sessionCloseLeadingWidth(context, label: pageLabel) : null,
     title: CompanionTitle(agentId: agentId),
     compactTitle: CompanionTitle(agentId: agentId, compact: true),
   );

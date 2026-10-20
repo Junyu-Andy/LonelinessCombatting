@@ -115,7 +115,36 @@ const TABLES = {
     'validSessionCount', 'activeDays'],
   memory_counts: ['dataset', 'researchId', 'arm', 'facts', 'summaries',
     'followups'],
+  // 1020d §6 — weekly 小篇章, metadata only (never the chapter text, the
+  // elder's input, the edit or the check archive).
+  reminiscence_chapters: ['dataset', 'researchId', 'arm', 'weekIndex',
+    'source', 'status', 'version', 'editRatio', 'flagsCount', 'deletedCount',
+    'failReason', 'edited', 'requestedAt', 'generatedAt', 'savedAt'],
+  // 1020d §7 — the three chapter ratings (1–7, null = 唔評住) as the App
+  // stores them; no text.  Post-lock only (possibly an exploratory
+  // outcome, 1020d §10 (2)).
+  reminiscence_chapter_ratings: ['dataset', 'researchId', 'arm', 'ratingId',
+    'weekIndex', 'studyWeek', 'source', 'scores', 'ratedAt'],
 };
+
+/** Chapter doc → the reminiscence_chapters columns (no text). */
+function chapterFields(x) {
+  return {
+    weekIndex: Number.isInteger(x.weekIndex) ? x.weekIndex : null,
+    source: typeof x.source === 'string' ? x.source : null,
+    status: typeof x.status === 'string' ? x.status : null,
+    version: Number.isInteger(x.version) ? x.version : null,
+    editRatio: typeof x.editRatio === 'number' ? x.editRatio : null,
+    flagsCount: Array.isArray(x.flags) ? x.flags.length : 0,
+    deletedCount: Array.isArray(x.deletedSentences) ?
+      x.deletedSentences.length : 0,
+    failReason: typeof x.failReason === 'string' ? x.failReason : null,
+    edited: typeof x.editedText === 'string',
+    requestedAt: x.requestedAt || null,
+    generatedAt: x.generatedAt || null,
+    savedAt: x.savedAt || null,
+  };
+}
 
 const SOURCE_GROUP = {
   user_input: 'participant_input', form: 'participant_input',
@@ -327,6 +356,22 @@ async function collectReal(db, opts) {
     }
     files.memory_counts.push(row('memory_counts', Object.assign({}, tag,
         counts)));
+    // 1020d — chapter metadata and ratings (columns as TABLES: no text).
+    const chapters = await userDoc.ref.collection('reminiscence_chapters')
+        .get();
+    for (const d of chapters.docs) {
+      files.reminiscence_chapters.push(row('reminiscence_chapters',
+          Object.assign({}, tag, chapterFields(d.data()))));
+    }
+    const ratings = await userDoc.ref
+        .collection('reminiscence_chapter_ratings').get();
+    for (const d of ratings.docs) {
+      const x = d.data();
+      files.reminiscence_chapter_ratings.push(row(
+          'reminiscence_chapter_ratings', Object.assign({}, tag, {
+            ratingId: d.id, weekIndex: x.weekIndex, studyWeek: x.studyWeek,
+            source: x.source, scores: x.scores, ratedAt: x.ratedAt})));
+    }
   }
 
   const entries = await db.collection('outcome_entries').get();
@@ -584,6 +629,36 @@ function generateSynthetic(opts) {
       facts: arm === 'A' ? Math.floor(rand() * 30) : 0,
       summaries: arm === 'A' ? Math.floor(rand() * 20) : 0,
       followups: arm === 'A' ? Math.floor(rand() * 8) : 0})));
+    // 1020d — one chapter per finished reminiscence week (~70%), a rating
+    // for most of them; Hybrid chapters are generated (flags, versions,
+    // the odd failure), rule chapters are the App's own.
+    for (let wk = 1; wk <= (withdrawn ? 2 : 4); wk++) {
+      if (rand() < 0.3) continue;
+      const day = addDays(w0Date, (wk - 1) * 7 + 3 + Math.floor(rand() * 3));
+      const failed = arm === 'A' && rand() < 0.04;
+      const edited = !failed && rand() < 0.3;
+      files.reminiscence_chapters.push(row('reminiscence_chapters',
+          Object.assign({}, tag, {weekIndex: wk,
+            source: arm === 'A' ? 'hybrid' : 'rule',
+            status: failed ? 'failed' : 'ready',
+            version: failed ? null : 1 + (rand() < 0.1 ? 1 : 0),
+            editRatio: edited ? Math.round(rand() * 40) / 100 : null,
+            flagsCount: arm === 'A' && !failed && rand() < 0.15 ? 1 : 0,
+            deletedCount: arm === 'A' && !failed && rand() < 0.1 ? 1 : 0,
+            failReason: failed ? 'llm_error' : null, edited,
+            requestedAt: `${day}T06:00:00.000Z`,
+            generatedAt: arm === 'A' && !failed ? `${day}T06:01:00.000Z` :
+              null,
+            savedAt: edited ? `${day}T06:10:00.000Z` : null})));
+      if (failed || rand() < 0.15) continue;
+      const score = () => (rand() < 0.1 ? null : 1 + Math.floor(rand() * 7));
+      files.reminiscence_chapter_ratings.push(row(
+          'reminiscence_chapter_ratings', Object.assign({}, tag, {
+            ratingId: `week_${wk}_v1`, weekIndex: wk, studyWeek: wk,
+            source: arm === 'A' ? 'hybrid' : 'rule',
+            scores: {q1: score(), q2: score(), q3: score()},
+            ratedAt: `${day}T06:05:00.000Z`})));
+    }
   }
   return {files, manifest: manifestFor(files, {dataset: 'synthetic',
     synthetic: true, participants: n,

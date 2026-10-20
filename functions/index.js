@@ -39,6 +39,7 @@ const promptRegistry = require("./prompt_registry");
 const dailyCheckInPush = require("./daily_checkin_push");
 const weeklyEmail = require("./weekly_email");
 const pushCopy = require("./push_copy");
+const reminiscenceChapter = require("./reminiscence_chapter");
 
 admin.initializeApp();
 
@@ -1985,6 +1986,59 @@ exports.memorySummaryDeleted = onDocumentDeleted(
       } catch (err) {
         console.error("raw output clear after summary delete failed",
             {uid: event.params.uid, err: String(err)});
+      }
+    });
+
+// ---------------------------------------------------------------------------
+// 1020d §6 — 小篇章 (weekly reminiscence chapter), Hybrid arm only
+// (functions/reminiscence_chapter.js).  The App writes
+// users/{uid}/reminiscence_chapters/week_{N} with status 'requested' and a
+// new requestId; this trigger checks the switch reminiscenceV2Enabled and
+// the arm (fresh read, same rule as assertLlmAllowed), claims the request
+// once, drafts with deepseek-v4-pro (thinking on), checks with
+// deepseek-flash (thinking off), rewrites at most twice, deletes sentences
+// still unsourced, writes 'ready' and pushes.  A rule-arm chapter
+// (source 'rule') returns before any read and never reaches an LLM.
+// 540 s is the longest an event function may run: one thinking-mode draft
+// is 30–120 s, a full run is up to 3 drafts + 3 checks (+ check retries);
+// the pipeline stops starting rounds after totalBudgetMs (480 s).  512 MiB
+// is ample (the work is HTTP calls and a few Firestore reads).
+// ---------------------------------------------------------------------------
+exports.onReminiscenceChapterWritten = onDocumentWritten(
+    {
+      document: "users/{uid}/reminiscence_chapters/{docId}",
+      region: "asia-east2",
+      secrets: [DEEPSEEK_API_KEY],
+      timeoutSeconds: 540,
+      memory: "512MiB",
+      maxInstances: 10,
+    },
+    async (event) => {
+      const after = event.data && event.data.after && event.data.after.exists ?
+        event.data.after.data() : null;
+      // Only a Hybrid request is work; everything else returns here,
+      // before any read (the rule arm's chapters included).
+      if (!reminiscenceChapter.isHybridRequest(after)) return;
+      const uid = event.params.uid;
+      const db = admin.firestore();
+      try {
+        const out = await reminiscenceChapter.handleChapterWrite({
+          db,
+          // Built lazily: called only after every gate has passed.
+          model: (req) => reminiscenceChapter.deepSeekModel(db, {
+            apiKey: DEEPSEEK_API_KEY.value(),
+            uid,
+            // No HKU email / IP in headers; pseudonymous session tag only.
+            headers: {"X-Session-Code": sessionCodeFor(uid)},
+          })(req),
+          messaging: admin.messaging(),
+          stripPII,
+        }, {uid, docId: event.params.docId, after});
+        console.log("reminiscence chapter", {uid, docId: event.params.docId,
+          action: out.action, push: out.push || null});
+      } catch (err) {
+        console.error("reminiscence chapter failed",
+            {uid, docId: event.params.docId, err: String(err)});
       }
     });
 

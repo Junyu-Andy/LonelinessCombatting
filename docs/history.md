@@ -75,6 +75,22 @@
 - 结论：Junyu 10/20 定两样都在冻结前做（现状报告 PR #129）。两个开关都默认关。`actionPlanSimplifiedEnabled`：两组只必填「做咩」「幾時」，从建议进去「做咩」已填好可改；「等住跟進」可以改「做咩」「幾時」、可以删（软删除，未发提醒一并删，服务器也不推）。`actionPlanMemoryEnabled`：Hybrid 组计划页两次模型调用带 `agentId: siu_yan`，服务器加小欣记忆，不放、不用掉她的 follow-up。规则组仍零模型调用。
 - 只加新字段（`planFormVersion`、`source`、`seedAction`、`original`、`editCount`、`lastEditedAt`、`editLog`、`deletedAt`、`deletedFrom`）和三个事件；改「幾時」不移动提醒；不写 `scheduledFor`。`memory.js` 里第 1 批对 `m6_suggestions` 的几行一字不差照抄，m7 的排除另写一处，两分支谁先合都不冲突。
 - 报告（截图、真机步骤、要 Junyu 定的事）：`docs/dev-reports/action-plan-v2-20261020.md`；截图 `docs/dev-reports/action-plan-v2-shots/`；决策草稿 `docs/decisions/NNNN-action-plan-simplified.md`；测试 `test/action_plan_simplified_test.dart`（加进 CI 两套 Phase B）和 Functions 三个测试文件的新用例。
+## 2026-10-20 1020d 回忆 v2（App 部分）：两组同一份开放问题、小篇章和评分、离开按钮改名（分支 `claude/zealous-fermat-8rgqtg-reminiscence-app`，接键盘分支，PR 草稿）
+
+- 结论：回忆页改成两组同一页、同一份问题稿，差别只在每题答完之后（Hybrid 组模型追问一条再回一句，规则组固定句、零 LLM）。每周答完整理成小篇章，两组同一个画面，评三题，可改。全部在开关 `reminiscenceV2Enabled` 后面，默认关。离开按钮改名在另一个开关 `leaveButtonV2Enabled` 后面，默认关。
+- 文字：`docs/spec/copy/reminiscence-v2.md`（开场、32 题、固定句、小标题、评分、按钮），代码 `reminiscence_v2_copy.dart` 两组读同一份，测试逐字比对。全部草稿。
+- 数据：每周 `reminiscence_v2/week_{N}`（进度和逐句对话；同意关时原话只在手机）；小篇章 `reminiscence_chapters/week_{N}`（和服务器分支约定的字段）；评分 `reminiscence_chapter_ratings`；会话 `reminiscenceQuestionsAnswered`。80 字小结照旧。
+- 服务器部分（小篇章 Cloud Function、`ah_jan_ah_bak.v3` 提示词、推送、Firestore 规则）由另一个开发窗口做，两边按报告里的约定拼接。第一节的两个 bug 不在这个分支。
+- 报告、截图（测试渲染，Hybrid 组的回应是假模型的句子）和真机步骤：`docs/dev-reports/reminiscence-v2-app-20261020.md`。测试 `test/reminiscence_v2_test.dart`（加进 CI「phase B arm gating」）、`test/reminiscence_v2_copy_test.dart`。
+- 待 Junyu：全部草稿文字；有效会话 3 题；规则组整理好不推送；`moderate_review` 不停题、规则组用 Z5；第 8 题后规则组不出固定句；同意关时小篇章请求仍带对话；看过旧说明的人再看一次新说明；决策编号（草稿 `NNNN-reminiscence-v2-app.md`）。
+## 2026-10-20 1020d 回忆 v2 服务器端：阿珍／阿伯提示词 v3、小篇章生成、规则、导出和看板（分支 `claude/zealous-fermat-8rgqtg-reminiscence-server`，未推送、未开 PR）
+
+- 结论：开关 `reminiscenceV2Enabled`（默认关）开时，新回忆页发 `ah_jan_ah_bak_v3`，模型每题问一条具体追问、再回一两句不提问；老人撳「完成今個禮拜」后，Hybrid 组的小篇章由服务器触发器 `onReminiscenceChapterWritten` 生成（Pro 思考写稿 → Flash 核对 → 最多改两轮 → 删仍无出处的句子），规则组不调任何模型。App 那一半由另一个窗口做，约定写在报告第 6 节。
+- 真实模型名 10/19 核对过：`deepseek-flash`、`deepseek-v4-pro` 都在 DeepSeek `/models` 里。
+- 合成老人试运行改了提示词四次：追问漏问、离世仍追问、Flash 把粤语词当「太口语」、改写把老人原话改成普通话、Pro 偶尔交空稿；定稿后一般追问 29/32 有一条问题、回应 33/34 不提问、离世只承认、没假设香港；三篇小篇章逐句都有出处，植入的「五歲」被 Flash 拦下并删去。代码另加两道保护（无口语语法字的「太口语」剔走、空稿重试）。
+- 规则、过程／分析导出、盲法导出清单、运营看板计数一并做了；看板页面显示要改 `lib/`，留给 App 窗口。
+- 全部后端测试（换端口跑）和钉版本 Flutter 测试通过。报告 `docs/dev-reports/reminiscence-v2-server-20261020.md`；决策草稿 `NNNN-reminiscence-chapter-generation.md`。
+- 待 Junyu：三份提示词措辞、推送文字、「太口语」代码剔除、核对失败照交、评分算过程还是结局等（报告第 11 节）。
 
 ## 2026-10-20 1020c 第二项：键盘遮挡，打字时顶栏缩成一行（分支 `claude/zealous-fermat-8rgqtg-keyboard`，接第 2 批，PR 草稿）
 

@@ -55,6 +55,9 @@ rules_version = '2';
 //   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events (owner: create only; server stamps research ID, study day, uploadedLate)
 //   intake_audit_log/{id}                        -> T47 researcher-recorded intake log (server-only)
 //   ops_daily/{uid}/days/{dayKey}, ops_audit_log/{id} -> T39 operations dashboard: stored day rows + open log (server only)
+//   users/{uid}/reminiscence_chapters/week_{N}   -> 1020d 小篇章 (owner: request, rule text, edits; server: result fields;
+//                                                   .../runs/{requestId} archive is server only)
+//   users/{uid}/reminiscence_v2/**, reminiscence_chapter_ratings/** -> 1020d, generic owner rule
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -235,20 +238,112 @@ service cloud.firestore {
                    .hasAny(falseAlarmFields()));
     }
 
+    // 1020d: reminiscence_chapters has its own rule below (client and
+    // server fields; the runs/ archive under it is server only).  The
+    // other reminiscence v2 collections — reminiscence_v2 and
+    // reminiscence_chapter_ratings — stay under this generic owner rule.
     match /users/{uid}/{collection}/{document=**} {
       allow read: if isOwner(uid) && !collection.matches('mem_.*')
         && collection != 'djg_responses'
         && collection != 'social_contact_probes'
         && collection != 'usage_events'
+        && collection != 'reminiscence_chapters'
         && !(collection in phaseASurveyCollections());
       allow write: if isOwner(uid) && !collection.matches('mem_.*')
         && collection != 'djg_responses'
         && collection != 'social_contact_probes'
         && collection != 'usage_events'
+        && collection != 'reminiscence_chapters'
         && !(collection in phaseASurveyCollections())
         && researchWriteOpen(uid, collection)
         && leavesWeekStampsAlone(collection)
         && leavesFalseAlarmAlone(collection);
+    }
+
+    // ============================================================
+    // 1020d §6 — 小篇章, users/{uid}/reminiscence_chapters/week_{N}
+    // (functions/reminiscence_chapter.js).  The owner reads the doc and
+    // writes only the client fields:
+    //   weekIndex, source ('hybrid' | 'rule'), status, requestId,
+    //   requestedAt, input, ruleText, version (rule only), editedText,
+    //   editRatio, savedAt.
+    // The client may set status only to 'requested' (hybrid; with a NEW
+    // requestId — a re-request) or 'ready' (rule).  Everything else is
+    // the server's: finalText, flags, generatedAt, deletedSentences,
+    // failReason, the hybrid version, status 'generating' / 'failed',
+    // and the archive runs/{requestId} (no client access at all).  A
+    // full overwrite that would drop a server field is refused, so the
+    // App writes with update / merge.  No client deletes.
+    // ============================================================
+    function chapterClientKeys() {
+      return ['weekIndex', 'source', 'status', 'requestId', 'requestedAt',
+              'input', 'ruleText', 'version', 'editedText', 'editRatio',
+              'savedAt'];
+    }
+
+    function chapterRequestIdOk(d) {
+      return !('requestId' in d)
+        || (d.requestId is string && d.requestId.size() > 0
+              && d.requestId.size() <= 128
+              && !d.requestId.matches('.*/.*'));
+    }
+
+    function chapterShapeOk(d, docId) {
+      return d.weekIndex is int && d.weekIndex >= 1 && d.weekIndex <= 99
+        && docId == 'week_' + string(d.weekIndex)
+        && d.source in ['hybrid', 'rule']
+        && chapterRequestIdOk(d)
+        && (!('requestedAt' in d) || d.requestedAt is timestamp)
+        && (!('input' in d) || d.input is map)
+        && (!('ruleText' in d) || d.ruleText is string)
+        && (!('version' in d) || d.version is int)
+        && (!('editedText' in d) || d.editedText is string)
+        && (!('editRatio' in d) || d.editRatio is number)
+        && (!('savedAt' in d) || d.savedAt is timestamp);
+    }
+
+    // A rule-arm chapter is written whole by the App: status 'ready',
+    // its own text and version.
+    function chapterRuleOk(d) {
+      return d.status == 'ready'
+        && d.get('ruleText', null) is string
+        && d.get('version', null) is int && d.version >= 1;
+    }
+
+    function chapterCreateOk(d) {
+      return d.source == 'hybrid'
+        ? (d.status == 'requested' && 'requestId' in d
+             && !d.keys().hasAny(['version', 'ruleText']))
+        : chapterRuleOk(d);
+    }
+
+    function chapterUpdateOk(d, old, changed) {
+      return d.source == 'hybrid'
+        ? (!changed.hasAny(['version', 'ruleText'])
+             // status only ever to 'requested', with a new requestId …
+             && (!changed.hasAny(['status'])
+                   || (d.status == 'requested' && 'requestId' in d
+                         && d.requestId != old.get('requestId', null)))
+             // … and a new requestId only together with 'requested'.
+             && (!changed.hasAny(['requestId']) || d.status == 'requested'))
+        : chapterRuleOk(d);
+    }
+
+    match /users/{uid}/reminiscence_chapters/{docId} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && researchWriteOpen(uid, 'reminiscence_chapters')
+        && request.resource.data.keys().hasOnly(chapterClientKeys())
+        && chapterShapeOk(request.resource.data, docId)
+        && chapterCreateOk(request.resource.data);
+      allow update: if isOwner(uid)
+        && researchWriteOpen(uid, 'reminiscence_chapters')
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(chapterClientKeys())
+        && chapterShapeOk(request.resource.data, docId)
+        && chapterUpdateOk(request.resource.data, resource.data,
+             request.resource.data.diff(resource.data).affectedKeys());
+      allow delete: if false;
     }
 
     // ============================================================

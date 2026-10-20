@@ -96,6 +96,8 @@ class SessionTally {
     this.ruleSubmissionCompleted = false,
     this.endReason,
     this.checkInCompleted = false,
+    this.reminiscenceV2 = false,
+    this.reminiscenceQuestionsAnswered = 0,
   });
 
   final SessionType sessionType;
@@ -126,6 +128,14 @@ class SessionTally {
   /// rows from the old pages look exactly as before.
   final bool checkInCompleted;
 
+  /// 1020d (回憶 v2, `reminiscenceV2Enabled`, both arms) — the session ran
+  /// on the v2 reminiscence page; it is valid by
+  /// [reminiscenceQuestionsAnswered] (the week's questions answered in this
+  /// visit; follow-up answers and 唔想講 not counted).  Both written to
+  /// the row only for v2 sessions, so other rows look exactly as before.
+  final bool reminiscenceV2;
+  final int reminiscenceQuestionsAnswered;
+
   Map<String, dynamic> toMap() => {
         'sessionType': sessionType.code,
         'userMessageCount': userMessageCount,
@@ -135,6 +145,9 @@ class SessionTally {
         'isRuleSubmission': isRuleSubmission,
         'ruleSubmissionCompleted': ruleSubmissionCompleted,
         if (checkInCompleted) 'checkInCompleted': true,
+        if (reminiscenceV2) 'reminiscenceV2': true,
+        if (reminiscenceV2)
+          'reminiscenceQuestionsAnswered': reminiscenceQuestionsAnswered,
       };
 
   /// Rebuild from a stored `sessions` document (app-start sweep).  Missing
@@ -153,6 +166,8 @@ class SessionTally {
       ruleSubmissionCompleted: b('ruleSubmissionCompleted'),
       endReason: endReason ?? m['endReason'] as String?,
       checkInCompleted: b('checkInCompleted'),
+      reminiscenceV2: b('reminiscenceV2'),
+      reminiscenceQuestionsAnswered: n('reminiscenceQuestionsAnswered'),
     );
   }
 }
@@ -169,6 +184,7 @@ class SessionRules {
     this.checkInValidRequiresMood = true,
     this.checkInValidMinUserMessages = 1,
     this.reminiscenceValidRequiresSave = false,
+    this.reminiscenceV2ValidMinQuestions = 3,
   });
 
   /// `app_config/phase_b.sessionBriefPrV2Enabled`.  Off = pre-T25
@@ -184,6 +200,10 @@ class SessionRules {
   final bool checkInValidRequiresMood;
   final int checkInValidMinUserMessages;
   final bool reminiscenceValidRequiresSave;
+
+  /// 1020d (回憶 v2) — questions answered in one visit for a valid session
+  /// (`app_config/phase_b.reminiscenceV2ValidMinQuestions`, default 3).
+  final int reminiscenceV2ValidMinQuestions;
 
   /// Pre-T25 behaviour, used while the switch is off.
   static SessionRules legacy({int? idleTimeoutMin}) => SessionRules(
@@ -205,6 +225,7 @@ class SessionRules {
       checkInValidRequiresMood: b.hybridCheckInValidRequiresMood,
       checkInValidMinUserMessages: b.hybridCheckInValidMinUserMessages,
       reminiscenceValidRequiresSave: b.hybridReminiscenceValidRequiresSave,
+      reminiscenceV2ValidMinQuestions: b.reminiscenceV2ValidMinQuestions,
     );
   }
 
@@ -231,6 +252,11 @@ class SessionRules {
         if (checkInValidRequiresMood && !t.moodRecorded) return false;
         return t.replyCount >= checkInValidMinUserMessages;
       case SessionType.reminiscence:
+        // 1020d (2)(5): the v2 page, both arms — answered questions only.
+        if (t.reminiscenceV2) {
+          return t.reminiscenceQuestionsAnswered >=
+              reminiscenceV2ValidMinQuestions;
+        }
         if (reminiscenceValidRequiresSave) return t.summarySaved;
         return t.replyCount >= freeChatValidMinUserMessages;
     }

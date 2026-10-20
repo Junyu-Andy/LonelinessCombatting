@@ -209,6 +209,8 @@ test("PROMPT_FILES maps the app keys to the new files", () => {
     // 1020 E: the mood-row opener's key (test/prompt_siu_yan_v4_test.js).
     siu_yan_v4: "siu_yan.v4",
     ah_jan_ah_bak_v1: "ah_jan_ah_bak.v2",
+    // 1020d §2: reminiscence v2's key (test/prompt_ah_jan_ah_bak_v3_test.js).
+    ah_jan_ah_bak_v3: "ah_jan_ah_bak.v3",
     tung_tung_v1: "tung_tung.v3",
   });
   for (const key of Object.keys(PERSONAS)) {

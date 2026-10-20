@@ -168,6 +168,26 @@
 ///                               due follow-ups), with prompts that say
 ///                               「電腦程式夥伴」.  Rule arm: no model call,
 ///                               on or off.  Off: no agentId, old prompts.
+///   - [reminiscenceV2Enabled] — 1020d (回憶 v2): the reminiscence weeks open
+///                               one chat page for both arms: a fixed
+///                               three-bubble opener and the week's eight
+///                               open questions in order, each with an
+///                               input box and 「唔想講」.  Hybrid: one LLM
+///                               follow-up and one short LLM reply per
+///                               question (prompt `ah_jan_ah_bak_v3`); rule
+///                               arm: one fixed line, no LLM.  「完成今個
+///                               禮拜」 makes the week's chapter (Hybrid on
+///                               the server, rule arm on the phone), then
+///                               three ratings and 「改一改」; the landing
+///                               page gets 「我嘅人生小篇章」.  Off: the old
+///                               reminiscence pages, exactly as before.
+///   - [leaveButtonV2Enabled]  — 1020d 8 (2)(3): the top-left S9 button
+///                               「今日傾到呢度」 reads 「離開」 (first-use
+///                               note 「撳『離開』就係今次傾完。…」) on the
+///                               companion chat pages, and 「離開（會暫存）」
+///                               on the v2 reminiscence page.  Same end-of-
+///                               session rules and Brief PR.  Both arms.
+///                               Off: the old label and note.
 ///   - [safetyFalseAlarmMarkEnabled] — 1020e 二.9: the researcher
 ///                               dashboard's safety-alert list offers
 ///                               「標記誤觸」 (false alarm) to the
@@ -226,6 +246,8 @@ class RemoteFeatureFlags {
     this.moodRowV2Enabled = false,
     this.actionPlanSimplifiedEnabled = false,
     this.actionPlanMemoryEnabled = false,
+    this.reminiscenceV2Enabled = false,
+    this.leaveButtonV2Enabled = false,
     this.safetyFalseAlarmMarkEnabled = false,
     this.weeklyReminderV2Enabled = false,
   });
@@ -257,6 +279,8 @@ class RemoteFeatureFlags {
   final bool moodRowV2Enabled;
   final bool actionPlanSimplifiedEnabled;
   final bool actionPlanMemoryEnabled;
+  final bool reminiscenceV2Enabled;
+  final bool leaveButtonV2Enabled;
   final bool safetyFalseAlarmMarkEnabled;
 
   /// 1020b §2 (1): the 10/19 "first mood pick opens the check-in" path is
@@ -340,6 +364,8 @@ class RemoteFeatureFlags {
         actionPlanSimplifiedEnabled:
             map['actionPlanSimplifiedEnabled'] == true,
         actionPlanMemoryEnabled: map['actionPlanMemoryEnabled'] == true,
+        reminiscenceV2Enabled: map['reminiscenceV2Enabled'] == true,
+        leaveButtonV2Enabled: map['leaveButtonV2Enabled'] == true,
         safetyFalseAlarmMarkEnabled:
             map['safetyFalseAlarmMarkEnabled'] == true,
         weeklyReminderV2Enabled: map['weeklyReminderV2Enabled'] == true,

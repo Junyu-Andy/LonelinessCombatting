@@ -44,3 +44,13 @@ owner-only.
 with synthetic data: the owner saves a draft per screen and submits once;
 afterwards the doc is frozen; no client deletes; uid / timepoint / status
 must match; other participants can't read or write.
+
+`reminiscence_chapter_rules.test.js` — 1020d 小篇章
+(`users/{uid}/reminiscence_chapters/week_{N}`): the owner reads it and writes
+only the client fields; `status` only to `requested` (hybrid, with a new
+`requestId`) or `ready` (rule, with `ruleText` and `version`); the server
+fields (`finalText`, `flags`, `generatedAt`, `deletedSentences`,
+`failReason`, the hybrid `version`, status `generating` / `failed`) and the
+`runs/` archive are never client-writable; no deletes; the enrolment gate
+applies.  `reminiscence_v2` and `reminiscence_chapter_ratings` stay under
+the generic owner rule.
