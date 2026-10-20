@@ -11,7 +11,11 @@
 ///       1020e), else W4 (the next opening day by study week).  1020l §二
 ///       (1): two lines like the check-in row — a title, then a small
 ///       line with the deadline day (W5-2) or the opening day (W4).
-///   (d) the action-plan follow-up — the existing ActivePlanBanner.
+///   (d) 1020m 第二节: the small-action row ([HomeSmallActionRow],
+///       home_small_action_row.dart) — 「今日想做啲咩小行動？」 / 「今日計劃：
+///       {…}」 with 「做咗」「改日」.  It replaced batch 3's action-plan
+///       follow-up here (the old ActivePlanBanner, which stays only in the
+///       old one-page layout).
 library;
 
 import 'dart:async';
@@ -66,6 +70,9 @@ class TodoRowTile extends StatelessWidget {
     this.subtitle,
     this.onTap,
     this.done = false,
+    this.trailing,
+    this.footer,
+    this.titleMaxLines,
   });
 
   final IconData leading;
@@ -73,6 +80,15 @@ class TodoRowTile extends StatelessWidget {
   final String? subtitle;
   final VoidCallback? onTap;
   final bool done;
+
+  /// 1020m: in place of the chevron (the 「遲啲先」 text button).
+  final Widget? trailing;
+
+  /// 1020m: full width under the title line (「做咗」「改日」).
+  final Widget? footer;
+
+  /// 1020m: 1 = one line ending in 「…」 (a plan's text); null = wraps.
+  final int? titleMaxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +110,7 @@ class TodoRowTile extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 60),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
-              child: Row(
+              child: _withFooter(Row(
                 children: [
                   Icon(leading,
                       size: 26,
@@ -107,6 +123,10 @@ class TodoRowTile extends StatelessWidget {
                       children: [
                         Text(
                           title,
+                          maxLines: titleMaxLines,
+                          overflow: titleMaxLines == null
+                              ? null
+                              : TextOverflow.ellipsis,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: fg,
@@ -126,14 +146,26 @@ class TodoRowTile extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (onTap != null)
+                  if (trailing != null)
+                    trailing!
+                  else if (onTap != null)
                     Icon(Icons.chevron_right_rounded, size: 28, color: fg),
                 ],
-              ),
+              )),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _withFooter(Widget row) {
+    final f = footer;
+    if (f == null) return row;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [row, const SizedBox(height: 10), f],
     );
   }
 }

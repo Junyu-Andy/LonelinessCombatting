@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-20 1020m 第二节：首页「今日要做嘅事」的小行动一行（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-smallaction-1020m`）
+
+- 结论：第一页在 check-in 一行和问卷一行之后加一行：没有计划时「今日想做啲咩小行動？」+「遲啲先」（收起 3 天）；当天有计划时「今日計劃：{做咩}」+「做咗」「改日」。两组相同，不调用模型。**不加开关，直接替换旧的一行**（Junyu 10/20 晚定；旧的计划跟进一行 `ActivePlanBanner` 从第一页拿走，它在第一页本来也不会出现，因为没有计划有 `scheduledFor`）。
+- 计划没有日期，所以「计划的日子」定为它的跟进提醒那天（存好后 24 小时那天）。「做咗」写进现有的 `outcome: happened`，加 `followUpSource: home_row`（不用 `source`，那个字段已经是订计划的入口）。「改日」只记状态 `later`：第一次把计划和提醒挪到明天同一钟点，第二次不再挪、提醒取消，第三天首页改回问句；计划一直留在「我嘅計劃」。
+- 跟进推送：App 在「做咗」／「改日」时删掉或挪走提醒；服务器推送前也查计划（`moved_home_later`、`skipped_home_answered`）。使用事件多五种 `home_small_action_*`，规则和测试一起加。
+- 待 Junyu 定：「改日」挪一次还是两次（决策 0064 写了读法）；计划日子按提醒日算是否可以；五句文字和截图（`docs/dev-reports/1020m-shots/smallaction/`）。
+
 ## 2026-10-20 1020k：反向题前的过渡句、Weekly PR 反向三题固定第三页（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-scale-cues`）
 
 - 起因：Maria 测试时发现老人在一串同方向的题里容易把反向题答反。Junyu 定了三处文字（decisions-log 10/20 第 77–79 条）。

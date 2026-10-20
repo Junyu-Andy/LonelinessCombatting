@@ -25,6 +25,17 @@
  *     elder (`deletedAt`, App switch actionPlanSimplifiedEnabled) →
  *     skipped_plan_deleted (the App also deletes the plan's unsent
  *     reminders; this covers a delete that failed or ran offline).
+ *   - 1020m 第二节 (page 1's small-action row, decision 0064).  The App
+ *     moves or drops the plan's reminders itself on 「改日」 / 「做咗」;
+ *     these two checks cover a write that failed or ran offline:
+ *       · the plan was moved by 「改日」 (`homeRowDueDate`) to a later
+ *         Hong Kong day than this reminder's → the reminder is moved to
+ *         that day, same clock time (moved_home_later; not terminal — it
+ *         is sent on the new day like any other);
+ *       · the elder already answered on the row that day or later
+ *         (`homeRowAnsweredDate` ≥ the reminder's day: 「改日」 a second
+ *         time) → skipped_home_answered.  「做咗」 sets `outcome`, so it is
+ *         skipped_followed_up as before.
  *   - Otherwise send.  At least one device accepted → sent.  No device
  *     or every send failed → retry on the next run, up to maxAttempts
  *     (default 3), then failed / no_tokens.
@@ -51,8 +62,10 @@ const DEFAULTS = {staleHours: 12, maxAttempts: 3};
 const TERMINAL = new Set([
   "sending", "sent", "failed", "no_tokens", "skipped_stale",
   "skipped_quiet_today", "skipped_plan_missing", "skipped_followed_up",
-  "skipped_plan_deleted",
+  "skipped_plan_deleted", "skipped_home_answered",
 ]);
+
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Parse a reminder's fireAt.  A string without an offset is HK local time.
@@ -91,6 +104,42 @@ function isQuietToday(raw, now) {
   if (typeof raw === "string") key = raw.slice(0, 10);
   else if (typeof raw.toDate === "function") key = hkDateKey(raw.toDate());
   return key === hkDateKey(now);
+}
+
+/**
+ * 1020m: the reminder's fireAt on another Hong Kong day, same clock time,
+ * as the App writes it (local ISO string without an offset).
+ * @param {Date} fireAt
+ * @param {string} dayKey YYYY-MM-DD
+ * @return {string}
+ */
+function fireAtOnDay(fireAt, dayKey) {
+  const hk = new Date(fireAt.getTime() + 8 * 3600 * 1000);
+  return `${dayKey}T${hk.toISOString().slice(11, 23)}`;
+}
+
+/**
+ * 1020m 第二节: what page 1's small-action row says about one reminder of
+ * a plan without an outcome.  Pure.
+ * @param {object} plan action_plans doc data
+ * @param {Date} fireAt the reminder's fireAt
+ * @return {{moveTo: (string|undefined), skip: (boolean|undefined)}}
+ *     moveTo: the new fireAt (the plan was moved to a later day);
+ *     skip: answered on the row on the reminder's day or later
+ */
+function homeRowCheck(plan, fireAt) {
+  const p = plan || {};
+  const day = hkDateKey(fireAt);
+  const due = p.homeRowDueDate;
+  if (typeof due === "string" && DATE_KEY.test(due) && day < due) {
+    return {moveTo: fireAtOnDay(fireAt, due)};
+  }
+  const answered = p.homeRowAnsweredDate;
+  if (typeof answered === "string" && DATE_KEY.test(answered) &&
+      answered >= day) {
+    return {skip: true};
+  }
+  return {};
 }
 
 /**
@@ -200,6 +249,20 @@ async function dispatchOne(db, messaging, userDoc, user, rem, cfg, now) {
     if (!plan.exists) outcome = "skipped_plan_missing";
     else if (plan.get("deletedAt")) outcome = "skipped_plan_deleted";
     else if (plan.get("outcome")) outcome = "skipped_followed_up";
+    else {
+      // 1020m 第二节: 「改日」 on page 1's small-action row.
+      const home = homeRowCheck(plan.data(), parseFireAt(r.fireAt));
+      if (home.moveTo) {
+        await rem.ref.update({
+          fireAt: home.moveTo,
+          movedFromFireAt: r.fireAt,
+          movedBy: "server_home_row",
+          dispatchUpdatedAt: now,
+        }, {lastUpdateTime: rem.updateTime});
+        return "moved_home_later";
+      }
+      if (home.skip) outcome = "skipped_home_answered";
+    }
   }
 
   const attempts = (Number(r.dispatchAttempts) || 0) + (outcome ? 0 : 1);
@@ -261,5 +324,5 @@ async function dispatchOne(db, messaging, userDoc, user, rem, cfg, now) {
 module.exports = {
   KIND, PUSH_TITLE, PUSH_BODY, DEFAULTS,
   parseFireAt, hkDateKey, isQuietToday, classify, readConfig,
-  dispatchDueReminders,
+  fireAtOnDay, homeRowCheck, dispatchDueReminders,
 };

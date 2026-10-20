@@ -79,8 +79,10 @@ const CHECKS = [
   // then.  homeLayoutV2Enabled and moodRowV2Enabled must be on together:
   // with only one on, the old mood board's Hybrid-only pop-up and the old
   // mood words are still reachable (1020g 二 (5)(b)).
-  ['app_config/feature_flags', 'homeLayoutV2Enabled', null,
-    '第 3 批首页两页（#133），须和 moodRowV2Enabled 同开同关'],
+  // 1020m 第五节: page 1 is on in production (the small-action row of
+  // 1020m 第二节 has no switch of its own — it is part of page 1).
+  ['app_config/feature_flags', 'homeLayoutV2Enabled', true,
+    '第 3 批首页两页（#133），须和 moodRowV2Enabled 同开同关；1020m 小行动一行在里面'],
   ['app_config/feature_flags', 'moodRowV2Enabled', null,
     '第 3 批心情一行（#133），须和 homeLayoutV2Enabled 同开同关'],
   ['app_config/feature_flags', 'keyboardCompactHeaderEnabled', null,

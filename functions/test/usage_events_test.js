@@ -121,6 +121,24 @@ test("1020c: the four reader rows are stamped like the lifecycle rows", () => {
   }
 });
 
+test("1020m: the five small-action rows are stamped like the others", () => {
+  assert.deepStrictEqual(UE.HOME_SMALL_ACTION_TYPES, [
+    "home_small_action_shown", "home_small_action_open",
+    "home_small_action_later", "home_small_action_done",
+    "home_small_action_postpone"]);
+  for (const type of UE.HOME_SMALL_ACTION_TYPES) {
+    assert.ok(UE.TYPES.indexOf(type) >= 0, type);
+    assert.ok(UE.LIFECYCLE_TYPES.indexOf(type) < 0, type);
+    const s = UE.stampFor(row("2026-10-20T03:59:58Z", "2026-10-20T04:00:00Z",
+        {type, planId: "Xy7Qk2LmN0pRs3TuVw9a"}),
+    {user: USER, researchId: "PB-007", now: NOW});
+    assert.ok(s, type);
+    assert.strictEqual(s.researchId, "PB-007", type);
+    assert.strictEqual(s.studyDay, 5, type);
+    assert.strictEqual(s.dayKey, "2026-10-20", type);
+  }
+});
+
 test("the stamp holds exactly the server fields the rules deny clients", () => {
   const s = UE.stampFor(row("2026-10-20T03:59:58Z", "2026-10-20T04:00:00Z"),
       {user: USER, researchId: "PB-001", now: NOW});

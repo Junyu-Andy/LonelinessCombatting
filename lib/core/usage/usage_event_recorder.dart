@@ -42,6 +42,19 @@
 ///   `reader_close`   + `unitId`, `seconds` (time the reader was on screen)
 /// Ids only — never any text.  An id that is not [kReaderIdPattern] is
 /// dropped here and refused by the rules.
+///
+/// 1020m 第二节 — page 1's small-action row (「今日要做嘅事」, both arms)
+/// rides on the same collection, switch and enrolment check
+/// ([recordHomeSmallAction]):
+///   `home_small_action_shown`    + `rowState` (`ask` / `plan` / `done`),
+///                                  + `planId` unless `ask`
+///   `home_small_action_open`     (the 「今日想做啲咩小行動？」 row tapped)
+///   `home_small_action_later`    (「遲啲先」)
+///   `home_small_action_done`     + `planId` (「做咗」)
+///   `home_small_action_postpone` + `planId`, `moved` (「改日」; `moved` is
+///                                  false on the second press)
+/// A plan id that is not [kPlanIdPattern] is dropped here and refused by
+/// the rules.
 library;
 
 import 'dart:async';
@@ -70,13 +83,26 @@ const Set<String> kReaderCtaCodes = {'small_action', 'plan', 'thought'};
 /// A reader stay longer than this is recorded as this (a phone left on).
 const int kReaderMaxSeconds = 86400;
 
+/// The shape of an `action_plans` document id (1020m; Firestore auto ids
+/// are 20 letters and digits).  The same pattern is in firestore.rules.
+final RegExp kPlanIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
+
+/// `rowState` values of `home_small_action_shown` (1020m).
+const Set<String> kHomeSmallActionRowStates = {'ask', 'plan', 'done'};
+
 enum UsageEventType {
   foreground('foreground'),
   background('background'),
   readerOpen('reader_open'),
   readerSection('reader_section'),
   readerCta('reader_cta'),
-  readerClose('reader_close');
+  readerClose('reader_close'),
+  // 1020m 第二节 — page 1's small-action row.
+  homeSmallActionShown('home_small_action_shown'),
+  homeSmallActionOpen('home_small_action_open'),
+  homeSmallActionLater('home_small_action_later'),
+  homeSmallActionDone('home_small_action_done'),
+  homeSmallActionPostpone('home_small_action_postpone');
 
   const UsageEventType(this.code);
 
@@ -84,6 +110,8 @@ enum UsageEventType {
   final String code;
 
   bool get isReader => code.startsWith('reader_');
+
+  bool get isHomeSmallAction => code.startsWith('home_small_action_');
 }
 
 /// One usage event, before the server stamps it.
@@ -100,6 +128,9 @@ class UsageEvent {
     this.sectionId,
     this.cta,
     this.seconds,
+    this.rowState,
+    this.planId,
+    this.moved,
   });
 
   final String uid;
@@ -118,6 +149,11 @@ class UsageEvent {
   final String? cta;
   final int? seconds;
 
+  /// 1020m small-action rows only.
+  final String? rowState;
+  final String? planId;
+  final bool? moved;
+
   /// The Firestore document (without `receivedAt`, which the sink adds as
   /// a server timestamp).
   Map<String, Object?> toMap() => {
@@ -131,6 +167,9 @@ class UsageEvent {
         if (sectionId != null) 'sectionId': sectionId,
         if (cta != null) 'cta': cta,
         if (seconds != null) 'seconds': seconds,
+        if (rowState != null) 'rowState': rowState,
+        if (planId != null) 'planId': planId,
+        if (moved != null) 'moved': moved,
       };
 }
 
@@ -297,10 +336,60 @@ class UsageEventRecorder {
         cta = null;
       case UsageEventType.foreground:
       case UsageEventType.background:
+      case UsageEventType.homeSmallActionShown:
+      case UsageEventType.homeSmallActionOpen:
+      case UsageEventType.homeSmallActionLater:
+      case UsageEventType.homeSmallActionDone:
+      case UsageEventType.homeSmallActionPostpone:
         return false;
     }
     _write(type, _clock(),
         unitId: unitId, sectionId: sectionId, cta: cta, seconds: seconds);
+    return true;
+  }
+
+  /// 1020m 第二节 — one row of page 1's small-action row (switch on,
+  /// account enrolled, like the lifecycle rows).  [type] must be a
+  /// `home_small_action_*` type; what each needs: `shown` → [rowState]
+  /// (one of [kHomeSmallActionRowStates]) and, unless `ask`, [planId];
+  /// `done` → [planId]; `postpone` → [planId] and [moved]; `open` /
+  /// `later` → nothing.  Anything malformed is dropped, not written.
+  /// Returns whether a row was written.
+  bool recordHomeSmallAction(
+    UsageEventType type, {
+    String? rowState,
+    String? planId,
+    bool? moved,
+  }) {
+    if (!type.isHomeSmallAction || !_canRecord) return false;
+    bool idOk(String? id) => id != null && kPlanIdPattern.hasMatch(id);
+    switch (type) {
+      case UsageEventType.homeSmallActionShown:
+        if (rowState == null || !kHomeSmallActionRowStates.contains(rowState)) {
+          return false;
+        }
+        if (rowState == 'ask') {
+          planId = null;
+        } else if (!idOk(planId)) {
+          return false;
+        }
+        moved = null;
+      case UsageEventType.homeSmallActionOpen:
+      case UsageEventType.homeSmallActionLater:
+        rowState = null;
+        planId = null;
+        moved = null;
+      case UsageEventType.homeSmallActionDone:
+        if (!idOk(planId)) return false;
+        rowState = null;
+        moved = null;
+      case UsageEventType.homeSmallActionPostpone:
+        if (!idOk(planId) || moved == null) return false;
+        rowState = null;
+      default:
+        return false;
+    }
+    _write(type, _clock(), rowState: rowState, planId: planId, moved: moved);
     return true;
   }
 
@@ -311,6 +400,9 @@ class UsageEventRecorder {
     String? sectionId,
     String? cta,
     int? seconds,
+    String? rowState,
+    String? planId,
+    bool? moved,
   }) {
     _sink.write(UsageEvent(
       uid: _uid!,
@@ -323,6 +415,9 @@ class UsageEventRecorder {
       sectionId: sectionId,
       cta: cta,
       seconds: seconds,
+      rowState: rowState,
+      planId: planId,
+      moved: moved,
     ));
   }
 }

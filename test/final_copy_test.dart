@@ -270,6 +270,15 @@ void main() {
           '10月25日（星期日）開，開咗之後三日內答都得。');
     });
 
+    test('1020m 第二节: the small-action row SA1–SA5, verbatim', () {
+      expect(HomeV2Copy.smallActionAsk, rows['SA1']![2]);
+      expect(HomeV2Copy.smallActionLater, rows['SA2']![2]);
+      expect(HomeV2Copy.smallActionPlanTemplate, rows['SA3']![2]);
+      expect(HomeV2Copy.smallActionDone, rows['SA4']![2]);
+      expect(HomeV2Copy.smallActionPostpone, rows['SA5']![2]);
+      expect(HomeV2Copy.smallActionPlan('同阿明飲茶'), '今日計劃：同阿明飲茶');
+    });
+
     test('1020e 二.12: the five face words F1–F5 = check-in Q1 words', () {
       for (var m = 1; m <= 5; m++) {
         expect(MoodRowCopy.faceLabel(m), rows['F$m']![2], reason: 'F$m');

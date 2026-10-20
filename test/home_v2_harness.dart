@@ -28,6 +28,9 @@ import 'package:app_demo/features/rule_replies/data/rule_reply_history_store.dar
 import 'package:app_demo/features/today/data/mood_recorder.dart';
 import 'package:app_demo/features/today/data/mood_row_copy.dart';
 import 'package:app_demo/features/today/data/mood_row_store.dart';
+import 'package:app_demo/features/today/data/small_action_row_store.dart';
+import 'package:app_demo/core/usage/usage_event_recorder.dart';
+import 'package:app_demo/core/usage/usage_events_scope.dart';
 import 'package:app_demo/features/today/presentation/home_v2_scope.dart';
 import 'package:app_demo/features/weekly_bundle/data/weekly_bundle.dart';
 import 'package:app_demo/core/scheduling/weekly_schedule.dart';
@@ -168,6 +171,8 @@ class HomeRun {
   HomeRun(this.arm, {DateTime? now, this.cohort = 'phase_b'})
       : now = now ?? DateTime(2026, 10, 20, 9, 30) {
     moodStore.clock = () => this.now;
+    smallActions.clock = () => this.now;
+    usage.setProfile(homeProfile(arm, cohort: cohort));
   }
 
   final ArmAssignment arm;
@@ -176,6 +181,23 @@ class HomeRun {
   late FakeLlm llm;
   final analytics = RecordingAnalytics();
   final moodStore = InMemoryMoodRowStore();
+
+  /// 1020m: page 1's small-action row (plans, reminders, 遲啲先 mark).
+  final smallActions = InMemorySmallActionRowStore();
+
+  /// 1020m: how often the small-action row opened its (stub) page.
+  int smallActionPageOpens = 0;
+
+  /// Usage events (T40 / 1020c / 1020m), switch on, kept in memory.
+  final usageSink = InMemoryUsageEventSink();
+  late final usage = UsageEventRecorder(
+    sink: usageSink,
+    enabled: () => true,
+    clock: () => now,
+    platform: 'test',
+    appVersion: '0.0.0',
+    buildNumber: '0',
+  );
   final weekly = FakeWeeklyStore();
   final checkIns = InMemoryCheckInResponseStore();
   final replyHistory = InMemoryRuleReplyHistoryStore();
@@ -245,6 +267,11 @@ Widget homeHarness(HomeRun run,
     checkInPage: () => run.realChat
         ? run.chatPage()
         : const Scaffold(body: Text('check-in')),
+    smallActionStore: run.smallActions,
+    smallActionPage: () {
+      run.smallActionPageOpens++;
+      return const Scaffold(body: Text('今日小行動 page'));
+    },
     child: AppSettingsScope(
       settings: AppSettings(
           locale: const Locale('zh'),
@@ -273,21 +300,24 @@ Widget homeHarness(HomeRun run,
             handoffExecutor: HandoffExecutor(sharedContext: sharedContext),
             agentGreeting: AgentGreetingService(llm),
             memoryV1: _FakeMemoryV1(),
-            child: MaterialApp(
-              navigatorKey: run.navKey,
-              theme: theme,
-              debugShowCheckedModeBanner: false,
-              builder: textScale == null
-                  ? null
-                  : (context, child) => MediaQuery(
-                        data: MediaQuery.of(context).copyWith(
-                            textScaler: TextScaler.linear(textScale)),
-                        child: child ?? const SizedBox.shrink(),
-                      ),
-              locale: const Locale('zh'),
-              supportedLocales: AppLocalizations.supportedLocales,
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              home: home,
+            child: UsageEventsScope(
+              recorder: run.usage,
+              child: MaterialApp(
+                navigatorKey: run.navKey,
+                theme: theme,
+                debugShowCheckedModeBanner: false,
+                builder: textScale == null
+                    ? null
+                    : (context, child) => MediaQuery(
+                          data: MediaQuery.of(context).copyWith(
+                              textScaler: TextScaler.linear(textScale)),
+                          child: child ?? const SizedBox.shrink(),
+                        ),
+                locale: const Locale('zh'),
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                home: home,
+              ),
             ),
           ),
         ),

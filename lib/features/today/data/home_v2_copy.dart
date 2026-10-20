@@ -2,7 +2,8 @@
 /// layout (`app_config/feature_flags.homeLayoutV2Enabled`): the
 /// 「今日要做嘅事」 rows, the 「去搵人傾」 button and the questionnaire row
 /// (W4, 1020b §4 5.5; W5 by day, 1020e 二.1 (5), 二.2 (4); 1020l §二 (1):
-/// two lines — title and a small second line, W5-2 the deadline day).
+/// two lines — title and a small second line, W5-2 the deadline day) and
+/// the small-action row (SA1–SA5, 1020m 第二节).
 ///
 /// Drafts (1020b common rule 4), verbatim from `docs/spec/copy/home-v2.md`
 /// (test/final_copy_test.dart).  D1–D4 are the development window's
@@ -51,6 +52,25 @@ class HomeV2Copy {
   /// row (weeks 1–3, 5–7): the window's last day.  Week 4 (W5d, closes
   /// after the visit) has no second line.  Draft.
   static const String w5DeadlineTemplate = '{10月26日（星期日）}截止';
+
+  /// SA1 — 1020m 第二节 (1): page 1's small-action row when there is no
+  /// plan for today (撳: 今日小行動).
+  static const String smallActionAsk = '今日想做啲咩小行動？';
+
+  /// SA2 — the small text button on SA1's right (hidden 3 days).
+  static const String smallActionLater = '遲啲先';
+
+  /// SA3 — 1020m 第二节 (2): a plan for today, `今日計劃：{計劃內容}` (one
+  /// line; a long plan ends in 「…」).
+  static const String smallActionPlanTemplate = '今日計劃：{計劃內容}';
+
+  /// SA4 / SA5 — the two buttons under SA3.
+  static const String smallActionDone = '做咗';
+  static const String smallActionPostpone = '改日';
+
+  /// SA3 with the plan's 做咩 filled in.
+  static String smallActionPlan(String action) =>
+      smallActionPlanTemplate.replaceFirst('{計劃內容}', action);
 
   static const _weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 

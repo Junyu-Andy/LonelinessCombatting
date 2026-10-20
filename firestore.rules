@@ -15,7 +15,7 @@ rules_version = '2';
 //                                                   *new* strataCell)
 //   users/{uid}/events/{eventId}                 -> analytics events
 //   users/{uid}/memory/{moduleId}/entries/{id}   -> legacy module summaries
-//   users/{uid}/action_plans/{id}                -> M7 plans
+//   users/{uid}/action_plans/{id}                -> M7 plans (1020m: + home-row fields followUpSource, homeRow*; generic owner rule)
 //   users/{uid}/thought_records/{id}             -> legacy M4 records (read-only after Sprint 1)
 //   users/{uid}/thought_exercise/entries/{id}    -> *new* B.4 expanded TE entries
 //   users/{uid}/m3_reminiscence/...              -> M3 sessions
@@ -52,7 +52,7 @@ rules_version = '2';
 //   users/{uid}/social_contact_probes/{Wn}       -> T24 weekly social-contact probe (client: answers 0–3; server: study-week stamps)
 //   users/{uid}/weekly_pr|pgic|brief_pr          -> T24: studyWeek/studyDay/window/missed fields are server-only
 //   weekly_status/{uid}                          -> T24 weekly bundle status, research ID, push times (server only)
-//   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events, 1020c reader_* rows (owner: create only; server stamps research ID, study day, uploadedLate)
+//   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events, 1020c reader_* rows, 1020m home_small_action_* rows (owner: create only; server stamps research ID, study day, uploadedLate)
 //   intake_audit_log/{id}                        -> T47 researcher-recorded intake log (server-only)
 //   users/{uid}.intakeGateUnlockedAt             -> 1020e §2.14 explanation gate unlocked (owner: once, server time only)
 //   ops_daily/{uid}/days/{dayKey}, ops_audit_log/{id} -> T39 operations dashboard: stored day rows + open log (server only)
@@ -484,6 +484,13 @@ service cloud.firestore {
     // a unit id, a section id, a CTA code or whole seconds.  Ids must be
     // short lower-case slugs (the pattern in usage_event_recorder.dart and
     // tool/check_reader_html.js), so no text can ride along.
+    //
+    // 1020m 第二节 — page 1's small-action row (both arms) shares it too:
+    // home_small_action_shown (+ rowState ask / plan / done; + planId
+    // unless ask), home_small_action_open, home_small_action_later,
+    // home_small_action_done (+ planId), home_small_action_postpone
+    // (+ planId, moved).  A plan id is an action_plans document id
+    // (letters, digits, _ and -), so no text fits.
     // ============================================================
     function isEnrolledParticipant(uid) {
       let u = get(/databases/$(database)/documents/users/$(uid)).data;
@@ -502,7 +509,8 @@ service cloud.firestore {
         && d.buildNumber is string
         && d.platform is string
         && d.schemaVersion == 1
-        && (usageLifecycleValid(d) || usageReaderValid(d));
+        && (usageLifecycleValid(d) || usageReaderValid(d)
+            || usageHomeSmallActionValid(d));
     }
 
     // T40 foreground / background: the base fields only.
@@ -533,6 +541,29 @@ service cloud.firestore {
         || (d.type == 'reader_close'
             && usageReaderOnly(d, ['unitId', 'seconds'])
             && d.seconds is int && d.seconds >= 0 && d.seconds <= 86400));
+    }
+
+    // 1020m small-action row.
+    function planIdOk(v) {
+      return v is string && v.matches('^[A-Za-z0-9_-]{1,64}$');
+    }
+
+    function usageHomeSmallActionValid(d) {
+      return (d.type == 'home_small_action_shown'
+            && ((d.get('rowState', null) == 'ask'
+                 && usageReaderOnly(d, ['rowState']))
+              || (d.get('rowState', null) in ['plan', 'done']
+                 && usageReaderOnly(d, ['rowState', 'planId'])
+                 && planIdOk(d.planId))))
+        || (d.type in ['home_small_action_open', 'home_small_action_later']
+            && d.keys().hasOnly(usageEventClientKeys()))
+        || (d.type == 'home_small_action_done'
+            && usageReaderOnly(d, ['planId'])
+            && planIdOk(d.planId))
+        || (d.type == 'home_small_action_postpone'
+            && usageReaderOnly(d, ['planId', 'moved'])
+            && planIdOk(d.planId)
+            && d.moved is bool);
     }
 
     match /users/{uid}/usage_events/{eventId} {

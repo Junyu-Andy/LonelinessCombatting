@@ -17,6 +17,7 @@ import '../widgets/checkin_status_chip.dart';
 import '../widgets/continue_chat_card.dart';
 import '../widgets/facts_recap_row.dart';
 import '../widgets/greeting_hero.dart';
+import '../widgets/home_small_action_row.dart';
 import '../widgets/home_tool_shortcuts.dart';
 import '../../../../core/time/app_clock.dart';
 import '../widgets/daily_mood_prompt.dart';
@@ -47,7 +48,9 @@ import '../widgets/week1_nudge_banner.dart';
 ///   `moodRowV2Enabled` is off); (3) 「今日要做嘅事」: check-in (the 3-day
 ///   reminder folded in), the Brief PR invitation (the same
 ///   [BriefPrCardHost] as page 2), the weekly questionnaire (G (2)) and the
-///   action-plan follow-up; (4) 「去搵人傾」 → page 2; (5) the week's recap;
+///   small-action row (1020m 第二节, [HomeSmallActionRow]; it replaced the
+///   action-plan follow-up [ActivePlanBanner], which now shows only in the
+///   old layout); (4) 「去搵人傾」 → page 2; (5) the week's recap;
 ///   (6) the crisis card.  Moved off: the companion tiles, the continue
 ///   card and the first-week nudge (to page 2), the tool shortcuts, the
 ///   daily mood pop-up, the missed-check-in banner.  The old
@@ -199,7 +202,9 @@ class _TodayPageState extends State<TodayPage> {
             // card the row above already shows.  Needs Firebase to read.
             if (firebase)
               PendingPromptsBanner(hideWeeklyBundle: questionnaireRow),
-            const ActivePlanBanner(),
+            // 1020m 第二节: 今日想做啲咩小行動？ / 今日計劃 (no switch of its
+            // own; replaced the old plan follow-up banner here).
+            const HomeSmallActionRow(),
             // (4) → page 2.
             const GoTalkButton(),
             // (5) this week's recap (tap: 你嘅一個禮拜, 1020e 二.11).

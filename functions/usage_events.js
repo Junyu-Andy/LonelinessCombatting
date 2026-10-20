@@ -29,6 +29,10 @@
  * stamped the same way, so they carry the research ID and the study day.
  * They are not foreground / background: ops_dashboard.js counts only
  * LIFECYCLE_TYPES for opens and foreground minutes.
+ *
+ * 1020m 第二节: page 1's small-action row (home_small_action_shown / _open
+ * / _later / _done / _postpone; a row state, a plan id and a bool only —
+ * firestore.rules) is stamped the same way; not a lifecycle row either.
  */
 "use strict";
 
@@ -38,7 +42,10 @@ const COLLECTION = "usage_events";
 const LIFECYCLE_TYPES = ["foreground", "background"];
 const READER_TYPES = ["reader_open", "reader_section", "reader_cta",
   "reader_close"];
-const TYPES = LIFECYCLE_TYPES.concat(READER_TYPES);
+const HOME_SMALL_ACTION_TYPES = ["home_small_action_shown",
+  "home_small_action_open", "home_small_action_later",
+  "home_small_action_done", "home_small_action_postpone"];
+const TYPES = LIFECYCLE_TYPES.concat(READER_TYPES, HOME_SMALL_ACTION_TYPES);
 
 /** A row uploaded this long after its client time counts as late. */
 const LATE_AFTER_MS = 5 * 60 * 1000;
@@ -102,6 +109,7 @@ async function stampCreated(db, uid, eventId, data, opts) {
 }
 
 module.exports = {
-  COLLECTION, TYPES, LIFECYCLE_TYPES, READER_TYPES, LATE_AFTER_MS,
+  COLLECTION, TYPES, LIFECYCLE_TYPES, READER_TYPES, HOME_SMALL_ACTION_TYPES,
+  LATE_AFTER_MS,
   SKEW_AHEAD_MS, SERVER_FIELDS, stampFor, stampCreated,
 };

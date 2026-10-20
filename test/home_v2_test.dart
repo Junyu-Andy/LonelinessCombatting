@@ -50,6 +50,7 @@ import 'package:app_demo/features/today/presentation/widgets/continue_chat_card.
 import 'package:app_demo/features/today/presentation/widgets/daily_mood_prompt.dart';
 import 'package:app_demo/features/today/presentation/widgets/facts_recap_row.dart';
 import 'package:app_demo/features/today/presentation/widgets/greeting_hero.dart';
+import 'package:app_demo/features/today/presentation/widgets/home_small_action_row.dart';
 import 'package:app_demo/features/today/presentation/widgets/home_tool_shortcuts.dart';
 import 'package:app_demo/features/today/presentation/widgets/mood_row_v2.dart';
 import 'package:app_demo/features/today/presentation/widgets/today_todo_rows.dart';
@@ -276,7 +277,8 @@ void main() {
           p1(find.byType(BriefPrCardHost)),
           // The study-week schedule (and so this row) needs a Phase B build.
           if (FeatureFlags.phaseB) p1(find.byType(QuestionnaireTodoRow)),
-          p1(find.byType(ActivePlanBanner)),
+          // 1020m 第二节: the small-action row replaced the plan banner.
+          p1(find.byType(HomeSmallActionRow)),
           p1(find.byType(GoTalkButton)),
           p1(find.byType(FactsRecapRow)),
           p1(find.byType(SafetyFooterCard)),
@@ -290,6 +292,7 @@ void main() {
               reason: '${order[i]} below ${order[i - 1]}');
         }
         for (final gone in [
+          ActivePlanBanner,
           AgentTileRow,
           ContinueChatCard,
           HomeToolShortcuts,
