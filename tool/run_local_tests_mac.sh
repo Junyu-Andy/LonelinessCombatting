@@ -17,10 +17,17 @@
 #   bash tool/run_local_tests_mac.sh --only rules,functions
 # Groups: analyze, flutter, functions, rules (alias: emulator), privacy.
 # Written for the bash 3.2 that macOS ships (no associative arrays).
-# Guide: docs/release/local-tests-mac.md
+# Also runs on Windows in Git Bash (1020j): the emulator steps hand
+# `firebase emulators:exec` a script file, because on Windows it runs its
+# command through cmd.exe, which cannot run inline sh.
+# Guide: docs/release/local-tests-mac.md (Windows: local-tests-windows.md)
 
 cd "$(dirname "$0")/.." || exit 2
 ROOT="$(pwd)"
+IS_WIN=0
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) IS_WIN=1 ;; esac
+GUIDE="docs/release/local-tests-mac.md"
+[ $IS_WIN = 1 ] && GUIDE="docs/release/local-tests-windows.md"
 
 ALL_GROUPS="analyze flutter functions rules privacy"
 ONLY=""
@@ -157,7 +164,7 @@ if [ $NEED_FLUTTER = 1 ]; then
     echo "  Flutter：$fv"
     case "$fv" in *"3.35.3"*) ;; *) echo "  ⚠ CI 用 Flutter 3.35.3，你的版本不同，结果可能不一样" ;; esac
   else
-    echo "  ✗ 没有 flutter（安装见 docs/release/local-tests-mac.md）"; FLUTTER_OK=0
+    echo "  ✗ 没有 flutter（安装见 $GUIDE）"; FLUTTER_OK=0
   fi
 fi
 if [ $NEED_NODE = 1 ]; then
@@ -257,11 +264,31 @@ if wants functions; then
 fi
 
 port_busy() { # port → prints "port (PID …)" when something listens on it
-  have lsof || return 1
-  local pid
-  pid="$(lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null | head -n 1)"
-  [ -n "$pid" ] && { echo "$1（进程 $pid：$(ps -p "$pid" -o comm= 2>/dev/null)）"; return 0; }
-  return 1
+  local pid name
+  if [ $IS_WIN = 1 ]; then
+    # netstat columns: Proto, Local address, Foreign address, State, PID.
+    pid="$(netstat -ano -p TCP 2>/dev/null | tr -d '\r' | awk -v p=":$1" \
+      '$4 == "LISTENING" && substr($2, length($2) - length(p) + 1) == p { print $5; exit }')"
+    [ -n "$pid" ] || return 1
+    name="$(tasklist //FI "PID eq $pid" //NH //FO CSV 2>/dev/null | head -n 1 | cut -d, -f1 | tr -d '"\r')"
+  else
+    have lsof || return 1
+    pid="$(lsof -nP -iTCP:"$1" -sTCP:LISTEN -t 2>/dev/null | head -n 1)"
+    [ -n "$pid" ] || return 1
+    name="$(ps -p "$pid" -o comm= 2>/dev/null)"
+  fi
+  echo "$1（进程 $pid：$name）"
+}
+
+# exec_cmd <script file> → the command for `firebase emulators:exec`.  On
+# Windows that command goes through cmd.exe, so it names bash.exe and the
+# file by their Windows paths.
+exec_cmd() {
+  if [ $IS_WIN = 1 ]; then
+    echo "\"$(cygpath -m "$(command -v bash)")\" \"$(cygpath -m "$1")\""
+  else
+    echo "bash \"$1\""
+  fi
 }
 busy_ports() { # ports… → list of busy ones
   local out="" p b
@@ -279,20 +306,23 @@ if wants rules; then
     run_step "准备：安装规则测试依赖" "$LOGDIR/npm_rules.log" \
       sh -c 'cd test/rules && npm install --no-audit --no-fund'
     RES="$LOGDIR/emulator_results.txt"; : >"$RES"
+    cat >"$LOGDIR/rules_emulator.sh" <<EOF
+res='$RES'
+if (cd test/rules && npm test); then echo 'rules PASS' >>"\$res"; else echo 'rules FAIL' >>"\$res"; fi
+cd functions || exit 2
+fails=''
+for t in test/*_emulator_test.js; do
+  [ -e "\$t" ] || continue
+  echo "--- \$t"
+  node "\$t" || fails="\$fails \$t"
+done
+if [ -n "\$fails" ]; then echo "emulator FAIL\$fails" >>"\$res"; else echo 'emulator PASS' >>"\$res"; fi
+! grep -q FAIL "\$res"
+EOF
     run_step "Firestore 规则测试 + Functions 模拟器测试（自动起停模拟器）" \
       "$LOGDIR/rules_emulator.log" \
-      firebase emulators:exec --only firestore --project loneliness-pilot-dev "
-        res='$RES'
-        if (cd test/rules && npm test); then echo 'rules PASS' >>\"\$res\"; else echo 'rules FAIL' >>\"\$res\"; fi
-        cd functions || exit 2
-        fails=''
-        for t in test/*_emulator_test.js; do
-          [ -e \"\$t\" ] || continue
-          echo \"--- \$t\"
-          node \"\$t\" || fails=\"\$fails \$t\"
-        done
-        if [ -n \"\$fails\" ]; then echo \"emulator FAIL\$fails\" >>\"\$res\"; else echo 'emulator PASS' >>\"\$res\"; fi
-        ! grep -q FAIL \"\$res\""
+      firebase emulators:exec --only firestore --project loneliness-pilot-dev \
+        "$(exec_cmd "$LOGDIR/rules_emulator.sh")"
     echo "  分开看："
     note=""
     if grep -q '^rules PASS' "$RES"; then echo "    ✓ Firestore 规则测试"
@@ -318,15 +348,18 @@ if wants privacy; then
   elif [ -n "$busy" ]; then
     skip_step "隐私脚本测试（删除参与者等）" "端口被占用：$busy"
   elif ensure_functions_deps; then
+    cat >"$LOGDIR/privacy.sh" <<'EOF'
+fails=""
+for t in delete_participant_test set_shared_context_consent_test purge_tester_data_test; do
+  echo "--- $t"
+  NODE_PATH=functions/node_modules node "test/delete_participant/$t.js" || fails="$fails $t"
+done
+[ -z "$fails" ] || { echo "FAILED:$fails"; exit 1; }
+EOF
     run_step "隐私脚本测试（删除参与者、共享同意、清测试员）" "$LOGDIR/privacy.log" \
       firebase emulators:exec --config test/delete_participant/firebase.json \
         --only auth,firestore,storage --project loneliness-pilot-dev \
-        'fails=""
-         for t in delete_participant_test set_shared_context_consent_test purge_tester_data_test; do
-           echo "--- $t"
-           NODE_PATH=functions/node_modules node "test/delete_participant/$t.js" || fails="$fails $t"
-         done
-         [ -z "$fails" ] || { echo "FAILED:$fails"; exit 1; }'
+        "$(exec_cmd "$LOGDIR/privacy.sh")"
   else
     skip_step "隐私脚本测试" "npm ci 失败"
   fi

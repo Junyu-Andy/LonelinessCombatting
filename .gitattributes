@@ -4,3 +4,6 @@ docs/history.md merge=union
 docs/STUDY_CHANGELOG.md merge=union
 docs/dev/architecture.md merge=union
 docs/dev/backlog.md merge=union
+
+# Shell scripts keep LF line endings on Windows too (Git Bash cannot run CRLF scripts).
+*.sh text eol=lf
