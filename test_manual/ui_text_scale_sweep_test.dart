@@ -644,8 +644,9 @@ final _flows = <String, _Flow>{
         await c.tester.pumpAndSettle();
         expect(find.text(MoodRowCopy.m8), findsOneWidget);
         await c.shot('home_v2_page1_m8');
-        await _scrollInto(c, find.text('問卷開咗，請盡快回答。'));
-        expect(find.text('問卷開咗，請盡快回答。'), findsOneWidget);
+        // 1020l §二 (1): the row's title has no full stop.
+        await _scrollInto(c, find.text('問卷開咗，請盡快回答'));
+        expect(find.text('問卷開咗，請盡快回答'), findsOneWidget);
         await c.shot('home_v2_page1_todo');
         await _scrollTap(c, find.byKey(const Key('safety_footer_call_18111')));
         await c.shot('home_v2_page1_bottom');

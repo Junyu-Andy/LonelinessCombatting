@@ -261,6 +261,13 @@ void main() {
       expect(HomeV2Copy.w4(DateTime(2026, 10, 25)),
           '下次問卷：10月25日（星期日）開，開咗之後三日內答都得。');
       expect(HomeV2Copy.w5(HomeV2Copy.w5Tomorrow), '問卷開咗，聽日截止。');
+      // 1020l §二 (1): two lines.
+      expect(HomeV2Copy.w5DeadlineTemplate, rows['W5-2']![2]);
+      expect(HomeV2Copy.w5Deadline(DateTime(2026, 10, 24)),
+          '10月24日（星期六）截止');
+      expect(HomeV2Copy.w4Title, '下次問卷');
+      expect(HomeV2Copy.w4Subtitle(DateTime(2026, 10, 25)),
+          '10月25日（星期日）開，開咗之後三日內答都得。');
     });
 
     test('1020e 二.12: the five face words F1–F5 = check-in Q1 words', () {
