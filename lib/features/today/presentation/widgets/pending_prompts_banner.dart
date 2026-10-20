@@ -35,11 +35,19 @@ import '../../../weekly_pr/data/weekly_pr_trigger.dart';
 import '../../../weekly_pr/presentation/pages/weekly_pr_page.dart';
 
 class PendingPromptsBanner extends StatefulWidget {
-  const PendingPromptsBanner({super.key, this.preset});
+  const PendingPromptsBanner({
+    super.key,
+    this.preset,
+    this.hideWeeklyBundle = false,
+  });
 
   /// Tests and screenshots: show these prompts instead of querying.
   @visibleForTesting
   final PendingPrompts? preset;
+
+  /// 1020 D / G (2): page 1's questionnaire row already shows the weekly
+  /// bundle, so this banner leaves its card out (no two cards).
+  final bool hideWeeklyBundle;
 
   @override
   State<PendingPromptsBanner> createState() => _PendingPromptsBannerState();
@@ -281,7 +289,7 @@ class _PendingPromptsBannerState extends State<PendingPromptsBanner> {
         onTap: _openWeek2,
       ));
     }
-    final wb = p.weeklyBundle;
+    final wb = widget.hideWeeklyBundle ? null : p.weeklyBundle;
     if (wb != null) {
       // T24 — final copy (10/15 item 6 C(8), docs/spec/copy S14).
       tiles.add(_BannerTile(

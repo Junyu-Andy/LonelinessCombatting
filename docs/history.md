@@ -58,6 +58,24 @@
 - 页面清单、量出来的数字、截图（测试渲染，不是真机）和真机步骤：`docs/dev-reports/keyboard-20261020.md`。测试 `test/keyboard_compact_header_test.dart`（加进 CI 两套 Phase B）。
 - 待 Junyu：开不开开关、缩小后标题要不要一句新话、表格页要不要也缩、决策编号（草稿 `NNNN-keyboard-compact-header.md`）。另发现「個人資料 → 修改」弹出框键盘一出就溢出（另一个问题，没改）。
 - 10/20 跟进（1020e 一.(11)）：Junyu 接受以上做法，开关真机测过再开。同一 PR 修弹出框（不放开关，两组一样）：`personalization_page.dart` 四格放进 `SingleChildScrollView`（`Flexible`），「儲存」固定在下面，`useSafeArea: true`；新测试 `test/profile_editor_keyboard_test.dart`（360×640、1.30、键盘 300：无溢出、「儲存」按得到；旧代码 5 个全失败）。修前修后截图在同一截图夹。
+## 2026-10-20 1020 第 3 批跟进 1020e：check-in 一行做完可撳、问卷一行按日子写、表情字统一、心情图读 daily_mood、会话记 entrySurface（同一分支，PR #133 草稿）
+
+- 结论：Junyu 10/20 对第 3 批的回复（1020e 一.(6)(9)、二.1 (5)、2 (4)、11、12）全部做完，都在原来两个开关后面。第 6 项（第 2 批改 v3 后重做 v4）等协调窗口通知。
+- `entrySurface`：新文件 `lib/core/session/session_entry_surface.dart`；`HomeSurfaceScope`（`home_v2_scope.dart`）包住第一、二页，从那里打开的页面里开始的会话（聊天和工具）写 `sessions.entrySurface`；只在 `homeLayoutV2Enabled` 开时写；`functions/process_export.js` 导出。
+- 问卷一行：`QuestionnaireOpenState` 从排程给的窗口算（最后一天／前一天／更早；第 4 周按 `WeeklyCloseRule.week4`），不写死第几天。
+- 心情图：`ProgressRepository.lastMoodPerDay`、`progress_page.dart` 的七格图；`facts_recap_row.dart` 在两页版面下进「你嘅一個禮拜」。
+- 测试、截图、报告第 0 节已更新；Flutter 六套、相关 Functions 测试通过。
+
+## 2026-10-20 1020 第 3 批（D、E、G (2)）：首页分两页、心情一行不弹窗、M7／M8 进小欣聊天、问卷一行、做啲嘢工具图（分支 `claude/zealous-fermat-8rgqtg-batch3`，PR 草稿）
+
+- 结论：两个新开关 `homeLayoutV2Enabled`、`moodRowV2Enabled` 默认关，关时一切照旧。开时第一页「睇今日」只放今天的事（问候、心情一行、「今日要做嘅事」、「去搵人傾」、本周小结、危机卡），第二页「搵人傾」放邀请卡、继续聊天卡、第一周提示和三位伙伴；心情一行没有任何弹窗；M7／M8 进小欣聊天，规则组用 O／C 模板开场（零 LLM），Hybrid 组 LLM 开场（新提示词 `siu_yan.v4`）。
+- 第一页：`today_page.dart` 按开关建新版面；新文件 `today_todo_rows.dart`（check-in 一行并入三天提醒、问卷一行 W4／W5、「去搵人傾」）、`home_v2_scope.dart`（刷新信号和测试接口）；`lib/app/home_tab_switcher.dart` 让大按钮切到第二个 tab。`PendingPromptsBanner` 多一个 `hideWeeklyBundle`，问卷一行出现时不再出每周问卷卡。
+- 心情一行：`mood_row_v2.dart`（状态 M1–M8），文字 `mood_row_copy.dart`、`home_v2_copy.dart`（照 `docs/spec/copy/home-v2.md`），存储 `mood_row_store.dart`（`daily_mood` 照旧经 `MoodRecorder`；「遲啲先答」和 M7 用过的日子存手机本地）。`greeting_hero.dart` 开关开时用新一行，旧表情板、小条、对话框不建。
+- 1020b 第二节：`RemoteFeatureFlags.homeMoodOpensCheckInActive`（心情一行开时恒为假）、`briefPrHomeBannerActive`（新版面开时恒为假）、`dailyMoodPopupActive`；测试覆盖。
+- 小欣聊天窗口：新参数 `moodEntry`（`MoodChatEntry`），进来直接是聊天；`activePromptKey` 在心情一行开时用 `siu_yan_v4`。新提示词 `siu_yan.v4.txt` = v3 + 「從首頁心情入嚟（開場）」一节，`prompt_registry.js`、`build_info.g.dart`、指纹测试都加上；v3 不动。
+- 做啲嘢：`assets/tools/` 四张定稿图，`MeListItem` 多 `image`、`tileColor`，开关开时用。
+- 测试：`test/home_v2_test.dart`、`test/mood_row_v2_test.dart`（加进 CI 两套 Phase B 构建）、`final_copy_test.dart` 加 `home-v2.md`、文字扫描加五个流程、Functions 加 `prompt_siu_yan_v4_test.js`、`prompt_siu_yan_v4_emulator_test.js`。报告 `docs/dev-reports/T53-T54-batch3-20261020.md`，截图 `docs/dev-reports/batch3-20261020-shots/`。
+- 待 Junyu：文字定稿（5.1、5.2、5.5 和 D1–D4）、v4 新一节措辞、表情下的字要不要改成 Q1 的说法、W5 天数算法、决策编号（草稿 `NNNN-home-two-pages-mood-row.md`）。
 ## 2026-10-19 第 2 批跟进（1020e 二.5、二.8、二.9、二.10、二.12；PR #128）
 
 - 结论：Hybrid 组 Q4 唔講住改叫模型（一句、不建议、不提问，失败回落 R4b）；规则组中度复核用 SN；check-in 因急性停下后，研究员标「誤觸」，老人当天可从停下那题接着做；Q1 按钮由低到高；输入框提示只讲打字。

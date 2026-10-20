@@ -44,6 +44,8 @@ flutter:
     - assets/images/
     - assets/agents/
     - assets/config/
+    # 1020 batch 3 — 做啲嘢 tool pictures (Junyu's final art, 512×512).
+    - assets/tools/
     # Phase A baseline — single source of truth shared with the Cloud
     # Functions bundle (S-3 templates, S-4 crisis resources).  Bundled so
     # the client shows the same strings the server would return.

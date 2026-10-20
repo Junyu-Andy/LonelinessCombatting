@@ -28,9 +28,14 @@ const _promptCache = {};
 //   check-in is done).  Only the chat window behind the App switch
 //   checkInChatV2Enabled sends `siu_yan_v3`; every other 小欣 call still
 //   sends `siu_yan_v1` and gets v2.
+//   1020 E (2026-10-20): 小欣 v4 = v3 plus one section, 「從首頁心情入嚟
+//   （開場）」 (the opener when the elder comes in from the mood row's M7 /
+//   M8).  The chat window sends `siu_yan_v4` only while the App switch
+//   moodRowV2Enabled is on; off, it keeps sending `siu_yan_v3`.
 const PROMPT_FILES = {
   siu_yan_v1: "siu_yan.v2",
   siu_yan_v3: "siu_yan.v3",
+  siu_yan_v4: "siu_yan.v4",
   ah_jan_ah_bak_v1: "ah_jan_ah_bak.v2",
   tung_tung_v1: "tung_tung.v3",
 };

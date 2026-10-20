@@ -6,6 +6,7 @@ import '../../../action_loop/data/action_plan.dart';
 import '../../../action_loop/presentation/pages/action_loop_followup_page.dart';
 import '../../../action_loop/presentation/pages/action_loop_landing.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
+import '../home_v2_scope.dart';
 
 /// Today's active M7 plan banner. Surfaces the next pending plan scheduled
 /// for today (or, if none scheduled today, the oldest pending plan whose
@@ -152,14 +153,17 @@ class _Banner extends StatelessWidget {
   }
 
   void _open(BuildContext context, bool isOverdue) {
+    // 1020e 一.(9): on page 1 a tool session records entrySurface.
     if (isOverdue) {
-      Navigator.of(context).push(
+      HomeSurfaceScope.push(
+        context,
         MaterialPageRoute<void>(
           builder: (_) => ActionLoopFollowUpPage(plan: plan),
         ),
       );
     } else {
-      Navigator.of(context).push(
+      HomeSurfaceScope.push(
+        context,
         MaterialPageRoute<void>(
           builder: (_) => const ActionLoopLandingPage(),
         ),
