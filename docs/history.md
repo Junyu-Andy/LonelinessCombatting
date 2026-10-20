@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-20 测试员原文查看工具和 10/21 原文测试指引（分支 `claude/zealous-fermat-8rgqtg-readtx`，基于冻结分支，未开 PR）
+
+- 结论：新加只读脚本 `tool/read_transcripts.js`，Junyu 可以自己看一个**测试员账号**存下的研究原文（`chat_transcripts`）：按会话分组、按时间排、香港时间、回复保留换行。新加一页测试指引 `docs/release/transcript-test-1021.md`：两组各用一个测试员账号，做 check-in、和小欣聊两句、回忆第 1 周、一句急性测试句，逐行核对。App、规则、Functions 都没改，参与者看到的不变，所以没有 STUDY_CHANGELOG。
+- 只限测试员：脚本先只读 `users/{uid}` 的 `isTester` 一个字段，不是 `true` 就拒绝，原文一行不读。不读、不显示研究编号、电邮、组别，不碰分配序列和分配记录。正式的读取工具（给非盲角色、按研究编号、带审计记录）冻结后做，已记在 backlog。
+- 安全做法照其他 tool 脚本：默认模拟器；正式项目要 `--project` 和 `--production-confirm`，这样跑是试运行（只核对账号、数行数，不读原文），再加 `--production` 才显示原文。
+- 测试：`functions/test/read_transcripts_emulator_test.js`（合成数据：旧格式和新格式行、陪伴者行、按钮行、急性行，顺序、分组、换行；非测试员、`isTester` 是字符串、账号不存在都被拒，并用记录调用的包装证明只读了那一个字段；试运行只读时间字段；什么都不写；不显示电邮、研究编号、组别）。`tool/ci_backend_tests.sh` 的模拟器循环自动跑到；本地 41 个模拟器测试全过。
 ## 2026-10-20 研究原文补全：陪伴者的每一句都存（decisions-log 第 65、80、99/100 条，分支 `claude/zealous-fermat-8rgqtg-transcript2`，并入 #151）
 
 - 结论：研究用原文（`chat_transcripts`）现在存下老人的每一句（含按的按钮）和陪伴者显示的每一个气泡，两组相同。不加新开关，仍看 `researchTranscriptEnabled`。老人看到的不变，`turns` 和埋点不变，规则组零 LLM 不变。决策 0069（部分取代 0063）。
