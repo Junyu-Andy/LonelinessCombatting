@@ -42,8 +42,8 @@
  * marks after the window.  Copy is final since 10/15 (item 6); a draft
  * override carrying 【占位】 is never sent, so nothing is
  * sent until the research team signs the text off (counted as
- * blocked_placeholder, like T18).  Quiet hours (functions/quiet_hours.js)
- * postpone a push to the next tick.
+ * blocked_placeholder, like T18).  Quiet hours (functions/quiet_hours.js;
+ * 1020o: the elder's own window first) postpone a push to the next tick.
  *
  * Reminders v2 (dev-tasks-1020 G(1) as changed by 1020e 二.1–二.3) —
  * switch app_config/feature_flags.weeklyReminderV2Enabled (literal true;

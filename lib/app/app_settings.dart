@@ -5,18 +5,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../features/auth/data/user_profile.dart';
 
 /// Single source of truth for user-facing preferences that need to apply
-/// app-wide (locale, high-contrast, font scale, the two notification
-/// switches, current signed-in profile).
+/// app-wide (locale, high-contrast, font scale, the read-back switch,
+/// current signed-in profile).
 ///
 /// Lives above [MaterialApp] via [ChangeNotifierProvider]-style inheritance
 /// (see [AppSettingsScope]) so any widget can listen without pulling in
 /// `provider` / `riverpod`.
 ///
-/// T37: the display settings (font scale, high contrast) and the two
-/// notification switches (安靜時段, 語音讀出內容) are kept on the device with
+/// T37: the display settings (font scale, high contrast) and the
+/// notification switch 語音讀出內容 are kept on the device with
 /// `shared_preferences`.  [restore] reads them in `main()` before the first
 /// frame; every setter writes its value back.  Before T37 they lived only
 /// in memory and reset to the defaults each time the App was closed.
+/// 1020o: the old 安靜時段 on/off value (`notifications.quietHours`, and
+/// its copy `users/{uid}.quietHoursEnabled`) is gone — the elder sets the
+/// window's times instead (UserProfile.quietHoursStart / quietHoursEnd).
 /// P4.1 — supported MediaQuery text scale multipliers for the
 /// elderly-friendly font sizing toggle in Settings.
 ///
@@ -58,7 +61,6 @@ class AppSettings extends ChangeNotifier {
     bool highContrast = false,
     AppFontScale fontScale = AppFontScale.standard,
     bool appOnlyScaleSettled = false,
-    bool quietHours = true,
     bool voiceReadback = false,
     UserProfile? profile,
     SharedPreferences? store,
@@ -66,7 +68,6 @@ class AppSettings extends ChangeNotifier {
         _highContrast = highContrast,
         _fontScale = fontScale,
         _appOnlyScaleSettled = appOnlyScaleSettled,
-        _quietHours = quietHours,
         _voiceReadback = voiceReadback,
         _profile = profile,
         _store = store;
@@ -75,7 +76,6 @@ class AppSettings extends ChangeNotifier {
   /// (`standard` / `large` / `xLarge`), the rest as booleans.
   static const String keyFontScale = 'display.fontScale';
   static const String keyHighContrast = 'display.highContrast';
-  static const String keyQuietHours = 'notifications.quietHours';
   static const String keyVoiceReadback = 'notifications.voiceReadback';
 
   /// 1020c: set once, the first time the App runs with
@@ -128,7 +128,6 @@ class AppSettings extends ChangeNotifier {
       highContrast: readBool(keyHighContrast, false),
       fontScale: readFontScale(),
       appOnlyScaleSettled: readBool(keyAppOnlyScaleSettled, false),
-      quietHours: readBool(keyQuietHours, true),
       voiceReadback: readBool(keyVoiceReadback, false),
       store: prefs,
     );
@@ -138,7 +137,6 @@ class AppSettings extends ChangeNotifier {
   bool _highContrast;
   AppFontScale _fontScale;
   bool _appOnlyScaleSettled;
-  bool _quietHours;
   bool _voiceReadback;
   UserProfile? _profile;
   final SharedPreferences? _store;
@@ -181,10 +179,6 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 「通知 → 安靜時段」 (default on).  T37: persisted; not yet read by the
-  /// reminder code — the switch is the same as before, only remembered.
-  bool get quietHours => _quietHours;
-
   /// 「通知 → 語音讀出內容」 (default off).  T37: persisted, same as above.
   bool get voiceReadback => _voiceReadback;
   UserProfile? get profile => _profile;
@@ -207,13 +201,6 @@ class AppSettings extends ChangeNotifier {
     if (_fontScale == value) return;
     _fontScale = value;
     _persist((p) => p.setString(keyFontScale, value.name));
-    notifyListeners();
-  }
-
-  set quietHours(bool value) {
-    if (_quietHours == value) return;
-    _quietHours = value;
-    _persist((p) => p.setBool(keyQuietHours, value));
     notifyListeners();
   }
 

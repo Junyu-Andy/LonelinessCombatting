@@ -7,8 +7,10 @@ import '../../../../core/memory/memory_mode.dart';
 import '../../../../core/privacy/transcript_retention.dart';
 import '../../../../core/testing/tester_gate.dart';
 import '../../../../core/version/build_info.dart';
+import '../../data/quiet_hours_store.dart';
 import '../../data/tester_arm_switch.dart';
 import '../../data/tester_tools.dart';
+import '../widgets/quiet_hours_card.dart';
 import '../widgets/tester_arm_switch_card.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
@@ -225,9 +227,10 @@ class _SettingsPageState extends State<SettingsPage> {
             isEn: isEn,
           ),
           // 10/20 (dev-tasks-1020 §H): 高對比 moved one level down to
-          // 我的設定 → 顯示; the 通知 section (安靜時段, 今日休息) is gone —
-          // quiet hours are fixed on (22:00–08:00) and the server ignores
-          // quietHoursEnabled and quietTodayActivatedAt.
+          // 我的設定 → 顯示; the 通知 section (安靜時段, 今日休息) is gone
+          // from this level; the server ignores quietHoursEnabled and
+          // quietTodayActivatedAt.  1020o: 安靜時段 is back one level down,
+          // 我的設定 → 安靜時段 (「由」 / 「到」, no switch).
           const SizedBox(height: 14),
           _NavTileCard(
             key: const Key('settings_my_settings'),
@@ -1172,10 +1175,17 @@ class _SurveyPreviewButtons extends StatelessWidget {
 }
 
 /// 10/20 (dev-tasks-1020 §H(1)) — 自己 → 我的設定: the settings that left the
-/// first level.  For now only 顯示 → 高對比模式 (same switch, same stored
-/// preference as before).
+/// first level.  顯示 → 高對比模式 (same switch, same stored preference as
+/// before); 1020o 第三节 (decision 0066): 安靜時段 with 「由」 / 「到」 (no
+/// on/off switch; replaces 10/19 第 14 条 (2) "fixed on").  Both arms.
 class MySettingsPage extends StatelessWidget {
-  const MySettingsPage({super.key});
+  const MySettingsPage({
+    super.key,
+    this.quietHoursStore = const FirestoreQuietHoursStore(),
+  });
+
+  /// Where a 安靜時段 pick is written (tests: an in-memory store).
+  final QuietHoursStore quietHoursStore;
 
   @override
   Widget build(BuildContext context) {
@@ -1202,6 +1212,13 @@ class MySettingsPage extends StatelessWidget {
               value: settings.highContrast,
               onChanged: (value) => settings.highContrast = value,
             ),
+            const SizedBox(height: 28),
+            _SectionHeader(
+              icon: Icons.bedtime_outlined,
+              title: isEn ? 'Quiet hours' : '安靜時段',
+            ),
+            const SizedBox(height: 14),
+            QuietHoursCard(store: quietHoursStore),
           ],
         ),
       ),

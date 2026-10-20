@@ -50,7 +50,8 @@
  *
  * Push (Hybrid only): 「你嘅第 N 章整理好喇，得閒入嚟睇下。」 (draft copy)
  * to the elder's devices via weekly_schedule.sendToDevices, skipped in
- * quiet hours / 今日休息 — the App shows the ready state anyway.
+ * quiet hours (1020o: the elder's own window first) — the App shows the
+ * ready state anyway.
  */
 "use strict";
 

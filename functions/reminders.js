@@ -5,8 +5,11 @@
  * The app queues each reminder at users/{uid}/reminders/{id} (both arms,
  * lib/core/reminders/reminder_service.dart) but nothing ever sent them.
  * dispatchDueReminders runs from a scheduled function every 15 minutes,
- * 08:00–21:45 Hong Kong time, and sends each due `m7_followup` reminder
- * as an FCM notification to the participant's own devices (fcm_tokens).
+ * 06:00–22:45 Hong Kong time (1020o: was 08:00–21:45; widened so a
+ * personal 安靜時段 ending at 06:00 or starting at 23:00 is honoured — the
+ * default window 22:00–08:00 still holds every tick outside 08:00–21:45),
+ * and sends each due `m7_followup` reminder as an FCM notification to the
+ * participant's own devices (fcm_tokens).
  *
  * Off unless app_config/reminders.m7FollowupPushEnabled === true.
  * No arm check (both arms get the same reminder) and no LLM call.
@@ -16,8 +19,10 @@
  *     as Hong Kong time.
  *   - Not yet due → left alone.
  *   - Due more than staleHours ago (default 12) → skipped_stale, so
- *     turning the switch on never floods old reminders.  Overnight
- *     reminders go out at 08:00 (≤ ~10 h late), inside the window.
+ *     turning the switch on never floods old reminders.  A reminder that
+ *     fell inside the elder's 安靜時段 waits for the end of it and its age
+ *     counts from then (1020o: a 20:00–08:00 window is 12 h long); with
+ *     the default 22:00–08:00 window the result is the same as before.
  *   - 今日休息 used to drop the day's reminders (skipped_quiet_today);
  *     since 10/20 (dev-tasks-1020 §H(3)) it is ignored.
  *   - Linked plan deleted → skipped_plan_missing; plan already has an
@@ -145,16 +150,20 @@ function homeRowCheck(plan, fireAt) {
 /**
  * Decide what to do with one queued reminder, before any token lookup.
  * @param {object} r reminder doc data
- * @param {{now: Date, staleHours: number}} opts
+ * @param {{now: Date, staleHours: number, heldUntil: (?Date|undefined)}}
+ *     opts heldUntil: the end of the 安靜時段 fireAt fell in (1020o) — the
+ *     reminder's age counts from then
  * @return {string} "skip" | "wait" | "due" | "skipped_stale"
  */
-function classify(r, {now, staleHours}) {
+function classify(r, {now, staleHours, heldUntil}) {
   if (!r || r.kind !== KIND) return "skip";
   if (r.delivered === true || TERMINAL.has(r.dispatchStatus)) return "skip";
   const fireAt = parseFireAt(r.fireAt);
   if (!fireAt) return "skip";
   if (fireAt.getTime() > now.getTime()) return "wait";
-  if (now.getTime() - fireAt.getTime() > staleHours * 3600 * 1000) {
+  const dueFrom = heldUntil && heldUntil.getTime() > fireAt.getTime() ?
+    heldUntil : fireAt;
+  if (now.getTime() - dueFrom.getTime() > staleHours * 3600 * 1000) {
     return "skipped_stale";
   }
   return "due";
@@ -174,7 +183,8 @@ async function readConfig(db) {
     enabled: data.m7FollowupPushEnabled === true,
     staleHours: num(data.staleHours, DEFAULTS.staleHours),
     maxAttempts: num(data.maxAttempts, DEFAULTS.maxAttempts),
-    // 10/14: the elder's 安靜時段 window (functions/quiet_hours.js).
+    // 10/14: the global 安靜時段 window (functions/quiet_hours.js); 1020o:
+    // the elder's own users/{uid}.quietHoursStart / End come first.
     quiet: quietHours.quietHoursConfigFrom(data),
   };
 }
@@ -232,10 +242,14 @@ async function dispatchDueReminders(db, messaging, opts = {}) {
  */
 async function dispatchOne(db, messaging, userDoc, user, rem, cfg, now) {
   const r = rem.data() || {};
-  const state = classify(r, {now, staleHours: cfg.staleHours});
+  const fireAt = parseFireAt(r.fireAt);
+  const heldUntil = fireAt ?
+    quietHours.quietEndAfter(user, fireAt, cfg.quiet) : null;
+  const state = classify(r, {now, staleHours: cfg.staleHours, heldUntil});
   if (state === "skip" || state === "wait") return null;
   // 10/14: inside the elder's 安靜時段 the reminder waits for a later tick
-  // (classify() still turns it stale after staleHours).
+  // (classify() still turns it stale after staleHours).  1020o: the
+  // elder's own window (users/{uid}.quietHoursStart / End) first.
   if (state === "due" && quietHours.inQuietHours(user, now, cfg.quiet)) {
     return null;
   }

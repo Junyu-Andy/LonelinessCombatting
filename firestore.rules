@@ -55,6 +55,7 @@ rules_version = '2';
 //   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events, 1020c reader_* rows, 1020m home_small_action_* rows (owner: create only; server stamps research ID, study day, uploadedLate)
 //   intake_audit_log/{id}                        -> T47 researcher-recorded intake log (server-only)
 //   users/{uid}.intakeGateUnlockedAt             -> 1020e §2.14 explanation gate unlocked (owner: once, server time only)
+//   users/{uid}.quietHoursStart|quietHoursEnd    -> 1020o 安靜時段 「由」/「到」 (owner: only the allowed half-hour values)
 //   ops_daily/{uid}/days/{dayKey}, ops_audit_log/{id} -> T39 operations dashboard: stored day rows + open log (server only)
 //   users/{uid}/reminiscence_chapters/week_{N}   -> 1020d 小篇章 (owner: request, rule text, edits; server: result fields;
 //                                                   .../runs/{requestId} archive is server only)
@@ -203,15 +204,49 @@ service cloud.firestore {
             && request.resource.data.intakeGateUnlockedAt == request.time);
     }
 
+    // 1020o 第三节 (decision 0066): the elder's own 安靜時段 —
+    // `quietHoursStart` (「由」) and `quietHoursEnd` (「到」), Hong Kong
+    // "HH:mm".  Only the values the App's pickers offer are accepted
+    // (【待 Junyu 定】: start 20:00–23:00, end 06:00–08:00, half-hour
+    // steps; the same lists as functions/quiet_hours.js RANGE and
+    // lib/core/notifications/quiet_hours_range.dart).  Checked only when a
+    // write sets or changes the field, so ordinary profile saves (which
+    // leave both out) pass whatever is stored; removing one is refused.
+    function quietStartValues() {
+      return ['20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00'];
+    }
+
+    function quietEndValues() {
+      return ['06:00', '06:30', '07:00', '07:30', '08:00'];
+    }
+
+    function createQuietHoursOk(data) {
+      return (!('quietHoursStart' in data)
+          || data.quietHoursStart in quietStartValues())
+        && (!('quietHoursEnd' in data)
+          || data.quietHoursEnd in quietEndValues());
+    }
+
+    function updateQuietHoursOk() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let d = request.resource.data;
+      return (!changed.hasAny(['quietHoursStart'])
+          || d.get('quietHoursStart', null) in quietStartValues())
+        && (!changed.hasAny(['quietHoursEnd'])
+          || d.get('quietHoursEnd', null) in quietEndValues());
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)
         && createLeavesAssignmentEmpty(request.resource.data)
         && createLeavesTesterEmpty(request.resource.data)
-        && createIntakeGateOk(request.resource.data);
+        && createIntakeGateOk(request.resource.data)
+        && createQuietHoursOk(request.resource.data);
       allow update: if isOwner(uid) && updateLeavesAssignmentUntouched()
         && updateLeavesTesterUntouched()
-        && updateIntakeGateOk();
+        && updateIntakeGateOk()
+        && updateQuietHoursOk();
       allow delete: if false;
     }
 
@@ -510,7 +545,8 @@ service cloud.firestore {
         && d.platform is string
         && d.schemaVersion == 1
         && (usageLifecycleValid(d) || usageReaderValid(d)
-            || usageHomeSmallActionValid(d));
+            || usageHomeSmallActionValid(d)
+            || usageQuietHoursValid(d));
     }
 
     // T40 foreground / background: the base fields only.
@@ -564,6 +600,21 @@ service cloud.firestore {
             && usageReaderOnly(d, ['planId', 'moved'])
             && planIdOk(d.planId)
             && d.moved is bool);
+    }
+
+    // 1020o 第三节: one row per change of 安靜時段 — `field` (start / end),
+    // `from` (the time shown before) and `to` (the time picked; an
+    // allowed value).  Times only, no text.
+    function hhmmOk(v) {
+      return v is string && v.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+    }
+
+    function usageQuietHoursValid(d) {
+      return d.type == 'quiet_hours_changed'
+        && usageReaderOnly(d, ['field', 'from', 'to'])
+        && hhmmOk(d.from)
+        && ((d.field == 'start' && d.to in quietStartValues())
+          || (d.field == 'end' && d.to in quietEndValues()));
     }
 
     match /users/{uid}/usage_events/{eventId} {
