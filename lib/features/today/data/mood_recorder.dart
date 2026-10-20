@@ -33,10 +33,16 @@ class MoodRecorder {
 
   FirebaseFirestore get _db => _dbOverride ?? FirebaseFirestore.instance;
 
+  /// The Hong Kong calendar day of [t] (`yyyy-MM-dd`), whatever the
+  /// phone's time zone (1020h 一 (4)): the server keys a day the same way
+  /// (functions/pi_alert.js `hkDateKey`, used by false_alarm.js and the
+  /// P1 / P2 pushes).  Hong Kong keeps UTC+8 all year (no daylight saving).
+  /// On a phone set to Hong Kong time this is the phone's own date.
   static String dateIsoFor(DateTime t) {
-    final y = t.year.toString().padLeft(4, '0');
-    final m = t.month.toString().padLeft(2, '0');
-    final d = t.day.toString().padLeft(2, '0');
+    final hk = t.toUtc().add(const Duration(hours: 8));
+    final y = hk.year.toString().padLeft(4, '0');
+    final m = hk.month.toString().padLeft(2, '0');
+    final d = hk.day.toString().padLeft(2, '0');
     return '$y-$m-$d';
   }
 

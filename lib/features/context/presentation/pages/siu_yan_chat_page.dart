@@ -311,22 +311,35 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       return;
     }
     // 1020e 二.9 — a crisis stop the researcher marked 誤觸 today: carry
-    // on from the question where it stopped.
-    final resume = uid == null ? null : await _findResumable(uid);
+    // on from the question where it stopped.  1020h 一 — a crisis stop
+    // today that is not marked counts as today's check-in, as on the
+    // server (no P2): the window opens as the chat, the same way as when
+    // the check-in was done (rule arm SY0, Hybrid the chat opener), and
+    // the next day starts a new check-in.
+    final today = uid == null ? null : await _todayStops(uid);
     if (!mounted) return;
+    final resume = today?.resume;
     if (resume != null) {
       _resumeCheckIn(resume.$1, resume.$2, resume.$3);
+    } else if (today?.stoppedUnmarked ?? false) {
+      setState(() => _stage = _Stage.chat);
+      await _seedChatOpener();
     } else {
       _beginCheckIn();
     }
   }
 
-  /// 1020e 二.9 — today's stopped chat check-in row that the researcher
-  /// marked a false alarm (`falseAlarm: true`, server-written), not yet
-  /// completed and not yet resumed: (id, row, stopped question).  Only
-  /// today's rows are read, so nothing is resumed the next day.
-  Future<(String, Map<String, dynamic>, String)?> _findResumable(
-      String uid) async {
+  /// Today's (Hong Kong date) crisis-stopped chat check-in rows:
+  /// - [resume]: one the researcher marked a false alarm (`falseAlarm:
+  ///   true`, server-written), not yet completed and not yet resumed —
+  ///   (id, row, stopped question) — 1020e 二.9;
+  /// - [stoppedUnmarked]: one not marked — 1020h 一.
+  /// Only today's rows are read, so nothing carries over to the next day.
+  Future<
+      ({
+        (String, Map<String, dynamic>, String)? resume,
+        bool stoppedUnmarked,
+      })?> _todayStops(String uid) async {
     Map<String, Map<String, dynamic>> rows;
     try {
       rows = await _responses.rowsForDay(
@@ -338,19 +351,24 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       for (final r in rows.values)
         if (r['resumed_from'] is String) r['resumed_from'] as String,
     };
+    (String, Map<String, dynamic>, String)? resume;
+    var stoppedUnmarked = false;
     for (final e in rows.entries) {
       final r = e.value;
       if (r['flow'] != 'chat_v2' ||
           r['stopped_by_safety'] != true ||
-          r['falseAlarm'] != true ||
-          r['completed'] == true ||
-          resumed.contains(e.key)) {
+          r['completed'] == true) {
         continue;
       }
+      if (r['falseAlarm'] != true) {
+        stoppedUnmarked = true;
+        continue;
+      }
+      if (resumed.contains(e.key)) continue;
       final at = CheckInChatRecord.stoppedQuestionOf(r);
-      if (at != null) return (e.key, r, at);
+      if (at != null) resume ??= (e.key, r, at);
     }
-    return null;
+    return (resume: resume, stoppedUnmarked: stoppedUnmarked);
   }
 
   /// 1020e 二.9 — continue a stopped check-in: a new record carries the
