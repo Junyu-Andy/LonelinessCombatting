@@ -7,21 +7,14 @@
 //   - check-in-chat.md (1020 F) and home-v2.md (1020 D, E, G (2)): drafts.
 import 'dart:io';
 
-import 'package:app_demo/app/app_settings.dart';
-import 'package:app_demo/app/app_settings_scope.dart';
 import 'package:app_demo/core/config/usage_copy.dart';
 import 'package:app_demo/core/voice/voice_copy.dart';
-import 'package:app_demo/features/auth/data/auth_service.dart';
-import 'package:app_demo/features/auth/presentation/auth_service_scope.dart';
 import 'package:app_demo/features/context/data/check_in_chat_copy.dart';
 import 'package:app_demo/features/context/data/siu_yan_rule_chat_pool.dart';
 import 'package:app_demo/features/curious_companion/data/tung_tung_search_intent.dart';
-import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_landing.dart';
 import 'package:app_demo/features/rule_replies/data/rule_reply_pool.dart';
 import 'package:app_demo/features/today/data/home_v2_copy.dart';
 import 'package:app_demo/features/today/data/mood_row_copy.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Table rows of a spec file as trimmed cells (header / rule rows kept;
@@ -134,33 +127,10 @@ void main() {
       expect(VoiceCopy.s6TranscriptionFailed, short['S6']);
     });
 
-    test('S3: reminiscence landing count sentence', () {
-      expect(ReminiscenceLandingPage.s3(4), short['S3']);
-    });
-
-    testWidgets('S3: shown on the landing page', (tester) async {
-      await tester.pumpWidget(
-        AppSettingsScope(
-          settings: AppSettings(locale: const Locale('zh')),
-          child: AuthServiceScope(
-            authService: AuthService(available: false),
-            child: const MaterialApp(
-              locale: Locale('zh'),
-              supportedLocales: [Locale('zh'), Locale('en')],
-              localizationsDelegates: [
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              home: ReminiscenceLandingPage(),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      expect(find.textContaining(short['S3']!), findsOneWidget);
-      expect(find.textContaining('4 個禮拜'), findsNothing);
-    });
+    // S3 (the landing count sentence) was replaced on 10/20 by the
+    // companion's bubble (1020o 第四节; reminiscence-v2.md L-INTRO, checked
+    // in test/reminiscence_v2_copy_test.dart and
+    // test/selfpage_landing_1020o_test.dart).
 
     test('S5: onboarding usage advice', () {
       expect(UsageCopy.onboardingUsageAdviceS5, short['S5']);
