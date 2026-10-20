@@ -8,7 +8,9 @@
 ///   (b) Brief PR invitation — the existing BriefPrCardHost (TodayPage).
 ///   (c) [QuestionnaireTodoRow] — W5 while a weekly questionnaire is open
 ///       (請盡快回答 / 聽日截止 / 今晚截止; week 4 記得喺見面之前答埋佢 —
-///       1020e), else W4 (the next opening day by study week).
+///       1020e), else W4 (the next opening day by study week).  1020l §二
+///       (1): two lines like the check-in row — a title, then a small
+///       line with the deadline day (W5-2) or the opening day (W4).
 ///   (d) the action-plan follow-up — the existing ActivePlanBanner.
 library;
 
@@ -279,6 +281,7 @@ class QuestionnaireRowInfo {
 
   bool get isOpen => due != null;
 
+  /// The whole sentence (W4 / W5), as in the spec.
   String get text => switch (state) {
         null => HomeV2Copy.w4(opensOn!),
         QuestionnaireOpenState.asap => HomeV2Copy.w5(HomeV2Copy.w5Asap),
@@ -288,6 +291,32 @@ class QuestionnaireRowInfo {
         QuestionnaireOpenState.beforeVisit =>
           HomeV2Copy.w5(HomeV2Copy.w5BeforeVisit),
       };
+
+  /// 1020l §二 (1) — the row's title line: W5 without its full stop (a
+  /// title, like 「同小欣 check-in」; it then fits one line on a 360-wide
+  /// phone at the standard size); W4 up to its colon (`下次問卷`).
+  String get title {
+    if (state == null) return HomeV2Copy.w4Title;
+    final t = text;
+    return t.endsWith('。') ? t.substring(0, t.length - 1) : t;
+  }
+
+  /// 1020l §二 (1) — the small second line: W4 after its colon (the opening
+  /// day …); W5-2 (the window's last day) while open in weeks 1–3 / 5–7;
+  /// none in week 4 (closes after the visit, no date to give).
+  String? get subtitle {
+    final s = state;
+    if (s == null) return HomeV2Copy.w4Subtitle(opensOn!);
+    if (s == QuestionnaireOpenState.beforeVisit) return null;
+    return HomeV2Copy.w5Deadline(lastDay(due!.window));
+  }
+
+  /// The calendar day of the window's last instant (a window ending at
+  /// 00:00 ends the day before).
+  static DateTime lastDay(WeeklyWindow window) {
+    final last = window.close.subtract(const Duration(microseconds: 1));
+    return DateTime(last.year, last.month, last.day);
+  }
 
   /// From the window the App's schedule gives (no day numbers here, so a
   /// moved window — batch 4's day 7 00:00 – day 9 23:59, the week-4 close
@@ -455,6 +484,10 @@ class _QuestionnaireTodoRowState extends State<QuestionnaireTodoRow>
     HomeV2Refresh.bump();
   }
 
+  /// 1020l §二 (1): the same tile as the check-in row — a title line and a
+  /// small second line (the deadline day, or the opening day), the arrow
+  /// only when it opens the questionnaire.  Tapping is unchanged: open →
+  /// the questionnaire; not yet open → nothing.
   @override
   Widget build(BuildContext context) {
     final info = _info;
@@ -467,7 +500,8 @@ class _QuestionnaireTodoRowState extends State<QuestionnaireTodoRow>
       leading: info.isOpen
           ? Icons.assignment_outlined
           : Icons.event_available_outlined,
-      title: info.text,
+      title: info.title,
+      subtitle: info.subtitle,
       onTap: due == null ? null : () => _open(due),
     );
   }

@@ -303,8 +303,11 @@ void main() {
         expect(find.byType(BottomSheet), findsNothing);
         expect(find.text(MoodRowCopy.m1), findsOneWidget);
         expect(p1(find.text(HomeV2Copy.checkInRow)), findsOneWidget);
-        // W0 10/14, today 10/20 (day 6): W1 opens on 10/21.
-        expect(p1(find.text('下次問卷：10月21日（星期三）開，開咗之後三日內答都得。')),
+        // W0 10/14, today 10/20 (day 6): W1 opens on 10/21.  1020l §二 (1):
+        // W4 on two lines (title, small second line).
+        expect(p1(find.text('下次問卷')),
+            FeatureFlags.phaseB ? findsOneWidget : findsNothing);
+        expect(p1(find.text('10月21日（星期三）開，開咗之後三日內答都得。')),
             FeatureFlags.phaseB ? findsOneWidget : findsNothing);
         expect(p1(find.text(HomeV2Copy.goTalk)), findsOneWidget);
         if (run.rule) expect(run.llm.calls, isEmpty);

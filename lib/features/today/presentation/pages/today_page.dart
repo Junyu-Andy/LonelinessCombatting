@@ -85,6 +85,9 @@ class _TodayPageState extends State<TodayPage> {
   /// M-3 sheet — only in the old layout with the old pad (1020 D, E (1)).
   void _maybeDailyMoodPopup() {
     if (!RemoteFeatureFlags.current.dailyMoodPopupActive) return;
+    // 1020l: it reads Firestore — never without Firebase (guest mode,
+    // widget tests).  The App always has Firebase: unchanged there.
+    if (!AuthServiceScope.of(context).available) return;
     unawaited(DailyMoodPrompt.maybeShow(context));
   }
 
@@ -150,8 +153,10 @@ class _TodayPageState extends State<TodayPage> {
           // Compliance banners — each hides itself when nothing is due,
           // so the happy path matches the spec's seven-item layout but
           // study-critical nudges still surface when the protocol calls
-          // for them.
-          const PendingPromptsBanner(),
+          // for them.  1020l: it reads Firestore, so (as on the new page 1)
+          // only with Firebase — guest mode and widget tests leave it out.
+          if (AuthServiceScope.of(context).available)
+            const PendingPromptsBanner(),
           // P-1 — first-week "try {agent}" nudge (days 3 and 6).
           const Week1NudgeBanner(),
           const MissedCheckInBanner(),
