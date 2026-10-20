@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-21 小讀本 14 篇进冻结版；原生顶栏、读过的节、小欣按钮、讀下一篇（决策 0070；分支 `claude/zealous-fermat-8rgqtg-readers-1021`，并入 #151）
+
+- 结论：readers-1021.zip 的 14 篇全部通过检查，原样放进 `assets/readers/`（每个文件和交来的一字不差）。「讀少少」按三部分分组，每篇图标和「約 n 分鐘」，读完打「✓ 讀完」。阅读页用 App 顶栏，「?」问通通只在 Hybrid 组（取代页底按钮），规则组留空、零模型调用。不加开关。决策 0070。
+- 新工具：`tool/add_readers.sh <zip>` 一步加入（zip 当不可信数据，自己解析，逐篇查，只放通过的）；`tool/check_reader_html.js` 改为逐篇报告，认 `.explain.json`、manifest 新字段和 App 处理的四种 `peizhu://` 链接；`tool/readers_shots_1021.sh` 用无头 Chromium 把真网页放进 App 顶栏截图，并逐篇查（360 宽、字号 1.30 不横向超出，`back()`、`readIds()`、`peizhu:view`、隐藏的解释按钮、不发请求）。格式说明给写读本的窗口：`docs/release/readers-file-format.md`。
+- 检查脚本调整两处：参考资料里「年;卷(期):页码」的页码范围不当电话号码（4 篇原本因此被误拦）；`<script type="application/json">` 里网页会显示的字也查不准用的字（14 篇都没有）。
+- 硬规则「每个 peizhu:// 都要接得住」：14 篇里 `chat_siu_yan` 28、`small_action` 10、`thought` 3、`reader/open` 13（都指向包里的篇）、`explain` 72（都在隐藏按钮上，App 不设 `data-explain`）；测试逐个扫描打包的文件。
+- 截图：`docs/dev-reports/readers-1021-shots/`（列表、目录、某一节、读完的目录，两组，360 宽、1.30）。真机还要测：WebView 里的 `back()`、`peizhu:view`、`setRead` 时机。
+
 ## 2026-10-20 测试员原文查看工具和 10/21 原文测试指引（分支 `claude/zealous-fermat-8rgqtg-readtx`，基于冻结分支，未开 PR）
 
 - 结论：新加只读脚本 `tool/read_transcripts.js`，Junyu 可以自己看一个**测试员账号**存下的研究原文（`chat_transcripts`）：按会话分组、按时间排、香港时间、回复保留换行。新加一页测试指引 `docs/release/transcript-test-1021.md`：两组各用一个测试员账号，做 check-in、和小欣聊两句、回忆第 1 周、一句急性测试句，逐行核对。App、规则、Functions 都没改，参与者看到的不变，所以没有 STUDY_CHANGELOG。
