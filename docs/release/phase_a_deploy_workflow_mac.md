@@ -10,7 +10,7 @@
 ## 0. 本机前置（一次性）
 
 ```bash
-# 0.1 Flutter（要求 Dart ≥ 3.9，即 Flutter ≥ 3.35；仓库在 3.47.4 上通过分析与测试）
+# 0.1 Flutter：用 3.44.1（和 CI 一样，10/20 起，决策 0067）；装法见 docs/release/local-tests-mac.md 第一节
 flutter --version
 flutter doctor            # Xcode / CocoaPods 必须是绿的，Android toolchain 可选
 

@@ -1,6 +1,7 @@
 # 在 Mac 上跑全部测试（和 CI 同一套）
 
 > 2026-10-20 第一版（1020i 第一节）。
+> 2026-10-20 第二版（1020p 第一节，决策 0067）：Flutter 改为 **3.44.1**。已经装了 3.35.3 的，按第一节「换成 3.44.1」那三行换。
 
 ## 结论
 
@@ -20,6 +21,17 @@
 - **只连本机模拟器，只用测试里造的数据。** 脚本一开头会检查环境变量，发现指向正式项目就停下，不跑。
 - 每一步打印「通过」或「失败」。某一步失败，后面的步骤照跑。最后打印汇总和总用时。
 - 全部跑完大约 **15–25 分钟**（10/20 在云端试跑一次，12 分钟）。第一次多几分钟，要下载依赖和模拟器。
+- **测 Flutter 3.44.1 升级的 PR（10/21 前）**：先按第一节把 Flutter 换成 3.44.1，再在仓库根目录跑：
+
+  ```bash
+  git fetch origin
+  git checkout claude/zealous-fermat-8rgqtg-flutter344
+  git pull
+  flutter --version              # 第一行要是 Flutter 3.44.1
+  bash tool/run_local_tests_mac.sh
+  ```
+
+  全部 ✓、最后一行「全部通过。」就是过。合并以后，照第二节用 `main` 跑就行。
 
 ## 一、第一次准备（只做一次）
 
@@ -28,22 +40,30 @@
 | 工具 | 要的版本 | 检查 | 安装 |
 |---|---|---|---|
 | Homebrew | 任何版本 | `brew --version` | 见 <https://brew.sh> 首页那一行 |
-| Flutter | **3.35.3**（和 CI 一样，见下面说明） | `flutter --version` | 见下面「装 Flutter 3.35.3」 |
+| Flutter | **3.44.1**（和 CI 一样，见下面说明） | `flutter --version` | 见下面「装 Flutter 3.44.1」 |
 | Node | **24**（`v24.x`） | `node -v` | `brew install nvm`，然后 `nvm install 24 && nvm use 24` |
 | Java | **21 或更新**（模拟器要用） | `java -version` | `brew install --cask temurin@21` |
 | firebase-tools | 最新版（和 CI 一样）；这边试跑用的是 15.34.0 | `firebase --version` | `npm install -g firebase-tools` |
 
 说明：
 
-- **Flutter 必须是 3.35.3。** 版本不同，`flutter analyze` 的条数和部分测试结果会不一样（CLAUDE.md：Gradle 8.12 不支持更新的 Flutter）。
-- **装 Flutter 3.35.3**（已经有别的版本也可以这样另装一份）：
+- **Flutter 必须是 3.44.1**（10/20 起，决策 0067；以前是 3.35.3）。版本不同，`flutter analyze` 的条数和部分测试结果会不一样。
+- **已经按以前的说明装过 3.35.3**（在 `~/dev/flutter`）：换成 3.44.1，跑这三行：
 
   ```bash
-  git clone https://github.com/flutter/flutter.git -b 3.35.3 ~/dev/flutter
+  cd ~/dev/flutter && git fetch --tags && git checkout 3.44.1
+  flutter --version              # 第一次会下载新工具，等几分钟；第一行要是 Flutter 3.44.1
+  cd ~/dev/LonelinessCombatting
+  ```
+
+- **还没装过**：
+
+  ```bash
+  git clone https://github.com/flutter/flutter.git -b 3.44.1 ~/dev/flutter
   echo 'export PATH="$HOME/dev/flutter/bin:$PATH"' >> ~/.zshrc
   ```
 
-  关掉终端再开一个新的。跑 `flutter --version`，第一行应该是 `Flutter 3.35.3`。
+  关掉终端再开一个新的。跑 `flutter --version`，第一行应该是 `Flutter 3.44.1`（Dart 3.12.1）。
 - **Node**：之前按 `docs/release/phase_a_deploy_workflow_mac.md` 第 0.2 步装过 nvm 的，只要 `nvm use 24`。
 - **Java**：装好后关掉终端再开一个新的，`java -version` 应该显示 `21`。装了几个版本、显示的不是 21，就先运行：
 
@@ -176,7 +196,7 @@ Mac 可能弹出「要安装 Java 吗」的窗口。点「取消」，用上面�
 
 Mac 弹出「是否允许 java 接受传入网络连接」：点「允许」或「拒绝」都可以。模拟器只用本机。
 
-### 5. 「⚠ CI 用 Flutter 3.35.3，你的版本不同」或「⚠ CI 用 Node 24」
+### 5. 「⚠ CI 用 Flutter 3.44.1，你的版本不同」或「⚠ CI 用 Node 24」
 
 只是提醒，测试照跑，但结果可能和 CI 不一样。按第一节换成对的版本再跑一次。Node 用 `nvm use 24` 切换。
 

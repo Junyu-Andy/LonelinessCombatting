@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-10-20 1020p 第一节：Flutter 3.35.3 升 3.44.1，只换工具版本（决策 0067，分支 `claude/zealous-fermat-8rgqtg-flutter344`，PR 草稿，base 冻结分支）
+
+- 结论：CI、Build APK、Codemagic、`.metadata`、本机测试脚本改为 Flutter 3.44.1（Dart 3.12.1）。插件版本、Gradle 8.12、AGP 8.9.1、Kotlin 2.1.0、签名设定都不变。两组相同，老人看到的不变。
+- `pubspec.lock` 只有 Flutter 自带的 5 个依赖跟着变（characters 1.4.0→1.4.1、matcher 0.12.17→0.12.19、material_color_utilities 0.11.1→0.13.0、meta 1.16.0→1.18.0、test_api 0.7.6→0.7.11）。
+- 3.44.1 改了两处默认样子：Android 换页动画（放大淡入改成滑动淡入）和四个由主色推出来的字色（变浅）。在 `lib/app/app_theme.dart` 锁回 3.35.3 的样子；两种主题逐项比对一样，10 组截图（113 张）逐个像素相同。没锁回的只有 Android 列表拉过头时的拉伸画法。
+- iPhone：`pubspec.yaml` 加 `enable-swift-package-manager: false`，插件照旧用 CocoaPods 组装（3.44.1 默认改 Swift Package Manager）。另发现 `ios/Runner/AppDelegate.swift` 用的 `FlutterImplicitEngineDelegate` 在 3.35.3 里没有，按 3.35.3 打 iPhone 包很可能编不过；3.44.1 有这个接口。要在 Mac 上确认。
+- 测试只改 `test/reader_test.dart` 的外壳主题（改用 App 主题；原来用 Flutter 默认主题，新版换页变慢，3 至 4 个测试等不到页面关完）。`flutter analyze` 两个版本都是同样的 92 条，0 error。
+- 没做的：Android 模拟器走查（这里没有 KVM 和 Android SDK）；真机清单 `docs/release/flutter-3441-phone-check.md`。`CLAUDE.md` 的「Flutter 固定 3.35.3」那行要 Junyu 改（开发窗口不改 CLAUDE.md）。
+
 ## 2026-10-20 1020o 第二节补充：「常見問題」整页换成新版（decisions-log 10/20 第 93 条，冻结合并分支 #151）
 
 - 结论：页顶一句和六条问答全部换成 Junyu 定的新版，每条问题前加一个小图标（医生、锁、字体、日历、月亮、心；Material 图标，主题色，和问题字一样大，对齐问题第一行）。两组相同，直接替换，不加开关；上一版（同日上一段）的文字已删。

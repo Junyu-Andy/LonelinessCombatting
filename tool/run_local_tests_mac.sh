@@ -155,7 +155,7 @@ if [ $NEED_FLUTTER = 1 ]; then
   if have flutter; then
     fv="$(flutter --version 2>/dev/null | head -n 1)"
     echo "  Flutter：$fv"
-    case "$fv" in *"3.35.3"*) ;; *) echo "  ⚠ CI 用 Flutter 3.35.3，你的版本不同，结果可能不一样" ;; esac
+    case "$fv" in *"3.44.1"*) ;; *) echo "  ⚠ CI 用 Flutter 3.44.1，你的版本不同，结果可能不一样" ;; esac
   else
     echo "  ✗ 没有 flutter（安装见 docs/release/local-tests-mac.md）"; FLUTTER_OK=0
   fi
