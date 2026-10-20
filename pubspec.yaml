@@ -31,7 +31,7 @@ dependencies:
   record: ^6.2.1
   # 1020c 小讀本 (decision 0056-html-readers-webview): pinned exactly —
   # 4.13.1 is the newest that Flutter 3.35.3 resolved; kept when Flutter
-  # went to 3.44.1 (1020p §1, decision 0067: tools only, plugins
+  # went to 3.44.1 (1020p §1, decision 0068: tools only, plugins
   # unchanged).  Do not upgrade before the Phase B freeze.  Evaluation:
   # docs/dev-reports/webview-eval-20261020.md
   webview_flutter: 4.13.1
@@ -49,7 +49,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
-  # 1020p §1 (decision 0067): Flutter 3.44 builds iOS plugins with Swift
+  # 1020p §1 (decision 0068): Flutter 3.44 builds iOS plugins with Swift
   # Package Manager by default; 3.35.3 used CocoaPods.  Kept on CocoaPods so
   # the iPhone build is put together as before.  Revisit after the freeze.
   config:

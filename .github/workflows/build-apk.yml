@@ -27,7 +27,7 @@
 # run summary; with the repository variable ANDROID_SIGNING_SHA256 set,
 # a different certificate fails the run.  docs/release/android-signing.md.
 # Flutter is pinned to the team's version (.metadata: 3.44.1, 1020p §1,
-# decision 0067).  Gradle 8.12 / AGP 8.9.1 / Kotlin 2.1.0 are inside
+# decision 0068).  Gradle 8.12 / AGP 8.9.1 / Kotlin 2.1.0 are inside
 # 3.44.1's supported range; a newer Flutter needs them raised first.
 name: Build APK
 

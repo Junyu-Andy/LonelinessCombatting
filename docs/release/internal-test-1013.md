@@ -43,7 +43,7 @@ App 里写死连 `loneliness-pilot-dev`（`lib/firebase_options.dart`、`android
 
 ### 方法一：在自己的电脑上打包（现在就能用）
 
-要先装好：Flutter 3.44.1（和 CI 一样；10/20 起，决策 0067）、Java 17、Android SDK（装 Android Studio 时会一起装）。
+要先装好：Flutter 3.44.1（和 CI 一样；10/20 起，决策 0068）、Java 17、Android SDK（装 Android Studio 时会一起装）。
 
 ```bash
 cd ~/path/to/LonelinessCombatting

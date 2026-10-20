@@ -6,7 +6,7 @@
 
 ---
 
-## 2026-10-20 1020p 第一节：Flutter 3.35.3 升 3.44.1，只换工具版本（决策 0067，分支 `claude/zealous-fermat-8rgqtg-flutter344`，PR 草稿，base 冻结分支）
+## 2026-10-20 1020p 第一节：Flutter 3.35.3 升 3.44.1，只换工具版本（决策 0068，分支 `claude/zealous-fermat-8rgqtg-flutter344`，PR 草稿，base 冻结分支）
 
 - 结论：CI、Build APK、Codemagic、`.metadata`、本机测试脚本改为 Flutter 3.44.1（Dart 3.12.1）。插件版本、Gradle 8.12、AGP 8.9.1、Kotlin 2.1.0、签名设定都不变。两组相同，老人看到的不变。
 - `pubspec.lock` 只有 Flutter 自带的 5 个依赖跟着变（characters 1.4.0→1.4.1、matcher 0.12.17→0.12.19、material_color_utilities 0.11.1→0.13.0、meta 1.16.0→1.18.0、test_api 0.7.6→0.7.11）。

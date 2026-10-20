@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # Pinned to the team's Flutter (.metadata; 3.44.1 since 1020p §1,
-      # decision 0067); keep the same as build-apk.yml and codemagic.yaml.
+      # decision 0068); keep the same as build-apk.yml and codemagic.yaml.
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.44.1
