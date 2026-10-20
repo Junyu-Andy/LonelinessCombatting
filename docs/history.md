@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-20 1020j 第二节：Android 固定签名钥匙（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-signing`）
+
+- 原因：Build APK 的正式包一直用 CI 机器的调试钥匙签名。每台 CI 机器的调试钥匙都是新生成的，所以每个新包签名都不同，装新版本要先卸载、再登录（10/15 第 12 条 (4) 原定的正式签名没做成）。
+- 改法：`build.gradle.kts` 有环境变量就用固定钥匙签。工作流从四个仓库 Secret 还原钥匙，缺了就让构建失败，不再退回随机钥匙。每次构建在运行摘要里打印证书 SHA-256；设了仓库变量 `ANDROID_SIGNING_SHA256`，不一致就失败。
+- 不改 App 代码；版本号仍取 `pubspec.yaml`。Junyu 要做的一次性步骤见 `docs/release/android-signing.md`。
+
 ## 2026-10-20 1020i：Mac 本地测试脚本（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-mac-tests`）；本地只读看板先答四个问题
 
 - 新加 `tool/run_local_tests_mac.sh`：在 Mac 上一行跑完 CI 的全部测试（`flutter analyze`、小讀本 HTML 检查、六套 Flutter 测试、Functions 单元测试、规则和模拟器测试、隐私脚本测试）。每步打印通过或失败，失败不中断，最后汇总和总用时；`--only` 只跑一部分。只连本机模拟器：开头发现指向正式项目的环境变量就停。说明在 `docs/release/local-tests-mac.md`。
