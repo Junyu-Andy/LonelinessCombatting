@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-20 1020k：反向题前的过渡句、Weekly PR 反向三题固定第三页（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-scale-cues`）
+
+- 起因：Maria 测试时发现老人在一串同方向的题里容易把反向题答反。Junyu 定了三处文字（decisions-log 10/20 第 77–79 条）。
+- 做法：新开关 `scaleDirectionCuesEnabled`（默认关）。开着时 Brief PR 第 4 题、Weekly PR 第 3 页、DJG-ES 第 4 题前各加一行；Weekly PR 反向三题固定在第 3 页，正向九题在第 1、2 页随机；记录多一个 `itemOrder`。两组相同，题目、选项、计分不变。决策草稿 0062。
+- 测试：Weekly PR 页面跑十次，i1–i3 每次都在第 3 页、正向九题从没上第 3 页；排页函数另跑 1000 次。最大字号（1.30）、360 宽手机下三处都不切字、不遮按钮。截图在 `docs/dev-reports/1020k-shots/`。
+
 ## 2026-10-20 1020i：Mac 本地测试脚本（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-mac-tests`）；本地只读看板先答四个问题
 
 - 新加 `tool/run_local_tests_mac.sh`：在 Mac 上一行跑完 CI 的全部测试（`flutter analyze`、小讀本 HTML 检查、六套 Flutter 测试、Functions 单元测试、规则和模拟器测试、隐私脚本测试）。每步打印通过或失败，失败不中断，最后汇总和总用时；`--only` 只跑一部分。只连本机模拟器：开头发现指向正式项目的环境变量就停。说明在 `docs/release/local-tests-mac.md`。

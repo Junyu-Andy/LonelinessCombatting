@@ -221,6 +221,15 @@
 ///                               exactly as before; on with no packaged
 ///                               unit = still hidden.  Both arms identical
 ///                               except 「問下通通」 (Hybrid only, C08).
+///   - [scaleDirectionCuesEnabled] — 1020k (decisions-log 10/20 items
+///                               77–79): a line before the reverse items —
+///                               Brief PR question 4, Weekly PR i1–i3 (now
+///                               always on page 3, the nine positive items
+///                               shuffled over pages 1–2; the record gets
+///                               `itemOrder`), DJG-ES question 4
+///                               (`DirectionCue`).  Both arms identical;
+///                               items, options, storage and scoring
+///                               unchanged.  Off = exactly as before.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 /// [lastKnown] is for a gate that must not decide on a failed read (1020e
@@ -267,6 +276,7 @@ class RemoteFeatureFlags {
     this.weeklyReminderV2Enabled = false,
     this.researcherIntakeGateEnabled = false,
     this.htmlReadersEnabled = false,
+    this.scaleDirectionCuesEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -317,6 +327,7 @@ class RemoteFeatureFlags {
   final bool weeklyReminderV2Enabled;
   final bool researcherIntakeGateEnabled;
   final bool htmlReadersEnabled;
+  final bool scaleDirectionCuesEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -426,6 +437,7 @@ class RemoteFeatureFlags {
         researcherIntakeGateEnabled:
             map['researcherIntakeGateEnabled'] == true,
         htmlReadersEnabled: map['htmlReadersEnabled'] == true,
+        scaleDirectionCuesEnabled: map['scaleDirectionCuesEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

@@ -25,6 +25,11 @@ class WeeklyPrResponse {
   /// (`max_sessions` / `tie_turns` / `tie_recency` / `none`).
   final String? referentRule;
 
+  /// 1020k — item ids in the order they were shown (page 1 top to page 3
+  /// bottom; pages of 5, 4 and 3, i1–i3 last).  Written only with
+  /// `scaleDirectionCuesEnabled` on, so its presence marks that layout.
+  final List<String>? itemOrder;
+
   const WeeklyPrResponse({
     required this.weekIso,
     required this.agentId,
@@ -36,6 +41,7 @@ class WeeklyPrResponse {
     required this.respondedAt,
     required this.arm,
     this.referentRule,
+    this.itemOrder,
   });
 
   Map<String, dynamic> toFirestore() => {
@@ -50,6 +56,7 @@ class WeeklyPrResponse {
         'arm': arm,
         'referentAgentId': agentId == '_none' ? null : agentId,
         'referentRule': referentRule,
+        if (itemOrder != null) 'itemOrder': itemOrder,
       };
 
   /// ISO week label for [date] (defaults to `DateTime.now()`), e.g.

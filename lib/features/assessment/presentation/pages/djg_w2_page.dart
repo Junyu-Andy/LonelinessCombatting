@@ -12,6 +12,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/feature_flags/remote_feature_flags.dart';
+import '../../../../core/survey/direction_cue.dart';
 import '../../../weekly_bundle/presentation/weekly_part_header.dart';
 import '../../data/djg_w2.dart';
 
@@ -163,6 +165,16 @@ class _ItemScreen extends StatelessWidget {
           Text('每句揀一個最啱你最近情況嘅答案。',
               style: theme.textTheme.bodyLarge?.copyWith(fontSize: 18, height: 1.5)),
           const SizedBox(height: 16),
+        ],
+        // 1020k 三: before q4 the items turn to the people around the
+        // elder (q4–q6); plain, not bold.
+        if (item.id == 'q4' &&
+            RemoteFeatureFlags.current.scaleDirectionCuesEnabled) ...[
+          const DirectionCue(
+            key: Key('djg_q4_cue'),
+            text: DirectionCues.djgQ4,
+          ),
+          const SizedBox(height: 10),
         ],
         Text(item.text,
             style: theme.textTheme.headlineSmall

@@ -83,6 +83,10 @@ const CHECKS = [
     '1020c 键盘打开时顶栏变一行（#131），真机测过就开'],
   ['app_config/feature_flags', 'htmlReadersEnabled', null,
     '1020c 小讀本（#130），真机测不完就整项留到 Phase B 之后'],
+  // 1020k (decisions-log 10/20 items 77–79): the lines before the reverse
+  // items and the Weekly PR pages.  Expected value set by Junyu.
+  ['app_config/feature_flags', 'scaleDirectionCuesEnabled', null,
+    '1020k 反向题前的过渡句 + Weekly PR 反向三题固定第 3 页（两组相同），期望值待 Junyu 定'],
   ['app_config/feature_flags', 'sessionBriefPrV2Enabled', 'absent',
     '放错位置的键，应删掉（正确位置在 phase_b）'],
   ['app_config/phase_b', 'sessionBriefPrV2Enabled', true, 'T25 收尾按钮'],

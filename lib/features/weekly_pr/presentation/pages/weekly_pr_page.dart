@@ -8,9 +8,12 @@
 /// item per screen; each page carries an agent header (avatar + name +
 /// session count); items use a compact horizontal 1–7 selector with the key
 /// phrase bolded. Stores one doc per week to `users/{uid}/weekly_pr/{auto}`.
+///
+/// 1020k (switch `scaleDirectionCuesEnabled`): the nine positive items on
+/// pages 1–2, the three reverse items (i1–i3) on page 3 under a line saying
+/// so; the record gets `itemOrder` ([WeeklyPrLayout]).
 
 import 'dart:async';
-import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -19,10 +22,13 @@ import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agents/agent_avatar.dart';
 import '../../../../core/agents/agent_registry.dart';
 import '../../../../core/arm/arm_scope.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/session/chat_session_recorder.dart';
+import '../../../../core/survey/direction_cue.dart';
 import '../../../../core/survey/likert_scale.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../weekly_bundle/presentation/weekly_part_header.dart';
+import '../../data/weekly_pr_layout.dart';
 import '../../data/weekly_pr_response.dart';
 import '../../data/weekly_pr_trigger.dart';
 
@@ -59,10 +65,11 @@ class WeeklyPrPage extends StatefulWidget {
 }
 
 class _WeeklyPrPageState extends State<WeeklyPrPage> {
-  static const _perPage = 4;
-
   int _pageIndex = 0;
-  late List<({String id, String text})> _items;
+  late List<List<WeeklyPrItem>> _pages;
+
+  /// 1020k layout (read once, so a mid-page flag change cannot reshuffle).
+  late bool _reverseLast;
   final Map<String, int> _ratings = {};
   late DateTime _promptedAt;
   bool _saving = false;
@@ -88,24 +95,15 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
   void initState() {
     super.initState();
     _promptedAt = DateTime.now();
-    _items = _shuffledItems();
-  }
-
-  List<({String id, String text})> _shuffledItems() {
-    final base = List<({String id, String text})>.from(WeeklyPrItems.items);
-    base.shuffle(Random());
-    return base;
+    _reverseLast = RemoteFeatureFlags.current.scaleDirectionCuesEnabled;
+    _pages = WeeklyPrLayout.pages(reverseLast: _reverseLast);
   }
 
   WeeklyPrAgentUsage get _currentAgent => widget.agent;
 
-  int get _pageCount => (_items.length + _perPage - 1) ~/ _perPage;
+  int get _pageCount => _pages.length;
 
-  List<({String id, String text})> get _pageItems {
-    final start = _pageIndex * _perPage;
-    final end = (start + _perPage) > _items.length ? _items.length : start + _perPage;
-    return _items.sublist(start, end);
-  }
+  List<WeeklyPrItem> get _pageItems => _pages[_pageIndex];
 
   bool get _pageComplete =>
       _pageItems.every((it) => _ratings.containsKey(it.id));
@@ -127,6 +125,7 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
       respondedAt: DateTime.now(),
       arm: armCode,
       referentRule: _currentAgent.referentRule,
+      itemOrder: _reverseLast ? WeeklyPrLayout.order(_pages) : null,
     );
     if (profile != null) {
       // Fire-and-forget: offline, add() waits for server ack — awaiting it
@@ -241,8 +240,18 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  if (_reverseLast &&
+                      WeeklyPrLayout.isReversePage(_pageItems)) ...[
+                    const DirectionCue(
+                      key: Key('weekly_pr_reverse_cue'),
+                      text: DirectionCues.weeklyPrReversePage,
+                      emphasis: DirectionCues.weeklyPrReversePageEmphasis,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   for (final it in _pageItems) ...[
                     _WeeklyItemCard(
+                      key: ValueKey('weekly_pr_item_${it.id}'),
                       text: WeeklyPrItems.render(it.text, displayName),
                       keywords: [displayName, ...?_keywords[it.id]],
                       value: _ratings[it.id],
@@ -336,6 +345,7 @@ class _WeeklyItemCard extends StatelessWidget {
   final bool isEn;
 
   const _WeeklyItemCard({
+    super.key,
     required this.text,
     required this.keywords,
     required this.value,
