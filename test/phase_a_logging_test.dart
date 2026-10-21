@@ -110,7 +110,8 @@ void main() {
 
     test('TE offer text from the card is logged verbatim (L-3)', () {
       final offer = NamingThoughtCard.invitationText('打畀阿女只會煩到佢', isEn: false);
-      expect(offer, startsWith('你頭先講咗一句令我有少少 stuck — 「打畀阿女只會煩到佢」'));
+      expect(offer,
+          '你頭先講咗一句：「打畀阿女只會煩到佢」。要唔要做個小練習，慢慢望一望呢個諗法？唔做都得。');
       final rec = TurnRecord(
         agentId: 'siu_yan',
         moduleId: 'm2_check_in',
