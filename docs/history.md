@@ -16,6 +16,17 @@
 - W8 首页卡第二行「一共 5 部分，可以分開做。」；版本号 1.0.1（build 4）。
 - 小欣提示词 v5（第 134 条）：不再在对话里口头提议望一望心入面，只出邀请卡；卡的触发词加「冇人會記得我」「冇人記得我」。用合成句子在真模型上各试 5 次：v5 五次都没有「stuck」、没有邀请练习。上线检查脚本里回忆 v2、心情一行两个开关的期望值定为开。
 
+## 2026-10-21 #143 运维工具：并入 main，`account_admin_log` 删除时保留
+
+- Junyu 定：删除参与者时不删 `account_admin_log`（改登录电邮的记录），和其他审计日志一样保留。`tool/delete_participant.js` 的回执在「没覆盖到」里列出它；测试加了一句检查。
+- 分支并入 10/21 冻结后的 main，没有冲突。
+
+## 2026-10-20 1020j：两个运维工具（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-ops-tools`）
+
+- `tool/export_agent_contexts.js`（第一节 (3)）：只读，把 PILOT-、PB- 账号的 `agent_contexts` 导出到 Mac 本地文件（权限 0600，不能放在仓库里）。核实时发现：App 每次会话结束就把原话折叠成摘要并清空，所以这里通常只有摘要。说明 `docs/release/agent-contexts-backup.md`。
+- `tool/update_login_email.js`（第七节）：用研究编号或 uid 找账号，改登录电邮（同步 App 资料里的电邮）或重设密码。默认空跑；正式改要 `--confirm --production`。每次正式修改写一条 `account_admin_log`：记 @ 前最后四个字符，不记完整电邮和密码。说明 `docs/release/update-login-email.md`。
+- 两个工具都不读序列和分配日志；测试用模拟器，已进 CI 和 Mac 本地脚本。
+
 ## 2026-10-21 看板 #142 按第 66 条改：总览显示整份每周问卷，每人页显示心情数值（决策 0072 取代 0061；分支 `claude/zealous-fermat-8rgqtg-dashboard`）
 
 - 结论：Junyu 10/20 第 66 条、10/21 确认。总览和组别同一行，显示每一周的整份每周问卷做完没有；每人页显示每天的心情数值。这是有意的盲法取舍，为了提醒和跟进。先写决策 0072，0061 只改状态行。

@@ -327,13 +327,16 @@ if wants privacy; then
   elif [ -n "$busy" ]; then
     skip_step "隐私脚本测试（删除参与者等）" "端口被占用：$busy"
   elif ensure_functions_deps; then
-    run_step "隐私脚本测试（删除参与者、共享同意、清测试员）" "$LOGDIR/privacy.log" \
+    run_step "隐私和账号脚本测试（删除参与者、共享同意、清测试员、改登录电邮）" "$LOGDIR/privacy.log" \
       firebase emulators:exec --config test/delete_participant/firebase.json \
         --only auth,firestore,storage --project loneliness-pilot-dev \
         'fails=""
-         for t in delete_participant_test set_shared_context_consent_test purge_tester_data_test; do
+         for t in delete_participant/delete_participant_test \
+             delete_participant/set_shared_context_consent_test \
+             delete_participant/purge_tester_data_test \
+             admin_tools/update_login_email_test; do
            echo "--- $t"
-           NODE_PATH=functions/node_modules node "test/delete_participant/$t.js" || fails="$fails $t"
+           NODE_PATH=functions/node_modules node "test/$t.js" || fails="$fails $t"
          done
          [ -z "$fails" ] || { echo "FAILED:$fails"; exit 1; }'
   else

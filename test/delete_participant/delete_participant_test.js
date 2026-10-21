@@ -241,6 +241,8 @@ test('the receipt carries counts only, never the text', async () => {
   assert.ok(!json.includes('example.invalid'), 'email in receipt');
   assert.ok(!json.includes('唔想活'), 'matched term in receipt');
   assert.ok(r.notCovered.some((s) => s.startsWith('vector index: none')));
+  // 10/21: login e-mail change records are kept, and the receipt says so.
+  assert.ok(r.notCovered.some((s) => s.startsWith('account_admin_log')));
 });
 
 test('--rewrite-exports removes only that person\'s rows', async () => {

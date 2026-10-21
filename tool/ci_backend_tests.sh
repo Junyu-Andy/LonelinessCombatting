@@ -3,7 +3,8 @@
 # unit tests, then everything that needs the Firestore emulator (security
 # rules + functions *_emulator_test.js + the dashboard), then
 # tool/delete_participant.js, tool/set_shared_context_consent.js and
-# tool/purge_tester_data.js on the Auth + Firestore + Storage emulators.
+# tool/purge_tester_data.js and tool/update_login_email.js on the Auth +
+# Firestore + Storage emulators.
 #
 # Needs Node, Java 21+ and the Firebase CLI (npm i -g firebase-tools).
 # Usage: tool/ci_backend_tests.sh
@@ -43,12 +44,13 @@ firebase emulators:exec --only firestore --project loneliness-pilot-dev '
 '
 echo "::endgroup::"
 
-echo "::group::privacy scripts: deletion + shared-context consent + tester purge (auth + firestore + storage emulators)"
+echo "::group::privacy and account scripts: deletion + shared-context consent + tester purge + login e-mail change (auth + firestore + storage emulators)"
 firebase emulators:exec --config test/delete_participant/firebase.json \
   --only auth,firestore,storage --project loneliness-pilot-dev \
   'set -e
    NODE_PATH=functions/node_modules node test/delete_participant/delete_participant_test.js
    NODE_PATH=functions/node_modules node test/delete_participant/set_shared_context_consent_test.js
-   NODE_PATH=functions/node_modules node test/delete_participant/purge_tester_data_test.js'
+   NODE_PATH=functions/node_modules node test/delete_participant/purge_tester_data_test.js
+   NODE_PATH=functions/node_modules node test/admin_tools/update_login_email_test.js'
 echo "::endgroup::"
 echo "All backend tests passed."
