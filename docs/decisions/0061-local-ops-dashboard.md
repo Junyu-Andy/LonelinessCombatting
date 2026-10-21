@@ -1,7 +1,7 @@
 # 0061：研究员在 Mac 本机跑只读运营看板；读数据用专用只读服务账号，「確認處理」和「誤觸」用 Junyu 账号经现有服务器入口写
 
 - 日期：2026-10-20
-- 状态：提议中
+- 状态：已被 0072 取代（10/21）
 - 影响范围：不影响参与者。所有 cohort × 两组：App、Functions、Firestore 规则都不改，老人看到的完全一样。只多了一个研究员在自己电脑上用的工具
 - 相关代码：分支 `claude/zealous-fermat-8rgqtg-dashboard`；`tool/dashboard/`
 
