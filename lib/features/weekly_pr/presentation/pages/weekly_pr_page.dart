@@ -82,7 +82,7 @@ class _WeeklyPrPageState extends State<WeeklyPrPage> {
     'u3': ['聽到'],
     'v1': ['尊重'],
     'v2': ['認可'],
-    'v3': ['判斷'],
+    'v3': ['指指點點'],
     'c1': ['關心'],
     'c2': ['著想'],
     'c3': ['舒服'],

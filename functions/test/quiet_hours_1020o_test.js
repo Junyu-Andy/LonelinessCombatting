@@ -168,6 +168,49 @@ t("reminders.classify: a reminder held overnight is not stale at the end",
       }
     });
 
+t("10/21 (decisions-log 118): the age counts from the end of the first " +
+    "安靜時段 entered after fireAt", () => {
+  const S = 12;
+  const r = (fireAt) => ({kind: reminders.KIND, delivered: false, fireAt});
+  const at = (rem) => reminders.parseFireAt(rem.fireAt);
+  const verdict = (user, rem, now) => reminders.classify(rem, {now,
+    staleHours: S,
+    heldUntil: reminders.heldUntilFor(user, at(rem), GLOBAL, S)});
+  // The audit case: window starts 20:00, reminder due 19:50.  The 20:00
+  // run is inside the window; the next morning at 08:00 it goes out.
+  const u = {quietHoursStart: "20:00", quietHoursEnd: "08:00"};
+  const late = r("2026-10-21T19:50:00.000");
+  assert.strictEqual(qh.inQuietHours(u, hk(20, 0), GLOBAL), true);
+  assert.strictEqual(verdict(u, late, hk(8, 0, 22)), "due");
+  assert.strictEqual(verdict(u, late, hk(8, 15, 22)), "due");
+  // Before the change: 12 h 10 min after fireAt → skipped_stale.
+  assert.strictEqual(reminders.classify(late,
+      {now: hk(8, 0, 22), staleHours: S}), "skipped_stale");
+  // Still turns stale 12 h after the window's end.
+  assert.strictEqual(verdict(u, late, hk(20, 1, 22)), "skipped_stale");
+  // Due long before the window (could have gone out by day): as before.
+  const day = r("2026-10-21T15:00:00.000");
+  assert.strictEqual(reminders.heldUntilFor(u, at(day), GLOBAL, S), null);
+  assert.strictEqual(verdict(u, day, hk(8, 0, 22)), "skipped_stale");
+
+  // Default 22:00–08:00: every outcome the same as before, for reminders
+  // due through the day and night, checked from then until the next night.
+  const fires = ["2026-10-21T08:00:00.000", "2026-10-21T10:00:00.000",
+    "2026-10-21T15:00:00.000", "2026-10-21T19:50:00.000",
+    "2026-10-21T21:45:00.000", "2026-10-21T21:50:00.000",
+    "2026-10-21T22:00:00.000", "2026-10-21T23:30:00.000",
+    "2026-10-22T03:00:00.000", "2026-10-22T07:55:00.000"];
+  for (const f of fires) {
+    const rem = r(f);
+    const old = qh.quietEndAfter({}, at(rem), GLOBAL);
+    for (let m = 0; m <= 40 * 60; m += 15) {
+      const now = new Date(hk(8, 0).getTime() + m * 60000);
+      assert.strictEqual(verdict({}, rem, now), reminders.classify(rem,
+          {now, staleHours: S, heldUntil: old}), `${f} at +${m} min`);
+    }
+  }
+});
+
 t("the range is the same in functions, the App and firestore.rules", () => {
   const root = path.join(__dirname, "..", "..");
   const dart = fs.readFileSync(path.join(root,

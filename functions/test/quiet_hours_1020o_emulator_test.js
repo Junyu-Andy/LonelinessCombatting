@@ -149,6 +149,21 @@ test("a 20:00–08:00 window: a reminder at 20:00 is still sent at 08:00 " +
   assert.strictEqual((await rem("qh", "r2000")).dispatchStatus, "sent");
 });
 
+test("10/21 (decisions-log 118): window starts 20:00, reminder at 19:50 — " +
+    "sent the next morning at 08:00, not skipped_stale", async () => {
+  await reset();
+  await seedUser("qh", {quietHoursStart: "20:00", quietHoursEnd: "08:00"});
+  await seedReminder("qh", "r1950", "2026-10-21T19:50:00.000");
+  const m = fakeMessaging();
+  await dispatchAt(m, hk(20, 0));
+  assert.strictEqual(m.sent.length, 0);
+  await dispatchAt(m, hk(22, 45));
+  assert.strictEqual(m.sent.length, 0);
+  await dispatchAt(m, hk(8, 0, 22));
+  assert.strictEqual(m.to("qh").length, 1);
+  assert.strictEqual((await rem("qh", "r1950")).dispatchStatus, "sent");
+});
+
 test("P2 at 19:00 and P1 at 08:30 reach the 20:00–06:00 account", async () => {
   await reset();
   await seedUser("qh", {quietHoursStart: "20:00", quietHoursEnd: "06:00"});

@@ -125,3 +125,4 @@ unset FIRESTORE_EMULATOR_HOST
 - 冻结前旧 App 写的旧格式行（schema 1）：没有 `role`、`userInput`，缺开场、固定问题、下一题和安全消息，按钮那一轮原话是空的，补不回来。脚本会标「schema 1 旧格式」。
 - 回忆隔天再进来，等回答的那一题会在新会话开头再存一次（`replyStatus: shown_again`），不是重复错误。
 - 离线时行会排队，联网后补发，`receivedAt` 会晚，顺序不受影响（按 `userSentAt`／`replyShownAt` 排）。
+- 没网时老人打的字只显示在提示横幅里，不写进研究原文（10/21 审计第 8 项，Junyu 定照现状）。

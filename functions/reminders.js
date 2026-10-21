@@ -21,8 +21,14 @@
  *   - Due more than staleHours ago (default 12) → skipped_stale, so
  *     turning the switch on never floods old reminders.  A reminder that
  *     fell inside the elder's 安靜時段 waits for the end of it and its age
- *     counts from then (1020o: a 20:00–08:00 window is 12 h long); with
- *     the default 22:00–08:00 window the result is the same as before.
+ *     counts from then (1020o: a 20:00–08:00 window is 12 h long).  10/21
+ *     (decisions-log 118): the age counts from the end of the FIRST
+ *     安靜時段 entered at or after fireAt when that window starts before
+ *     the next dispatch run after fireAt (DISPATCH_EVERY_MS: the reminder
+ *     never had a chance to go out) and ends more than staleHours after
+ *     fireAt (it would be stale by then) — so one due at 19:50 for a
+ *     window 20:00–08:00 goes out at 08:00, not skipped_stale.  With the
+ *     default 22:00–08:00 window (10 h) every result is the same as before.
  *   - 今日休息 used to drop the day's reminders (skipped_quiet_today);
  *     since 10/20 (dev-tasks-1020 §H(3)) it is ignored.
  *   - Linked plan deleted → skipped_plan_missing; plan already has an
@@ -64,6 +70,9 @@ const PUSH_BODY = "你今日有個小計劃，得閒打開睇下。"; // S4a
 const quietHours = require("./quiet_hours");
 
 const DEFAULTS = {staleHours: 12, maxAttempts: 3};
+
+/** index.js dispatchReminders runs every 15 minutes ("*\/15 6-22 * * *"). */
+const DISPATCH_EVERY_MS = 15 * 60 * 1000;
 const TERMINAL = new Set([
   "sending", "sent", "failed", "no_tokens", "skipped_stale",
   "skipped_quiet_today", "skipped_plan_missing", "skipped_followed_up",
@@ -151,8 +160,9 @@ function homeRowCheck(plan, fireAt) {
  * Decide what to do with one queued reminder, before any token lookup.
  * @param {object} r reminder doc data
  * @param {{now: Date, staleHours: number, heldUntil: (?Date|undefined)}}
- *     opts heldUntil: the end of the 安靜時段 fireAt fell in (1020o) — the
- *     reminder's age counts from then
+ *     opts heldUntil: the end of the first 安靜時段 entered at or after
+ *     fireAt (1020o; 10/21 decisions-log 118) — the reminder's age counts
+ *     from then
  * @return {string} "skip" | "wait" | "due" | "skipped_stale"
  */
 function classify(r, {now, staleHours, heldUntil}) {
@@ -167,6 +177,27 @@ function classify(r, {now, staleHours, heldUntil}) {
     return "skipped_stale";
   }
   return "due";
+}
+
+/**
+ * When the reminder's age starts counting, if not at fireAt: the end of
+ * the 安靜時段 fireAt fell in (1020o); 10/21 (decisions-log 118) also the
+ * end of the window that starts before the next run could have sent it,
+ * when that window ends more than staleHours after fireAt.  Else null.
+ * @param {?object} user users/{uid} data
+ * @param {?Date} fireAt
+ * @param {{startMin: number, endMin: number}} quiet global window
+ * @param {number} staleHours
+ * @return {?Date}
+ */
+function heldUntilFor(user, fireAt, quiet, staleHours) {
+  if (!fireAt) return null;
+  const inside = quietHours.quietEndAfter(user, fireAt, quiet);
+  if (inside) return inside;
+  const next = quietHours.firstQuietEndAfter(user, fireAt, quiet,
+      DISPATCH_EVERY_MS);
+  return next && next.getTime() - fireAt.getTime() > staleHours * 3600 * 1000 ?
+    next : null;
 }
 
 /**
@@ -243,8 +274,7 @@ async function dispatchDueReminders(db, messaging, opts = {}) {
 async function dispatchOne(db, messaging, userDoc, user, rem, cfg, now) {
   const r = rem.data() || {};
   const fireAt = parseFireAt(r.fireAt);
-  const heldUntil = fireAt ?
-    quietHours.quietEndAfter(user, fireAt, cfg.quiet) : null;
+  const heldUntil = heldUntilFor(user, fireAt, cfg.quiet, cfg.staleHours);
   const state = classify(r, {now, staleHours: cfg.staleHours, heldUntil});
   if (state === "skip" || state === "wait") return null;
   // 10/14: inside the elder's 安靜時段 the reminder waits for a later tick
@@ -336,7 +366,7 @@ async function dispatchOne(db, messaging, userDoc, user, rem, cfg, now) {
 }
 
 module.exports = {
-  KIND, PUSH_TITLE, PUSH_BODY, DEFAULTS,
-  parseFireAt, hkDateKey, isQuietToday, classify, readConfig,
+  KIND, PUSH_TITLE, PUSH_BODY, DEFAULTS, DISPATCH_EVERY_MS,
+  parseFireAt, hkDateKey, isQuietToday, classify, heldUntilFor, readConfig,
   fireAtOnDay, homeRowCheck, dispatchDueReminders,
 };

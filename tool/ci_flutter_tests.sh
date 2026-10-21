@@ -80,6 +80,7 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/researcher_intake_gate_test.dart \
   test/reader_test.dart \
   test/scale_direction_cues_1020k_test.dart \
+  test/weekly_pr_v3_1021_test.dart \
   test/reminiscence_avatar_1020l_test.dart \
   test/crisis_chat_message_1020m_test.dart \
   test/faq_1020o_test.dart \
@@ -104,6 +105,7 @@ run "phase B arm B pages" \
   test/researcher_intake_gate_test.dart \
   test/reader_test.dart \
   test/scale_direction_cues_1020k_test.dart \
+  test/weekly_pr_v3_1021_test.dart \
   test/reminiscence_avatar_1020l_test.dart \
   test/crisis_chat_message_1020m_test.dart \
   test/faq_1020o_test.dart \

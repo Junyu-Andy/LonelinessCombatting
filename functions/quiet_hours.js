@@ -211,9 +211,35 @@ function quietEndAfter(user, at, cfg) {
   return new Date(minuteStart + delta * 60000);
 }
 
+/**
+ * 10/21 (decisions-log 118, audit item 1): the end of the FIRST quiet
+ * window the person enters at or after [at] — the window [at] falls in,
+ * else the next one to start — when it starts no more than [withinMs]
+ * after [at]; null otherwise (or for a zero-length window).  A reminder
+ * due just before a long window (start 20:00, due 19:50) waits it out and
+ * counts its age from the window's end, like one due inside it.
+ * @param {?object} user users/{uid} data
+ * @param {Date} at
+ * @param {{startMin: number, endMin: number}} cfg global window
+ * @param {number} withinMs how soon after [at] the window must start
+ * @return {?Date}
+ */
+function firstQuietEndAfter(user, at, cfg, withinMs) {
+  const inside = quietEndAfter(user, at, cfg);
+  if (inside) return inside;
+  const c = windowFor(user, cfg);
+  if (c.startMin === c.endMin) return null;
+  let delta = c.startMin - hkMinutes(at);
+  if (delta <= 0) delta += 24 * 60;
+  const minuteStart = at.getTime() - (at.getTime() % 60000);
+  const start = new Date(minuteStart + delta * 60000);
+  if (start.getTime() - at.getTime() > withinMs) return null;
+  return quietEndAfter(user, start, cfg);
+}
+
 module.exports = {
   DEFAULT_START, DEFAULT_END, RANGE, USER_START_FIELD, USER_END_FIELD,
   parseHHmm, fmtHHmm, quietHoursConfigFrom, allowedStarts, allowedEnds,
   personalMinutes, windowFor, readQuietHoursConfig, hkMinutes, inQuietHours,
-  quietEndAfter,
+  quietEndAfter, firstQuietEndAfter,
 };
