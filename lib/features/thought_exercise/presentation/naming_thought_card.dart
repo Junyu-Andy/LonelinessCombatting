@@ -5,9 +5,12 @@
 /// return to listening — the unconditional listening quality on which
 /// PPR-Understanding depends would be compromised otherwise.
 ///
-/// Wording matches the Phase A locked text:
-///   "你頭先講咗一句令我有少少 stuck — '{thought}'.  要唔要做個小練習慢慢望一望
-///   呢個諗法？要唔要都得。"
+/// Wording (10/21, decisions-log 10/21 item 133 (2), PI final handoff;
+/// docs/spec/copy/thought-exercise.md TE-invite):
+///   你頭先講咗一句：「{thought}」。要唔要做個小練習，慢慢望一望呢個諗法？唔做都得。
+/// (was the Phase A text 「你頭先講咗一句令我有少少 stuck — …要唔要都得。」).
+/// Siu Yan's own chat reply still follows its prompt file; only this card
+/// changed.
 ///
 /// Phase B Proposal §4.7 §point 3 declares this the third sanctioned UI
 /// asymmetry between arms: Arm B users access the Thought Exercise only
@@ -19,7 +22,7 @@ import 'package:flutter/material.dart';
 
 class NamingThoughtCard extends StatelessWidget {
   /// The cognition the detector matched on — used in the invitation copy
-  /// and auto-filled into Field 3 of the Thought Exercise.
+  /// and auto-filled into 一 of the Thought Exercise.
   final String thought;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
@@ -35,12 +38,11 @@ class NamingThoughtCard extends StatelessWidget {
   /// thought summary filled in.  Logged verbatim on `turns.te.offerText`
   /// because the Thought Exercise offer is audited at 100 %.
   static String invitationText(String thought, {required bool isEn}) => isEn
-      ? 'You just said something that I noticed got stuck '
-          'with me — "${_trim(thought)}". Would you like '
-          'to do a small practice to look at that thought? '
-          'Either way is fine.'
-      : '你頭先講咗一句令我有少少 stuck — 「${_trim(thought)}」。'
-          '要唔要做個小練習慢慢望一望呢個諗法？要唔要都得。';
+      ? 'Just now you said: "${_trim(thought)}". Would you like '
+          'to do a small practice and slowly look at this thought? '
+          "It's fine not to."
+      : '你頭先講咗一句：「${_trim(thought)}」。'
+          '要唔要做個小練習，慢慢望一望呢個諗法？唔做都得。';
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +58,7 @@ class NamingThoughtCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                // Phase A spec-exact invitation copy.
+                // Spec-exact invitation copy (TE-invite).
                 invitationText(thought, isEn: isEn),
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onTertiaryContainer,
@@ -68,6 +70,9 @@ class NamingThoughtCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: FilledButton(
+                      // 10/21: less side padding so 「好，試下」 stays on one
+                      // line at the largest App text (1.30) on a 360 phone.
+                      style: FilledButton.styleFrom(padding: _buttonPadding),
                       onPressed: onAccept,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -78,6 +83,7 @@ class NamingThoughtCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(padding: _buttonPadding),
                       onPressed: onDecline,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -94,8 +100,11 @@ class NamingThoughtCard extends StatelessWidget {
     );
   }
 
+  static const _buttonPadding =
+      EdgeInsets.symmetric(horizontal: 12, vertical: 16);
+
   /// Trim long quoted thoughts to keep the card readable.  The full
-  /// thought is auto-filled into Field 3 of the exercise anyway.
+  /// thought is auto-filled into 一 of the exercise anyway.
   static String _trim(String t) {
     final clean = t.trim();
     if (clean.length <= 30) return clean;

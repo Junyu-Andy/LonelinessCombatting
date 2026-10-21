@@ -71,8 +71,8 @@ const CHECKS = [
     '1020e 二.7 (2) 计划接上小欣记忆（#135），期望值 10/20 晚定'],
   ['app_config/feature_flags', 'researcherIntakeGateEnabled', true,
     '1020e 二.14 研究员讲解闸门（#136），10/20 第 54 条定开'],
-  ['app_config/feature_flags', 'reminiscenceV2Enabled', null,
-    '1020d 回忆 v2（#137），期望值 10/20 晚定'],
+  ['app_config/feature_flags', 'reminiscenceV2Enabled', true,
+    '1020d 回忆 v2（#137）；10/21 第 134 条定开（回忆列表只看 v2）'],
   ['app_config/feature_flags', 'leaveButtonV2Enabled', null,
     '1020d 离开按钮（#137），期望值 10/20 晚定'],
   // 1020g 一 (3): switches the 10/20 review found missing.  Expected
@@ -84,8 +84,9 @@ const CHECKS = [
   // 1020m 第二节 has no switch of its own — it is part of page 1).
   ['app_config/feature_flags', 'homeLayoutV2Enabled', true,
     '第 3 批首页两页（#133），须和 moodRowV2Enabled 同开同关；1020m 小行动一行在里面'],
-  ['app_config/feature_flags', 'moodRowV2Enabled', null,
-    '第 3 批心情一行（#133），须和 homeLayoutV2Enabled 同开同关'],
+  ['app_config/feature_flags', 'moodRowV2Enabled', true,
+    '第 3 批心情一行（#133），须和 homeLayoutV2Enabled 同开同关；' +
+    '开着时小欣聊天用 siu_yan_v5（10/21 第 134 条）'],
   ['app_config/feature_flags', 'keyboardCompactHeaderEnabled', null,
     '1020c 键盘打开时顶栏变一行（#131），真机测过就开'],
   ['app_config/feature_flags', 'htmlReadersEnabled', true,

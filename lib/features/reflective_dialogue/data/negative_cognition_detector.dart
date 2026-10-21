@@ -41,6 +41,10 @@ class NegativeCognitionDetector {
     '冇人關心',
     '冇人會關心',
     '都唔記得我',
+    // 10/21 (decisions-log 134): 小欣 v5 no longer offers the exercise in
+    // the chat, so the card covers the example her v4 prompt gave.
+    '冇人會記得我',
+    '冇人記得我',
     '都唔會理我',
     '我冇用',
     '我都係多餘',

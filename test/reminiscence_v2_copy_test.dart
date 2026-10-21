@@ -110,6 +110,10 @@ void main() {
     test('landing page and the 自己 entry', () {
       expect(ReminiscenceV2Copy.landingIntro, rows['L-INTRO']![2]);
       expect(ReminiscenceV2Copy.chaptersEntrySubtitle, rows['L-ME']![2]);
+      for (final n in [1, 2, 8]) {
+        expect(ReminiscenceV2Copy.weekProgress(n),
+            rows['L-PROGRESS']![2].replaceAll('{n}', '$n'));
+      }
       expect(ReminiscenceV2Copy.themeLines.keys, [1, 2, 3, 4]);
       for (final w in [1, 2, 3, 4]) {
         expect(ReminiscenceV2Copy.themeLines[w], rows['L-THEME-$w']![2]);

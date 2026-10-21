@@ -1,53 +1,64 @@
-/// B.4 — Thought Exercise entry (Sprint 1.5, corrected to spec May 2026).
-///
-/// Per Phase A Proposal §2.3 and Product Overview §5.2, the schema is
-/// **5 content fields + before/after emotion intensity**, NOT three fields.
-/// This file replaces the earlier 3-field draft.
+/// B.4 — Thought Exercise entry (Sprint 1.5, corrected to spec May 2026;
+/// form v2 10/21, decisions-log 10/21 item 133 (2), PI final handoff).
 ///
 /// Firestore path: `users/{uid}/thought_exercise/{id}`
 ///
-/// 5 content fields:
-///   1. situation              — one-line context (嗰陣係咩情況？)
-///   2. emotionEmoji           — selected emoji label
-///   3. intensityBefore        — 1–10 slider value
-///   4. thought                — the cognition; auto-filled if entered via
-///                                Siu Yan's offer pathway
-///   5. oneReasonTrue          — one reason it might be true (validates first)
-///   6. anotherWayToLook       — alternative perspective; may be blank
+/// Form v2 (10/21) — the questions and the stored field each one writes.
+/// The field names are the v1 names, so analysis compares the same fields:
+///   一 心入面有冇一句說話轉嚟轉去？ → thought (required; auto-filled when
+///                                    entered via Siu Yan's offer pathway)
+///   二 寫低之後，你而家覺得點？    → emotionEmoji (required)
+///      有幾強烈？(1–10)          → intensityBefore (required)
+///   三 呢個諗法係由咩引起？      → situation (optional; '' when blank)
+///   四 好朋友都咁諗，你會同佢講咩？ → anotherWayToLook (optional; '' when
+///                                    blank)
+///   exit re-rating             → intensityAfter (1–10, written on 完成)
+///   version                    → 2 ([currentVersion]); a record without
+///                                the field is form v1.
 ///
-/// Exit re-rating:
-///   7. intensityAfter         — re-rated 1–10 slider at save
+/// v1 had a required 「嗰陣係咩情況？」 (situation) and a required
+/// 「一個令呢個諗法可能成立嘅理由」 (oneReasonTrue).  v2 no longer asks
+/// the reason: [oneReasonTrue] is null on new entries and not written;
+/// it is still read back from v1 records.
 ///
-/// Provenance (metadata, not part of the 5+2 content schema):
+/// Provenance (metadata, not content):
 ///   agentId, agentInvitationText, originTurnRef — cached at create-time
 ///   for the B.5 audit trigger so it can resolve provenance race-free.
 ///
 /// **Pixel-identical across arms.**  Only the entry pathway differs
-/// (Siu Yan offer with auto-filled Field 3 in Arm A; tab-tile only in
+/// (Siu Yan offer with auto-filled 一 in Arm A; tab-tile only in
 /// Arm B).  The tool itself, fields, intro text, history view are
-/// identical (Phase B Proposal §4.7).
+/// identical (Phase B Proposal §4.7).  No model call.
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ThoughtExerciseEntry {
+  /// The form version written on every new record (`version`).  Records
+  /// without the field were saved by form v1.
+  static const int currentVersion = 2;
+
   final String? id;
 
-  // --- Field 1: situation ---
+  // --- v2 三 由咩引起 (optional; v1: 嗰陣係咩情況？) ---
   final String situation;
 
-  // --- Field 2: emotion + intensity_before ---
+  // --- v2 二: emotion + intensity_before ---
   final String emotionEmoji;
   final int intensityBefore; // 1–10
 
-  // --- Field 3: thought ---
+  // --- v2 一: the thought ---
   final String thought;
 
-  // --- Field 4: reason ---
-  final String oneReasonTrue;
+  // --- v1 only: one reason it might be true.  Null = not asked (v2);
+  // not written then. ---
+  final String? oneReasonTrue;
 
-  // --- Field 5: alternative (may be empty) ---
+  // --- v2 四 好朋友 reply (optional; v1: 另一個角度) ---
   final String anotherWayToLook;
+
+  /// Form version: 1 = v1 (no field stored), 2 = 10/21 questions.
+  final int version;
 
   // --- Exit re-rating ---
   final int? intensityAfter; // 1–10; null if user closed without re-rating
@@ -69,8 +80,9 @@ class ThoughtExerciseEntry {
     required this.emotionEmoji,
     required this.intensityBefore,
     required this.thought,
-    required this.oneReasonTrue,
+    this.oneReasonTrue,
     required this.anotherWayToLook,
+    this.version = currentVersion,
     this.intensityAfter,
     this.agentId,
     this.agentInvitationText,
@@ -88,6 +100,7 @@ class ThoughtExerciseEntry {
       thought: thought,
       oneReasonTrue: oneReasonTrue,
       anotherWayToLook: anotherWayToLook,
+      version: version,
       intensityAfter: intensityAfter ?? this.intensityAfter,
       agentId: agentId,
       agentInvitationText: agentInvitationText,
@@ -102,8 +115,9 @@ class ThoughtExerciseEntry {
         'emotionEmoji': emotionEmoji,
         'intensityBefore': intensityBefore,
         'thought': thought,
-        'oneReasonTrue': oneReasonTrue,
+        if (oneReasonTrue != null) 'oneReasonTrue': oneReasonTrue,
         'anotherWayToLook': anotherWayToLook,
+        'version': version,
         'intensityAfter': intensityAfter,
         'agentId': agentId,
         'agentInvitationText': agentInvitationText,
@@ -131,8 +145,9 @@ class ThoughtExerciseEntry {
       emotionEmoji: (map['emotionEmoji'] as String?) ?? '',
       intensityBefore: (map['intensityBefore'] as num?)?.toInt() ?? 5,
       thought: (map['thought'] as String?) ?? '',
-      oneReasonTrue: (map['oneReasonTrue'] as String?) ?? '',
+      oneReasonTrue: map['oneReasonTrue'] as String?,
       anotherWayToLook: (map['anotherWayToLook'] as String?) ?? '',
+      version: (map['version'] as num?)?.toInt() ?? 1,
       intensityAfter: (map['intensityAfter'] as num?)?.toInt(),
       agentId: map['agentId'] as String?,
       agentInvitationText: map['agentInvitationText'] as String?,

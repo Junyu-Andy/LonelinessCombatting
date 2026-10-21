@@ -61,6 +61,9 @@ PROMPTS_V2 = [
     # 1020d §2 (2026-10-20): 阿珍／阿伯 v3 (reminiscence v2), key
     # ah_jan_ah_bak_v3.
     "functions/prompts/ah_jan_ah_bak.v3.txt",
+    # 10/21 (decisions-log 134): 小欣 v5 (no in-chat 望一望心入面 offer),
+    # key siu_yan_v5.
+    "functions/prompts/siu_yan.v5.txt",
 ]
 
 BUNDLE_ORDER = PROMPTS + PROMPTS_V2 + [SUFFIX_TEMPLATE, ACKS, CRISIS, FALLBACK]

@@ -1,4 +1,4 @@
-/// 1020c / 1021 — one 小讀本 (bundled HTML) behind `htmlReadersEnabled`.
+/// 1020c / 1021 — one 小讀本 (bundled HTML), opened from 讀少少.
 ///
 ///   §1(3) the page loads `<id>.html` from the App's assets, adds the CSP,
 ///         the no-zoom viewport, `--fs` (the scale the App actually draws

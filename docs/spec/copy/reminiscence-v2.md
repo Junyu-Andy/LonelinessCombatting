@@ -106,7 +106,8 @@ Hybrid 组：模型追问一条（要具体），老人答完模型回一句（�
 
 - `{name}` 换成老人配对的阿珍或阿伯。L-INTRO 可以被 `app_config/usage_copy` 的 `reminiscence_landing_intro_zh`（英文 `_en`）整句换掉；换上去的文字里 `{name}`、`{weeks}` 也会照换。
 - 主题一行按主题编号（第几周）对应，不按显示顺序。
-- 代码：`lib/features/reminiscence/data/reminiscence_v2_copy.dart`（`landingIntro`、`themeLines`、`chaptersEntrySubtitle`），`test/reminiscence_v2_copy_test.dart` 逐字比对。
+- 10/21（第 132 条）：主题卡右边只在这一周完成后（8 题都答了或「唔想講」，而且撳过「完成今個禮拜」）出绿色勾；没进过或没完成时右边没有图标。只看回忆 v2 的记录，旧版回忆记录不算。
+- 代码：`lib/features/reminiscence/data/reminiscence_v2_copy.dart`（`landingIntro`、`themeLines`、`chaptersEntrySubtitle`、`weekProgress`），`test/reminiscence_v2_copy_test.dart` 逐字比对。
 
 | 编号 | 用在哪里 | 文字 |
 | --- | --- | --- |
@@ -116,6 +117,7 @@ Hybrid 组：模型追问一条（要具体），老人答完模型回一句（�
 | L-THEME-3 | 主题卡「一生人嘅朋友」标题下面 | 一路以嚟陪住你嘅朋友 |
 | L-THEME-4 | 主题卡「想留畀下一代嘅說話」标题下面 | 做人嘅道理，想話畀後生一代知嘅嘢 |
 | L-ME | 「自己」页「我嘅人生小篇章」（标题用 T-CHAPTERS）下面一行 | 每個禮拜講完，整理好嘅小文章都喺度。 |
+| L-PROGRESS | 主题卡：这一周至少答了或「唔想講」1 题、还没完成时，主题一行下面（10/21 第 132 条；{n} 是已处理的题数） | 講咗 {n}／8 條 |
 
 「我嘅人生小篇章」两处都留（「自己」页和阿珍／阿伯页，打开同一页；Junyu 10/20 定）。
 

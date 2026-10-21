@@ -24,7 +24,7 @@
 /// opens with O1–O5 (by the mood) or C1 / C2 (the mood got better / worse)
 /// and then answers from the same SY / SN pool (SN after O4, O5, C2); the
 /// Hybrid arm's LLM opens, told the mood (and for M8 the change) and asked
-/// to start by asking what happened (prompt `siu_yan.v4`, `[開場·心情]`).
+/// to start by asking what happened (prompt `siu_yan.v5`, `[開場·心情]`).
 ///
 /// Safety: Q3b, Q4 and every later message go through the same shared
 /// check as any chat input (input point `chat_check_in` in both arms —
@@ -178,7 +178,9 @@ class SiuYanChatPage extends StatefulWidget {
 
   /// 1020 E: while `moodRowV2Enabled` is on, every Hybrid call of this
   /// window sends v4 (= v3 + the mood-opener section); off, v3 as before.
-  static const String promptKeyMoodRow = 'siu_yan_v4';
+  /// 10/21 (decisions-log 134): v5 = v4 without 小欣 offering 望一望心入面
+  /// in the chat (the invite card does it).
+  static const String promptKeyMoodRow = 'siu_yan_v5';
 
   static String get activePromptKey =>
       RemoteFeatureFlags.current.moodRowV2Enabled ? promptKeyMoodRow : promptKey;

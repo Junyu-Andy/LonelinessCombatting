@@ -44,6 +44,12 @@ abstract class ReminiscenceWeekStore {
   /// device cache only; the server doc gets `messages: []`.
   Future<void> save(String uid, ReminiscenceWeekState state,
       {required bool retainTranscript});
+
+  /// 10/21 (decisions-log 131 (3)): the stored week as it changes, for the
+  /// landing card (status and question only — the words may be on the
+  /// device).  Null while never started.
+  Stream<ReminiscenceWeekState?> watch(String uid, int weekIndex,
+      {required String arm});
 }
 
 /// Where the words live when transcript consent is off.
@@ -143,6 +149,22 @@ class FirestoreReminiscenceWeekStore implements ReminiscenceWeekStore {
   }
 
   @override
+  Stream<ReminiscenceWeekState?> watch(String uid, int weekIndex,
+          {required String arm}) =>
+      _ref(uid, weekIndex)
+          .snapshots()
+          .map((s) {
+            final data = s.data();
+            return data == null
+                ? null
+                : ReminiscenceWeekState.fromMap(data,
+                    weekIndex: weekIndex, arm: arm);
+          })
+          .handleError((Object e) {
+            if (kDebugMode) debugPrint('[ReminiscenceWeekStore] watch: $e');
+          });
+
+  @override
   Future<void> save(String uid, ReminiscenceWeekState state,
       {required bool retainTranscript}) async {
     final data = state.toMap(includeMessages: retainTranscript)
@@ -169,6 +191,7 @@ class InMemoryReminiscenceWeekStore implements ReminiscenceWeekStore {
   final serverDocs = <String, Map<String, dynamic>>{};
   final deviceMessages = <String, List<ReminiscenceMessage>>{};
   int saves = 0;
+  final _controllers = <String, StreamController<void>>{};
 
   static String _k(String uid, int w) => '$uid/week_$w';
 
@@ -207,6 +230,28 @@ class InMemoryReminiscenceWeekStore implements ReminiscenceWeekStore {
     } else {
       deviceMessages[k] = List.of(state.messages);
     }
+    _controllers[k]?.add(null);
+  }
+
+  @override
+  Stream<ReminiscenceWeekState?> watch(String uid, int weekIndex,
+      {required String arm}) {
+    final k = _k(uid, weekIndex);
+    final c = _controllers.putIfAbsent(
+        k, () => StreamController<void>.broadcast());
+    ReminiscenceWeekState? current() {
+      final data = serverDocs[k];
+      return data == null
+          ? null
+          : ReminiscenceWeekState.fromMap(data,
+              weekIndex: weekIndex, arm: arm);
+    }
+
+    return Stream<ReminiscenceWeekState?>.multi((sink) {
+      sink.add(current());
+      final sub = c.stream.listen((_) => sink.add(current()));
+      sink.onCancel = sub.cancel;
+    });
   }
 
   Map<String, dynamic>? doc(String uid, int weekIndex) =>
