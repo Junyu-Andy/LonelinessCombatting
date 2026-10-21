@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Backend tests: Cloud Functions unit tests, then everything that needs the
-# Firestore emulator (security rules + functions *_emulator_test.js), then
+# Backend tests: Cloud Functions unit tests and the local ops dashboard's
+# unit tests, then everything that needs the Firestore emulator (security
+# rules + functions *_emulator_test.js + the dashboard), then
 # tool/delete_participant.js, tool/set_shared_context_consent.js and
 # tool/purge_tester_data.js on the Auth + Firestore + Storage emulators.
 #
@@ -21,6 +22,10 @@ echo "::group::functions unit tests"
 )
 echo "::endgroup::"
 
+echo "::group::local ops dashboard unit tests (decision 0061)"
+NODE_PATH=functions/node_modules node tool/dashboard/test/dashboard_unit_test.js
+echo "::endgroup::"
+
 echo "::group::rules + emulator tests"
 (cd test/rules && npm install --no-audit --no-fund)
 firebase emulators:exec --only firestore --project loneliness-pilot-dev '
@@ -32,6 +37,9 @@ firebase emulators:exec --only firestore --project loneliness-pilot-dev '
     echo "--- $t"
     node "$t"
   done
+  cd ..
+  # Last: it empties the emulator, then seeds its own synthetic data.
+  NODE_PATH=functions/node_modules node tool/dashboard/test/dashboard_emulator_test.js
 '
 echo "::endgroup::"
 

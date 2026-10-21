@@ -6,6 +6,27 @@
 
 ---
 
+## 2026-10-21 看板 #142 按第 66 条改：总览显示整份每周问卷，每人页显示心情数值（决策 0072 取代 0061；分支 `claude/zealous-fermat-8rgqtg-dashboard`）
+
+- 结论：Junyu 10/20 第 66 条、10/21 确认。总览和组别同一行，显示每一周的整份每周问卷做完没有；每人页显示每天的心情数值。这是有意的盲法取舍，为了提醒和跟进。先写决策 0072，0061 只改状态行。
+- 总览：W1 至 W7 每周一格，W8 写「未做」。第 1 至 3 周看 DJG-ES、Weekly PR、PGIC，第 4 周看 Weekly PR、PGIC，S12 开着时也算；第 5 至 7 周只有 PGIC（整天开关，决策 0067）。每部分都做完才算完成，没做完写「3/4」这样的部分数。排期、窗口、做完的标准都调用服务器的 `functions/weekly_schedule.js`；PGIC 用作答时间判断，不读分数。
+- 每人页：多一张每周问卷表（几号开、几号截止、状态、每部分做没做）；每日表显示心情数值，一天几次全列，第一次在前。心情数值只在每人页，总览、今天要做、结局完成率、CSV 都没有。
+- 仍然读不到：问卷答案和分数、对话原文、分配序列、`randomization_state`、`sequence_versions`、分配日志、改组记录。原来的测试照旧守住。
+- 并入 main（10/21 冻结构建 #151），没有冲突。看板调用的 `weekly_schedule.js`（第 5 至 7 周整天）、`study_period.js`、`ops_dashboard.js` 照常可用。
+- 测试：看板单元测试 12 项、模拟器测试 12 项通过（合成数据的心情数值带记号，查到只出现在每人页）；`tool/ci_backend_tests.sh` 全部通过。截图 `docs/dev-reports/1021-dashboard-shots/`。
+- 不改 App、Functions、规则。不进 STUDY_CHANGELOG：看板只给研究员用，老人感受不到。
+
+## 2026-10-20 1020i 第二版：本机只读运营看板（PR 草稿，分支 `claude/zealous-fermat-8rgqtg-dashboard`；决策 0061）
+
+- 新目录 `tool/dashboard/`：Node 本机网页，只在 `127.0.0.1` 打开。五页：总览、今天要做、每人页、结局完成率、导出 CSV。研究日、问卷窗口、跟进阶段、有效会话、check-in 完成，都调用 `functions/` 里的同一份代码。
+- 读数据：专用只读服务账号。启动时用 `testIamPermissions` 检查，钥匙能写就拒绝启动。`lib/guarded_db.js` 只许读白名单里的集合，每次只取白名单里的字段。序列、`randomization_state`、`sequence_versions` 和分配日志写死不读。
+- 盲法：总览页每周问卷一格只看 Weekly PR。结局问卷完成情况只出现在「今天要做」名单（无组别）和全体合并的完成率（Phase B，少于 5 人不显示）。心情只显示有没有记。
+- 写入：「確認處理」「標記誤觸」由 Junyu 在网页上用 App 账号登录，浏览器直接调用现有的 `acknowledgeAlert`、`markSafetyFalseAlarm`。看板程序自己不写 Firestore。
+- 测试：
+  - `tool/dashboard/test/` 两份，已加进 CI 和 Mac 本地脚本；
+  - 合成数据的答案、心情值、对话、分配字段都带记号，确认没有读回来，也没出现在任何输出里；
+  - 另在模拟器上走了一遍登录和按钮：评估员账号被服务器拒绝。
+- 不改 App、Functions、规则。不进 STUDY_CHANGELOG（参与者感受不到）。
 ## 2026-10-21 T35 W8「最後一份問卷」App 内自填（交接 1021-W8，决策 0036；分支 `claude/zealous-fermat-8rgqtg-w8-1021`，从 #151 的 head 开）
 
 - 结论：W8 做好了，冻结后合并、部署 Functions 和规则就生效；第 56 天前谁看到的都不变。两组同一流程、同一推送、同一时间，零模型调用，不加开关。
