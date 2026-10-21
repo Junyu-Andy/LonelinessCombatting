@@ -15,6 +15,8 @@
 //   flutter test --dart-define=PHASE_B=true test/mood_row_v2_test.dart
 // (tool/ci_flutter_tests.sh "phase B arm gating").  In the default build
 // everybody is Hybrid and the rule-arm cases are skipped.
+import 'dart:io';
+
 import 'package:app_demo/core/config/phase_b_config.dart';
 import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
 import 'package:app_demo/core/session/chat_session_recorder.dart';
@@ -27,6 +29,7 @@ import 'package:app_demo/features/context/data/siu_yan_rule_chat_pool.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_arm_a.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_arm_b.dart';
 import 'package:app_demo/features/context/presentation/pages/siu_yan_chat_page.dart';
+import 'package:app_demo/features/thought_exercise/presentation/naming_thought_card.dart';
 import 'package:app_demo/features/today/data/mood_row_copy.dart';
 import 'package:app_demo/features/today/data/mood_row_store.dart';
 import 'package:app_demo/features/today/presentation/widgets/daily_mood_prompt.dart';
@@ -478,7 +481,7 @@ void main() {
       expect(run.llm.calls, isEmpty);
     }, skip: !ruleTestable);
 
-    testWidgets('Hybrid M7: the LLM opens (siu_yan_v4, [開場·心情] with the '
+    testWidgets('Hybrid M7: the LLM opens (siu_yan_v5, [開場·心情] with the '
         'mood), no check-in', (tester) async {
       final run =
           await open(tester, ArmAssignment.a, const MoodChatEntry(mood: 2));
@@ -487,14 +490,14 @@ void main() {
       noCheckIn();
       final c = run.llm.pageCalls.single;
       expect(c.moduleId, 'greeting_siu_yan');
-      expect(c.promptKey, 'siu_yan_v4');
+      expect(c.promptKey, 'siu_yan_v5');
       expect(c.suffix, contains('[開場·心情]'));
       expect(c.suffix, contains('用戶而家揀嘅心情：唔係幾好（2/5）'));
       expect(c.suffix, isNot(contains('之前揀嘅心情')));
       // Chatting on: the LLM chat, same prompt version.
       await _type(tester, '今朝膝頭好痛');
       expect(says(FakeLlm.chat), findsOneWidget);
-      expect(run.llm.pageCalls.last.promptKey, 'siu_yan_v4');
+      expect(run.llm.pageCalls.last.promptKey, 'siu_yan_v5');
       expect(run.llm.pageCalls.last.moduleId, 'm2_check_in');
     }, skip: !hybridTestable);
 
@@ -520,7 +523,30 @@ void main() {
       noCheckIn();
     }, skip: !hybridTestable);
 
-    testWidgets('mood row on: the check-in replies also send siu_yan_v4 '
+    testWidgets('10/21 (decisions-log 134): Hybrid says 冇人會記得我 → only '
+        'the invite card; 小欣 v5 does not offer the exercise or say stuck',
+        (tester) async {
+      final run =
+          await open(tester, ArmAssignment.a, const MoodChatEntry(mood: 2));
+      expect(find.byType(NamingThoughtCard), findsNothing);
+      await _type(tester, '冇人會記得我');
+      expect(find.byType(NamingThoughtCard), findsOneWidget);
+      expect(says('你頭先講咗一句：「冇人會記得我」。'), findsOneWidget);
+      // 小欣's reply (the model's text) is shown as is; nothing on the
+      // page says stuck, and the only invite is the card.
+      expect(says(FakeLlm.chat), findsOneWidget);
+      expect(find.textContaining('stuck', findRichText: true), findsNothing);
+      expect(find.textContaining('要唔要做個小練習', findRichText: true),
+          findsOneWidget);
+      // The call used v5, whose text never asks for the offer.
+      expect(run.llm.pageCalls.last.promptKey, 'siu_yan_v5');
+      final v5 = File('functions/prompts/siu_yan.v5.txt').readAsStringSync();
+      expect(v5, isNot(contains('stuck')));
+      expect(v5, isNot(contains('要唔要做個小練習')));
+      expect(v5, contains('唔好喺對話中主動提議「望一望心入面」或者其他練習'));
+    }, skip: !hybridTestable);
+
+    testWidgets('mood row on: the check-in replies also send siu_yan_v5 '
         '(off: v3, batch 2 test)', (tester) async {
       final run = HomeRun(ArmAssignment.a);
       await pumpHome(tester, run, const Scaffold(body: Text('home')));
@@ -533,15 +559,15 @@ void main() {
       await settle(tester);
       await tester.tap(find.byKey(const ValueKey('check_in_answer_Q3_none')));
       await settle(tester);
-      expect(run.llm.pageCalls.single.promptKey, 'siu_yan_v4');
-      expect(SiuYanChatPage.activePromptKey, 'siu_yan_v4');
+      expect(run.llm.pageCalls.single.promptKey, 'siu_yan_v5');
+      expect(SiuYanChatPage.activePromptKey, 'siu_yan_v5');
       // Batch 2 (1020e 二.8): Q4 唔講住 calls the model with
       // [簽到·唔講住] — under v4 too.
       await tester.tap(find.byKey(const ValueKey('check_in_skip')));
       await settle(tester);
       final skip = run.llm.pageCalls.last;
       expect(skip.suffix, contains('[簽到·唔講住]'));
-      expect(skip.promptKey, 'siu_yan_v4');
+      expect(skip.promptKey, 'siu_yan_v5');
       expect(skip.moduleId, 'm2_check_in');
       expect(says(CheckInChatCopy.q5), findsOneWidget);
       RemoteFeatureFlags.current =

@@ -38,10 +38,16 @@ const _promptCache = {};
 //   reminiscence v2 page behind the App switch reminiscenceV2Enabled sends
 //   `ah_jan_ah_bak_v3`; every other 阿珍／阿伯 call still sends
 //   `ah_jan_ah_bak_v1` and gets v2.
+//   10/21 (decisions-log 10/21 第 134 条): 小欣 v5 = v4 with the
+//   「你獨有嘅授權」 lines (offering 望一望心入面 in the chat with the
+//   locked 「…stuck…」 sentence) replaced by one line: do not offer it, the
+//   App shows the invite card.  The freeze build's chat window sends
+//   `siu_yan_v5` where it sent `siu_yan_v4`; older builds keep v4.
 const PROMPT_FILES = {
   siu_yan_v1: "siu_yan.v2",
   siu_yan_v3: "siu_yan.v3",
   siu_yan_v4: "siu_yan.v4",
+  siu_yan_v5: "siu_yan.v5",
   ah_jan_ah_bak_v1: "ah_jan_ah_bak.v2",
   ah_jan_ah_bak_v3: "ah_jan_ah_bak.v3",
   tung_tung_v1: "tung_tung.v3",
