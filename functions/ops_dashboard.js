@@ -48,6 +48,20 @@
  * after the last rewrite) and how many failed.  Counts only: no chapter
  * text, no flag wording, nothing per arm beyond the row's existing `arm`.
  *
+ * T35 (W8, handover 1021-W8 四 (4)): `weekly.W8` and `w8Status` are the
+ * real completion status (not_yet / open / in_progress / late / done /
+ * missed, w8_questionnaire.cellFor) and `w8` the counts behind it (parts
+ * submitted of 5, completed at, completed outside the window, and
+ * `optionalPart`: whether the optional AIMHS was filled or declined) —
+ * read from the server-written
+ * weekly_status/{uid}.bundles.W8, never from an answer.
+ *
+ * 开工方式 (4): `appBuild` — the App version the person's phone last
+ * reported (users/{uid}.appBuild: version, build, w8, platform, seenAt;
+ * written by the App on every open, lib/core/version/app_build_recorder.
+ * dart).  null = no report yet: a build from before the W8 one.  Only
+ * that one field of users/{uid} is read (field mask).
+ *
  * Storage: ops_daily/{uid}/days/{dayKey} keeps the finished days (server
  * only).  opsDailyRollup (02:10 HKT) writes yesterday for everyone; a
  * callable fills any missing finished day and computes today on demand,
@@ -60,6 +74,7 @@
 const featureFlags = require("./feature_flags");
 const studyWeek = require("./study_week");
 const randomization = require("./randomization");
+const w8 = require("./w8_questionnaire");
 
 const UNBLINDED_ROLE = "unblinded";
 const FLAG = "opsDashboardEnabled";
@@ -98,7 +113,9 @@ const SAFETY_LEVELS = ["acute", "moderate", "low"];
  */
 const OUTCOME_COLLECTIONS = ["djg_responses", "djg_es", "pgic",
   "social_contact_probes", "outcome_entries", "ucla3", "phq9", "gad7",
-  "continuance", "aimhs", "loneliness_probes"];
+  "continuance", "aimhs", "loneliness_probes",
+  // T35: the W8 records (w8_questionnaire.js).
+  "ucla3_responses", "ci_responses", "lsns6_responses", "aimhs_responses"];
 
 const MS_PER_DAY = 86400000;
 
@@ -337,6 +354,57 @@ function weeklyCellFor(partDoc, bundleStatus) {
   return "not_yet";
 }
 
+/**
+ * T35 — the W8 completion detail for the person row.  Pure.  Counts and
+ * times only.
+ * @param {?object} w8Status weekly_status.bundles.W8
+ * @param {number} studyDay today's study day
+ * @return {{status: string, partsSubmitted: number, parts: number,
+ *     completedAt: ?string, completedOutOfWindow: ?boolean,
+ *     optionalPart: ?string}} optionalPart: the optional AIMHS —
+ *     submitted / declined / in_progress / null (a state, never a value)
+ */
+function w8DetailFor(w8Status, studyDay) {
+  const s = w8Status || {};
+  const at = studyWeek.toDate(s.completedAt);
+  return {
+    status: w8.cellFor(s, studyDay),
+    partsSubmitted: typeof s.partsSubmitted === "number" ?
+      s.partsSubmitted : 0,
+    parts: w8.PARTS.length,
+    completedAt: at ? at.toISOString() : null,
+    completedOutOfWindow: typeof s.completedOutOfWindow === "boolean" ?
+      s.completedOutOfWindow : null,
+    optionalPart: typeof s.aimhs === "string" ? s.aimhs : null,
+  };
+}
+
+/**
+ * 开工方式 (4) — the App version a phone last reported.  Pure.
+ * @param {?object} b users/{uid}.appBuild
+ * @return {?{version: ?string, build: ?string, w8: boolean,
+ *     platform: ?string, seenAt: ?string}} null = never reported (a build
+ *     from before the W8 one)
+ */
+function appBuildOf(b) {
+  if (!b || typeof b !== "object") return null;
+  const str = (v) => (typeof v === "string" ? v : null);
+  const at = studyWeek.toDate(b.seenAt);
+  return {version: str(b.version), build: str(b.build), w8: b.w8 === true,
+    platform: str(b.platform), seenAt: at ? at.toISOString() : null};
+}
+
+/**
+ * @param {object} db
+ * @param {string} uid
+ * @return {Promise<?object>} users/{uid}.appBuild, read alone (field mask)
+ */
+async function readAppBuild(db, uid) {
+  const [snap] = await db.getAll(db.collection("users").doc(uid),
+      {fieldMask: ["appBuild"]});
+  return snap && snap.exists ? snap.get("appBuild") : null;
+}
+
 const CSV_COLUMNS = ["researchId", "studyPeriod", "arm", "studyDay", "dayKey",
   "opened", "firstOpenAt", "foregroundMinutes", "validSessions_siu_yan",
   "validSessions_ah_jan_ah_bak", "validSessions_tung_tung", "briefPrInvited",
@@ -565,7 +633,7 @@ async function loadPerson(db, person, now, opts) {
 
   const [sessions, briefPr, weeklyParts, statusSnap, moodSnap, memSnap,
     sttSnap, voiceFailSnap, safetySnap, alertSnap, lastUsageSnap,
-    chapterSnap] =
+    chapterSnap, appBuild] =
     await Promise.all([
       readSessions(db, person.uid, null),
       readBriefPr(db, person.uid),
@@ -587,6 +655,7 @@ async function loadPerson(db, person, now, opts) {
       userRef.collection(USAGE_COLLECTION).orderBy("clientAt", "desc")
           .limit(LAST_USE_SCAN).get(),
       userRef.collection(CHAPTER_COLLECTION).get(),
+      readAppBuild(db, person.uid),
     ]);
 
   const byCompanion = {};
@@ -615,10 +684,13 @@ async function loadPerson(db, person, now, opts) {
   }
 
   const bundles = statusSnap.exists ? (statusSnap.get("bundles") || {}) : {};
+  // T35: W8 from the server's completion status, not from any record.
+  const w8Detail = w8DetailFor(bundles.W8, todayDay);
   const weekly = {};
   WEEKS.forEach((w, i) => {
     const part = weeklyParts[i].exists ? weeklyParts[i].data() : null;
-    weekly[w] = w === "W8" ? "not_built" : weeklyCellFor(part, bundles[w]);
+    weekly[w] = w === "W8" ? w8Detail.status :
+      weeklyCellFor(part, bundles[w]);
   });
 
   const moodDays = {};
@@ -678,7 +750,9 @@ async function loadPerson(db, person, now, opts) {
     voice: {uses: sttSnap.size, failures: voiceFailSnap.size},
     safety,
     chapters,
-    w8Status: "not_built",
+    w8Status: w8Detail.status,
+    w8: w8Detail,
+    appBuild: appBuildOf(appBuild),
     debriefStatus: "not_built",
   };
 
@@ -826,7 +900,7 @@ module.exports = {
   FOREGROUND_CAP_MIN, FOLLOW_UP_LAST_DAY, WHATSAPP_FROM_DAYS, PHONE_FROM_DAYS,
   COMPANIONS, SESSION_TYPES, WEEKS, OUTCOME_COLLECTIONS, CSV_COLUMNS,
   foregroundMinutesByDay, dayRowsFor, followUpFor, dueListFor, weeklyCellFor,
-  chapterCounts,
+  chapterCounts, w8DetailFor, appBuildOf,
   csvFor, participants, personDayRows, loadPerson,
   people, person, csv, rollup,
 };

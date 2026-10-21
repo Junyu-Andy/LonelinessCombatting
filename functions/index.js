@@ -41,6 +41,7 @@ const weeklyEmail = require("./weekly_email");
 const pushCopy = require("./push_copy");
 const reminiscenceChapter = require("./reminiscence_chapter");
 const articleQa = require("./article_qa");
+const w8 = require("./w8_questionnaire");
 
 admin.initializeApp();
 
@@ -2616,6 +2617,48 @@ exports.onPgicWritten = weeklyPartTrigger(weeklySchedule.PGIC_COLLECTION);
 exports.onSocialContactProbeWritten =
   weeklyPartTrigger(weeklySchedule.SOCIAL_COLLECTION);
 
+// ---------------------------------------------------------------------------
+// T35 — the W8 questionnaire in the App (handover 1021-W8, decision 0036).
+// Both arms identical, no LLM, no switch: nothing happens before study day
+// 56 (functions/w8_questionnaire.js).
+//   w8Dispatch: hourly 08:00–21:00 HKT — day 56 push to every registered
+//     non-tester participant, day 58 / 60 reminders to whoever has not
+//     finished (at app_config/phase_b.weeklyPushHour, default 10; no quiet
+//     hours), from day 71 the missed marks; then, once a day, the day-60
+//     list of research IDs still not done to the research lead.
+//   onW8PartWritten: users/{uid}/{collection}/W8 — the server fields
+//     (studyWeek 8, studyDay, submittedStudyDay, outOfWindow, window,
+//     scores) and the whole-questionnaire status in weekly_status.
+// ---------------------------------------------------------------------------
+const W8_DISPATCH = {
+  schedule: "0 8-21 * * *",
+  timeZone: "Asia/Hong_Kong",
+  region: "asia-east2",
+  retryCount: 0,
+  secrets: [SMTP_HOST, SMTP_USER, SMTP_PASS, PI_EMAIL],
+};
+
+exports.w8Dispatch = onSchedule(W8_DISPATCH, async () => {
+  const db = admin.firestore();
+  const now = new Date();
+  await w8.dispatchW8(db, admin.messaging(), {now});
+  const out = await w8.sendIncompleteEmail(db, {now,
+    smtp: readSmtpSecrets(), auth: admin.auth()});
+  console.log(`w8IncompleteEmail: ${out.status} count=${out.count}`);
+});
+
+const W8_PART_DOC = {
+  document: `users/{uid}/{collection}/${w8.BUNDLE_ID}`,
+  region: "asia-east2",
+};
+
+exports.onW8PartWritten = onDocumentWritten(W8_PART_DOC, async (event) => {
+  const side = (k) => (event.data && event.data[k] &&
+    event.data[k].exists ? event.data[k].data() : null);
+  await w8.stampW8Part(admin.firestore(), event.params.uid,
+      event.params.collection, w8.BUNDLE_ID, side("before"), side("after"));
+});
+
 exports.onBriefPrWritten = onDocumentWritten(
   {document: "users/{uid}/brief_pr/{docId}", region: "asia-east2"},
   async (event) => {
@@ -2911,6 +2954,8 @@ const _TEST_PUSH_COPY = {
   daily_mood_reminder: "今日過得點？得閒入嚟同我哋講兩句，想講先講，唔講都冇所謂。",
   weekly_survey_reminder: "今個禮拜過得點？得閒入嚟答幾條，想答先答，唔想都冇問題。",
   w2_push: "入嚟兩個禮拜喇，有幾條短問題想問下你。得閒先答，唔急。",
+  // T35: the W8 push (the same text on days 56, 58 and 60).
+  w8_open: w8.PUSH_BODY,
 };
 
 /**

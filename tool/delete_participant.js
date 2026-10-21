@@ -30,6 +30,13 @@
  *
  *   T30: outcome_entries (uid field: the assessor's W4 paper entries),
  *              pairing_change_log (uid), weekly_status (doc id = uid).
+ *   T35: the W8 questionnaire — users/{uid}/djg_responses/W8, pgic/W8,
+ *              ucla3_responses/W8, ci_responses/W8, lsns6_responses/W8,
+ *              aimhs_responses/W8 (subcollections, walked above), its
+ *              status weekly_status/{uid}.bundles.W8 (doc id = uid) and
+ *              users/{uid}.appBuild (the profile doc).  The day-60 e-mail
+ *              row alert_audit_log/w8_incomplete_<date> holds no uid or
+ *              research ID, only a count.
  *
  * T30 --allocation-record (dev-tasks-1010 §四 T30 §5.1; replaces T19's
  * "keep the whole allocation-log row"): before deleting, write ONE row
