@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notification accent: the App's theme colour (lib/app/app_theme.dart
+         _seed).  Used by FCM for every notification (AndroidManifest). -->
+    <color name="notification_color">#C2703F</color>
+</resources>

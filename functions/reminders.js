@@ -5,8 +5,11 @@
  * The app queues each reminder at users/{uid}/reminders/{id} (both arms,
  * lib/core/reminders/reminder_service.dart) but nothing ever sent them.
  * dispatchDueReminders runs from a scheduled function every 15 minutes,
- * 08:00–21:45 Hong Kong time, and sends each due `m7_followup` reminder
- * as an FCM notification to the participant's own devices (fcm_tokens).
+ * 06:00–22:45 Hong Kong time (1020o: was 08:00–21:45; widened so a
+ * personal 安靜時段 ending at 06:00 or starting at 23:00 is honoured — the
+ * default window 22:00–08:00 still holds every tick outside 08:00–21:45),
+ * and sends each due `m7_followup` reminder as an FCM notification to the
+ * participant's own devices (fcm_tokens).
  *
  * Off unless app_config/reminders.m7FollowupPushEnabled === true.
  * No arm check (both arms get the same reminder) and no LLM call.
@@ -16,8 +19,16 @@
  *     as Hong Kong time.
  *   - Not yet due → left alone.
  *   - Due more than staleHours ago (default 12) → skipped_stale, so
- *     turning the switch on never floods old reminders.  Overnight
- *     reminders go out at 08:00 (≤ ~10 h late), inside the window.
+ *     turning the switch on never floods old reminders.  A reminder that
+ *     fell inside the elder's 安靜時段 waits for the end of it and its age
+ *     counts from then (1020o: a 20:00–08:00 window is 12 h long).  10/21
+ *     (decisions-log 118): the age counts from the end of the FIRST
+ *     安靜時段 entered at or after fireAt when that window starts before
+ *     the next dispatch run after fireAt (DISPATCH_EVERY_MS: the reminder
+ *     never had a chance to go out) and ends more than staleHours after
+ *     fireAt (it would be stale by then) — so one due at 19:50 for a
+ *     window 20:00–08:00 goes out at 08:00, not skipped_stale.  With the
+ *     default 22:00–08:00 window (10 h) every result is the same as before.
  *   - 今日休息 used to drop the day's reminders (skipped_quiet_today);
  *     since 10/20 (dev-tasks-1020 §H(3)) it is ignored.
  *   - Linked plan deleted → skipped_plan_missing; plan already has an
@@ -25,6 +36,17 @@
  *     elder (`deletedAt`, App switch actionPlanSimplifiedEnabled) →
  *     skipped_plan_deleted (the App also deletes the plan's unsent
  *     reminders; this covers a delete that failed or ran offline).
+ *   - 1020m 第二节 (page 1's small-action row, decision 0064).  The App
+ *     moves or drops the plan's reminders itself on 「改日」 / 「做咗」;
+ *     these two checks cover a write that failed or ran offline:
+ *       · the plan was moved by 「改日」 (`homeRowDueDate`) to a later
+ *         Hong Kong day than this reminder's → the reminder is moved to
+ *         that day, same clock time (moved_home_later; not terminal — it
+ *         is sent on the new day like any other);
+ *       · the elder already answered on the row that day or later
+ *         (`homeRowAnsweredDate` ≥ the reminder's day: 「改日」 a second
+ *         time) → skipped_home_answered.  「做咗」 sets `outcome`, so it is
+ *         skipped_followed_up as before.
  *   - Otherwise send.  At least one device accepted → sent.  No device
  *     or every send failed → retry on the next run, up to maxAttempts
  *     (default 3), then failed / no_tokens.
@@ -48,11 +70,16 @@ const PUSH_BODY = "你今日有個小計劃，得閒打開睇下。"; // S4a
 const quietHours = require("./quiet_hours");
 
 const DEFAULTS = {staleHours: 12, maxAttempts: 3};
+
+/** index.js dispatchReminders runs every 15 minutes ("*\/15 6-22 * * *"). */
+const DISPATCH_EVERY_MS = 15 * 60 * 1000;
 const TERMINAL = new Set([
   "sending", "sent", "failed", "no_tokens", "skipped_stale",
   "skipped_quiet_today", "skipped_plan_missing", "skipped_followed_up",
-  "skipped_plan_deleted",
+  "skipped_plan_deleted", "skipped_home_answered",
 ]);
+
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Parse a reminder's fireAt.  A string without an offset is HK local time.
@@ -94,21 +121,83 @@ function isQuietToday(raw, now) {
 }
 
 /**
+ * 1020m: the reminder's fireAt on another Hong Kong day, same clock time,
+ * as the App writes it (local ISO string without an offset).
+ * @param {Date} fireAt
+ * @param {string} dayKey YYYY-MM-DD
+ * @return {string}
+ */
+function fireAtOnDay(fireAt, dayKey) {
+  const hk = new Date(fireAt.getTime() + 8 * 3600 * 1000);
+  return `${dayKey}T${hk.toISOString().slice(11, 23)}`;
+}
+
+/**
+ * 1020m 第二节: what page 1's small-action row says about one reminder of
+ * a plan without an outcome.  Pure.
+ * @param {object} plan action_plans doc data
+ * @param {Date} fireAt the reminder's fireAt
+ * @return {{moveTo: (string|undefined), skip: (boolean|undefined)}}
+ *     moveTo: the new fireAt (the plan was moved to a later day);
+ *     skip: answered on the row on the reminder's day or later
+ */
+function homeRowCheck(plan, fireAt) {
+  const p = plan || {};
+  const day = hkDateKey(fireAt);
+  const due = p.homeRowDueDate;
+  if (typeof due === "string" && DATE_KEY.test(due) && day < due) {
+    return {moveTo: fireAtOnDay(fireAt, due)};
+  }
+  const answered = p.homeRowAnsweredDate;
+  if (typeof answered === "string" && DATE_KEY.test(answered) &&
+      answered >= day) {
+    return {skip: true};
+  }
+  return {};
+}
+
+/**
  * Decide what to do with one queued reminder, before any token lookup.
  * @param {object} r reminder doc data
- * @param {{now: Date, staleHours: number}} opts
+ * @param {{now: Date, staleHours: number, heldUntil: (?Date|undefined)}}
+ *     opts heldUntil: the end of the first 安靜時段 entered at or after
+ *     fireAt (1020o; 10/21 decisions-log 118) — the reminder's age counts
+ *     from then
  * @return {string} "skip" | "wait" | "due" | "skipped_stale"
  */
-function classify(r, {now, staleHours}) {
+function classify(r, {now, staleHours, heldUntil}) {
   if (!r || r.kind !== KIND) return "skip";
   if (r.delivered === true || TERMINAL.has(r.dispatchStatus)) return "skip";
   const fireAt = parseFireAt(r.fireAt);
   if (!fireAt) return "skip";
   if (fireAt.getTime() > now.getTime()) return "wait";
-  if (now.getTime() - fireAt.getTime() > staleHours * 3600 * 1000) {
+  const dueFrom = heldUntil && heldUntil.getTime() > fireAt.getTime() ?
+    heldUntil : fireAt;
+  if (now.getTime() - dueFrom.getTime() > staleHours * 3600 * 1000) {
     return "skipped_stale";
   }
   return "due";
+}
+
+/**
+ * When the reminder's age starts counting, if not at fireAt: the end of
+ * the 安靜時段 fireAt fell in (1020o); 10/21 (decisions-log 118) also the
+ * end of the window that starts before the next run could have sent it,
+ * when that window ends more than staleHours after fireAt.  Else null.
+ * @param {?object} user users/{uid} data
+ * @param {?Date} fireAt
+ * @param {{startMin: number, endMin: number}} quiet global window
+ * @param {number} staleHours
+ * @return {?Date}
+ */
+function heldUntilFor(user, fireAt, quiet, staleHours) {
+  if (!fireAt) return null;
+  const inside = quietHours.quietEndAfter(user, fireAt, quiet);
+  if (inside) return inside;
+  const next = quietHours.firstQuietEndAfter(user, fireAt, quiet,
+      DISPATCH_EVERY_MS);
+  return next && next.getTime() - fireAt.getTime() > staleHours * 3600 * 1000 ?
+    next : null;
 }
 
 /**
@@ -125,7 +214,8 @@ async function readConfig(db) {
     enabled: data.m7FollowupPushEnabled === true,
     staleHours: num(data.staleHours, DEFAULTS.staleHours),
     maxAttempts: num(data.maxAttempts, DEFAULTS.maxAttempts),
-    // 10/14: the elder's 安靜時段 window (functions/quiet_hours.js).
+    // 10/14: the global 安靜時段 window (functions/quiet_hours.js); 1020o:
+    // the elder's own users/{uid}.quietHoursStart / End come first.
     quiet: quietHours.quietHoursConfigFrom(data),
   };
 }
@@ -183,10 +273,13 @@ async function dispatchDueReminders(db, messaging, opts = {}) {
  */
 async function dispatchOne(db, messaging, userDoc, user, rem, cfg, now) {
   const r = rem.data() || {};
-  const state = classify(r, {now, staleHours: cfg.staleHours});
+  const fireAt = parseFireAt(r.fireAt);
+  const heldUntil = heldUntilFor(user, fireAt, cfg.quiet, cfg.staleHours);
+  const state = classify(r, {now, staleHours: cfg.staleHours, heldUntil});
   if (state === "skip" || state === "wait") return null;
   // 10/14: inside the elder's 安靜時段 the reminder waits for a later tick
-  // (classify() still turns it stale after staleHours).
+  // (classify() still turns it stale after staleHours).  1020o: the
+  // elder's own window (users/{uid}.quietHoursStart / End) first.
   if (state === "due" && quietHours.inQuietHours(user, now, cfg.quiet)) {
     return null;
   }
@@ -200,6 +293,20 @@ async function dispatchOne(db, messaging, userDoc, user, rem, cfg, now) {
     if (!plan.exists) outcome = "skipped_plan_missing";
     else if (plan.get("deletedAt")) outcome = "skipped_plan_deleted";
     else if (plan.get("outcome")) outcome = "skipped_followed_up";
+    else {
+      // 1020m 第二节: 「改日」 on page 1's small-action row.
+      const home = homeRowCheck(plan.data(), parseFireAt(r.fireAt));
+      if (home.moveTo) {
+        await rem.ref.update({
+          fireAt: home.moveTo,
+          movedFromFireAt: r.fireAt,
+          movedBy: "server_home_row",
+          dispatchUpdatedAt: now,
+        }, {lastUpdateTime: rem.updateTime});
+        return "moved_home_later";
+      }
+      if (home.skip) outcome = "skipped_home_answered";
+    }
   }
 
   const attempts = (Number(r.dispatchAttempts) || 0) + (outcome ? 0 : 1);
@@ -259,7 +366,7 @@ async function dispatchOne(db, messaging, userDoc, user, rem, cfg, now) {
 }
 
 module.exports = {
-  KIND, PUSH_TITLE, PUSH_BODY, DEFAULTS,
-  parseFireAt, hkDateKey, isQuietToday, classify, readConfig,
-  dispatchDueReminders,
+  KIND, PUSH_TITLE, PUSH_BODY, DEFAULTS, DISPATCH_EVERY_MS,
+  parseFireAt, hkDateKey, isQuietToday, classify, heldUntilFor, readConfig,
+  fireAtOnDay, homeRowCheck, dispatchDueReminders,
 };

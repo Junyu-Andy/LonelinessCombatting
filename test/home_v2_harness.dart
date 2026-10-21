@@ -28,6 +28,9 @@ import 'package:app_demo/features/rule_replies/data/rule_reply_history_store.dar
 import 'package:app_demo/features/today/data/mood_recorder.dart';
 import 'package:app_demo/features/today/data/mood_row_copy.dart';
 import 'package:app_demo/features/today/data/mood_row_store.dart';
+import 'package:app_demo/features/today/data/small_action_row_store.dart';
+import 'package:app_demo/core/usage/usage_event_recorder.dart';
+import 'package:app_demo/core/usage/usage_events_scope.dart';
 import 'package:app_demo/features/today/presentation/home_v2_scope.dart';
 import 'package:app_demo/features/weekly_bundle/data/weekly_bundle.dart';
 import 'package:app_demo/core/scheduling/weekly_schedule.dart';
@@ -157,9 +160,14 @@ UserProfile homeProfile(ArmAssignment arm, {String? cohort = 'phase_b'}) =>
 class FakeWeeklyStore implements WeeklyBundleStore {
   bool done = false;
 
+  /// Bundles answered in full whatever [done] says (10/20 item 98 tests:
+  /// W1–W4 done, W5 open).
+  final Set<String> doneBundles = {};
+
   @override
   Future<Map<WeeklyPart, String?>> partStatus(WeeklyBundle bundle) async => {
-        for (final p in bundle.parts) p: done ? 'submitted' : null,
+        for (final p in bundle.parts)
+          p: done || doneBundles.contains(bundle.id) ? 'submitted' : null,
       };
 }
 
@@ -168,6 +176,8 @@ class HomeRun {
   HomeRun(this.arm, {DateTime? now, this.cohort = 'phase_b'})
       : now = now ?? DateTime(2026, 10, 20, 9, 30) {
     moodStore.clock = () => this.now;
+    smallActions.clock = () => this.now;
+    usage.setProfile(homeProfile(arm, cohort: cohort));
   }
 
   final ArmAssignment arm;
@@ -176,6 +186,26 @@ class HomeRun {
   late FakeLlm llm;
   final analytics = RecordingAnalytics();
   final moodStore = InMemoryMoodRowStore();
+
+  /// 1020m: page 1's small-action row (plans, reminders, 遲啲先 mark).
+  final smallActions = InMemorySmallActionRowStore();
+
+  /// 1020m: how often the small-action row opened its (stub) page.
+  int smallActionPageOpens = 0;
+
+  /// 1020n: how often 「仲有 N 個計劃」 opened 我嘅計劃 (stub page).
+  int myPlansPageOpens = 0;
+
+  /// Usage events (T40 / 1020c / 1020m), switch on, kept in memory.
+  final usageSink = InMemoryUsageEventSink();
+  late final usage = UsageEventRecorder(
+    sink: usageSink,
+    enabled: () => true,
+    clock: () => now,
+    platform: 'test',
+    appVersion: '0.0.0',
+    buildNumber: '0',
+  );
   final weekly = FakeWeeklyStore();
   final checkIns = InMemoryCheckInResponseStore();
   final replyHistory = InMemoryRuleReplyHistoryStore();
@@ -232,6 +262,7 @@ Widget homeHarness(HomeRun run,
   final state = DistressState();
   return HomeV2Scope(
     checkedInToday: (_) async => run.checkedIn,
+    checkInResponses: run.checkIns,
     daysSinceLastCheckIn: (_) async => run.daysSince,
     moodStore: run.moodStore,
     weeklyStore: (_) => run.weekly,
@@ -245,6 +276,15 @@ Widget homeHarness(HomeRun run,
     checkInPage: () => run.realChat
         ? run.chatPage()
         : const Scaffold(body: Text('check-in')),
+    smallActionStore: run.smallActions,
+    smallActionPage: () {
+      run.smallActionPageOpens++;
+      return const Scaffold(body: Text('今日小行動 page'));
+    },
+    myPlansPage: () {
+      run.myPlansPageOpens++;
+      return const Scaffold(body: Text('我嘅計劃 page'));
+    },
     child: AppSettingsScope(
       settings: AppSettings(
           locale: const Locale('zh'),
@@ -273,21 +313,24 @@ Widget homeHarness(HomeRun run,
             handoffExecutor: HandoffExecutor(sharedContext: sharedContext),
             agentGreeting: AgentGreetingService(llm),
             memoryV1: _FakeMemoryV1(),
-            child: MaterialApp(
-              navigatorKey: run.navKey,
-              theme: theme,
-              debugShowCheckedModeBanner: false,
-              builder: textScale == null
-                  ? null
-                  : (context, child) => MediaQuery(
-                        data: MediaQuery.of(context).copyWith(
-                            textScaler: TextScaler.linear(textScale)),
-                        child: child ?? const SizedBox.shrink(),
-                      ),
-              locale: const Locale('zh'),
-              supportedLocales: AppLocalizations.supportedLocales,
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              home: home,
+            child: UsageEventsScope(
+              recorder: run.usage,
+              child: MaterialApp(
+                navigatorKey: run.navKey,
+                theme: theme,
+                debugShowCheckedModeBanner: false,
+                builder: textScale == null
+                    ? null
+                    : (context, child) => MediaQuery(
+                          data: MediaQuery.of(context).copyWith(
+                              textScaler: TextScaler.linear(textScale)),
+                          child: child ?? const SizedBox.shrink(),
+                        ),
+                locale: const Locale('zh'),
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                home: home,
+              ),
             ),
           ),
         ),
@@ -328,7 +371,7 @@ Future<void> settle(WidgetTester tester) async {
 Finder says(String text) => find.textContaining(text, findRichText: true);
 
 /// The first study day of a bundle at its push hour (W0 = 2026-10-14).
-DateTime pushTime(int day, {int hour = 20, int minute = 30}) =>
+DateTime pushTime(int day, {int hour = 10, int minute = 30}) =>
     DateTime(2026, 10, 14 + day, hour, minute);
 
 /// Today's W0-based helpers for the questionnaire row.

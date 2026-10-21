@@ -13,7 +13,7 @@
 - history、STUDY_CHANGELOG、architecture、backlog 这四份用 union 合并（`.gitattributes`）：每个 PR 只**新加自己的行**（history 加一段、changelog 加一行、architecture 和 backlog 的表头下面各加一行 `> 2026-MM-DD ……`），不改已有的「最后核对 / 最后更新」行，合并就不会冲突。
 
 ## 开发须知
-- Flutter 固定 3.35.3（Gradle 8.12 不支持更新的 Flutter）。
+- Flutter 固定 3.44.1（10/21 第 127 条，决策 0068；Gradle 8.12、AGP 8.9.1、Kotlin 2.1.0 在它的支持范围内，再升 Flutter 要先升这三样）。
 - 测试：`tool/ci_flutter_tests.sh`（多套构建变体）和 `tool/ci_backend_tests.sh`（Functions + Firestore 规则，需要模拟器）。
 - Flutter 工具会改 `analysis_options.yaml` 和 `pubspec.lock`，提交前 `git checkout` 这两个文件。
 - `functions/` 的 ESLint 是 ES2018：不能用 `??`、`?.`。

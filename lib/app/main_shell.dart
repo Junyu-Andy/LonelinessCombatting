@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/feature_flags/remote_feature_flags.dart';
 import '../features/analytics/data/analytics_service.dart';
 import '../features/analytics/data/navigation_telemetry.dart';
 import '../features/analytics/presentation/analytics_scope.dart';
@@ -28,6 +29,15 @@ import 'home_tab_switcher.dart';
 /// would break if renamed.  Internally each enum value now points at
 /// the spec-correct surface.
 enum AppTab { today, myStory, me, settings }
+
+/// 1020l §一 (1): the switches that decide how the tabs are laid out
+/// (1020 D page 1 / page 2 and the 做啲嘢 pictures, E the mood row, F the
+/// 小欣 window).  The tabs are rebuilt when this changes after a re-read.
+@visibleForTesting
+String homeSwitchesKey(RemoteFeatureFlags f) => 'home_switches_'
+    '${f.homeLayoutV2Enabled ? 1 : 0}'
+    '${f.moodRowV2Enabled ? 1 : 0}'
+    '${f.checkInChatV2Enabled ? 1 : 0}';
 
 class MainShell extends StatefulWidget {
   /// The trigger that brought the user to the shell on this app
@@ -126,14 +136,26 @@ class _MainShellState extends State<MainShell> {
       // 1020 D (4): page 1's 「去搵人傾」 switches to the 搵人傾 tab.
       body: HomeTabSwitcher(
         goToTalk: () => _switchTab(AppTab.myStory.index),
-        child: IndexedStack(
-          index: _current.index,
-          children: const [
-            TodayPage(),
-            TalkPage(),     // ← was MyStoryPage; now 搵人傾 (3 agent rooms)
-            MePage(),       // ← repurposed as 做啲嘢 (tools)
-            SettingsPage(), // ← repurposed as 自己 (Progress + Profile + admin)
-          ],
+        // 1020l §一 (1): the tabs read the home switches when they are
+        // built.  After sign-in the App reads app_config/feature_flags
+        // again (AuthGate) — usually after this shell is already up.  When
+        // that read changes a home switch (the start-up read was refused
+        // before sign-in, or timed out), the four tabs are rebuilt from
+        // scratch so page 1 / page 2 follow the switches without killing
+        // the App.  Same switches as before → same key → nothing rebuilt.
+        child: ValueListenableBuilder<int>(
+          valueListenable: RemoteFeatureFlags.reads,
+          builder: (context, _, __) => IndexedStack(
+            key: ValueKey<String>(
+                homeSwitchesKey(RemoteFeatureFlags.current)),
+            index: _current.index,
+            children: const [
+              TodayPage(),
+              TalkPage(),     // ← was the My Story tab (deleted 1020o); now 搵人傾
+              MePage(),       // ← repurposed as 做啲嘢 (tools)
+              SettingsPage(), // ← repurposed as 自己 (Progress + Profile + admin)
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: DecoratedBox(

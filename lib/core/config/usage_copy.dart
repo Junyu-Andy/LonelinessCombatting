@@ -53,7 +53,9 @@ class UsageCopy {
   static const String ahJanAhBakProfileWeeklyCapability =
       'ah_jan_ah_bak_profile_weekly_capability';
 
-  /// `{weeks}` in the configured text is replaced with the theme count.
+  /// The companion's bubble on the 人生點滴 landing page (1020o: the whole
+  /// sentence).  `{name}` becomes 阿珍 / 阿伯 by the pairing and `{weeks}`
+  /// the theme count.
   static const String reminiscenceLandingIntro = 'reminiscence_landing_intro';
   static const String faqSkipCheckinAnswer = 'faq_skip_checkin_answer';
 

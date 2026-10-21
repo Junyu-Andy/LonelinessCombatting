@@ -19,6 +19,7 @@
  *      done unless marked falseAlarm;
  *   4. switches off → today's behaviour (19:00 broadcast Mon–Sat only, no
  *      08:30, T24 weekly windows / copy / 24-hour reminder, no e-mail);
+ *      (weeks 5–7, 10/20 item 98: pgic_whole_days_emulator_test.js)
  *   5. the console test e-mail and the sendTestPush mapping.
  *
  * Run from the repo root:
@@ -110,7 +111,11 @@ async function reset(flags, phaseB) {
   }
   if (flags) await db.doc("app_config/feature_flags").set(flags);
   if (phaseB !== null) {
-    await db.doc(ws.CONFIG_DOC).set(phaseB || {weeklyScheduleV2Enabled: true});
+    // weeklyPushHour 20: the switch-off cases below were written for the
+    // T24 path at 20:00 (default 10 since item 98); with reminders v2 on
+    // the hour is not read.
+    await db.doc(ws.CONFIG_DOC).set(phaseB ||
+      {weeklyScheduleV2Enabled: true, weeklyPushHour: 20});
   }
   await db.doc("meta/alert_config").set({enabled: true,
     primaryEmail: PRIMARY});
@@ -502,21 +507,8 @@ test("w4RecordedOn is written whatever the switch; with it off the W4 " +
       false);
 });
 
-test("weeks 5–7 (PGIC only) keep the T24 window, S14 copy and the 24-hour " +
-    "reminder", async () => {
-  await reset(ALL_ON);
-  await seedUser("r1", {arm: "A", cohort: sp.COHORT_RCT}, "RCT-01");
-  await db.doc("users/r1").set({w4RecordedOn: dayKey(30)}, {merge: true});
-  const m = fakeMessaging();
-  await dispatch(m, hk(35, 10));
-  assert.strictEqual(m.sent.length, 0);
-  await dispatch(m, hk(35, 20));
-  assert.deepStrictEqual(m.to("r1"), [ws.PUSH_BODY]);
-  m.clear();
-  await dispatch(m, hk(36, 20));
-  assert.deepStrictEqual(m.to("r1"), [ws.REMINDER_BODY]);
-  assert.strictEqual((await runEmail(hk(37, 10))).status, "none");
-});
+// Weeks 5–7 (PGIC only): since 10/20 item 98 whole days like weeks 1–3 —
+// functions/test/pgic_whole_days_emulator_test.js.
 
 test("weekly switch off: exactly T24 (20:00 S14, 24-hour reminder, " +
     "72-hour window, no preview, no e-mail)", async () => {

@@ -38,7 +38,7 @@ import 'package:app_demo/features/context/data/check_in_chat_copy.dart';
 import 'package:app_demo/features/context/presentation/pages/siu_yan_chat_page.dart';
 import 'package:app_demo/features/crisis/presentation/widgets/safety_footer_card.dart';
 import 'package:app_demo/features/me/presentation/pages/me_page.dart';
-import 'package:app_demo/features/me/presentation/widgets/me_list_item.dart';
+import 'package:app_demo/features/me/presentation/widgets/me_tool_card.dart';
 import 'package:app_demo/features/talk/presentation/pages/talk_page.dart';
 import 'package:app_demo/features/today/data/home_v2_copy.dart';
 import 'package:app_demo/features/today/data/mood_row_copy.dart';
@@ -50,12 +50,14 @@ import 'package:app_demo/features/today/presentation/widgets/continue_chat_card.
 import 'package:app_demo/features/today/presentation/widgets/daily_mood_prompt.dart';
 import 'package:app_demo/features/today/presentation/widgets/facts_recap_row.dart';
 import 'package:app_demo/features/today/presentation/widgets/greeting_hero.dart';
+import 'package:app_demo/features/today/presentation/widgets/home_small_action_row.dart';
 import 'package:app_demo/features/today/presentation/widgets/home_tool_shortcuts.dart';
 import 'package:app_demo/features/today/presentation/widgets/mood_row_v2.dart';
 import 'package:app_demo/features/today/presentation/widgets/today_todo_rows.dart';
 import 'package:app_demo/features/today/presentation/widgets/week1_nudge_banner.dart';
 import 'package:app_demo/features/weekly_bundle/data/weekly_bundle.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'home_v2_harness.dart';
@@ -177,13 +179,14 @@ void main() {
       final i = (await at(DateTime(2026, 10, 20, 10)))!;
       expect(i.isOpen, isFalse);
       expect(i.text, '下次問卷：10月21日（星期三）開，開咗之後三日內答都得。');
-      // Day 7 before 20:00 still says W4 (opens at the push hour).
-      expect((await at(DateTime(2026, 10, 21, 19, 59)))!.isOpen, isFalse);
+      // Day 7 before 10:00 still says W4 (opens at the push hour; default
+      // 10 since 10/20 item 98).
+      expect((await at(DateTime(2026, 10, 21, 9, 59)))!.isOpen, isFalse);
     });
 
-    test('1020e: open, by day from the window (today\'s T24 window '
-        '10/21 20:00 – 10/24 20:00): 請盡快回答 → 聽日截止 → 今晚截止; '
-        'never a day count', () async {
+    test('1020e: open, by day from the window (the T24 window at the '
+        'default push hour, 10/21 10:00 – 10/24 10:00): 請盡快回答 → 聽日截止 '
+        '→ 今晚截止; never a day count', () async {
       expect((await at(DateTime(2026, 10, 21, 20, 30)))!.text,
           '問卷開咗，請盡快回答。');
       expect((await at(DateTime(2026, 10, 22, 21, 0)))!.text,
@@ -192,7 +195,7 @@ void main() {
           '問卷開咗，聽日截止。');
       expect((await at(DateTime(2026, 10, 24, 8, 0)))!.text,
           '問卷開咗，今晚截止。');
-      expect((await at(DateTime(2026, 10, 24, 19, 59)))!.text,
+      expect((await at(DateTime(2026, 10, 24, 9, 59)))!.text,
           '問卷開咗，今晚截止。');
       for (final d in [21, 22, 23, 24]) {
         expect((await at(DateTime(2026, 10, d, 21)))?.text ?? '',
@@ -276,7 +279,8 @@ void main() {
           p1(find.byType(BriefPrCardHost)),
           // The study-week schedule (and so this row) needs a Phase B build.
           if (FeatureFlags.phaseB) p1(find.byType(QuestionnaireTodoRow)),
-          p1(find.byType(ActivePlanBanner)),
+          // 1020m 第二节: the small-action row replaced the plan banner.
+          p1(find.byType(HomeSmallActionRow)),
           p1(find.byType(GoTalkButton)),
           p1(find.byType(FactsRecapRow)),
           p1(find.byType(SafetyFooterCard)),
@@ -290,6 +294,7 @@ void main() {
               reason: '${order[i]} below ${order[i - 1]}');
         }
         for (final gone in [
+          ActivePlanBanner,
           AgentTileRow,
           ContinueChatCard,
           HomeToolShortcuts,
@@ -303,8 +308,11 @@ void main() {
         expect(find.byType(BottomSheet), findsNothing);
         expect(find.text(MoodRowCopy.m1), findsOneWidget);
         expect(p1(find.text(HomeV2Copy.checkInRow)), findsOneWidget);
-        // W0 10/14, today 10/20 (day 6): W1 opens on 10/21.
-        expect(p1(find.text('下次問卷：10月21日（星期三）開，開咗之後三日內答都得。')),
+        // W0 10/14, today 10/20 (day 6): W1 opens on 10/21.  1020l §二 (1):
+        // W4 on two lines (title, small second line).
+        expect(p1(find.text('下次問卷')),
+            FeatureFlags.phaseB ? findsOneWidget : findsNothing);
+        expect(p1(find.text('10月21日（星期三）開，開咗之後三日內答都得。')),
             FeatureFlags.phaseB ? findsOneWidget : findsNothing);
         expect(p1(find.text(HomeV2Copy.goTalk)), findsOneWidget);
         if (run.rule) expect(run.llm.calls, isEmpty);
@@ -416,6 +424,68 @@ void main() {
             findsOneWidget);
         if (run.rule) expect(run.llm.calls, isEmpty);
         await tester.pumpWidget(const SizedBox());
+      }
+    });
+
+    // 10/20 第 99–100 条: a check-in an acute hit ended today, not marked
+    // 誤觸, counts as today's check-in (as on the server): the row ticks,
+    // and 小欣's page opens as the chat.  Marked 誤觸 → no tick (the elder
+    // can carry on); yesterday's stop → no tick.  Both arms.
+    Map<String, dynamic> stoppedRow(String dateIso, {bool falseAlarm = false}) =>
+        {
+          'uid': 'u1',
+          'flow': 'chat_v2',
+          'date_iso': dateIso,
+          'stopped_by_safety': true,
+          'stopped_at': 'Q4',
+          'completed': false,
+          if (falseAlarm) 'falseAlarm': true,
+        };
+
+    testWidgets('acute stop today, not marked 誤觸: a tick; tap → 小欣 chat, '
+        'no new check-in', (tester) async {
+      for (final arm in testableArms) {
+        ChatSessionRecorder.resetProcessStateForTest();
+        final run = HomeRun(arm);
+        run.checkIns.docs['stop1'] = stoppedRow('2026-10-20');
+        await pumpHome(tester, run, const MainShell());
+        final row = find.byKey(const ValueKey('today_todo_check_in'));
+        expect(
+            find.descendant(
+                of: row, matching: find.byIcon(Icons.check_circle_rounded)),
+            findsOneWidget,
+            reason: arm.name);
+        await tester.tap(row);
+        await settle(tester);
+        expect(find.byType(SiuYanChatPage), findsOneWidget);
+        expect(says(CheckInChatCopy.q1), findsNothing);
+        expect(says(run.rule ? CheckInChatCopy.sy0 : FakeLlm.opener),
+            findsOneWidget);
+        if (run.rule) expect(run.llm.calls, isEmpty);
+        await tester.pumpWidget(const SizedBox());
+      }
+    });
+
+    testWidgets('acute stop today marked 誤觸, or a stop yesterday: no tick',
+        (tester) async {
+      for (final arm in testableArms) {
+        for (final seed in [
+          stoppedRow('2026-10-20', falseAlarm: true),
+          stoppedRow('2026-10-19'),
+        ]) {
+          ChatSessionRecorder.resetProcessStateForTest();
+          final run = HomeRun(arm);
+          run.checkIns.docs['stop1'] = seed;
+          await pumpHome(tester, run, const MainShell());
+          final row = find.byKey(const ValueKey('today_todo_check_in'));
+          expect(
+              find.descendant(
+                  of: row,
+                  matching: find.byIcon(Icons.radio_button_unchecked_rounded)),
+              findsOneWidget,
+              reason: '${arm.name} $seed');
+          await tester.pumpWidget(const SizedBox());
+        }
       }
     });
 
@@ -680,52 +750,73 @@ void main() {
   });
 
   group('做啲嘢 tool pictures', () {
-    const expected = {
-      'me_tool_thought': ('assets/tools/tool_thought.png', 0xFFEFE9F8, '望一望心入面'),
-      'me_tool_plan': ('assets/tools/tool_plan.png', 0xFFFCEEE0, '跟進計劃'),
-      'me_tool_reading': ('assets/tools/tool_reading.png', 0xFFE3F4EC, '讀少少'),
-      'me_tool_small_action': (
-        'assets/tools/tool_small_action.png',
-        0xFFFBE9E4,
-        '一啲社交小行動'
-      ),
-    };
+    // 1020m 一 (10/19 第 37 条): four big cards in this order, titles and
+    // lines of 10/19 第 37 条 (2), the batch 3 pictures; no switch, the old
+    // list is gone.
+    const expected = [
+      ('me_tool_small_action', 'assets/tools/tool_small_action.png',
+          0xFFFBE9E4, '今日小行動', '諗下今日可以同邊個做啲咩'),
+      ('me_tool_plan', 'assets/tools/tool_plan.png', 0xFFFCEEE0, '我嘅計劃',
+          '訂個小計劃，睇返做咗未'),
+      ('me_tool_reading', 'assets/tools/tool_reading.png', 0xFFE3F4EC,
+          '讀少少', '幾分鐘睇完嘅短文'),
+      ('me_tool_thought', 'assets/tools/tool_thought.png', 0xFFEFE9F8,
+          '望一望心入面', '了解吓自己嘅心情'),
+    ];
 
     for (final arm in testableArms) {
-      testWidgets('${arm == ArmAssignment.a ? 'Hybrid' : 'rule arm'}: on → '
-          'the four pictures on their tiles, labels unchanged',
+      testWidgets('${arm == ArmAssignment.a ? 'Hybrid' : 'rule arm'}: '
+          'four big cards in order, 10/19 第 37 条 words, the pictures',
           (tester) async {
         final run = HomeRun(arm);
         await pumpHome(tester, run, const Scaffold(body: MePage()));
-        for (final MapEntry(key: key, value: (asset, colour, label))
-            in expected.entries) {
-          final item = tester.widget<MeListItem>(find.byKey(ValueKey(key)));
-          expect(item.image, asset, reason: key);
-          expect(item.tileColor, Color(colour), reason: key);
-          expect(item.label, label, reason: key);
+        double? lastTop;
+        for (final (key, asset, colour, title, line) in expected) {
+          final card = tester.widget<MeToolCard>(find.byKey(ValueKey(key)));
+          expect(card.image, asset, reason: key);
+          expect(card.tileColor, Color(colour), reason: key);
+          expect(card.title, title, reason: key);
+          expect(card.subtitle, line, reason: key);
           final image = find.descendant(
               of: find.byKey(ValueKey(key)), matching: find.byType(Image));
           expect(image, findsOneWidget);
           // The tile, ~8% margin each side.
           expect(tester.getSize(image).width,
-              closeTo(MeListItem.imageTileSize * 0.84, 0.5));
+              closeTo(MeToolCard.imageTileSize * 0.84, 0.5));
+          final top = tester.getTopLeft(find.byKey(ValueKey(key))).dy;
+          if (lastTop != null) expect(top, greaterThan(lastTop), reason: key);
+          lastTop = top;
         }
+        expect(find.text('自己隨時用'), findsOneWidget);
+        expect(find.text('一啲社交小行動'), findsNothing);
+        expect(find.text('跟進計劃'), findsNothing);
         expect(MeToolArt.all.map((a) => a.$1).toSet(),
-            expected.values.map((e) => e.$1).toSet());
+            expected.map((e) => e.$2).toSet());
       });
     }
 
-    testWidgets('off: the old icons, no pictures', (tester) async {
-      RemoteFeatureFlags.current = const RemoteFeatureFlags();
+    testWidgets('360 wide at the largest text: every title on one line',
+        (tester) async {
       final run = HomeRun(testableArms.first);
-      await pumpHome(tester, run, const Scaffold(body: MePage()));
-      expect(find.byType(Image), findsNothing);
-      for (final key in expected.keys) {
-        expect(tester.widget<MeListItem>(find.byKey(ValueKey(key))).image,
-            isNull);
+      await pumpHome(tester, run, const Scaffold(body: MePage()),
+          size: const Size(360, 800), textScale: 1.30);
+      expect(tester.takeException(), isNull);
+      expect(tester.getSize(find.byType(MePage)).width, 360);
+      for (final (key, _, _, title, _) in expected) {
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await tester.pumpAndSettle();
+        final p = tester.renderObject<RenderParagraph>(find.descendant(
+            of: find.text(title), matching: find.byType(RichText)));
+        expect(p.getBoxesForSelection(TextSelection(
+                    baseOffset: 0, extentOffset: title.length))
+                .map((b) => b.top)
+                .toSet()
+                .length,
+            1,
+            reason: '$title on one line');
       }
-      expect(find.byIcon(Icons.lightbulb_outline), findsOneWidget);
     });
+
   });
 
   test('the four pictures are bundled', () {

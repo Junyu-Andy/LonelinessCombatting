@@ -60,3 +60,10 @@ writes it once, as the server time only (both arms, enrolment gate on or
 off); a phone time, null, a second write, a change or a removal → denied;
 ordinary profile saves that leave it out still pass; no assignment field or
 `isTester` rides along.
+
+`quiet_hours_rules.test.js` — 1020o `users/{uid}.quietHoursStart` /
+`quietHoursEnd` (the elder's own 安靜時段, both arms): only the values the
+App's pickers offer (start 20:00–23:00, end 06:00–08:00, half hours) →
+allowed; anything else, a non-string or a removal → denied; ordinary profile
+saves that leave them out pass even when the stored value is no longer
+allowed; the `quiet_hours_changed` usage event with exactly field / from / to.

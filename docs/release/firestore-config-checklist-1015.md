@@ -32,9 +32,9 @@
 | `sessionBriefPrV2Enabled` | 关 | **true** | T25：收尾按钮、评价卡、一题一屏；关着是旧弹窗 |
 | `weeklyScheduleV2Enabled` | 关 | true（已设） | T24 研究周每周问卷总开关 |
 | `socialContactProbeEnabled` | 关 | true（已设） | 每周问卷第四部分 S12（W1–W4） |
-| `weeklyPushHour` | 20 | 不动 | 推送钟点 |
-| `weeklyBundleDays` / `weeklyWindowDays` / `week4CloseDay` / `djgWeeks` / `pgicOnlyDays` | [7,14,21,26] / 3 / 29 / [1,2,3] / [35,42,49] | 不动 | 排程表 |
-| `djgW2ReminderHours` | 24 | 不动 | 提醒间隔（研究周也用它） |
+| `weeklyPushHour` | 10（10/20 第 98 条起；之前 20） | **10**（10/20 第 96 条，Junyu 已改生产） | 只在 `weeklyReminderV2Enabled` 关时用：每周问卷的推送钟点和 72 小时窗口的起点。开着时（正式设置）不读：第 1–7 周都是当天 00:00 开、10:00 推（第 5–7 周 PGIC 从第 98 条起也一样） |
+| `weeklyBundleDays` / `weeklyWindowDays` / `week4CloseDay` / `djgWeeks` / `pgicOnlyDays` | [7,14,21,26] / 3 / 29 / [1,2,3] / [35,42,49] | 不动 | 排程表。`weeklyWindowDays` 3 = 提醒 v2 开时整 3 天（第 1–3、5–7 周：开放日到第三天 23:59），关时 72 小时；`week4CloseDay` 只在提醒 v2 关时用 |
+| `djgW2ReminderHours` | 24 | 不动 | 提醒间隔（T18 旧的第 14 天 DJG 用；研究周每周问卷只在提醒 v2 关时用，开着时每周的提醒都在固定日子 10:00） |
 | `sessionIdleTimeoutMinV2` | 30 | 不动 | V2 的会话闲置超时 |
 | `briefPrDailyCapPerAgent` / `briefPrCatchUpExpiryHours` / `freeChatValidMinUserMessages` / `hybridCheckInValidRequiresMood` / `hybridCheckInValidMinUserMessages` / `hybridReminiscenceValidRequiresSave` | 1 / 2 / 3 / true / 1 / false（#82 起） | 不动 | 有效会话和邀请规则 |
 | `djgW2InAppEnabled`、`djgW2DayOffset`、`djgW2WindowDays`、`djgW2PushHour` | 关 / 14 / 7 / 10 | 不动 | T18 旧的第 14 天 DJG；V2 开着时整个让位 |

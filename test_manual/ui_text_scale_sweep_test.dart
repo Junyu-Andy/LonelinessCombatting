@@ -86,8 +86,6 @@ import 'package:app_demo/features/education/presentation/pages/education_library
 import 'package:app_demo/features/education/presentation/pages/reader_page.dart';
 import 'package:app_demo/features/education/presentation/reader/reader_surface.dart';
 import 'package:app_demo/features/memory/presentation/pages/remembered_page.dart';
-import 'package:app_demo/features/my_story/presentation/pages/my_story_page.dart';
-import 'package:app_demo/features/my_story/presentation/widgets/story_thread_timeline.dart';
 import 'package:app_demo/features/onboarding/data/intake_repository.dart';
 import 'package:app_demo/features/onboarding/data/intake_response.dart';
 import 'package:app_demo/features/onboarding/presentation/pages/agent_onboarding_page.dart';
@@ -96,6 +94,8 @@ import 'package:app_demo/features/onboarding/presentation/pages/intake_short_pag
 import 'package:app_demo/features/personalization/presentation/pages/personalization_page.dart';
 import 'package:app_demo/features/reflective_dialogue/presentation/pages/reflective_dialogue_page.dart';
 import 'package:app_demo/features/reminiscence/data/reminiscence_themes.dart';
+import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_chapters_page.dart';
+import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_landing.dart';
 import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_arm_a_page.dart';
 import 'package:app_demo/features/settings/data/tester_arm_switch.dart';
 import 'package:app_demo/features/settings/presentation/pages/faq_page.dart';
@@ -644,8 +644,9 @@ final _flows = <String, _Flow>{
         await c.tester.pumpAndSettle();
         expect(find.text(MoodRowCopy.m8), findsOneWidget);
         await c.shot('home_v2_page1_m8');
-        await _scrollInto(c, find.text('問卷開咗，請盡快回答。'));
-        expect(find.text('問卷開咗，請盡快回答。'), findsOneWidget);
+        // 1020l §二 (1): the row's title has no full stop.
+        await _scrollInto(c, find.text('問卷開咗，請盡快回答'));
+        expect(find.text('問卷開咗，請盡快回答'), findsOneWidget);
         await c.shot('home_v2_page1_todo');
         await _scrollTap(c, find.byKey(const Key('safety_footer_call_18111')));
         await c.shot('home_v2_page1_bottom');
@@ -845,15 +846,15 @@ final _flows = <String, _Flow>{
     expect(find.byType(BriefPrFlowPage), findsNothing,
         reason: 'all four questions answered');
   },
-  '人生回顧（時間線 → 開第二個主題）': (c) async {
-    await _pumpHome(c, const Scaffold(body: MyStoryPage()));
-    await c.shot('my_story_top');
-    await _scrollTap(c, find.byType(StoryThreadTimeline));
-    await c.shot('my_story_timeline');
-    await _scrollTap(c, find.byKey(const Key('story_theme_2')));
-    await _dismissIntro(c);
-    await c.shot('my_story_theme_2');
-    await _back(c);
+  // 1020o: the old 人生回顧 (My Story) page is gone; 自己 now opens
+  // 我嘅人生小篇章, and the 人生點滴 landing has the companion's bubble.
+  '人生點滴（首頁 → 我嘅人生小篇章）': (c) async {
+    await _pumpHome(c, const ReminiscenceLandingPage());
+    await c.shot('landing_top');
+    await _scrollInto(c, find.text('想留畀下一代嘅說話'));
+    await c.shot('landing_bottom');
+    await _pushPage(c, const ReminiscenceChaptersPage());
+    await c.shot('chapters');
   },
   '每週問卷 W1（預覽：DJG 六題 → 夥伴評估 → 同開始比較）': (c) async {
     final bundle = WeeklySchedule.bundlesFor(
@@ -971,7 +972,10 @@ final _flows = <String, _Flow>{
         EducationLibraryPage(
           readerSource: source,
           readerSurface: const _SweepReaderSurface(),
-          readMarks: InMemoryReaderReadMarks({_sweepUnit2.id}),
+          readMarks: InMemoryReaderReadMarks({
+            _sweepUnit2.id: const ReaderReadState(
+                readIds: {'s1', 's2', 's3'}, total: 3),
+          }),
         ));
     expect(find.text('小讀本'), findsOneWidget);
     await c.shot('readers_list');
@@ -1062,7 +1066,11 @@ const _sweepUnit2 = ReaderUnit(
     id: 'u2_long_title',
     titleZh: '點解孤單要理：同屋企人、朋友、鄰居慢慢重新聯絡',
     minutes: 10,
-    order: 2);
+    order: 2,
+    // 1021: a part heading and an icon, as the real manifest has.
+    part: 2,
+    partTitleZh: '自己同身邊嘅人可以做咩',
+    icon: 'family_restroom');
 
 class _SweepReaderSource extends ReaderContentSource {
   @override

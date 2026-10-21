@@ -13,18 +13,22 @@
 ///   W4     opens on day [PhaseBConfig.weeklyBundleDays] 3 (26); closes at
 ///          the end of day [PhaseBConfig.week4CloseDay] (29) or of the W4
 ///          visit day, whichever is later ([week4CloseFor]); no DJG.
-///   W5–W7  PGIC only, [PhaseBConfig.pgicOnlyDays] (35, 42, 49).
+///   W5–W7  PGIC only, [PhaseBConfig.pgicOnlyDays] (35, 42, 49)
+///          ([WeeklyBundle.pgicOnly]).
 /// Pilot (cohort `pilot`): the SAME standard schedule (10/15: the pilot run
 ///   follows Phase B day for day).  [WeeklyScheduleMode.pilot] (days 1, 3,
 ///   5, 7, 1-day windows) is kept only for the shared table test; no cohort
 ///   maps to it any more.
 ///
-/// Every window is `[open, close)`: open = push instant, close exclusive.
+/// Every window is `[open, close)`, close exclusive: open = the push instant
+/// (T24), or 00:00 of the push day (v2, below).
 ///
-/// 1020e 二.1–二.2 (batch 4) — with `app_config/feature_flags
-/// .weeklyReminderV2Enabled` on ([RemoteFeatureFlags]; only a literal true
-/// turns it on) W1–W4 use whole days instead, the same as the server
-/// (functions/weekly_schedule.js windowFor, same fixture):
+/// 1020e 二.1–二.2 (batch 4) and 10/20 item 98 (decision 0067) — with
+/// `app_config/feature_flags.weeklyReminderV2Enabled` on
+/// ([RemoteFeatureFlags]; only a literal true turns it on) every bundle
+/// W1–W7 uses whole Hong Kong days instead, the same as the server
+/// (functions/weekly_schedule.js windowFor, same fixture), and
+/// [PhaseBConfig.weeklyPushHour] is not read:
 ///   W1–W3  open at 00:00 of the push day (7, 14, 21), close at the end of
 ///          the push day + [PhaseBConfig.weeklyWindowDays] − 1 (day 9, 16,
 ///          23 at 23:59:59).
@@ -33,7 +37,10 @@
 ///          by the assessor's entry, `UserProfile.w4RecordedOn`) — never
 ///          before the end of day 26 — and at the latest at the end of day
 ///          [week4LatestCloseDayV2] (42).
-///   W5–W7  unchanged.
+///   W5–W7  (item 98) like W1–W3: open at 00:00 of the push day (35, 42,
+///          49), close at the end of day 37 (44, 51).  The home row then
+///          words them by the W1–W3 rule (請盡快回答 → 聽日截止 → 今晚截止,
+///          `QuestionnaireRowInfo.openState`).
 /// Callers that do not pass `v2` get [RemoteFeatureFlags.current]; with the
 /// flag off everything is exactly as before.
 library;
@@ -82,6 +89,10 @@ class WeeklyBundle {
   final int windowDays;
   final WeeklyCloseRule closeRule;
 
+  /// A PGIC-only bundle of weeks 5–7 ([PhaseBConfig.pgicOnlyDays]); server:
+  /// `bundle.pgicOnly`.
+  final bool pgicOnly;
+
   const WeeklyBundle({
     required this.id,
     required this.index,
@@ -91,6 +102,7 @@ class WeeklyBundle {
     required this.parts,
     required this.windowDays,
     required this.closeRule,
+    this.pgicOnly = false,
   });
 }
 
@@ -163,6 +175,7 @@ class WeeklySchedule {
         parts: const [WeeklyPart.pgic],
         windowDays: cfg.weeklyWindowDays,
         closeRule: WeeklyCloseRule.window,
+        pgicOnly: true,
       ));
     }
     return out;
@@ -186,9 +199,16 @@ class WeeklySchedule {
   static bool get v2Default =>
       RemoteFeatureFlags.current.weeklyReminderV2Enabled;
 
-  /// Is [bundle] one the v2 windows cover?  W1–W3 and W4; never W5–W7.
+  /// 1020e 二.1 / 二.2: every v2 push goes at 10:00 Hong Kong time
+  /// (server: V2_PUSH_HOUR).
+  static const int v2PushHour = 10;
+
+  /// Is [bundle] one the v2 windows cover?  W1–W3, W4 and, since item 98,
+  /// W5–W7 ([WeeklyBundle.pgicOnly]) — every standard bundle (server:
+  /// isReminderV2Bundle).
   static bool isV2Bundle(WeeklyBundle bundle) =>
       bundle.closeRule == WeeklyCloseRule.week4 ||
+      bundle.pgicOnly ||
       (bundle.closeRule == WeeklyCloseRule.window && bundle.index < 3);
 
   /// Week-4 close: the end of study day [PhaseBConfig.week4CloseDay], or
@@ -216,6 +236,9 @@ class WeeklySchedule {
   }
 
   /// `[open, close)` of [bundle] for a participant whose W0 is [w0].
+  /// v2: whole days (W1–W3, W5–W7: 00:00 of the push day to the end of the
+  /// push day + windowDays − 1; W4 [week4CloseV2]); off: T24 (the push
+  /// hour, 72 h; W4 [week4CloseFor]).
   /// [v2] defaults to [v2Default]; [week4RecordedOn] is
   /// `users/{uid}.w4RecordedOn` (v2 only), [w4VisitDate] T24's hook (v2
   /// off only).

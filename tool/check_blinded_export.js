@@ -52,6 +52,8 @@ const HELD_BACK_FILES = [
   // 1020d: reminiscence v2, the weekly 小篇章 and its ratings (`source`
   // hybrid / rule names the arm; the chapter carries text).
   "reminiscence_v2", "reminiscence_chapters", "reminiscence_chapter_ratings",
+  // 1020l: the research transcript (the elder's words and the replies).
+  "chat_transcripts",
 ];
 
 // Field names (at any depth) that must not appear.
@@ -76,6 +78,11 @@ const DENY_KEYS = [
   "matchedTerm", "matchedTextPrefix32", "offerText", "agentInvitationText",
   "freeResponse", "reasonOtherText", "otherText", "note", "avoidTopics",
   "onMind", "thoughtPreview", "quote", "summary", "text",
+  // Decision 0069: research transcript fields (chat_transcripts, schema
+  // 1 and 2) — the elder's words, the replies, how each reply was made
+  // (the status names the rule arm) and how the elder answered.  Never
+  // outside it.
+  "userText", "replyText", "replyStatus", "userInput",
 ];
 const DENY_KEY_SET = {};
 for (const k of DENY_KEYS) DENY_KEY_SET[k.toLowerCase()] = true;

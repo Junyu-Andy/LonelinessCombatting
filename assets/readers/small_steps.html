@@ -1,0 +1,329 @@
+<!doctype html>
+<!--
+孤單小讀本 單元：small_steps（由一小步開始）
+版本：2026-10-21 草稿 v1
+參考資料：
+  (1) Hawkley LC, Cacioppo JT. Loneliness matters: a theoretical and empirical review of consequences and mechanisms. Annals of Behavioral Medicine. 2010;40(2):218-227.
+  (2) World Health Organization. Social connection linked to improved health and reduced risk of early death. News release, 30 June 2025.
+-->
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>由一小步開始</title>
+<style>/* 孤單小讀本：淺色版，顏色跟 App（app_theme.dart）。字號跟 App 注入嘅 --fs。 */
+:root{
+  --bg:#F7F5F1; --card:#FFFFFF; --ink:#3A3330; --ink2:#5C524B; --muted:#7E7268; --line:#E7E0D8;
+  --acc:#B05F2E; --acc-soft:#F7E6D9; --teal:#2E6B64; --teal-soft:#E0EEEB; --white:#FFFFFF;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"PingFang HK","PingFang TC","Noto Sans CJK TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  font-size:calc(17px * var(--fs, 1));line-height:max(1.5, calc(1.72 - (var(--fs, 1) - 1) * 0.9))}
+:root{--sp:calc(12px * (1 + (var(--fs, 1) - 1) * 0.3))}
+strong{font-weight:800;background:linear-gradient(transparent 60%, var(--acc-soft) 60%)}
+.wrap{max-width:600px;margin:0 auto;padding:0 max(16px, env(safe-area-inset-left, 0px)) 2.5em max(16px, env(safe-area-inset-right, 0px))}
+header.top{padding:1.4em .2em .4em}
+.kicker{font-size:.8em;letter-spacing:.12em;color:var(--acc);font-weight:700}
+h1{font-size:1.65em;line-height:1.3;margin:.25em 0 .4em}
+.lede{color:var(--ink2);margin:0}
+[hidden]{display:none !important}
+.toc-k{color:var(--ink2);margin:1.2em .2em .5em;font-size:.95em}
+ol.toc{list-style:none;margin:0;padding:0;display:grid;gap:.6em}
+.toc-item{appearance:none;font:inherit;width:100%;text-align:left;display:flex;align-items:center;gap:.8em;background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:.85em .9em;color:var(--ink);min-height:64px}
+.toc-n{flex:none;width:2em;height:2em;border-radius:50%;background:var(--teal);color:var(--white);display:inline-flex;align-items:center;justify-content:center;font-weight:800}
+.toc-t{flex:1;min-width:0;font-weight:700;line-height:1.45}
+.toc-go{flex:none;color:var(--teal);font-size:1.4em;font-weight:700}
+.toc-read{display:none;flex:none;font-size:.78em;font-weight:700;color:var(--teal);background:var(--teal-soft);border-radius:999px;padding:.1em .6em}
+.toc-item.read .toc-read{display:inline-block}
+.toc-item.read .toc-n{background:var(--teal-soft);color:var(--teal)}
+html[data-chrome="app"] .sec-bar{display:none}
+.cta.start{width:100%;border:0;margin-top:1em;font:inherit;font-weight:700;font-size:1.02em}
+.sec-bar{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:.6em;padding:.5em 0;border-bottom:1px solid var(--line)}
+.sec-bar .back{appearance:none;font:inherit;font-weight:700;color:var(--teal);background:var(--card);border:1.5px solid var(--line);border-radius:999px;padding:.3em .9em;min-height:44px}
+.sec-bar .pos{color:var(--muted);font-size:.88em}
+.sec-foot{display:grid;gap:.6em;margin:1.4em 0 .4em}
+.next-sec{appearance:none;font:inherit;text-align:left;background:var(--teal);color:var(--white);border:0;border-radius:14px;padding:.75em 1em;min-height:56px;display:flex;flex-direction:column;gap:.1em;font-weight:700;line-height:1.4}
+.next-sec .k{font-size:.78em;font-weight:600;opacity:.9}
+.to-toc{appearance:none;font:inherit;font-weight:700;background:var(--card);color:var(--teal);border:1.5px solid var(--line);border-radius:14px;min-height:52px}
+.sec-h{margin:1.2em .2em .6em}
+.sec-h .n{font-size:.78em;color:var(--acc);font-weight:700;letter-spacing:.1em}
+.sec-h h2{margin:.1em 0 0;font-size:1.3em;line-height:1.35}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:var(--sp) calc(var(--sp) * 1.2);margin:calc(var(--sp) * .8) 0}
+.card-h{display:flex;align-items:flex-start;gap:.6em;margin-bottom:calc(var(--sp) * .4)}
+.card h3{margin:0;font-size:1.1em;line-height:1.4;flex:1}
+.card p{margin:0 0 calc(var(--sp) * .55)}
+.card p:last-child{margin-bottom:0}
+.ask{display:none;flex:none;width:44px;height:44px;border-radius:50%;border:1.5px solid var(--teal);color:var(--teal);font-weight:700;font-size:1.05em;text-decoration:none;align-items:center;justify-content:center;background:var(--teal-soft)}
+html[data-explain="on"] .ask{display:inline-flex}
+.note{font-size:.85em;color:var(--muted)}
+.center{text-align:center}
+.callout{background:var(--acc-soft);border-radius:12px;padding:.7em .85em;font-weight:600}
+.help{margin-top:.8em !important;padding:.7em .85em;border-radius:12px;background:var(--teal-soft);font-size:.95em}
+ol.plain{list-style:none;padding:0;margin:0 0 .6em}
+ol.plain li{margin:0 0 .35em}
+.fig{display:block;width:100%;height:auto;margin:calc(var(--sp) * .3) 0 calc(var(--sp) * .6)}
+.hide{display:none}
+details{border-top:1px dashed var(--line);margin-top:.8em;padding-top:.6em}
+summary{cursor:pointer;color:var(--teal);font-weight:700;list-style:none;min-height:44px;display:flex;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:" ▾";margin-left:.3em}
+details[open] summary::after{content:" ▴"}
+details .inner{color:var(--ink2)}
+.panel{background:var(--teal-soft);border-radius:12px;padding:.7em .85em;min-height:3.4em;margin:.2em 0 .8em}
+.panel b{display:block;margin-bottom:.1em}
+/* evidence ladder */
+.ladder{display:flex;align-items:flex-end;gap:.4em;height:11em;margin:.4em 0 .7em}
+.step{flex:1;height:var(--h);appearance:none;font:inherit;font-size:.78em;font-weight:700;line-height:1.3;color:var(--ink2);background:var(--teal-soft);border:1.5px solid var(--line);border-radius:12px 12px 4px 4px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:.3em;padding:.6em .2em 0;color:var(--teal)}
+.step small{font-weight:400;font-size:.85em}
+.step .ico svg{width:1.8em;height:1.8em;display:block}
+.step.on{background:var(--teal);color:var(--white);border-color:var(--teal)}
+/* tiles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:.6em;margin:.4em 0 .7em}
+.tile{appearance:none;font:inherit;font-size:.9em;font-weight:700;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:14px;padding:.7em .4em;display:flex;flex-direction:column;align-items:center;gap:.35em;min-height:96px;text-align:center;line-height:1.35}
+.tile svg{width:2.4em;height:2.4em}
+.tile.on{border-color:var(--teal);background:var(--teal-soft)}
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(6.4em,1fr));gap:.5em;margin:.2em 0 .8em}
+.stat{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:.6em .4em;text-align:center}
+.stat .big{font-size:1.25em;font-weight:800;color:var(--acc);line-height:1.25}
+.stat .lab{font-size:.8em;color:var(--ink2)}
+.stat-tiles{display:grid;gap:.6em}
+.st{display:grid;grid-template-columns:38% 1fr;grid-template-rows:auto auto;column-gap:.7em;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:.6em .7em}
+.st .mini{grid-row:1 / span 2;width:100%;max-width:7em;height:auto;justify-self:center}
+.st .big{font-size:1.15em;font-weight:800;color:var(--acc);line-height:1.3}
+.st .lab{font-size:.85em;color:var(--ink2);line-height:1.45}
+/* seg */
+.seg{display:flex;gap:.5em;flex-wrap:wrap;margin:.3em 0 .6em}
+.seg button,.pill{appearance:none;font:inherit;font-size:.9em;font-weight:700;border:1.5px solid var(--line);background:var(--bg);color:var(--ink2);border-radius:999px;padding:.4em 1.1em;min-height:44px}
+.seg button.on{background:var(--teal);border-color:var(--teal);color:var(--white)}
+.pill{border-color:var(--teal);color:var(--teal);background:var(--card);margin:0 0 .6em}
+.reveal{opacity:0;transition:opacity .4s}
+.reveal.show{opacity:1}
+/* loop */
+.node rect{fill:var(--card);stroke:var(--line);stroke-width:2}
+.node.on rect{fill:var(--acc-soft);stroke:var(--acc);stroke-width:2.5}
+.loop-ctrl{display:flex;flex-wrap:wrap;align-items:center;gap:.6em;margin:-.2em 0 .7em}
+.loop-ctrl .pill{margin:0}
+.loop-cap{flex:1 1 12em;min-width:0;font-size:.92em;color:var(--ink2)}
+/* stairs */
+.stairs{display:grid;grid-template-columns:repeat(3,1fr);gap:.4em;align-items:end;margin:.4em 0 .7em}
+.stair{appearance:none;font:inherit;background:var(--bg);border:1.5px solid var(--line);border-radius:12px;color:var(--teal);display:flex;flex-direction:column;align-items:center;gap:.15em;padding:.55em .2em;margin-top:calc(var(--lvl) * 1.6em);min-height:calc(5.4em + var(--lvl) * 1.6em);justify-content:flex-end}
+.stair svg{width:2.2em;height:2em}
+.stair span{font-size:.72em;color:var(--muted)}
+.stair b{font-size:.82em;line-height:1.3;color:var(--ink);text-align:center}
+.stair.on{background:var(--teal-soft);border-color:var(--teal)}
+/* lists with icons */
+.checklist,.iconlist{list-style:none;padding:0;margin:.2em 0 .4em;display:grid;gap:.5em}
+.checklist li,.iconlist li{display:flex;gap:.6em;align-items:flex-start}
+.checklist svg{flex:none;width:1.6em;height:1.6em;margin-top:.1em}
+.iconlist svg{flex:none;width:1.5em;height:1.5em;margin-top:.12em}
+.cols{display:grid;grid-template-columns:1fr;gap:.6em}
+.col{border-radius:14px;padding:.75em .8em}
+.col h4{margin:0 0 .4em;font-size:1em}
+.col.l{background:var(--teal-soft)} .col.l h4{color:var(--teal)}
+.col.r{background:var(--acc-soft)} .col.r h4{color:var(--acc)}
+.avatars{display:grid;grid-template-columns:repeat(4,1fr);gap:.4em;margin:.2em 0 .2em}
+.avatars figure{margin:0;text-align:center}
+.avatars img{width:100%;max-width:72px;height:auto;border-radius:50%;background:var(--bg);border:1px solid var(--line)}
+.avatars figcaption{font-size:.85em;font-weight:700}
+.privacy{display:flex;gap:.8em;align-items:center;margin:.2em 0 .7em}
+.privacy .lock{flex:none;width:3em;height:3em}
+.nolist{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.4em}
+.nolist li{border:1.5px solid var(--acc);color:var(--acc);border-radius:999px;padding:.15em .7em;font-size:.88em;font-weight:700;text-decoration:line-through;text-decoration-thickness:2px}
+/* recap, think, cta */
+.recap{background:var(--teal-soft);border:none}
+.recap h3{color:var(--teal);font-size:1em;letter-spacing:.06em}
+.think{border-style:dashed;border-width:1.5px}
+.think-k{font-size:.8em;font-weight:700;letter-spacing:.1em;color:var(--acc)}
+.think .q{font-weight:700;font-size:1.05em;margin:.2em 0 .3em}
+.nextline{color:var(--ink2);text-align:center;margin:1.2em 0 .4em}
+.ctas{display:grid;gap:.6em;margin:1em 0 .5em}
+.cta{display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:14px;background:var(--acc);color:var(--white);font-weight:700;text-decoration:none;font-size:1.02em;padding:.4em 1em;text-align:center}
+.cta.alt{background:var(--card);color:var(--acc);border:2px solid var(--acc)}
+footer{font-size:.78em;color:var(--muted);margin-top:1.6em;line-height:1.6}
+footer details{border-top:1px solid var(--line)}
+footer ol{padding-left:1.2em;margin:.3em 0}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.reveal{transition:none}}
+/* svg paint classes */
+.f-ink{fill:var(--ink2)} .f-soft{fill:var(--bg)} .f-card{fill:var(--card)} .f-acc{fill:var(--acc)} .f-acc-soft{fill:var(--acc-soft)}
+.f-teal{fill:var(--teal)} .f-teal-soft{fill:var(--teal-soft)} .f-line{fill:var(--line)} .f-cur{fill:currentColor}
+.s-line{stroke:var(--line);stroke-width:2} .s-line-thick{stroke:var(--line);stroke-width:4;fill:none;stroke-linecap:round}
+.s-acc{stroke:var(--acc);stroke-width:2;fill-opacity:1} .s-acc-thick{stroke:var(--acc);stroke-width:3.5;fill:none;stroke-linecap:round}
+.s-teal{stroke:var(--teal);stroke-width:2.5;stroke-linecap:round} .s-teal-thin{stroke:var(--teal);stroke-width:1.5}
+.s-teal-thick{stroke:var(--teal);stroke-width:3.5;stroke-linecap:round}
+.s-muted{stroke:var(--muted);stroke-width:2;stroke-linecap:round} .s-muted-dash{stroke:var(--muted);stroke-width:2.5;stroke-dasharray:5 5;fill:none}
+.s-white{stroke:var(--white);stroke-width:2.5;stroke-linecap:round} .s-cur{stroke:currentColor;stroke-width:2.5;stroke-linecap:round}
+svg path.s-acc:not([class*="f-"]),svg path.s-teal:not([class*="f-"]),svg path.s-muted:not([class*="f-"]),svg path.s-cur:not([class*="f-"]),svg path.s-white{fill:none}
+.t-s{font-size:calc(15px * var(--fs, 1));fill:var(--ink)} .t-xs{font-size:calc(13px * var(--fs, 1));fill:var(--ink2)} .t-xxs{font-size:calc(11px * var(--fs, 1));fill:var(--muted)} .t-b{font-weight:700}
+/* 新篇章用到嘅部件 */
+.chips{display:flex;flex-wrap:wrap;gap:.5em;margin:.4em 0 .6em}
+.chip{appearance:none;font:inherit;font-size:.92em;font-weight:700;border:1.5px solid var(--line);background:var(--bg);color:var(--ink2);border-radius:999px;padding:.4em 1.1em;min-height:44px}
+.chip.on{background:var(--teal);border-color:var(--teal);color:var(--white)}
+.panel .fig{margin:.2em 0 .5em}
+.panel p{margin:.2em 0 0}
+.steplist{display:grid;gap:.45em;margin:.4em 0 .6em}
+.steplist button{appearance:none;font:inherit;text-align:left;display:flex;align-items:center;gap:.7em;background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:.55em .8em;min-height:48px;color:var(--ink);font-weight:700}
+.steplist button.on{background:var(--teal-soft);border-color:var(--teal)}
+.sn{flex:none;width:1.8em;height:1.8em;border-radius:50%;background:var(--teal);color:var(--white);display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.9em}
+ol.steps3{list-style:none;margin:.3em 0 .7em;padding:0;display:grid;gap:.5em}
+ol.steps3 li{display:flex;gap:.7em;align-items:flex-start;background:var(--bg);border-radius:12px;padding:.6em .7em}
+.events{display:grid;grid-template-columns:repeat(4,1fr);gap:.4em;margin:.2em 0 .8em;text-align:center}
+.events svg{width:2.4em;height:2.4em;display:block;margin:0 auto .2em}
+.events span{font-size:.82em;font-weight:700}
+.bubbles{display:grid;gap:.6em;margin:.3em 0 .8em}
+.bub{border-radius:16px;padding:.6em .85em;font-weight:700;line-height:1.5}
+.bub .lab{display:block;font-size:.75em;font-weight:600;margin-bottom:.15em}
+.bub.vague{background:var(--acc-soft);color:var(--ink)} .bub.vague .lab{color:var(--acc)}
+.bub.clear{background:var(--teal-soft);color:var(--ink)} .bub.clear .lab{color:var(--teal)}
+.cols.two{grid-template-columns:1fr 1fr;margin-top:.4em}
+.cols.two ul{margin:0;padding-left:1.1em}
+.cols.two li{margin:0 0 .25em;font-size:.92em}
+.steplist button.on{color:var(--ink)}
+
+/* 睇完之後嘅目錄 */
+.done-box{background:var(--teal-soft);border-radius:16px;padding:.9em 1em;margin:1em 0 .2em}
+.done-box p{margin:.2em 0 .6em}
+.done-box .done-k{font-weight:700;color:var(--teal);font-size:1.05em}
+.done-box .cta{margin-top:.4em}
+.restart{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;margin-top:1em;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+a.cta.start{margin-top:.7em}
+[hidden]{display:none !important}
+
+.ask-hint{display:none;font-size:.9em;color:var(--ink2);margin:.7em 0 0 !important}
+html[data-ask="on"] .ask-hint{display:block}
+a.next-art{margin-top:.8em}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div id="toc" data-view="toc"><header class="top"><div class="kicker">孤單小讀本</div><h1>由一小步開始</h1><p class="lede">大約 7 分鐘。睇吓孤單點樣變成一個循環，同埋點樣由一個好細嘅聯絡開始打破佢。</p></header>
+<div class="done-box" data-done-box hidden><p class="done-k">✓ 呢篇睇完喇</p><p>睇完有咩<b>感受</b>，或者諗起咩人同事？可以同小欣講吓心入面嘅感受。</p><a class="cta" href="peizhu://cta/chat_siu_yan">同小欣講吓感受</a><p class="ask-hint">內容有唔明，可以撳右上角「?」問通通。</p></div><a class="cta alt next-art" data-next-art hidden href="peizhu://reader/open?id=talking_with_children"><span>讀下一篇：同仔女傾偈</span></a><p class="toc-k">呢篇有 3 節，撳一節入去睇：</p><ol class="toc"><li><button type="button" class="toc-item" data-go="s1"><span class="toc-n">1</span><span class="toc-t">孤單點樣變成一個循環？</span><span class="toc-read" aria-label="已讀">✓ 已讀</span><span class="toc-go" aria-hidden="true">›</span></button></li><li><button type="button" class="toc-item" data-go="s2"><span class="toc-n">2</span><span class="toc-t">可以由幾細嘅一步開始？</span><span class="toc-read" aria-label="已讀">✓ 已讀</span><span class="toc-go" aria-hidden="true">›</span></button></li><li><button type="button" class="toc-item" data-go="s3"><span class="toc-n">3</span><span class="toc-t">做唔到點算？</span><span class="toc-read" aria-label="已讀">✓ 已讀</span><span class="toc-go" aria-hidden="true">›</span></button></li></ol><button type="button" class="cta start" data-start data-go="s1">由第 1 節開始</button><button type="button" class="restart" data-restart data-go="s1" hidden>由第 1 節重新睇</button></div>
+<section id="s1" data-section="s1" hidden><div class="sec-bar"><button type="button" class="back" data-go="toc">‹ 目錄</button><span class="pos">第 1／3 節</span><span class="sp"></span></div><div class="sec-h"><h2>孤單點樣變成一個循環？</h2></div><article class="card" data-card="c1"><div class="card-h"><h3>孤單嘅循環</h3><a class="ask" href="peizhu://explain?card=small_steps.c1" aria-label="解釋：孤單嘅循環">?</a></div><p>研究孤單嘅美國學者解釋：人覺得孤單嗰陣，<strong>腦會特別留意「人哋係咪唔理我」嘅跡象</strong>。</p><p class="note">撳「下一步」，一步一步睇。</p>
+<svg class="fig" viewBox="0 0 320 250" role="img" aria-label="孤單嘅循環：覺得人哋唔理我，於是少咗主動搵人，然後更覺得孤單">
+  <defs><marker id="ah6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" class="f-acc"/></marker></defs>
+  <path d="M190 60 C250 80 262 140 230 168" class="s-acc-thick" fill="none" marker-end="url(#ah6)"/>
+  <path d="M170 196 C140 214 100 210 78 186" class="s-acc-thick" fill="none" marker-end="url(#ah6)"/>
+  <path d="M66 150 C52 110 74 66 118 54" class="s-acc-thick" fill="none" marker-end="url(#ah6)"/>
+  <g data-node="0" class="node"><rect x="102" y="14" width="116" height="52" rx="14"/><text x="160" y="37" class="t-s t-b" text-anchor="middle">「佢唔想</text><text x="160" y="56" class="t-s t-b" text-anchor="middle">理我」</text></g>
+  <g data-node="1" class="node"><rect x="196" y="160" width="116" height="52" rx="14"/><text x="254" y="183" class="t-s t-b" text-anchor="middle">少咗主動</text><text x="254" y="202" class="t-s t-b" text-anchor="middle">搵人</text></g>
+  <g data-node="2" class="node"><rect x="8" y="160" width="116" height="52" rx="14"/><text x="66" y="183" class="t-s t-b" text-anchor="middle">更覺得</text><text x="66" y="202" class="t-s t-b" text-anchor="middle">孤單</text></g>
+  <g class="breakpt"><circle cx="252" cy="110" r="13" class="f-teal"/><path d="M246 104 l12 12 M258 104 l-12 12" class="s-white"/><text x="232" y="114" class="t-xs t-b" text-anchor="end">可以喺度打破</text></g>
+</svg>
+<div class="loop-ctrl"><button type="button" class="pill" data-loop-next>下一步 ›</button><span class="loop-cap" data-loop-cap></span></div>
+<script type="application/json" data-for="loop">["第 1 步：一啲小事，例如朋友遲咗覆訊息，都容易諗成「佢唔想理我」。", "第 2 步：於是少咗主動搵人。", "第 3 步：少咗來往，又更覺得孤單，然後又更留意被冷落嘅跡象。"]</script><p class="callout">呢個循環唔係你嘅錯，係腦保護自己嘅方式。好消息係，循環可以由一個好細嘅位打破。</p></article><div class="sec-foot"><button type="button" class="next-sec" data-go="s2"><span class="k">下一節</span><span>可以由幾細嘅一步開始？</span></button></div></section><section id="s2" data-section="s2" hidden><div class="sec-bar"><button type="button" class="back" data-go="toc">‹ 目錄</button><span class="pos">第 2／3 節</span><span class="sp"></span></div><div class="sec-h"><h2>可以由幾細嘅一步開始？</h2></div><article class="card" data-card="c2"><div class="card-h"><h3>由一小步開始</h3><a class="ask" href="peizhu://explain?card=small_steps.c2" aria-label="解釋：由一小步開始">?</a></div><p>打破循環，唔使一下子做大事。<strong>揀一樣好細、好容易做到嘅聯絡就得</strong>。</p><p class="note">撳每一級睇例子。</p><div class="stairs" data-widget="stairs" data-pick><button type="button" class="stair on" style="--lvl:0" data-i="0"><svg viewBox="0 0 44 40" aria-hidden="true"><path d="M8 10 h24 a4 4 0 0 1 4 4 v10 a4 4 0 0 1 -4 4 h-14 l-8 6 v-6 h-2 a4 4 0 0 1 -4 -4 v-10 a4 4 0 0 1 4 -4z" class="f-cur"/></svg><span>第 1 級</span><b>發個訊息</b></button><button type="button" class="stair" style="--lvl:1" data-i="1"><svg viewBox="0 0 44 40" aria-hidden="true"><path d="M12 6 l6 0 l3 8 l-4 3 c2 5 5 8 10 10 l3 -4 l8 3 l0 6 c-14 2 -28 -12 -26 -26z" class="f-cur"/></svg><span>第 2 級</span><b>打個電話</b></button><button type="button" class="stair" style="--lvl:2" data-i="2"><svg viewBox="0 0 44 40" aria-hidden="true"><path d="M8 14 h22 v10 a10 10 0 0 1 -10 10 h-2 a10 10 0 0 1 -10 -10z M30 17 h3 a4 4 0 0 1 0 8 h-3" class="f-cur"/></svg><span>第 3 級</span><b>約出嚟飲杯茶</b></button></div><div class="panel" data-panel="stairs"></div><script type="application/json" data-for="stairs">["<b>第 1 級：發個訊息</b>例如「今日好凍，記得着多件衫。」一句就夠。", "<b>第 2 級：打個電話</b>傾三五分鐘都得，問吓對方近況。", "<b>第 3 級：約出嚟</b>飲杯茶，或者一齊行吓公園。"]</script><p>由你覺得最舒服嗰級開始。做到一級，先諗下一級。</p></article><div class="sec-foot"><button type="button" class="next-sec" data-go="s3"><span class="k">下一節</span><span>做唔到點算？</span></button></div></section><section id="s3" data-section="s3" hidden><div class="sec-bar"><button type="button" class="back" data-go="toc">‹ 目錄</button><span class="pos">第 3／3 節</span><span class="sp"></span></div><div class="sec-h"><h2>做唔到點算？</h2></div><article class="card" data-card="c3"><div class="card-h"><h3>世衞建議嘅小事</h3><a class="ask" href="peizhu://explain?card=small_steps.c3" aria-label="解釋：世衞建議嘅小事">?</a></div><p>世衞 2025 年嘅報告，列咗幾樣人人都做得到嘅事：</p><ul class="checklist"><li><svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="9" class="f-teal"/><path d="M14 9 v10 M9 14 h10" class="s-white"/></svg><span>聯絡一個可能需要人關心嘅朋友。</span></li><li><svg viewBox="0 0 28 28" aria-hidden="true"><rect x="8" y="4" width="12" height="20" rx="3" class="f-teal"/><path d="M4 26 L24 4" class="s-acc-thick"/></svg><span>同人傾偈嗰陣，放低手機，專心聽。</span></li><li><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M6 22 v-8 a8 8 0 0 1 16 0 v8" class="s-teal" fill="none"/><path d="M14 4 v-0" /><circle cx="14" cy="9" r="4" class="f-teal"/></svg><span>同鄰居打個招呼。</span></li><li><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M4 24 l10 -18 l10 18z" class="f-teal"/></svg><span>參加社區中心嘅活動。</span></li><li><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M14 24 C4 17 2 12 5 8 c3 -4 7 -2 9 2 c2 -4 6 -6 9 -2 c3 4 1 9 -9 16z" class="f-acc"/></svg><span>做義工。</span></li></ul></article><article class="card" data-card="c4"><div class="card-h"><h3>做唔到都唔緊要</h3><a class="ask" href="peizhu://explain?card=small_steps.c4" aria-label="解釋：做唔到都唔緊要">?</a></div>
+<svg class="fig" viewBox="0 0 320 170" role="img" aria-label="計劃做唔到，可以改個時間或者揀細啲嘅一步，再試">
+  <defs><marker id="ah7" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" class="f-teal"/></marker></defs>
+  <rect x="10" y="64" width="84" height="42" rx="12" class="f-card s-line"/><text x="52" y="90" class="t-s t-b" text-anchor="middle">計劃</text>
+  <path d="M98 85 H124" class="s-muted-dash"/>
+  <circle cx="146" cy="85" r="20" class="f-acc-soft s-acc"/><text x="146" y="90" class="t-xs t-b" text-anchor="middle">唔得</text>
+  <path d="M164 74 C178 52 190 40 206 36" class="s-teal-thick" fill="none" marker-end="url(#ah7)"/>
+  <path d="M164 96 C180 118 190 130 206 134" class="s-teal-thick" fill="none" marker-end="url(#ah7)"/>
+  <rect x="208" y="14" width="108" height="42" rx="12" class="f-teal-soft s-teal-thin"/><text x="262" y="40" class="t-s t-b" text-anchor="middle">改個時間</text>
+  <rect x="208" y="114" width="108" height="42" rx="12" class="f-teal-soft s-teal-thin"/><text x="262" y="140" class="t-s t-b" text-anchor="middle">細啲嘅一步</text>
+  <text x="262" y="92" class="t-xs" text-anchor="middle">然後再試</text>
+</svg><p>有時計劃好咗，到時又唔想做，或者對方冇覆。呢啲都好正常。</p><p>可以<strong>改個時間</strong>，或者<strong>揀一樣再細啲嘅事</strong>，例如由「約飲茶」改做「發個訊息」。慢慢試就得，唔使一次做足。</p></article><article class="card recap"><h3>小結</h3><ol class="plain"><li>(1) 孤單會令人更留意被冷落嘅跡象，變成一個循環。</li><li>(2) 打破循環，可以由一個好細嘅聯絡開始。</li><li>(3) 做唔到都唔緊要，改個時間或者揀細啲嘅一步。</li></ol></article><article class="card think"><div class="think-k">諗一諗</div><p class="q">有冇一個人，你好耐冇聯絡，但係想聯絡返？</p><p class="note">唔使寫低，喺心入面諗吓就得。</p></article><div class="ctas"><a class="cta" href="peizhu://cta/small_action">揀一個今日小行動</a><a class="cta alt" href="peizhu://cta/chat_siu_yan">同小欣講吓你嘅感受</a></div><div class="sec-foot"><button type="button" class="to-toc" data-go="toc" data-done>睇完喇，返回目錄</button></div></section>
+<footer><p>呢份小讀本幫你了解孤單，唔可以代替醫生或者社工嘅意見。</p><details><summary>參考資料</summary><div class="inner"><ol><li>Hawkley LC, Cacioppo JT. Loneliness matters: a theoretical and empirical review of consequences and mechanisms. Annals of Behavioral Medicine. 2010;40(2):218-227.</li><li>World Health Organization. Social connection linked to improved health and reduced risk of early death. News release, 30 June 2025.</li></ol></div></details></footer>
+</div>
+<script>(function(){
+  function $all(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+  function data(name){ var s=document.querySelector('script[data-for="'+name+'"]'); return s ? JSON.parse(s.textContent) : []; }
+
+  // 目錄同分節：一次只顯示目錄或者其中一節。
+  // App 接口（開發用；所有參加者一樣，網頁本身唔會分人）：
+  //   window.peizhuReader.back()  -> true 表示網頁已經由一節返回目錄；false 表示已經喺目錄，App 自己返去「讀少少」
+  //   window.peizhuReader.current() -> {view:'toc'|節 id, index, total, title}
+  //   window.peizhuReader.setRead(['s1','s2']) -> 目錄顯示「已讀」
+  //   App 喺 <html> 加 data-chrome="app" 之後，網頁自己嘅「‹ 目錄」條會收埋，改由 App 頂欄負責。
+  var toc=document.getElementById('toc'), foot=document.querySelector('footer');
+  var secs=$all('section[data-section]'), cur='toc', read={};
+  function info(){
+    if(cur==='toc') return {view:'toc', index:0, total:secs.length, title:document.title};
+    var i=secs.findIndex(function(s){ return s.id===cur; });
+    return {view:cur, index:i+1, total:secs.length, title:secs[i].querySelector('h2').textContent};
+  }
+  // 目錄底部：未睇過 -> 由第 1 節開始；睇咗一部分 -> 繼續睇第 n 節；全部睇完 -> 睇完提示、由第 1 節重新睇、讀下一篇。
+  function paintRead(){
+    var first=null, n=0;
+    $all('.toc-item').forEach(function(b, i){
+      var id=b.getAttribute('data-go'), r=!!read[id]; b.classList.toggle('read', r);
+      if(r) n++; else if(first===null) first=[id, i+1];
+    });
+    var all = n===secs.length, start=document.querySelector('[data-start]');
+    $all('[data-done-box],[data-restart],[data-next-art]').forEach(function(x){ x.hidden=!all; });
+    if(start){
+      start.hidden=all;
+      if(first && n>0){ start.setAttribute('data-go', first[0]); start.textContent='繼續睇第 '+first[1]+' 節'; }
+    }
+  }
+  function go(id){
+    if(cur!=='toc') { read[cur]=true; paintRead(); }
+    cur=id;
+    var showToc = id==='toc';
+    toc.hidden=!showToc; if(foot) foot.hidden=!showToc;
+    secs.forEach(function(s){ s.hidden = showToc || s.id!==id; });
+    window.scrollTo(0,0);
+    try{ window.dispatchEvent(new CustomEvent('peizhu:view', {detail: info()})); }catch(e){}
+  }
+  document.addEventListener('click', function(e){
+    var b=e.target.closest && e.target.closest('[data-go]'); if(!b) return;
+    go(b.getAttribute('data-go'));
+  });
+  window.peizhuReader = {
+    back: function(){ if(cur==='toc') return false; go('toc'); return true; },
+    current: info,
+    setRead: function(ids){ (ids||[]).forEach(function(id){ read[id]=true; }); paintRead(); },
+    readIds: function(){ return Object.keys(read); }
+  };
+
+  // 撳一格睇說明：階梯、四格、三級
+  $all('[data-pick]').map(function(w){ return w.getAttribute('data-widget'); }).forEach(function(name){
+    var w=document.querySelector('[data-widget="'+name+'"]'); if(!w) return;
+    var panel=document.querySelector('[data-panel="'+name+'"]'); var txt=data(name);
+    function sel(i){ $all('button', w).forEach(function(b){ b.classList.toggle('on', +b.getAttribute('data-i')===i); }); panel.innerHTML=txt[i]; }
+    w.addEventListener('click', function(e){ var b=e.target.closest('button'); if(b) sel(+b.getAttribute('data-i')); });
+    var first=w.querySelector('button.on'); sel(first ? +first.getAttribute('data-i') : 0);
+  });
+
+  // 正例／反例
+  var sc=document.querySelector('[data-widget="seg-cause"]');
+  if(sc){
+    sc.addEventListener('click', function(e){
+      var b=e.target.closest('button'); if(!b) return; var k=b.getAttribute('data-k');
+      $all('button', sc).forEach(function(x){ x.classList.toggle('on', x===b); });
+      $all('[data-pane]').forEach(function(p){ p.classList.toggle('hide', p.getAttribute('data-pane')!==k); });
+    });
+  }
+  $all('[data-reveal-btn]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var g=document.querySelector('[data-reveal="'+b.getAttribute('data-reveal-btn')+'"]');
+      var on=!g.classList.contains('show'); g.classList.toggle('show', on);
+      b.textContent = on ? '收埋背後原因' : '睇埋背後原因';
+    });
+  });
+
+  // 三個可能
+  var sp=document.querySelector('[data-widget="seg-poss"]');
+  if(sp){
+    sp.addEventListener('click', function(e){
+      var b=e.target.closest('button'); if(!b) return; var k=b.getAttribute('data-k');
+      $all('button', sp).forEach(function(x){ x.classList.toggle('on', x===b); });
+      $all('[data-poss]').forEach(function(g){ g.classList.toggle('hide', g.getAttribute('data-poss')!==k); });
+    });
+  }
+
+  // 孤單嘅循環
+  var nxt=document.querySelector('[data-loop-next]');
+  if(nxt){
+    var cap=document.querySelector('[data-loop-cap]'); var steps=data('loop'); var i=0;
+    function show(){ $all('[data-node]').forEach(function(n){ n.classList.toggle('on', +n.getAttribute('data-node')===i); }); cap.textContent=steps[i]; }
+    nxt.addEventListener('click', function(){ i=(i+1)%steps.length; show(); });
+    show();
+  }
+})();
+</script>
+</body>
+</html>

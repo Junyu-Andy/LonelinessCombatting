@@ -25,6 +25,11 @@ class WeeklyPrResponse {
   /// (`max_sessions` / `tie_turns` / `tie_recency` / `none`).
   final String? referentRule;
 
+  /// 1020k — item ids in the order they were shown (page 1 top to page 3
+  /// bottom; pages of 5, 4 and 3, i1–i3 last).  Written only with
+  /// `scaleDirectionCuesEnabled` on, so its presence marks that layout.
+  final List<String>? itemOrder;
+
   const WeeklyPrResponse({
     required this.weekIso,
     required this.agentId,
@@ -36,6 +41,7 @@ class WeeklyPrResponse {
     required this.respondedAt,
     required this.arm,
     this.referentRule,
+    this.itemOrder,
   });
 
   Map<String, dynamic> toFirestore() => {
@@ -50,6 +56,7 @@ class WeeklyPrResponse {
         'arm': arm,
         'referentAgentId': agentId == '_none' ? null : agentId,
         'referentRule': referentRule,
+        if (itemOrder != null) 'itemOrder': itemOrder,
       };
 
   /// ISO week label for [date] (defaults to `DateTime.now()`), e.g.
@@ -79,7 +86,9 @@ class WeeklyPrResponse {
 }
 
 /// 12 Weekly PR items per Sprint 1 §4.1.  1020f: each starts 「呢個禮拜」
-/// (was 「頭先」) — the items rate the whole week.
+/// (was 「頭先」) — the items rate the whole week.  10/21: v3 reads
+/// 「冇對我指指點點」 (was 「冇判斷我」); ids, fields and scoring unchanged.
+/// docs/spec/instruments/weekly_pr.md is the source.
 class WeeklyPrItems {
   static const items = <({String id, String text})>[
     (id: 'u1', text: '呢個禮拜 $kAgent 都明白我嘅感受。'),
@@ -87,7 +96,7 @@ class WeeklyPrItems {
     (id: 'u3', text: '呢個禮拜 $kAgent 真係聽到我講嘅嘢。'),
     (id: 'v1', text: '呢個禮拜 $kAgent 尊重我嘅感受。'),
     (id: 'v2', text: '呢個禮拜 $kAgent 認可我講嘅嘢。'),
-    (id: 'v3', text: '呢個禮拜 $kAgent 冇判斷我。'),
+    (id: 'v3', text: '呢個禮拜 $kAgent 冇對我指指點點。'),
     (id: 'c1', text: '呢個禮拜 $kAgent 真心關心我。'),
     (id: 'c2', text: '呢個禮拜 $kAgent 為我著想。'),
     (id: 'c3', text: '呢個禮拜 $kAgent 嘅回應令我覺得舒服。'),

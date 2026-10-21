@@ -1,0 +1,337 @@
+<!doctype html>
+<!--
+孤單小讀本 單元：what_is_loneliness（孤單係咩）
+版本：2026-10-21 草稿 v1
+參考資料：
+  (1) Peplau LA, Perlman D. Blueprint for a social psychological theory of loneliness. In: Cook M, Wilson G, eds. Love and Attraction. Oxford: Pergamon; 1979:99-108.
+  (2) Cacioppo JT, Cacioppo S, Cole SW, Capitanio JP, Goossens L, Boomsma DI. Loneliness across phylogeny and a call for comparative studies and animal models. Perspectives on Psychological Science. 2015;10(2):202-212.
+  (3) World Health Organization. Social connection linked to improved health and reduced risk of early death. News release, 30 June 2025.
+-->
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>孤單係咩</title>
+<style>/* 孤單小讀本：淺色版，顏色跟 App（app_theme.dart）。字號跟 App 注入嘅 --fs。 */
+:root{
+  --bg:#F7F5F1; --card:#FFFFFF; --ink:#3A3330; --ink2:#5C524B; --muted:#7E7268; --line:#E7E0D8;
+  --acc:#B05F2E; --acc-soft:#F7E6D9; --teal:#2E6B64; --teal-soft:#E0EEEB; --white:#FFFFFF;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"PingFang HK","PingFang TC","Noto Sans CJK TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  font-size:calc(17px * var(--fs, 1));line-height:max(1.5, calc(1.72 - (var(--fs, 1) - 1) * 0.9))}
+:root{--sp:calc(12px * (1 + (var(--fs, 1) - 1) * 0.3))}
+strong{font-weight:800;background:linear-gradient(transparent 60%, var(--acc-soft) 60%)}
+.wrap{max-width:600px;margin:0 auto;padding:0 max(16px, env(safe-area-inset-left, 0px)) 2.5em max(16px, env(safe-area-inset-right, 0px))}
+header.top{padding:1.4em .2em .4em}
+.kicker{font-size:.8em;letter-spacing:.12em;color:var(--acc);font-weight:700}
+h1{font-size:1.65em;line-height:1.3;margin:.25em 0 .4em}
+.lede{color:var(--ink2);margin:0}
+[hidden]{display:none !important}
+.toc-k{color:var(--ink2);margin:1.2em .2em .5em;font-size:.95em}
+ol.toc{list-style:none;margin:0;padding:0;display:grid;gap:.6em}
+.toc-item{appearance:none;font:inherit;width:100%;text-align:left;display:flex;align-items:center;gap:.8em;background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:.85em .9em;color:var(--ink);min-height:64px}
+.toc-n{flex:none;width:2em;height:2em;border-radius:50%;background:var(--teal);color:var(--white);display:inline-flex;align-items:center;justify-content:center;font-weight:800}
+.toc-t{flex:1;min-width:0;font-weight:700;line-height:1.45}
+.toc-go{flex:none;color:var(--teal);font-size:1.4em;font-weight:700}
+.toc-read{display:none;flex:none;font-size:.78em;font-weight:700;color:var(--teal);background:var(--teal-soft);border-radius:999px;padding:.1em .6em}
+.toc-item.read .toc-read{display:inline-block}
+.toc-item.read .toc-n{background:var(--teal-soft);color:var(--teal)}
+html[data-chrome="app"] .sec-bar{display:none}
+.cta.start{width:100%;border:0;margin-top:1em;font:inherit;font-weight:700;font-size:1.02em}
+.sec-bar{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:.6em;padding:.5em 0;border-bottom:1px solid var(--line)}
+.sec-bar .back{appearance:none;font:inherit;font-weight:700;color:var(--teal);background:var(--card);border:1.5px solid var(--line);border-radius:999px;padding:.3em .9em;min-height:44px}
+.sec-bar .pos{color:var(--muted);font-size:.88em}
+.sec-foot{display:grid;gap:.6em;margin:1.4em 0 .4em}
+.next-sec{appearance:none;font:inherit;text-align:left;background:var(--teal);color:var(--white);border:0;border-radius:14px;padding:.75em 1em;min-height:56px;display:flex;flex-direction:column;gap:.1em;font-weight:700;line-height:1.4}
+.next-sec .k{font-size:.78em;font-weight:600;opacity:.9}
+.to-toc{appearance:none;font:inherit;font-weight:700;background:var(--card);color:var(--teal);border:1.5px solid var(--line);border-radius:14px;min-height:52px}
+.sec-h{margin:1.2em .2em .6em}
+.sec-h .n{font-size:.78em;color:var(--acc);font-weight:700;letter-spacing:.1em}
+.sec-h h2{margin:.1em 0 0;font-size:1.3em;line-height:1.35}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:var(--sp) calc(var(--sp) * 1.2);margin:calc(var(--sp) * .8) 0}
+.card-h{display:flex;align-items:flex-start;gap:.6em;margin-bottom:calc(var(--sp) * .4)}
+.card h3{margin:0;font-size:1.1em;line-height:1.4;flex:1}
+.card p{margin:0 0 calc(var(--sp) * .55)}
+.card p:last-child{margin-bottom:0}
+.ask{display:none;flex:none;width:44px;height:44px;border-radius:50%;border:1.5px solid var(--teal);color:var(--teal);font-weight:700;font-size:1.05em;text-decoration:none;align-items:center;justify-content:center;background:var(--teal-soft)}
+html[data-explain="on"] .ask{display:inline-flex}
+.note{font-size:.85em;color:var(--muted)}
+.center{text-align:center}
+.callout{background:var(--acc-soft);border-radius:12px;padding:.7em .85em;font-weight:600}
+.help{margin-top:.8em !important;padding:.7em .85em;border-radius:12px;background:var(--teal-soft);font-size:.95em}
+ol.plain{list-style:none;padding:0;margin:0 0 .6em}
+ol.plain li{margin:0 0 .35em}
+.fig{display:block;width:100%;height:auto;margin:calc(var(--sp) * .3) 0 calc(var(--sp) * .6)}
+.hide{display:none}
+details{border-top:1px dashed var(--line);margin-top:.8em;padding-top:.6em}
+summary{cursor:pointer;color:var(--teal);font-weight:700;list-style:none;min-height:44px;display:flex;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:" ▾";margin-left:.3em}
+details[open] summary::after{content:" ▴"}
+details .inner{color:var(--ink2)}
+.panel{background:var(--teal-soft);border-radius:12px;padding:.7em .85em;min-height:3.4em;margin:.2em 0 .8em}
+.panel b{display:block;margin-bottom:.1em}
+/* evidence ladder */
+.ladder{display:flex;align-items:flex-end;gap:.4em;height:11em;margin:.4em 0 .7em}
+.step{flex:1;height:var(--h);appearance:none;font:inherit;font-size:.78em;font-weight:700;line-height:1.3;color:var(--ink2);background:var(--teal-soft);border:1.5px solid var(--line);border-radius:12px 12px 4px 4px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:.3em;padding:.6em .2em 0;color:var(--teal)}
+.step small{font-weight:400;font-size:.85em}
+.step .ico svg{width:1.8em;height:1.8em;display:block}
+.step.on{background:var(--teal);color:var(--white);border-color:var(--teal)}
+/* tiles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:.6em;margin:.4em 0 .7em}
+.tile{appearance:none;font:inherit;font-size:.9em;font-weight:700;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:14px;padding:.7em .4em;display:flex;flex-direction:column;align-items:center;gap:.35em;min-height:96px;text-align:center;line-height:1.35}
+.tile svg{width:2.4em;height:2.4em}
+.tile.on{border-color:var(--teal);background:var(--teal-soft)}
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(6.4em,1fr));gap:.5em;margin:.2em 0 .8em}
+.stat{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:.6em .4em;text-align:center}
+.stat .big{font-size:1.25em;font-weight:800;color:var(--acc);line-height:1.25}
+.stat .lab{font-size:.8em;color:var(--ink2)}
+.stat-tiles{display:grid;gap:.6em}
+.st{display:grid;grid-template-columns:38% 1fr;grid-template-rows:auto auto;column-gap:.7em;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:.6em .7em}
+.st .mini{grid-row:1 / span 2;width:100%;max-width:7em;height:auto;justify-self:center}
+.st .big{font-size:1.15em;font-weight:800;color:var(--acc);line-height:1.3}
+.st .lab{font-size:.85em;color:var(--ink2);line-height:1.45}
+/* seg */
+.seg{display:flex;gap:.5em;flex-wrap:wrap;margin:.3em 0 .6em}
+.seg button,.pill{appearance:none;font:inherit;font-size:.9em;font-weight:700;border:1.5px solid var(--line);background:var(--bg);color:var(--ink2);border-radius:999px;padding:.4em 1.1em;min-height:44px}
+.seg button.on{background:var(--teal);border-color:var(--teal);color:var(--white)}
+.pill{border-color:var(--teal);color:var(--teal);background:var(--card);margin:0 0 .6em}
+.reveal{opacity:0;transition:opacity .4s}
+.reveal.show{opacity:1}
+/* loop */
+.node rect{fill:var(--card);stroke:var(--line);stroke-width:2}
+.node.on rect{fill:var(--acc-soft);stroke:var(--acc);stroke-width:2.5}
+.loop-ctrl{display:flex;flex-wrap:wrap;align-items:center;gap:.6em;margin:-.2em 0 .7em}
+.loop-ctrl .pill{margin:0}
+.loop-cap{flex:1 1 12em;min-width:0;font-size:.92em;color:var(--ink2)}
+/* stairs */
+.stairs{display:grid;grid-template-columns:repeat(3,1fr);gap:.4em;align-items:end;margin:.4em 0 .7em}
+.stair{appearance:none;font:inherit;background:var(--bg);border:1.5px solid var(--line);border-radius:12px;color:var(--teal);display:flex;flex-direction:column;align-items:center;gap:.15em;padding:.55em .2em;margin-top:calc(var(--lvl) * 1.6em);min-height:calc(5.4em + var(--lvl) * 1.6em);justify-content:flex-end}
+.stair svg{width:2.2em;height:2em}
+.stair span{font-size:.72em;color:var(--muted)}
+.stair b{font-size:.82em;line-height:1.3;color:var(--ink);text-align:center}
+.stair.on{background:var(--teal-soft);border-color:var(--teal)}
+/* lists with icons */
+.checklist,.iconlist{list-style:none;padding:0;margin:.2em 0 .4em;display:grid;gap:.5em}
+.checklist li,.iconlist li{display:flex;gap:.6em;align-items:flex-start}
+.checklist svg{flex:none;width:1.6em;height:1.6em;margin-top:.1em}
+.iconlist svg{flex:none;width:1.5em;height:1.5em;margin-top:.12em}
+.cols{display:grid;grid-template-columns:1fr;gap:.6em}
+.col{border-radius:14px;padding:.75em .8em}
+.col h4{margin:0 0 .4em;font-size:1em}
+.col.l{background:var(--teal-soft)} .col.l h4{color:var(--teal)}
+.col.r{background:var(--acc-soft)} .col.r h4{color:var(--acc)}
+.avatars{display:grid;grid-template-columns:repeat(4,1fr);gap:.4em;margin:.2em 0 .2em}
+.avatars figure{margin:0;text-align:center}
+.avatars img{width:100%;max-width:72px;height:auto;border-radius:50%;background:var(--bg);border:1px solid var(--line)}
+.avatars figcaption{font-size:.85em;font-weight:700}
+.privacy{display:flex;gap:.8em;align-items:center;margin:.2em 0 .7em}
+.privacy .lock{flex:none;width:3em;height:3em}
+.nolist{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.4em}
+.nolist li{border:1.5px solid var(--acc);color:var(--acc);border-radius:999px;padding:.15em .7em;font-size:.88em;font-weight:700;text-decoration:line-through;text-decoration-thickness:2px}
+/* recap, think, cta */
+.recap{background:var(--teal-soft);border:none}
+.recap h3{color:var(--teal);font-size:1em;letter-spacing:.06em}
+.think{border-style:dashed;border-width:1.5px}
+.think-k{font-size:.8em;font-weight:700;letter-spacing:.1em;color:var(--acc)}
+.think .q{font-weight:700;font-size:1.05em;margin:.2em 0 .3em}
+.nextline{color:var(--ink2);text-align:center;margin:1.2em 0 .4em}
+.ctas{display:grid;gap:.6em;margin:1em 0 .5em}
+.cta{display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:14px;background:var(--acc);color:var(--white);font-weight:700;text-decoration:none;font-size:1.02em;padding:.4em 1em;text-align:center}
+.cta.alt{background:var(--card);color:var(--acc);border:2px solid var(--acc)}
+footer{font-size:.78em;color:var(--muted);margin-top:1.6em;line-height:1.6}
+footer details{border-top:1px solid var(--line)}
+footer ol{padding-left:1.2em;margin:.3em 0}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.reveal{transition:none}}
+/* svg paint classes */
+.f-ink{fill:var(--ink2)} .f-soft{fill:var(--bg)} .f-card{fill:var(--card)} .f-acc{fill:var(--acc)} .f-acc-soft{fill:var(--acc-soft)}
+.f-teal{fill:var(--teal)} .f-teal-soft{fill:var(--teal-soft)} .f-line{fill:var(--line)} .f-cur{fill:currentColor}
+.s-line{stroke:var(--line);stroke-width:2} .s-line-thick{stroke:var(--line);stroke-width:4;fill:none;stroke-linecap:round}
+.s-acc{stroke:var(--acc);stroke-width:2;fill-opacity:1} .s-acc-thick{stroke:var(--acc);stroke-width:3.5;fill:none;stroke-linecap:round}
+.s-teal{stroke:var(--teal);stroke-width:2.5;stroke-linecap:round} .s-teal-thin{stroke:var(--teal);stroke-width:1.5}
+.s-teal-thick{stroke:var(--teal);stroke-width:3.5;stroke-linecap:round}
+.s-muted{stroke:var(--muted);stroke-width:2;stroke-linecap:round} .s-muted-dash{stroke:var(--muted);stroke-width:2.5;stroke-dasharray:5 5;fill:none}
+.s-white{stroke:var(--white);stroke-width:2.5;stroke-linecap:round} .s-cur{stroke:currentColor;stroke-width:2.5;stroke-linecap:round}
+svg path.s-acc:not([class*="f-"]),svg path.s-teal:not([class*="f-"]),svg path.s-muted:not([class*="f-"]),svg path.s-cur:not([class*="f-"]),svg path.s-white{fill:none}
+.t-s{font-size:calc(15px * var(--fs, 1));fill:var(--ink)} .t-xs{font-size:calc(13px * var(--fs, 1));fill:var(--ink2)} .t-xxs{font-size:calc(11px * var(--fs, 1));fill:var(--muted)} .t-b{font-weight:700}
+/* 新篇章用到嘅部件 */
+.chips{display:flex;flex-wrap:wrap;gap:.5em;margin:.4em 0 .6em}
+.chip{appearance:none;font:inherit;font-size:.92em;font-weight:700;border:1.5px solid var(--line);background:var(--bg);color:var(--ink2);border-radius:999px;padding:.4em 1.1em;min-height:44px}
+.chip.on{background:var(--teal);border-color:var(--teal);color:var(--white)}
+.panel .fig{margin:.2em 0 .5em}
+.panel p{margin:.2em 0 0}
+.steplist{display:grid;gap:.45em;margin:.4em 0 .6em}
+.steplist button{appearance:none;font:inherit;text-align:left;display:flex;align-items:center;gap:.7em;background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:.55em .8em;min-height:48px;color:var(--ink);font-weight:700}
+.steplist button.on{background:var(--teal-soft);border-color:var(--teal)}
+.sn{flex:none;width:1.8em;height:1.8em;border-radius:50%;background:var(--teal);color:var(--white);display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.9em}
+ol.steps3{list-style:none;margin:.3em 0 .7em;padding:0;display:grid;gap:.5em}
+ol.steps3 li{display:flex;gap:.7em;align-items:flex-start;background:var(--bg);border-radius:12px;padding:.6em .7em}
+.events{display:grid;grid-template-columns:repeat(4,1fr);gap:.4em;margin:.2em 0 .8em;text-align:center}
+.events svg{width:2.4em;height:2.4em;display:block;margin:0 auto .2em}
+.events span{font-size:.82em;font-weight:700}
+.bubbles{display:grid;gap:.6em;margin:.3em 0 .8em}
+.bub{border-radius:16px;padding:.6em .85em;font-weight:700;line-height:1.5}
+.bub .lab{display:block;font-size:.75em;font-weight:600;margin-bottom:.15em}
+.bub.vague{background:var(--acc-soft);color:var(--ink)} .bub.vague .lab{color:var(--acc)}
+.bub.clear{background:var(--teal-soft);color:var(--ink)} .bub.clear .lab{color:var(--teal)}
+.cols.two{grid-template-columns:1fr 1fr;margin-top:.4em}
+.cols.two ul{margin:0;padding-left:1.1em}
+.cols.two li{margin:0 0 .25em;font-size:.92em}
+.steplist button.on{color:var(--ink)}
+
+/* 睇完之後嘅目錄 */
+.done-box{background:var(--teal-soft);border-radius:16px;padding:.9em 1em;margin:1em 0 .2em}
+.done-box p{margin:.2em 0 .6em}
+.done-box .done-k{font-weight:700;color:var(--teal);font-size:1.05em}
+.done-box .cta{margin-top:.4em}
+.restart{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;margin-top:1em;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+a.cta.start{margin-top:.7em}
+[hidden]{display:none !important}
+
+.ask-hint{display:none;font-size:.9em;color:var(--ink2);margin:.7em 0 0 !important}
+html[data-ask="on"] .ask-hint{display:block}
+a.next-art{margin-top:.8em}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div id="toc" data-view="toc"><header class="top"><div class="kicker">孤單小讀本</div><h1>孤單係咩</h1><p class="lede">大約 7 分鐘。講吓孤單到底係一種咩感覺，同一個人住有咩分別。</p></header>
+<div class="done-box" data-done-box hidden><p class="done-k">✓ 呢篇睇完喇</p><p>睇完有咩<b>感受</b>，或者諗起咩人同事？可以同小欣講吓心入面嘅感受。</p><a class="cta" href="peizhu://cta/chat_siu_yan">同小欣講吓感受</a><p class="ask-hint">內容有唔明，可以撳右上角「?」問通通。</p></div><a class="cta alt next-art" data-next-art hidden href="peizhu://reader/open?id=how_lonely_am_i"><span>讀下一篇：我有幾孤單</span></a><p class="toc-k">呢篇有 3 節，撳一節入去睇：</p><ol class="toc"><li><button type="button" class="toc-item" data-go="s1"><span class="toc-n">1</span><span class="toc-t">一個人住，係咪即係孤單？</span><span class="toc-read" aria-label="已讀">✓ 已讀</span><span class="toc-go" aria-hidden="true">›</span></button></li><li><button type="button" class="toc-item" data-go="s2"><span class="toc-n">2</span><span class="toc-t">覺得孤單嘅人多唔多？</span><span class="toc-read" aria-label="已讀">✓ 已讀</span><span class="toc-go" aria-hidden="true">›</span></button></li><li><button type="button" class="toc-item" data-go="s3"><span class="toc-n">3</span><span class="toc-t">點解會覺得孤單？</span><span class="toc-read" aria-label="已讀">✓ 已讀</span><span class="toc-go" aria-hidden="true">›</span></button></li></ol><button type="button" class="cta start" data-start data-go="s1">由第 1 節開始</button><button type="button" class="restart" data-restart data-go="s1" hidden>由第 1 節重新睇</button></div>
+<section id="s1" data-section="s1" hidden><div class="sec-bar"><button type="button" class="back" data-go="toc">‹ 目錄</button><span class="pos">第 1／3 節</span><span class="sp"></span></div><div class="sec-h"><h2>一個人住，係咪即係孤單？</h2></div><article class="card" data-card="c1"><div class="card-h"><h3>一個人，唔一定孤單</h3><a class="ask" href="peizhu://explain?card=what_is_loneliness.c1" aria-label="解釋：一個人，唔一定孤單">?</a></div>
+<svg class="fig" viewBox="0 0 320 150" role="img" aria-label="左邊：一個人自己飲茶，覺得舒服。右邊：一班人入面，一個人覺得孤單。">
+  <rect x="6" y="8" width="148" height="134" rx="14" class="f-teal-soft"/>
+  <circle cx="124" cy="34" r="12" class="f-acc"/>
+  <circle cx="58" cy="78" r="13" class="f-ink"/><path d="M36 128 q22 -36 44 0z" class="f-ink"/>
+  <rect x="88" y="98" width="18" height="16" rx="3" class="f-card s-line"/><path d="M106 102 h4 a4 4 0 0 1 0 8 h-4" class="s-line" fill="none"/>
+  <text x="80" y="138" class="t-xs t-b" text-anchor="middle">獨處</text>
+  <rect x="166" y="8" width="148" height="134" rx="14" class="f-acc-soft"/>
+  <g class="f-line"><circle cx="196" cy="70" r="10"/><path d="M180 112 q16 -28 32 0z"/><circle cx="226" cy="64" r="10"/><path d="M210 106 q16 -28 32 0z"/><circle cx="256" cy="70" r="10"/><path d="M240 112 q16 -28 32 0z"/></g>
+  <circle cx="290" cy="84" r="10" class="f-ink"/><path d="M274 126 q16 -28 32 0z" class="f-ink"/>
+  <ellipse cx="284" cy="38" rx="20" ry="12" class="f-card s-line"/><circle cx="288" cy="58" r="3" class="f-card s-line"/>
+  <text x="240" y="138" class="t-xs t-b" text-anchor="middle">孤單</text>
+</svg><p>研究人員講嘅孤單，係一種感覺：<strong>你想要嘅人際聯繫，比你實際有嘅少</strong>。</p><p><strong>一個人住唔等於孤單</strong>；一屋人入面，都可以覺得孤單。</p><div class="cols two"><div class="col l"><h4>獨處</h4><ul><li>自己揀嘅</li><li>可以好舒服</li><li>例如自己飲茶、睇報紙</li></ul></div><div class="col r"><h4>孤單</h4><ul><li>想有人陪，但係冇</li><li>唔舒服</li><li>身邊有人都可以有</li></ul></div></div></article><article class="card" data-card="c2"><div class="card-h"><h3>孤單有兩種</h3><a class="ask" href="peizhu://explain?card=what_is_loneliness.c2" aria-label="解釋：孤單有兩種">?</a></div><p>有研究人員將孤單分做兩種。兩種可以同時有，亦可以只有一種。</p><p class="note">撳每一格睇例子。</p><div class="tiles" data-widget="kinds" data-pick><button type="button" class="tile on" data-i="0"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="14" cy="16" r="6" class="f-acc"/><circle cx="26" cy="16" r="6" class="f-acc"/><path d="M6 34 q8 -12 16 0 M18 34 q8 -12 16 0" class="f-acc"/></svg><span>少咗一個好親近嘅人</span></button><button type="button" class="tile" data-i="1"><svg viewBox="0 0 40 40" aria-hidden="true"><g class="f-teal"><circle cx="10" cy="14" r="4"/><circle cx="20" cy="12" r="4"/><circle cx="30" cy="14" r="4"/><path d="M3 30 q7 -10 14 0 M13 28 q7 -10 14 0 M23 30 q7 -10 14 0"/></g></svg><span>少咗一班可以一齊嘅人</span></button></div><div class="panel" data-panel="kinds"></div><script type="application/json" data-for="kinds">["<b>情感上嘅孤單</b>少咗一個好親近、可以講心事嘅人。例如老伴走咗，或者最好嘅朋友搬咗走。", "<b>社交上嘅孤單</b>少咗一班可以一齊做嘢、傾偈嘅人。例如退休之後少咗同事，或者搬屋之後唔識街坊。"]</script></article><div class="sec-foot"><button type="button" class="next-sec" data-go="s2"><span class="k">下一節</span><span>覺得孤單嘅人多唔多？</span></button></div></section><section id="s2" data-section="s2" hidden><div class="sec-bar"><button type="button" class="back" data-go="toc">‹ 目錄</button><span class="pos">第 2／3 節</span><span class="sp"></span></div><div class="sec-h"><h2>覺得孤單嘅人多唔多？</h2></div><article class="card" data-card="c3"><div class="card-h"><h3>唔止你一個</h3><a class="ask" href="peizhu://explain?card=what_is_loneliness.c3" aria-label="解釋：唔止你一個">?</a></div><div class="stat-tiles"><div class="st"><svg class="mini" viewBox="0 0 60 60" aria-hidden="true"><circle cx="12" cy="22" r="5" class="f-acc"/><path d="M4 44 q8 -15 16 0z" class="f-acc"/><circle cx="30" cy="22" r="5" class="f-line"/><path d="M22 44 q8 -15 16 0z" class="f-line"/><circle cx="48" cy="22" r="5" class="f-line"/><path d="M40 44 q8 -15 16 0z" class="f-line"/></svg><div class="big">最多每 3 個長者有 1 個</div><div class="lab">社交孤立，即係同人來往好少（世衞 2025 年估計）</div></div></div><p><strong>「社交孤立」係講實際同人來往好少</strong>；<strong>「孤單」係講感覺</strong>。兩樣有關，但唔一樣：有人來往少，但唔覺得孤單；有人來往多，都覺得孤單。</p></article><div class="sec-foot"><button type="button" class="next-sec" data-go="s3"><span class="k">下一節</span><span>點解會覺得孤單？</span></button></div></section><section id="s3" data-section="s3" hidden><div class="sec-bar"><button type="button" class="back" data-go="toc">‹ 目錄</button><span class="pos">第 3／3 節</span><span class="sp"></span></div><div class="sec-h"><h2>點解會覺得孤單？</h2></div><article class="card" data-card="c4"><div class="card-h"><h3>好似肚餓提你食飯</h3><a class="ask" href="peizhu://explain?card=what_is_loneliness.c4" aria-label="解釋：好似肚餓提你食飯">?</a></div>
+<svg class="fig" viewBox="0 0 320 150" role="img" aria-label="肚餓提你食飯，口渴提你飲水，孤單提你去搵人">
+  <defs><marker id="ah9" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" class="f-teal"/></marker></defs>
+  <g><rect x="8" y="10" width="110" height="36" rx="10" class="f-card s-line"/><text x="63" y="33" class="t-s t-b" text-anchor="middle">肚餓</text>
+     <path d="M122 28 H190" class="s-teal-thick" marker-end="url(#ah9)"/>
+     <rect x="196" y="10" width="116" height="36" rx="10" class="f-teal-soft s-teal-thin"/><text x="254" y="33" class="t-s" text-anchor="middle">提你食飯</text></g>
+  <g><rect x="8" y="56" width="110" height="36" rx="10" class="f-card s-line"/><text x="63" y="79" class="t-s t-b" text-anchor="middle">口渴</text>
+     <path d="M122 74 H190" class="s-teal-thick" marker-end="url(#ah9)"/>
+     <rect x="196" y="56" width="116" height="36" rx="10" class="f-teal-soft s-teal-thin"/><text x="254" y="79" class="t-s" text-anchor="middle">提你飲水</text></g>
+  <g><rect x="8" y="102" width="110" height="36" rx="10" class="f-acc-soft s-acc"/><text x="63" y="125" class="t-s t-b" text-anchor="middle">孤單</text>
+     <path d="M122 120 H190" class="s-acc-thick" marker-end="url(#ah9)"/>
+     <rect x="196" y="102" width="116" height="36" rx="10" class="f-acc-soft s-acc"/><text x="254" y="125" class="t-s t-b" text-anchor="middle">提你去搵人</text></g>
+</svg><p>研究孤單嘅學者話，孤單好似肚餓、口渴，<strong>係身體發出嘅警號</strong>。</p><p>肚餓提你食飯；孤單提你，同人嘅聯繫唔夠，係時候去搵人。</p></article><article class="card" data-card="c5"><div class="card-h"><h3>孤單唔係你嘅錯</h3><a class="ask" href="peizhu://explain?card=what_is_loneliness.c5" aria-label="解釋：孤單唔係你嘅錯">?</a></div>
+<div class="events">
+  <div><svg viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="14" width="28" height="20" rx="3" class="f-teal"/><path d="M15 14 v-4 h10 v4" class="s-teal" fill="none"/></svg><span>退休</span></div>
+  <div><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M6 20 L20 8 L34 20 V34 H6z" class="f-teal"/><rect x="16" y="24" width="8" height="10" class="f-card"/></svg><span>搬屋</span></div>
+  <div><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M24 6 v28 M24 6 q-8 0 -8 6" class="s-teal-thick" fill="none"/></svg><span>身體轉差</span></div>
+  <div><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="14" r="6" class="f-acc"/><path d="M20 20 v14 M14 26 q6 2 6 -2 M26 28 q-6 2 -6 -2" class="s-teal-thick" fill="none"/></svg><span>親近嘅人離開</span></div>
+</div><p><strong>孤單唔係軟弱</strong>，亦唔係你做錯咗咩。退休、搬屋、身體轉差、親近嘅人離開，都會令人際聯繫變少。</p><p class="callout">好多人都經歷過。覺得孤單，係正常嘅反應。</p></article><article class="card recap"><h3>小結</h3><ol class="plain"><li>(1) 孤單係一種感覺：想要嘅聯繫比實際有嘅少。一個人住唔等於孤單。</li><li>(2) 孤單有兩種：少咗一個好親近嘅人，或者少咗一班可以一齊嘅人。</li><li>(3) 孤單係身體嘅警號，提你去同人聯絡；唔係你嘅錯。</li></ol></article><article class="card think"><div class="think-k">諗一諗</div><p class="q">你通常喺咩時候最覺得孤單？</p><p class="note">唔使寫低，喺心入面諗吓就得。</p></article><div class="ctas"><a class="cta" href="peizhu://cta/chat_siu_yan">同小欣講吓你嘅感受</a><a class="cta alt" href="peizhu://cta/small_action">揀一個今日小行動</a></div><div class="sec-foot"><button type="button" class="to-toc" data-go="toc" data-done>睇完喇，返回目錄</button></div></section>
+<footer><p>呢份小讀本幫你了解孤單，唔可以代替醫生或者社工嘅意見。</p><details><summary>參考資料</summary><div class="inner"><ol><li>Peplau LA, Perlman D. Blueprint for a social psychological theory of loneliness. In: Cook M, Wilson G, eds. Love and Attraction. Oxford: Pergamon; 1979:99-108.</li><li>Cacioppo JT, Cacioppo S, Cole SW, Capitanio JP, Goossens L, Boomsma DI. Loneliness across phylogeny and a call for comparative studies and animal models. Perspectives on Psychological Science. 2015;10(2):202-212.</li><li>World Health Organization. Social connection linked to improved health and reduced risk of early death. News release, 30 June 2025.</li></ol></div></details></footer>
+</div>
+<script>(function(){
+  function $all(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+  function data(name){ var s=document.querySelector('script[data-for="'+name+'"]'); return s ? JSON.parse(s.textContent) : []; }
+
+  // 目錄同分節：一次只顯示目錄或者其中一節。
+  // App 接口（開發用；所有參加者一樣，網頁本身唔會分人）：
+  //   window.peizhuReader.back()  -> true 表示網頁已經由一節返回目錄；false 表示已經喺目錄，App 自己返去「讀少少」
+  //   window.peizhuReader.current() -> {view:'toc'|節 id, index, total, title}
+  //   window.peizhuReader.setRead(['s1','s2']) -> 目錄顯示「已讀」
+  //   App 喺 <html> 加 data-chrome="app" 之後，網頁自己嘅「‹ 目錄」條會收埋，改由 App 頂欄負責。
+  var toc=document.getElementById('toc'), foot=document.querySelector('footer');
+  var secs=$all('section[data-section]'), cur='toc', read={};
+  function info(){
+    if(cur==='toc') return {view:'toc', index:0, total:secs.length, title:document.title};
+    var i=secs.findIndex(function(s){ return s.id===cur; });
+    return {view:cur, index:i+1, total:secs.length, title:secs[i].querySelector('h2').textContent};
+  }
+  // 目錄底部：未睇過 -> 由第 1 節開始；睇咗一部分 -> 繼續睇第 n 節；全部睇完 -> 睇完提示、由第 1 節重新睇、讀下一篇。
+  function paintRead(){
+    var first=null, n=0;
+    $all('.toc-item').forEach(function(b, i){
+      var id=b.getAttribute('data-go'), r=!!read[id]; b.classList.toggle('read', r);
+      if(r) n++; else if(first===null) first=[id, i+1];
+    });
+    var all = n===secs.length, start=document.querySelector('[data-start]');
+    $all('[data-done-box],[data-restart],[data-next-art]').forEach(function(x){ x.hidden=!all; });
+    if(start){
+      start.hidden=all;
+      if(first && n>0){ start.setAttribute('data-go', first[0]); start.textContent='繼續睇第 '+first[1]+' 節'; }
+    }
+  }
+  function go(id){
+    if(cur!=='toc') { read[cur]=true; paintRead(); }
+    cur=id;
+    var showToc = id==='toc';
+    toc.hidden=!showToc; if(foot) foot.hidden=!showToc;
+    secs.forEach(function(s){ s.hidden = showToc || s.id!==id; });
+    window.scrollTo(0,0);
+    try{ window.dispatchEvent(new CustomEvent('peizhu:view', {detail: info()})); }catch(e){}
+  }
+  document.addEventListener('click', function(e){
+    var b=e.target.closest && e.target.closest('[data-go]'); if(!b) return;
+    go(b.getAttribute('data-go'));
+  });
+  window.peizhuReader = {
+    back: function(){ if(cur==='toc') return false; go('toc'); return true; },
+    current: info,
+    setRead: function(ids){ (ids||[]).forEach(function(id){ read[id]=true; }); paintRead(); },
+    readIds: function(){ return Object.keys(read); }
+  };
+
+  // 撳一格睇說明：階梯、四格、三級
+  $all('[data-pick]').map(function(w){ return w.getAttribute('data-widget'); }).forEach(function(name){
+    var w=document.querySelector('[data-widget="'+name+'"]'); if(!w) return;
+    var panel=document.querySelector('[data-panel="'+name+'"]'); var txt=data(name);
+    function sel(i){ $all('button', w).forEach(function(b){ b.classList.toggle('on', +b.getAttribute('data-i')===i); }); panel.innerHTML=txt[i]; }
+    w.addEventListener('click', function(e){ var b=e.target.closest('button'); if(b) sel(+b.getAttribute('data-i')); });
+    var first=w.querySelector('button.on'); sel(first ? +first.getAttribute('data-i') : 0);
+  });
+
+  // 正例／反例
+  var sc=document.querySelector('[data-widget="seg-cause"]');
+  if(sc){
+    sc.addEventListener('click', function(e){
+      var b=e.target.closest('button'); if(!b) return; var k=b.getAttribute('data-k');
+      $all('button', sc).forEach(function(x){ x.classList.toggle('on', x===b); });
+      $all('[data-pane]').forEach(function(p){ p.classList.toggle('hide', p.getAttribute('data-pane')!==k); });
+    });
+  }
+  $all('[data-reveal-btn]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var g=document.querySelector('[data-reveal="'+b.getAttribute('data-reveal-btn')+'"]');
+      var on=!g.classList.contains('show'); g.classList.toggle('show', on);
+      b.textContent = on ? '收埋背後原因' : '睇埋背後原因';
+    });
+  });
+
+  // 三個可能
+  var sp=document.querySelector('[data-widget="seg-poss"]');
+  if(sp){
+    sp.addEventListener('click', function(e){
+      var b=e.target.closest('button'); if(!b) return; var k=b.getAttribute('data-k');
+      $all('button', sp).forEach(function(x){ x.classList.toggle('on', x===b); });
+      $all('[data-poss]').forEach(function(g){ g.classList.toggle('hide', g.getAttribute('data-poss')!==k); });
+    });
+  }
+
+  // 孤單嘅循環
+  var nxt=document.querySelector('[data-loop-next]');
+  if(nxt){
+    var cap=document.querySelector('[data-loop-cap]'); var steps=data('loop'); var i=0;
+    function show(){ $all('[data-node]').forEach(function(n){ n.classList.toggle('on', +n.getAttribute('data-node')===i); }); cap.textContent=steps[i]; }
+    nxt.addEventListener('click', function(){ i=(i+1)%steps.length; show(); });
+    show();
+  }
+})();
+</script>
+</body>
+</html>

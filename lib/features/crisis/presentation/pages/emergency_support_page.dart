@@ -16,7 +16,7 @@ import '../../../analytics/presentation/analytics_scope.dart';
 ///
 /// Content rules (spec §S-4):
 ///   • Exactly the four resources in `crisis_resources.json`, in order
-///     (生命熱線 → 撒瑪利亞會 → 醫管局精神健康專線 → 急症室 / 999).
+///     (生命熱線 → 撒瑪利亞會 → 醫管局精神健康專線 → 緊急求助 999).
 ///   • Every item is one-tap dial; every text ≥ 20 sp.
 ///   • One headline sentence ≤ 20 characters at the top.
 ///   • Footer: 「資料核對日期：YYYY-MM-DD」 from the JSON (待核對 until the

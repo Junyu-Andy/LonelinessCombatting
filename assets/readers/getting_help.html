@@ -1,0 +1,320 @@
+<!doctype html>
+<!--
+孤單小讀本 單元：getting_help（搵專業人士幫手）
+版本：2026-10-21 草稿 v1
+參考資料：
+  (1) World Health Organization. Depression (health topic page), accessed 21 October 2026.
+  (2) Lam LCW, Wong SM, Wang MJ, et al. Prevalence, psychosocial correlates and service utilization of depressive and anxiety disorders in Hong Kong: the Hong Kong Mental Morbidity Survey (HKMMS). Social Psychiatry and Psychiatric Epidemiology. 2015;50(9):1379-1388.
+  (3) Byers AL, Arean PA, Yaffe K. Low use of mental health services among older Americans with mood and anxiety disorders. Psychiatric Services. 2012;63(1):66-72.
+  (4) Lam CW, Boey KW. The psychological well-being of the Chinese elderly living in old urban areas of Hong Kong: a social perspective. Aging & Mental Health. 2005;9(2):162-166.
+  (5) Cuijpers P, Karyotaki E, Pot AM, Park M, Reynolds CF. Managing depression in older age: psychological interventions. Maturitas. 2014;79(2):160-169.
+  (6) 社會福利署：長者地區中心服務簡介（服務包括輔導服務，對象為年滿 60 歲、住在區內的長者）。
+  (7) 社會福利署：精神健康綜合社區中心服務簡介。
+  (8) 立法會答覆（2025 年 9 月 10 日）：衞生署長者健康中心服務。
+  (9) Flückiger C, Del Re AC, Wampold BE, Horvath AO. The alliance in adult psychotherapy: a meta-analytic synthesis. Psychotherapy. 2018;55(4):316-340.
+  (10) Swift JK, Callahan JL, Cooper M, Parkin SR. The impact of accommodating client preference in psychotherapy: a meta-analysis. Journal of Clinical Psychology. 2018;74(11):1924-1937.
+-->
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>搵專業人士幫手</title>
+<style>/* 孤單小讀本：淺色版，顏色跟 App（app_theme.dart）。字號跟 App 注入嘅 --fs。 */
+:root{
+  --bg:#F7F5F1; --card:#FFFFFF; --ink:#3A3330; --ink2:#5C524B; --muted:#7E7268; --line:#E7E0D8;
+  --acc:#B05F2E; --acc-soft:#F7E6D9; --teal:#2E6B64; --teal-soft:#E0EEEB; --white:#FFFFFF;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"PingFang HK","PingFang TC","Noto Sans CJK TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  font-size:calc(17px * var(--fs, 1));line-height:max(1.5, calc(1.72 - (var(--fs, 1) - 1) * 0.9))}
+:root{--sp:calc(12px * (1 + (var(--fs, 1) - 1) * 0.3))}
+strong{font-weight:800;background:linear-gradient(transparent 60%, var(--acc-soft) 60%)}
+.wrap{max-width:600px;margin:0 auto;padding:0 max(16px, env(safe-area-inset-left, 0px)) 2.5em max(16px, env(safe-area-inset-right, 0px))}
+header.top{padding:1.4em .2em .4em}
+.kicker{font-size:.8em;letter-spacing:.12em;color:var(--acc);font-weight:700}
+h1{font-size:1.65em;line-height:1.3;margin:.25em 0 .4em}
+.lede{color:var(--ink2);margin:0}
+[hidden]{display:none !important}
+.toc-k{color:var(--ink2);margin:1.2em .2em .5em;font-size:.95em}
+ol.toc{list-style:none;margin:0;padding:0;display:grid;gap:.6em}
+.toc-item{appearance:none;font:inherit;width:100%;text-align:left;display:flex;align-items:center;gap:.8em;background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:.85em .9em;color:var(--ink);min-height:64px}
+.toc-n{flex:none;width:2em;height:2em;border-radius:50%;background:var(--teal);color:var(--white);display:inline-flex;align-items:center;justify-content:center;font-weight:800}
+.toc-t{flex:1;min-width:0;font-weight:700;line-height:1.45}
+.toc-go{flex:none;color:var(--teal);font-size:1.4em;font-weight:700}
+.toc-read{display:none;flex:none;font-size:.78em;font-weight:700;color:var(--teal);background:var(--teal-soft);border-radius:999px;padding:.1em .6em}
+.toc-item.read .toc-read{display:inline-block}
+.toc-item.read .toc-n{background:var(--teal-soft);color:var(--teal)}
+html[data-chrome="app"] .sec-bar{display:none}
+.cta.start{width:100%;border:0;margin-top:1em;font:inherit;font-weight:700;font-size:1.02em}
+.sec-bar{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:.6em;padding:.5em 0;border-bottom:1px solid var(--line)}
+.sec-bar .back{appearance:none;font:inherit;font-weight:700;color:var(--teal);background:var(--card);border:1.5px solid var(--line);border-radius:999px;padding:.3em .9em;min-height:44px}
+.sec-bar .pos{color:var(--muted);font-size:.88em}
+.sec-foot{display:grid;gap:.6em;margin:1.4em 0 .4em}
+.next-sec{appearance:none;font:inherit;text-align:left;background:var(--teal);color:var(--white);border:0;border-radius:14px;padding:.75em 1em;min-height:56px;display:flex;flex-direction:column;gap:.1em;font-weight:700;line-height:1.4}
+.next-sec .k{font-size:.78em;font-weight:600;opacity:.9}
+.to-toc{appearance:none;font:inherit;font-weight:700;background:var(--card);color:var(--teal);border:1.5px solid var(--line);border-radius:14px;min-height:52px}
+.sec-h{margin:1.2em .2em .6em}
+.sec-h .n{font-size:.78em;color:var(--acc);font-weight:700;letter-spacing:.1em}
+.sec-h h2{margin:.1em 0 0;font-size:1.3em;line-height:1.35}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:var(--sp) calc(var(--sp) * 1.2);margin:calc(var(--sp) * .8) 0}
+.card-h{display:flex;align-items:flex-start;gap:.6em;margin-bottom:calc(var(--sp) * .4)}
+.card h3{margin:0;font-size:1.1em;line-height:1.4;flex:1}
+.card p{margin:0 0 calc(var(--sp) * .55)}
+.card p:last-child{margin-bottom:0}
+.ask{display:none;flex:none;width:44px;height:44px;border-radius:50%;border:1.5px solid var(--teal);color:var(--teal);font-weight:700;font-size:1.05em;text-decoration:none;align-items:center;justify-content:center;background:var(--teal-soft)}
+html[data-explain="on"] .ask{display:inline-flex}
+.note{font-size:.85em;color:var(--muted)}
+.center{text-align:center}
+.callout{background:var(--acc-soft);border-radius:12px;padding:.7em .85em;font-weight:600}
+.help{margin-top:.8em !important;padding:.7em .85em;border-radius:12px;background:var(--teal-soft);font-size:.95em}
+ol.plain{list-style:none;padding:0;margin:0 0 .6em}
+ol.plain li{margin:0 0 .35em}
+.fig{display:block;width:100%;height:auto;margin:calc(var(--sp) * .3) 0 calc(var(--sp) * .6)}
+.hide{display:none}
+details{border-top:1px dashed var(--line);margin-top:.8em;padding-top:.6em}
+summary{cursor:pointer;color:var(--teal);font-weight:700;list-style:none;min-height:44px;display:flex;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:" ▾";margin-left:.3em}
+details[open] summary::after{content:" ▴"}
+details .inner{color:var(--ink2)}
+.panel{background:var(--teal-soft);border-radius:12px;padding:.7em .85em;min-height:3.4em;margin:.2em 0 .8em}
+.panel b{display:block;margin-bottom:.1em}
+/* evidence ladder */
+.ladder{display:flex;align-items:flex-end;gap:.4em;height:11em;margin:.4em 0 .7em}
+.step{flex:1;height:var(--h);appearance:none;font:inherit;font-size:.78em;font-weight:700;line-height:1.3;color:var(--ink2);background:var(--teal-soft);border:1.5px solid var(--line);border-radius:12px 12px 4px 4px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:.3em;padding:.6em .2em 0;color:var(--teal)}
+.step small{font-weight:400;font-size:.85em}
+.step .ico svg{width:1.8em;height:1.8em;display:block}
+.step.on{background:var(--teal);color:var(--white);border-color:var(--teal)}
+/* tiles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:.6em;margin:.4em 0 .7em}
+.tile{appearance:none;font:inherit;font-size:.9em;font-weight:700;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:14px;padding:.7em .4em;display:flex;flex-direction:column;align-items:center;gap:.35em;min-height:96px;text-align:center;line-height:1.35}
+.tile svg{width:2.4em;height:2.4em}
+.tile.on{border-color:var(--teal);background:var(--teal-soft)}
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(6.4em,1fr));gap:.5em;margin:.2em 0 .8em}
+.stat{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:.6em .4em;text-align:center}
+.stat .big{font-size:1.25em;font-weight:800;color:var(--acc);line-height:1.25}
+.stat .lab{font-size:.8em;color:var(--ink2)}
+.stat-tiles{display:grid;gap:.6em}
+.st{display:grid;grid-template-columns:38% 1fr;grid-template-rows:auto auto;column-gap:.7em;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:.6em .7em}
+.st .mini{grid-row:1 / span 2;width:100%;max-width:7em;height:auto;justify-self:center}
+.st .big{font-size:1.15em;font-weight:800;color:var(--acc);line-height:1.3}
+.st .lab{font-size:.85em;color:var(--ink2);line-height:1.45}
+/* seg */
+.seg{display:flex;gap:.5em;flex-wrap:wrap;margin:.3em 0 .6em}
+.seg button,.pill{appearance:none;font:inherit;font-size:.9em;font-weight:700;border:1.5px solid var(--line);background:var(--bg);color:var(--ink2);border-radius:999px;padding:.4em 1.1em;min-height:44px}
+.seg button.on{background:var(--teal);border-color:var(--teal);color:var(--white)}
+.pill{border-color:var(--teal);color:var(--teal);background:var(--card);margin:0 0 .6em}
+.reveal{opacity:0;transition:opacity .4s}
+.reveal.show{opacity:1}
+/* loop */
+.node rect{fill:var(--card);stroke:var(--line);stroke-width:2}
+.node.on rect{fill:var(--acc-soft);stroke:var(--acc);stroke-width:2.5}
+.loop-ctrl{display:flex;flex-wrap:wrap;align-items:center;gap:.6em;margin:-.2em 0 .7em}
+.loop-ctrl .pill{margin:0}
+.loop-cap{flex:1 1 12em;min-width:0;font-size:.92em;color:var(--ink2)}
+/* stairs */
+.stairs{display:grid;grid-template-columns:repeat(3,1fr);gap:.4em;align-items:end;margin:.4em 0 .7em}
+.stair{appearance:none;font:inherit;background:var(--bg);border:1.5px solid var(--line);border-radius:12px;color:var(--teal);display:flex;flex-direction:column;align-items:center;gap:.15em;padding:.55em .2em;margin-top:calc(var(--lvl) * 1.6em);min-height:calc(5.4em + var(--lvl) * 1.6em);justify-content:flex-end}
+.stair svg{width:2.2em;height:2em}
+.stair span{font-size:.72em;color:var(--muted)}
+.stair b{font-size:.82em;line-height:1.3;color:var(--ink);text-align:center}
+.stair.on{background:var(--teal-soft);border-color:var(--teal)}
+/* lists with icons */
+.checklist,.iconlist{list-style:none;padding:0;margin:.2em 0 .4em;display:grid;gap:.5em}
+.checklist li,.iconlist li{display:flex;gap:.6em;align-items:flex-start}
+.checklist svg{flex:none;width:1.6em;height:1.6em;margin-top:.1em}
+.iconlist svg{flex:none;width:1.5em;height:1.5em;margin-top:.12em}
+.cols{display:grid;grid-template-columns:1fr;gap:.6em}
+.col{border-radius:14px;padding:.75em .8em}
+.col h4{margin:0 0 .4em;font-size:1em}
+.col.l{background:var(--teal-soft)} .col.l h4{color:var(--teal)}
+.col.r{background:var(--acc-soft)} .col.r h4{color:var(--acc)}
+.avatars{display:grid;grid-template-columns:repeat(4,1fr);gap:.4em;margin:.2em 0 .2em}
+.avatars figure{margin:0;text-align:center}
+.avatars img{width:100%;max-width:72px;height:auto;border-radius:50%;background:var(--bg);border:1px solid var(--line)}
+.avatars figcaption{font-size:.85em;font-weight:700}
+.privacy{display:flex;gap:.8em;align-items:center;margin:.2em 0 .7em}
+.privacy .lock{flex:none;width:3em;height:3em}
+.nolist{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.4em}
+.nolist li{border:1.5px solid var(--acc);color:var(--acc);border-radius:999px;padding:.15em .7em;font-size:.88em;font-weight:700;text-decoration:line-through;text-decoration-thickness:2px}
+/* recap, think, cta */
+.recap{background:var(--teal-soft);border:none}
+.recap h3{color:var(--teal);font-size:1em;letter-spacing:.06em}
+.think{border-style:dashed;border-width:1.5px}
+.think-k{font-size:.8em;font-weight:700;letter-spacing:.1em;color:var(--acc)}
+.think .q{font-weight:700;font-size:1.05em;margin:.2em 0 .3em}
+.nextline{color:var(--ink2);text-align:center;margin:1.2em 0 .4em}
+.ctas{display:grid;gap:.6em;margin:1em 0 .5em}
+.cta{display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:14px;background:var(--acc);color:var(--white);font-weight:700;text-decoration:none;font-size:1.02em;padding:.4em 1em;text-align:center}
+.cta.alt{background:var(--card);color:var(--acc);border:2px solid var(--acc)}
+footer{font-size:.78em;color:var(--muted);margin-top:1.6em;line-height:1.6}
+footer details{border-top:1px solid var(--line)}
+footer ol{padding-left:1.2em;margin:.3em 0}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.reveal{transition:none}}
+/* svg paint classes */
+.f-ink{fill:var(--ink2)} .f-soft{fill:var(--bg)} .f-card{fill:var(--card)} .f-acc{fill:var(--acc)} .f-acc-soft{fill:var(--acc-soft)}
+.f-teal{fill:var(--teal)} .f-teal-soft{fill:var(--teal-soft)} .f-line{fill:var(--line)} .f-cur{fill:currentColor}
+.s-line{stroke:var(--line);stroke-width:2} .s-line-thick{stroke:var(--line);stroke-width:4;fill:none;stroke-linecap:round}
+.s-acc{stroke:var(--acc);stroke-width:2;fill-opacity:1} .s-acc-thick{stroke:var(--acc);stroke-width:3.5;fill:none;stroke-linecap:round}
+.s-teal{stroke:var(--teal);stroke-width:2.5;stroke-linecap:round} .s-teal-thin{stroke:var(--teal);stroke-width:1.5}
+.s-teal-thick{stroke:var(--teal);stroke-width:3.5;stroke-linecap:round}
+.s-muted{stroke:var(--muted);stroke-width:2;stroke-linecap:round} .s-muted-dash{stroke:var(--muted);stroke-width:2.5;stroke-dasharray:5 5;fill:none}
+.s-white{stroke:var(--white);stroke-width:2.5;stroke-linecap:round} .s-cur{stroke:currentColor;stroke-width:2.5;stroke-linecap:round}
+svg path.s-acc:not([class*="f-"]),svg path.s-teal:not([class*="f-"]),svg path.s-muted:not([class*="f-"]),svg path.s-cur:not([class*="f-"]),svg path.s-white{fill:none}
+.t-s{font-size:calc(15px * var(--fs, 1));fill:var(--ink)} .t-xs{font-size:calc(13px * var(--fs, 1));fill:var(--ink2)} .t-xxs{font-size:calc(11px * var(--fs, 1));fill:var(--muted)} .t-b{font-weight:700}
+/* 新篇章用到嘅部件 */
+.chips{display:flex;flex-wrap:wrap;gap:.5em;margin:.4em 0 .6em}
+.chip{appearance:none;font:inherit;font-size:.92em;font-weight:700;border:1.5px solid var(--line);background:var(--bg);color:var(--ink2);border-radius:999px;padding:.4em 1.1em;min-height:44px}
+.chip.on{background:var(--teal);border-color:var(--teal);color:var(--white)}
+.panel .fig{margin:.2em 0 .5em}
+.panel p{margin:.2em 0 0}
+.steplist{display:grid;gap:.45em;margin:.4em 0 .6em}
+.steplist button{appearance:none;font:inherit;text-align:left;display:flex;align-items:center;gap:.7em;background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:.55em .8em;min-height:48px;color:var(--ink);font-weight:700}
+.steplist button.on{background:var(--teal-soft);border-color:var(--teal)}
+.sn{flex:none;width:1.8em;height:1.8em;border-radius:50%;background:var(--teal);color:var(--white);display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.9em}
+ol.steps3{list-style:none;margin:.3em 0 .7em;padding:0;display:grid;gap:.5em}
+ol.steps3 li{display:flex;gap:.7em;align-items:flex-start;background:var(--bg);border-radius:12px;padding:.6em .7em}
+.events{display:grid;grid-template-columns:repeat(4,1fr);gap:.4em;margin:.2em 0 .8em;text-align:center}
+.events svg{width:2.4em;height:2.4em;display:block;margin:0 auto .2em}
+.events span{font-size:.82em;font-weight:700}
+.bubbles{display:grid;gap:.6em;margin:.3em 0 .8em}
+.bub{border-radius:16px;padding:.6em .85em;font-weight:700;line-height:1.5}
+.bub .lab{display:block;font-size:.75em;font-weight:600;margin-bottom:.15em}
+.bub.vague{background:var(--acc-soft);color:var(--ink)} .bub.vague .lab{color:var(--acc)}
+.bub.clear{background:var(--teal-soft);color:var(--ink)} .bub.clear .lab{color:var(--teal)}
+.cols.two{grid-template-columns:1fr 1fr;margin-top:.4em}
+.cols.two ul{margin:0;padding-left:1.1em}
+.cols.two li{margin:0 0 .25em;font-size:.92em}
+.steplist button.on{color:var(--ink)}
+
+/* 睇完之後嘅目錄 */
+.done-box{background:var(--teal-soft);border-radius:16px;padding:.9em 1em;margin:1em 0 .2em}
+.done-box p{margin:.2em 0 .6em}
+.done-box .done-k{font-weight:700;color:var(--teal);font-size:1.05em}
+.done-box .cta{margin-top:.4em}
+.restart{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;margin-top:1em;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+a.cta.start{margin-top:.7em}
+[hidden]{display:none !important}
+
+.ask-hint{display:none;font-size:.9em;color:var(--ink2);margin:.7em 0 0 !important}
+html[data-ask="on"] .ask-hint{display:block}
+a.next-art{margin-top:.8em}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div id="toc" data-view="toc"><header class="top"><div class="kicker">孤單小讀本</div><h1>搵專業人士幫手</h1><p class="lede">大約 8 分鐘。好多人有情緒困擾都冇搵人幫手。講吓幾時可以考慮搵人、治療有幾有效、香港有邊啲人可以幫，同埋點知啱唔啱自己。</p></header>
+<div class="done-box" data-done-box hidden><p class="done-k">✓ 呢篇睇完喇</p><p>睇完有咩<b>感受</b>，或者諗起咩人同事？可以同小欣講吓心入面嘅感受。</p><a class="cta" href="peizhu://cta/chat_siu_yan">同小欣講吓感受</a><p class="ask-hint">內容有唔明，可以撳右上角「?」問通通。</p></div><a class="cta alt next-art" data-next-art hidden href="peizhu://reader/open?id=what_companions_can_do"><span>讀下一篇：陪住做到啲咩、做唔到啲咩</span></a><p class="toc-k">呢篇有 3 節，撳一節入去睇：</p><ol class="toc"><li><button type="button" class="toc-item" data-go="s1"><span class="toc-n">1</span><span class="toc-t">幾時可以考慮搵人幫手？</span><span class="toc-read" aria-label="已讀">✓ 已讀</span><span class="toc-go" aria-hidden="true">›</span></button></li><li><button type="button" class="toc-item" data-go="s2"><span class="toc-n">2</span><span class="toc-t">香港有邊啲人可以幫？</span><span class="toc-read" aria-label="已讀">✓ 已讀</span><span class="toc-go" aria-hidden="true">›</span></button></li><li><button type="button" class="toc-item" data-go="s3"><span class="toc-n">3</span><span class="toc-t">第一次見面會點？點知啱唔啱自己？</span><span class="toc-read" aria-label="已讀">✓ 已讀</span><span class="toc-go" aria-hidden="true">›</span></button></li></ol><button type="button" class="cta start" data-start data-go="s1">由第 1 節開始</button><button type="button" class="restart" data-restart data-go="s1" hidden>由第 1 節重新睇</button></div>
+<section id="s1" data-section="s1" hidden><div class="sec-bar"><button type="button" class="back" data-go="toc">‹ 目錄</button><span class="pos">第 1／3 節</span><span class="sp"></span></div><div class="sec-h"><h2>幾時可以考慮搵人幫手？</h2></div><article class="card" data-card="c1"><div class="card-h"><h3>呢啲時候，可以搵人傾</h3><a class="ask" href="peizhu://explain?card=getting_help.c1" aria-label="解釋：呢啲時候，可以搵人傾">?</a></div><ul class="checklist"><li><svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="9" class="f-teal"/><path d="M9 14 l3 3 l7 -7" class="s-white" fill="none"/></svg><span>好多日都好唔開心，持續兩個禮拜或以上。</span></li><li><svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="9" class="f-teal"/><path d="M9 14 l3 3 l7 -7" class="s-white" fill="none"/></svg><span>瞓覺、食飯都受影響。</span></li><li><svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="9" class="f-teal"/><path d="M9 14 l3 3 l7 -7" class="s-white" fill="none"/></svg><span>以前鍾意做嘅嘢，而家都唔想做。</span></li><li><svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="9" class="f-teal"/><path d="M9 14 l3 3 l7 -7" class="s-white" fill="none"/></svg><span>孤單或者唔開心，令日常生活好難過。</span></li></ul><p class="help"><b>如果有傷害自己嘅念頭，唔使等。</b>如果覺得好辛苦，可以喺「睇今日」嗰頁最底，撳「睇更多支援熱線」，嗰度有可以即刻傾嘅熱線。</p></article><article class="card" data-card="c5"><div class="card-h"><h3>好多人捱住，冇搵人幫手</h3><a class="ask" href="peizhu://explain?card=getting_help.c5" aria-label="解釋：好多人捱住，冇搵人幫手">?</a></div><div class="stats"><div class="stat"><div class="big">約 1／4</div><div class="lab">香港有常見情緒病嘅人，一年內搵過服務</div></div><div class="stat"><div class="big">約 7 成</div><div class="lab">美國有情緒或焦慮問題嘅長者，冇用過服務</div></div></div><p>香港一個大型調查見到：有常見情緒病（例如抑鬱、焦慮）嘅人，<strong>過去一年只有大約四分之一搵過精神健康服務</strong>。</p><p>香港嘅研究亦指出，華人長者成日因為<strong>怕被人標籤</strong>，而唔敢搵人幫手。</p></article><article class="card" data-card="c6"><div class="card-h"><h3>其實治療有效</h3><a class="ask" href="peizhu://explain?card=getting_help.c6" aria-label="解釋：其實治療有效">?</a></div><p>綜合 44 個研究：<strong>心理治療對長者嘅抑鬱有明顯幫助</strong>。大約每治療 3 個人，就多 1 個人好轉。</p><p>世衞亦列出幾種有效嘅心理治療，包括認知行為治療同解決問題治療。</p></article><div class="sec-foot"><button type="button" class="next-sec" data-go="s2"><span class="k">下一節</span><span>香港有邊啲人可以幫？</span></button></div></section><section id="s2" data-section="s2" hidden><div class="sec-bar"><button type="button" class="back" data-go="toc">‹ 目錄</button><span class="pos">第 2／3 節</span><span class="sp"></span></div><div class="sec-h"><h2>香港有邊啲人可以幫？</h2></div><article class="card" data-card="c2"><div class="card-h"><h3>六類可以幫你嘅人</h3><a class="ask" href="peizhu://explain?card=getting_help.c2" aria-label="解釋：六類可以幫你嘅人">?</a></div><p class="note">撳每一格睇佢哋做咩。</p><div class="tiles" data-widget="helpers" data-pick><button type="button" class="tile on" data-i="0"><svg viewBox="0 0 40 40" aria-hidden="true"><rect x="8" y="10" width="24" height="22" rx="4" class="f-teal"/><path d="M20 14 v14 M13 21 h14" class="s-white"/></svg><span>家庭醫生</span></button><button type="button" class="tile" data-i="1"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="13" r="7" class="f-teal"/><path d="M6 36 q14 -22 28 0z" class="f-teal"/></svg><span>社工</span></button><button type="button" class="tile" data-i="2"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M5 18 L20 6 L35 18 V34 H5z" class="f-acc"/><path d="M20 15 v12 M14 21 h12" class="s-white"/></svg><span>精神健康中心</span></button><button type="button" class="tile" data-i="3"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="14" class="f-teal"/><path d="M20 12 v16 M12 20 h16" class="s-white"/></svg><span>長者健康中心</span></button><button type="button" class="tile" data-i="4"><svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="20" cy="16" rx="13" ry="10" class="f-acc"/><circle cx="10" cy="30" r="3" class="f-acc"/></svg><span>心理學家、輔導員</span></button><button type="button" class="tile" data-i="5"><svg viewBox="0 0 40 40" aria-hidden="true"><rect x="10" y="8" width="20" height="26" rx="4" class="f-teal-soft s-teal-thin"/><path d="M15 16 h10 M15 22 h10 M15 28 h6" class="s-teal"/></svg><span>精神科醫生</span></button></div><div class="panel" data-panel="helpers"></div><script type="application/json" data-for="helpers">["<b>家庭醫生</b>睇身體，亦會問情緒。有需要可以轉介你去其他專業人士。", "<b>社工</b>長者地區中心有輔導服務，60 歲以上、住喺區內嘅長者都可以用。佢哋亦識介紹區內其他服務。", "<b>精神健康綜合社區中心</b>社署資助，全港有二十幾間。15 歲以上、懷疑有情緒困擾嘅人同照顧者都可以自己申請，<b>唔使轉介，免費</b>。", "<b>衞生署長者健康中心</b>全港 18 間，65 歲以上可以登記。有健康評估、輔導同健康教育，亦會篩查抑鬱。", "<b>臨床心理學家、輔導員</b>同你一齊睇清楚問題，教你方法，例如認知行為治療。", "<b>精神科醫生</b>需要時做評估，有需要可以處方藥物。"]</script></article><div class="sec-foot"><button type="button" class="next-sec" data-go="s3"><span class="k">下一節</span><span>第一次見面會點？點知啱唔啱自己？</span></button></div></section><section id="s3" data-section="s3" hidden><div class="sec-bar"><button type="button" class="back" data-go="toc">‹ 目錄</button><span class="pos">第 3／3 節</span><span class="sp"></span></div><div class="sec-h"><h2>第一次見面會點？點知啱唔啱自己？</h2></div><article class="card" data-card="c3"><div class="card-h"><h3>第一次見面</h3><a class="ask" href="peizhu://explain?card=getting_help.c3" aria-label="解釋：第一次見面">?</a></div>
+<svg class="fig" viewBox="0 0 320 130" role="img" aria-label="兩張櫈，兩個人傾偈">
+  <circle cx="90" cy="46" r="14" class="f-teal"/><path d="M66 104 q24 -44 48 0z" class="f-teal"/>
+  <circle cx="230" cy="46" r="14" class="f-acc"/><path d="M206 104 q24 -44 48 0z" class="f-acc"/>
+  <rect x="62" y="104" width="56" height="8" rx="3" class="f-line"/><rect x="202" y="104" width="56" height="8" rx="3" class="f-line"/>
+  <ellipse cx="160" cy="34" rx="34" ry="18" class="f-card s-line"/><text x="160" y="39" class="t-xs" text-anchor="middle">慢慢講</text>
+</svg><p>通常會問你最近點、咩事令你困擾、你想有咩改變。</p><p><strong>你可以慢慢講</strong>；唔想講嘅，可以話「遲啲先講」。你亦可以問佢：<strong>傾嘅嘢會唔會保密</strong>。</p></article><article class="card" data-card="c4"><div class="card-h"><h3>點知啱唔啱自己</h3><a class="ask" href="peizhu://explain?card=getting_help.c4" aria-label="解釋：點知啱唔啱自己">?</a></div><ol class="steps3"><li><span class="sn">1</span><span>佢有冇耐心聽你講完？</span></li><li><span class="sn">2</span><span>傾完之後，你有冇清楚少少，或者輕鬆少少？</span></li><li><span class="sn">3</span><span>佢有冇同你一齊定一啲細嘅目標？</span></li></ol><p>綜合 295 個研究、3 萬幾人：<strong>同輔導嘅人關係好唔好，同治療效果有明顯關係</strong>。</p><p><strong>通常要見幾次先知</strong>。覺得唔夾，可以同佢講，或者<strong>換一個人，呢個好平常</strong>。</p><p class="callout">搵人幫手唔係軟弱，係照顧自己。</p></article><article class="card recap"><h3>小結</h3><ol class="plain"><li>(1) 好多日都好唔開心、影響生活，可以考慮搵人幫手。</li><li>(2) 好多人捱住冇搵人幫手，但心理治療對長者抑鬱有明顯幫助。</li><li>(3) 家庭醫生、社工、精神健康中心、長者健康中心、心理學家同輔導員、精神科醫生都可以幫手；唔知搵邊個，先問家庭醫生或者社工。</li><li>(4) 見幾次先判斷啱唔啱；唔夾可以換人。</li></ol></article><article class="card think"><div class="think-k">諗一諗</div><p class="q">如果有一日好辛苦，你會想搵邊個？</p><p class="note">唔使寫低，喺心入面諗吓就得。</p></article><div class="ctas"><a class="cta" href="peizhu://cta/chat_siu_yan">同小欣講吓你嘅感受</a></div><div class="sec-foot"><button type="button" class="to-toc" data-go="toc" data-done>睇完喇，返回目錄</button></div></section>
+<footer><p>呢份小讀本幫你了解孤單，唔可以代替醫生或者社工嘅意見。</p><details><summary>參考資料</summary><div class="inner"><ol><li>World Health Organization. Depression (health topic page), accessed 21 October 2026.</li><li>Lam LCW, Wong SM, Wang MJ, et al. Prevalence, psychosocial correlates and service utilization of depressive and anxiety disorders in Hong Kong: the Hong Kong Mental Morbidity Survey (HKMMS). Social Psychiatry and Psychiatric Epidemiology. 2015;50(9):1379-1388.</li><li>Byers AL, Arean PA, Yaffe K. Low use of mental health services among older Americans with mood and anxiety disorders. Psychiatric Services. 2012;63(1):66-72.</li><li>Lam CW, Boey KW. The psychological well-being of the Chinese elderly living in old urban areas of Hong Kong: a social perspective. Aging &amp; Mental Health. 2005;9(2):162-166.</li><li>Cuijpers P, Karyotaki E, Pot AM, Park M, Reynolds CF. Managing depression in older age: psychological interventions. Maturitas. 2014;79(2):160-169.</li><li>社會福利署：長者地區中心服務簡介（服務包括輔導服務，對象為年滿 60 歲、住在區內的長者）。</li><li>社會福利署：精神健康綜合社區中心服務簡介。</li><li>立法會答覆（2025 年 9 月 10 日）：衞生署長者健康中心服務。</li><li>Flückiger C, Del Re AC, Wampold BE, Horvath AO. The alliance in adult psychotherapy: a meta-analytic synthesis. Psychotherapy. 2018;55(4):316-340.</li><li>Swift JK, Callahan JL, Cooper M, Parkin SR. The impact of accommodating client preference in psychotherapy: a meta-analysis. Journal of Clinical Psychology. 2018;74(11):1924-1937.</li></ol></div></details></footer>
+</div>
+<script>(function(){
+  function $all(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+  function data(name){ var s=document.querySelector('script[data-for="'+name+'"]'); return s ? JSON.parse(s.textContent) : []; }
+
+  // 目錄同分節：一次只顯示目錄或者其中一節。
+  // App 接口（開發用；所有參加者一樣，網頁本身唔會分人）：
+  //   window.peizhuReader.back()  -> true 表示網頁已經由一節返回目錄；false 表示已經喺目錄，App 自己返去「讀少少」
+  //   window.peizhuReader.current() -> {view:'toc'|節 id, index, total, title}
+  //   window.peizhuReader.setRead(['s1','s2']) -> 目錄顯示「已讀」
+  //   App 喺 <html> 加 data-chrome="app" 之後，網頁自己嘅「‹ 目錄」條會收埋，改由 App 頂欄負責。
+  var toc=document.getElementById('toc'), foot=document.querySelector('footer');
+  var secs=$all('section[data-section]'), cur='toc', read={};
+  function info(){
+    if(cur==='toc') return {view:'toc', index:0, total:secs.length, title:document.title};
+    var i=secs.findIndex(function(s){ return s.id===cur; });
+    return {view:cur, index:i+1, total:secs.length, title:secs[i].querySelector('h2').textContent};
+  }
+  // 目錄底部：未睇過 -> 由第 1 節開始；睇咗一部分 -> 繼續睇第 n 節；全部睇完 -> 睇完提示、由第 1 節重新睇、讀下一篇。
+  function paintRead(){
+    var first=null, n=0;
+    $all('.toc-item').forEach(function(b, i){
+      var id=b.getAttribute('data-go'), r=!!read[id]; b.classList.toggle('read', r);
+      if(r) n++; else if(first===null) first=[id, i+1];
+    });
+    var all = n===secs.length, start=document.querySelector('[data-start]');
+    $all('[data-done-box],[data-restart],[data-next-art]').forEach(function(x){ x.hidden=!all; });
+    if(start){
+      start.hidden=all;
+      if(first && n>0){ start.setAttribute('data-go', first[0]); start.textContent='繼續睇第 '+first[1]+' 節'; }
+    }
+  }
+  function go(id){
+    if(cur!=='toc') { read[cur]=true; paintRead(); }
+    cur=id;
+    var showToc = id==='toc';
+    toc.hidden=!showToc; if(foot) foot.hidden=!showToc;
+    secs.forEach(function(s){ s.hidden = showToc || s.id!==id; });
+    window.scrollTo(0,0);
+    try{ window.dispatchEvent(new CustomEvent('peizhu:view', {detail: info()})); }catch(e){}
+  }
+  document.addEventListener('click', function(e){
+    var b=e.target.closest && e.target.closest('[data-go]'); if(!b) return;
+    go(b.getAttribute('data-go'));
+  });
+  window.peizhuReader = {
+    back: function(){ if(cur==='toc') return false; go('toc'); return true; },
+    current: info,
+    setRead: function(ids){ (ids||[]).forEach(function(id){ read[id]=true; }); paintRead(); },
+    readIds: function(){ return Object.keys(read); }
+  };
+
+  // 撳一格睇說明：階梯、四格、三級
+  $all('[data-pick]').map(function(w){ return w.getAttribute('data-widget'); }).forEach(function(name){
+    var w=document.querySelector('[data-widget="'+name+'"]'); if(!w) return;
+    var panel=document.querySelector('[data-panel="'+name+'"]'); var txt=data(name);
+    function sel(i){ $all('button', w).forEach(function(b){ b.classList.toggle('on', +b.getAttribute('data-i')===i); }); panel.innerHTML=txt[i]; }
+    w.addEventListener('click', function(e){ var b=e.target.closest('button'); if(b) sel(+b.getAttribute('data-i')); });
+    var first=w.querySelector('button.on'); sel(first ? +first.getAttribute('data-i') : 0);
+  });
+
+  // 正例／反例
+  var sc=document.querySelector('[data-widget="seg-cause"]');
+  if(sc){
+    sc.addEventListener('click', function(e){
+      var b=e.target.closest('button'); if(!b) return; var k=b.getAttribute('data-k');
+      $all('button', sc).forEach(function(x){ x.classList.toggle('on', x===b); });
+      $all('[data-pane]').forEach(function(p){ p.classList.toggle('hide', p.getAttribute('data-pane')!==k); });
+    });
+  }
+  $all('[data-reveal-btn]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var g=document.querySelector('[data-reveal="'+b.getAttribute('data-reveal-btn')+'"]');
+      var on=!g.classList.contains('show'); g.classList.toggle('show', on);
+      b.textContent = on ? '收埋背後原因' : '睇埋背後原因';
+    });
+  });
+
+  // 三個可能
+  var sp=document.querySelector('[data-widget="seg-poss"]');
+  if(sp){
+    sp.addEventListener('click', function(e){
+      var b=e.target.closest('button'); if(!b) return; var k=b.getAttribute('data-k');
+      $all('button', sp).forEach(function(x){ x.classList.toggle('on', x===b); });
+      $all('[data-poss]').forEach(function(g){ g.classList.toggle('hide', g.getAttribute('data-poss')!==k); });
+    });
+  }
+
+  // 孤單嘅循環
+  var nxt=document.querySelector('[data-loop-next]');
+  if(nxt){
+    var cap=document.querySelector('[data-loop-cap]'); var steps=data('loop'); var i=0;
+    function show(){ $all('[data-node]').forEach(function(n){ n.classList.toggle('on', +n.getAttribute('data-node')===i); }); cap.textContent=steps[i]; }
+    nxt.addEventListener('click', function(){ i=(i+1)%steps.length; show(); });
+    show();
+  }
+})();
+</script>
+</body>
+</html>

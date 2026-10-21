@@ -1,7 +1,7 @@
 {
-  "_comment": "S-4 — crisis page resource list (HREC approval §8.1 order). Numbers are carried over from the pre-baseline page / public listings and were NOT verifiable from the build environment (official sites unreachable through the CI proxy). PI: open each `verifySource`, confirm the number, then set `verifiedDate` (YYYY-MM-DD). Until then the crisis page footer reads 資料核對日期：待核對. Item flagged acuteTemplateReference is the hotline named in the three acute templates and must stay at position 1 or 2.",
+  "_comment": "S-4 — crisis page resource list (HREC approval §8.1 order). Numbers are carried over from the pre-baseline page / public listings and were NOT verifiable from the build environment (official sites unreachable through the CI proxy). PI: open each `verifySource`, confirm the number, then set `verifiedDate` (YYYY-MM-DD); empty = the crisis page footer reads 資料核對日期：待核對. 2026-10-20: Junyu confirmed the four numbers (decisions-log 10/20 item 97); numbers unchanged. 2026-10-21 (decisions-log 10/21 item 126 (6)): emergency_999 renamed 急症室 / 999 → 緊急求助, A&E / 999 → Emergency services, so the line no longer reads 999 twice; number, hours and note unchanged. Item flagged acuteTemplateReference is the hotline named in the three acute templates and must stay at position 1 or 2.",
   "_version": "v1-2026-09",
-  "verifiedDate": "",
+  "verifiedDate": "2026-10-20",
   "headlineZh": "如果你有不安嘅諗法，可以即刻搵人傾",
   "headlineEn": "If you are having upsetting thoughts, reach someone now",
   "resources": [
@@ -43,8 +43,8 @@
     },
     {
       "id": "emergency_999",
-      "nameZh": "急症室 / 999",
-      "nameEn": "A&E / 999",
+      "nameZh": "緊急求助",
+      "nameEn": "Emergency services",
       "number": "999",
       "hoursZh": "緊急情況",
       "hoursEn": "Emergencies",

@@ -35,12 +35,21 @@
 ///
 /// Valid session (1020d 2 (5)): ≥ 3 of the week's questions answered in
 /// this visit, both arms ([ChatSessionRecorder.markReminiscenceQuestionAnswered]).
+///
+/// Research transcript (decision 0069; switch
+/// `researchTranscriptEnabled`), both arms alike: the opener and every
+/// question, follow-up, reply, fixed line, safety line and the closing line
+/// go into `chat_transcripts` as shown ([_transcribe], `shownReply`); 唔想講
+/// is the elder's button row.  On a later visit the question waiting for an
+/// answer is written again at the start of the new session (status
+/// `shown_again`).  The weekly scene picture and its line are never written.
 library;
 
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/agent_context/agent_context_service.dart';
@@ -71,6 +80,7 @@ import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../crisis/presentation/widgets/crisis_chat_message.dart';
 import '../../../rule_replies/data/rule_reply_pool.dart';
 import '../../data/reminiscence_themes.dart';
 import '../../data/reminiscence_v2_copy.dart';
@@ -104,9 +114,16 @@ class ReminiscenceV2Page extends StatefulWidget {
 enum _Stage { loading, answer, followupAnswer, waiting, finish, chapter, extra }
 
 class _Ack {
-  _Ack(this.afterCount, this.text);
+  _Ack(this.afterCount, this.text) : crisis = false;
+
+  /// 1020m 第三节: the fixed safety message after an acute trigger
+  /// ([CrisisChatMessage]), both arms alike.
+  _Ack.crisis(this.afterCount)
+      : text = '',
+        crisis = true;
   final int afterCount;
   final String text;
+  final bool crisis;
 }
 
 class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
@@ -126,6 +143,13 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
   final _voice = VoiceInputController();
   final _chapterKey = GlobalKey();
 
+  /// The message list (to reach its scroll position).
+  final _listKey = GlobalKey();
+
+  /// 1020o (decisions-log 10/20 第 99 条): this visit added the week's
+  /// scene picture (the first visit), so the page opens at the picture.
+  bool _openAtScene = false;
+
   _Stage _stage = _Stage.loading;
   ReminiscenceWeekState? _state;
   ReminiscenceChapterDoc? _chapter;
@@ -144,12 +168,13 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
   // Fixed for the page's life.
   bool _ruleArm = true;
   bool _available = false;
+  AssetBundle? _bundle;
   String? _uid;
   UserProfile? _profile;
   AnalyticsService? _analytics;
 
   /// Voice / time of the elder's message being answered (turn log).
-  ({DateTime sentAt, bool voice, int? voiceMs, int chars})? _input;
+  ({DateTime sentAt, bool voice, int? voiceMs, int chars, String text})? _input;
 
   ChatSessionRecorder? _recorder;
   bool _briefPrSurfaced = false;
@@ -187,6 +212,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     _started = true;
     _ruleArm = !Arm.isA(context);
     _available = AuthServiceScope.of(context).available;
+    _bundle = DefaultAssetBundle.of(context);
     _profile = AppSettingsScope.read(context).profile;
     _uid = _profile?.uid;
     _analytics = AnalyticsScope.of(context);
@@ -225,14 +251,26 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     state ??= ReminiscenceWeekState(weekIndex: _week, arm: arm);
     _state = state;
     if (state.messages.isEmpty) {
-      // First visit of the week: the opener (three bubbles), then Q1.
+      // First visit of the week: the scene picture with its line (1020o
+      // (4a); only if the App has the picture), the opener (three
+      // bubbles), then Q1.  The scene does not wait for a reply.
+      final scene = await _hasScene();
+      if (!mounted) return;
+      if (scene) {
+        _add(ReminiscenceMessageKind.scene, ReminiscenceV2Copy.sceneLines[_week]!,
+            copyId: 'scene_$_week');
+        _openAtScene = true;
+      }
       final name = AgentRegistry.ahJanAhBakName(_profile?.ahJanAhBakVariant);
       final opener = ReminiscenceV2Copy.openerFor(_week, name: name);
       for (var i = 0; i < opener.length; i++) {
         _add(ReminiscenceMessageKind.opener, opener[i], copyId: 'opener_${i + 1}');
+        _transcribe(opener[i]);
       }
       _askQuestion(1);
       await _save();
+    } else {
+      _transcribeWaitingQuestion();
     }
     if (state.status != ReminiscenceWeekStatus.inProgress &&
         state.status != ReminiscenceWeekStatus.questionsDone) {
@@ -241,6 +279,71 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     if (!mounted) return;
     setState(() => _stage = _Stage.waiting);
     await _advance();
+    if (_openAtScene) unawaited(_showSceneFirst());
+  }
+
+  /// The list's scroll position (found below [_listKey]).
+  ScrollPosition? _listPosition() {
+    ScrollableState? found;
+    void visit(Element e) {
+      if (found != null) return;
+      if (e is StatefulElement && e.state is ScrollableState) {
+        found = e.state as ScrollableState;
+        return;
+      }
+      e.visitChildren(visit);
+    }
+
+    _listKey.currentContext?.visitChildElements(visit);
+    return found?.position;
+  }
+
+  /// 1020o (decisions-log 10/20 第 99 条): on the first visit of a week the
+  /// page opens at the scene picture (the start of the week, at the top of
+  /// the screen); the elder scrolls down to question 1.  The list is
+  /// reversed, so the start of the week is its far end.  Repeated until it
+  /// holds: the far end is only measured once it is built, and the input
+  /// box appearing below shortens the list.
+  Future<void> _showSceneFirst() async {
+    var still = 0;
+    for (var i = 0; i < 8 && still < 2; i++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final p = _listPosition();
+      if (p == null || !p.hasContentDimensions) continue;
+      if ((p.pixels - p.maxScrollExtent).abs() < 0.5) {
+        still++;
+      } else {
+        still = 0;
+        p.jumpTo(p.maxScrollExtent);
+      }
+    }
+  }
+
+  /// After the elder sends or skips: back to the newest message (the
+  /// list's start), as on every chat page.
+  void _toLatest() {
+    final p = _listPosition();
+    if (p == null || !p.hasContentDimensions) return;
+    if (p.pixels <= p.minScrollExtent) return;
+    p.animateTo(p.minScrollExtent,
+        duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+  }
+
+  /// Whether the week's scene picture ships with the App (asset manifest).
+  Future<bool> _hasScene() async {
+    final bundle = _bundle;
+    if (bundle == null || !ReminiscenceV2Copy.sceneLines.containsKey(_week)) {
+      return false;
+    }
+    try {
+      final manifest = await AssetManifest.loadFromAssetBundle(bundle);
+      return manifest
+          .listAssets()
+          .contains(ReminiscenceV2Copy.sceneAsset(_week));
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _save() async {
@@ -270,6 +373,36 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     s.currentQuestion = q;
     _add(ReminiscenceMessageKind.question, _copy.question(q),
         q: q, copyId: 'W$_week-Q$q');
+    _transcribe(_copy.question(q));
+  }
+
+  /// Decision 0069 — a companion line shown now that is not part of a logged
+  /// turn's reply (opener, question, closing, the reply shown after its
+  /// turn was logged), for the research transcript.  Never the scene line.
+  void _transcribe(String text, {LlmStatus status = LlmStatus.fixedReply}) =>
+      _recorder?.transcriptCompanion(text, status: status);
+
+  /// Decision 0069 — a later visit: the question (or follow-up) waiting for an
+  /// answer, with the companion lines just before it, is on screen again;
+  /// it opens the new session's transcript, marked `shown_again` (it may
+  /// already be in the earlier visit's rows).
+  void _transcribeWaitingQuestion() {
+    final msgs = _messages;
+    if (msgs.isEmpty) return;
+    final last = msgs.last.kind;
+    if (last != ReminiscenceMessageKind.question &&
+        last != ReminiscenceMessageKind.followup) {
+      return;
+    }
+    var i = msgs.length;
+    while (i > 0 &&
+        !msgs[i - 1].fromUser &&
+        msgs[i - 1].kind != ReminiscenceMessageKind.scene) {
+      i--;
+    }
+    for (final m in msgs.skip(i)) {
+      _recorder?.transcriptCompanion(m.text, shownAgain: true);
+    }
   }
 
   void _setStage(_Stage stage) {
@@ -287,6 +420,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     final last = _messages.last;
     final q = last.questionIndex;
     switch (last.kind) {
+      case ReminiscenceMessageKind.scene:
       case ReminiscenceMessageKind.opener:
         _askQuestion(1);
         await _save();
@@ -344,6 +478,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
       s.status = ReminiscenceWeekStatus.questionsDone;
       _add(ReminiscenceMessageKind.closing, ReminiscenceV2Copy.closingLine,
           copyId: 'closing');
+      _transcribe(ReminiscenceV2Copy.closingLine);
       await _save();
       _setStage(_Stage.finish);
       return;
@@ -389,8 +524,10 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
       voice: usedVoice,
       voiceMs: voiceMs,
       chars: text.length,
+      text: text,
     );
     final q = _state!.currentQuestion;
+    _toLatest();
     setState(() {
       _busy = true;
       _stage = _Stage.waiting;
@@ -419,6 +556,8 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     if (_stage != _Stage.answer && _stage != _Stage.followupAnswer) return;
     final q = _state!.currentQuestion;
     _input = null;
+    final pressedAt = DateTime.now();
+    _toLatest();
     setState(() {
       _busy = true;
       _stage = _Stage.waiting;
@@ -427,6 +566,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     });
     await _ensureSession();
     _recorder?.bumpActivity();
+    _recorder?.transcriptButton(ReminiscenceV2Copy.skipLabel, at: pressedAt);
     await _save();
     await _advance();
   }
@@ -473,6 +613,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
       modality: input?.voice == true ? InputModality.voice : InputModality.text,
       voiceDurationMs: input?.voiceMs,
       charCount: input?.chars ?? 0,
+      userText: input?.text,
       detector: flag,
       shortCircuited: false,
       ackShown: false,
@@ -485,6 +626,9 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
         status: _ruleArm ? LlmStatus.ruleBased : LlmStatus.fixedReply,
         turnId: turnId,
       ),
+      // The fixed line was just shown ([_fixedLine]); '' = none (after Q8
+      // the closing line follows, written with [_transcribe]).
+      shownReply: [if (text.isNotEmpty) text],
     ));
     if (_ruleArm && text.isNotEmpty) {
       unawaited(_analytics?.logEvent('rule_template_reply', {
@@ -630,6 +774,10 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     } else {
       _add(kind, text, q: q, copyId: copyId);
     }
+    // Decision 0069: the Hybrid turn was logged before this bubble (shownReply
+    // empty there); the line shown goes into that turn's row here.
+    _transcribe(text,
+        status: copyId == 'llm' ? LlmStatus.ok : LlmStatus.fallback);
   }
 
   /// The context block: first line one of the three markers, then
@@ -658,11 +806,14 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
   }
 
   /// The week so far as alternating model turns (flagged messages and the
-  /// message being answered left out; the last 16 turns).
+  /// message being answered left out; the last 16 turns).  1020o (4a): the
+  /// scene bubble is left out too — the model cannot see the picture and
+  /// has no description of it, and the line asks for no reply.
   List<LlmTurn> _history(int upTo) {
     final out = <LlmTurn>[];
     for (final m in _messages.take(upTo)) {
       if (m.flagged || m.text.trim().isEmpty) continue;
+      if (m.kind == ReminiscenceMessageKind.scene) continue;
       final fromUser = m.fromUser;
       if (out.isNotEmpty && out.last.fromUser == fromUser) {
         final prev = out.removeLast();
@@ -744,10 +895,14 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
       modality: input0?.voice == true ? InputModality.voice : InputModality.text,
       voiceDurationMs: input0?.voiceMs,
       charCount: input0?.chars ?? input.text.length,
+      userText: input0?.text ?? input.text,
       detector: escalation,
       shortCircuited: false,
       ackShown: false,
       response: response,
+      // Decision 0069: the reply bubble is added after this ([_addAndShow]), the
+      // fixed line instead of a failed reply; it is written there.
+      shownReply: const [],
     ));
     if (response.isFallback) {
       if (kDebugMode) {
@@ -778,13 +933,26 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     final i = s.messages.indexOf(msg);
     if (i >= 0) s.messages[i] = msg.copyWith(safety: flag.level.tierCode);
     final acute = flag.level == DistressLevel.acute;
+    // 1020m 第三节: acute → the fixed safety message (the crisis page's
+    // numbers); moderate_interrupt → the per-agent moderate template.
+    final moderate =
+        acute ? null : SafetyCopy.moderateAck(_agent, isEn: false);
     final ack = acute
-        ? SafetyCopy.acuteAck(_agent, isEn: false)
-        : SafetyCopy.moderateAck(_agent, isEn: false);
+        ? _Ack.crisis(s.messages.length)
+        : (moderate == null ? null : _Ack(s.messages.length, moderate));
+    // Decision 0069: what the transcript keeps of it (the model's flagged text, if
+    // any, is never shown and never written).
+    final ackShownText = ack == null
+        ? null
+        : ack.crisis
+            ? CrisisChatMessage.transcriptText(
+                isEn: mounted &&
+                    Localizations.localeOf(context).languageCode == 'en')
+            : ack.text;
     _safetyStopped = true;
     if (mounted) {
       setState(() {
-        if (ack != null) _acks.add(_Ack(s.messages.length, ack));
+        if (ack != null) _acks.add(ack);
         _busy = false;
         _stage = _stage == _Stage.extra || msg.kind == ReminiscenceMessageKind.extra
             ? _Stage.chapter
@@ -807,6 +975,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
             input0?.voice == true ? InputModality.voice : InputModality.text,
         voiceDurationMs: input0?.voiceMs,
         charCount: input0?.chars ?? msg.text.length,
+        userText: input0?.text ?? msg.text,
         detector: flag,
         shortCircuited: acute,
         ackShown: ack != null,
@@ -822,6 +991,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
                   : (_ruleArm ? LlmStatus.ruleBased : LlmStatus.fixedReply),
               turnId: turnId,
             ),
+        shownReply: [if (ackShownText != null) ackShownText],
       ));
     }
     if (acute) unawaited(rec?.end(SessionEndReason.crisis));
@@ -1143,6 +1313,7 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
                   child: KeyboardScrollToLatest(
                     keyboardOpen: KeyboardCompact.active(context),
                     child: ListView(
+                      key: _listKey,
                       reverse: true,
                       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                       children: _listChildren(theme).reversed.toList(),
@@ -1173,7 +1344,10 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     }
     void acksAt(int count) {
       for (final a in _acks) {
-        if (a.afterCount == count) out.add(_SystemBubble(text: a.text));
+        if (a.afterCount != count) continue;
+        out.add(a.crisis
+            ? const CrisisChatMessage()
+            : _SystemBubble(text: a.text));
       }
     }
 
@@ -1331,6 +1505,11 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final m = message;
+    if (m.kind == ReminiscenceMessageKind.scene) {
+      final week = int.tryParse(m.copyId?.replaceFirst('scene_', '') ?? '');
+      if (week == null) return const SizedBox.shrink();
+      return _SceneBubble(weekIndex: week, text: m.text);
+    }
     final color = m.fromUser
         ? theme.colorScheme.primaryContainer
         : theme.colorScheme.secondaryContainer;
@@ -1359,6 +1538,59 @@ class _MessageBubble extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 1020o (4a) — the week's picture (4:3, rounded, as wide as a chat
+/// bubble) with its line underneath, in the companion's bubble colour.  If
+/// the picture cannot load, the whole bubble is left out.
+class _SceneBubble extends StatelessWidget {
+  const _SceneBubble({required this.weekIndex, required this.text});
+  final int weekIndex;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final width = MediaQuery.of(context).size.width * 0.88;
+    return Image.asset(
+      ReminiscenceV2Copy.sceneAsset(weekIndex),
+      key: ValueKey('reminiscence_scene_$weekIndex'),
+      fit: BoxFit.cover,
+      excludeFromSemantics: true,
+      // The whole bubble, built around the picture.
+      frameBuilder: (context, picture, _, __) => Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          key: const Key('reminiscence_scene_bubble'),
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          width: width,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AspectRatio(aspectRatio: 4 / 3, child: picture),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: RichChatText(
+                  text: text,
+                  style: TextStyle(
+                    fontSize: 17,
+                    height: 1.4,
+                    color: theme.colorScheme.onSecondaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
     );
   }
 }

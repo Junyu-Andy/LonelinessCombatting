@@ -16,7 +16,9 @@ import 'package:flutter/material.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../core/arm/arm_scope.dart';
 import '../../../../core/config/phase_a_config.dart';
+import '../../../../core/feature_flags/remote_feature_flags.dart';
 import '../../../../core/session/chat_session_recorder.dart';
+import '../../../../core/survey/direction_cue.dart';
 import '../../../../core/survey/likert_scale.dart';
 import '../../../../core/survey/survey_item_card.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
@@ -272,6 +274,18 @@ class _BriefPrPageState extends State<BriefPrPage> {
               const SizedBox(height: 20),
               Divider(color: theme.colorScheme.outlineVariant, thickness: 1),
               const SizedBox(height: 20),
+              // 1020k 一 (3): the same line as the one-question flow, so
+              // this page cannot be reused without it (zh only: the English
+              // tester view has no approved wording).
+              if (!isEn &&
+                  RemoteFeatureFlags.current.scaleDirectionCuesEnabled) ...[
+                const DirectionCue(
+                  key: Key('brief_pr_q4_cue'),
+                  text: DirectionCues.briefPrQ4,
+                  emphasis: DirectionCues.briefPrQ4Emphasis,
+                ),
+                const SizedBox(height: 10),
+              ],
               SurveyItemCard(
                 title: isEn
                     ? 'Did their response make you uncomfortable, or seem to ignore your feelings?'

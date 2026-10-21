@@ -15,7 +15,8 @@
  *   W4     opens on weeklyBundleDays[3] (26); closes at the end of day
  *          week4CloseDay (29) or the W4 visit day, whichever is later
  *          (week4CloseFor — the visit date arrives with T30); no DJG.
- *   W5–W7  PGIC only, pgicOnlyDays (35, 42, 49), weeklyWindowDays window.
+ *   W5–W7  PGIC only, pgicOnlyDays (35, 42, 49), weeklyWindowDays window
+ *          (bundle.pgicOnly).
  * Pilot (cohort "pilot"): the SAME standard schedule (10/15: the pilot run
  *   follows Phase B day for day).  The compressed mode below (pilotBundleDays
  *   1, 3, 5, 7, pilotWindowDays 1, no PGIC-only weeks) is kept only for the
@@ -39,17 +40,19 @@
  * Dispatcher (dispatchWeeklyBundles, hourly 08:00–21:00 HKT): per person
  * (fcm_tokens, never a topic), one push when the window opens, T18's one
  * reminder djgW2ReminderHours later if a part is still open, the missed
- * marks after the window.  Copy is final since 10/15 (item 6); a draft
- * override carrying 【占位】 is never sent, so nothing is
- * sent until the research team signs the text off (counted as
- * blocked_placeholder, like T18).  Quiet hours (functions/quiet_hours.js)
+ * marks after the window (reminders v2 off; on, see below).  Copy is
+ * final since 10/15 (item 6); a draft override carrying 【占位】 is never
+ * sent, so nothing is sent until the research team signs the text off
+ * (counted as blocked_placeholder, like T18).  Quiet hours
+ * (functions/quiet_hours.js; 1020o: the elder's own window first)
  * postpone a push to the next tick.
  *
- * Reminders v2 (dev-tasks-1020 G(1) as changed by 1020e 二.1–二.3) —
- * switch app_config/feature_flags.weeklyReminderV2Enabled (literal true;
- * read into cfg.reminderV2 by readConfig; needs weeklyScheduleV2Enabled
- * too, this whole dispatcher being off without it).  Both arms
- * identical.  For W1–W4 only (mirrored in the App,
+ * Reminders v2 (dev-tasks-1020 G(1) as changed by 1020e 二.1–二.3, and
+ * for W5–W7 by decisions-log 10/20 item 98, decision 0067) — switch
+ * app_config/feature_flags.weeklyReminderV2Enabled (literal true; read
+ * into cfg.reminderV2 by readConfig; needs weeklyScheduleV2Enabled too,
+ * this whole dispatcher being off without it).  Both arms identical.
+ * For every bundle W1–W7 (mirrored in the App,
  * lib/core/scheduling/weekly_schedule.dart, same fixture):
  *   W1–W3  window = whole Hong Kong days: day 7 00:00 → end of day 9
  *          (14–16, 21–23).  Pushes at 10:00: preview day 6 (all), open
@@ -60,13 +63,20 @@
  *          never before the end of day 26), at the latest the end of day
  *          42.  Pushes at 10:00: preview day 25, open day 26 (all),
  *          reminder day 28 (parts still open).  E-mail day 28.
- *   T18's 24-hour reminder is not sent for these four bundles; the
- *   missed marks follow the v2 windows; part records also get
- *   `outsideWindow` (stampPartRecord).  W5–W7 (PGIC only) keep the T24
- *   window, push + 24-hour reminder and S14 copy.  weekly_status
+ *   W5–W7  (PGIC only; item 98) window = whole Hong Kong days like
+ *          W1–W3: day 35 00:00 → end of day 37 (42–44, 49–51).  Pushes at
+ *          10:00: open day 35 (all), one reminder day 36 (PGIC still not
+ *          answered).  No preview, no last-day reminder, not in the
+ *          e-mail.  Texts: the S14 push and reminder (PUSH_BODY,
+ *          REMINDER_BODY, copy ids S14-open / S14-rem); the reminder is
+ *          recorded in reminderSentAt, the field T24 uses, so a person
+ *          caught mid-window by the deploy is never reminded twice.
+ *   T18's 24-hour reminder is not sent for any bundle and weeklyPushHour
+ *   is not read; the missed marks follow the v2 windows; part records
+ *   also get `outsideWindow` (stampPartRecord).  weekly_status
  *   bundles[Wn] gains previewSentAt, remind1SentAt, remind2SentAt,
  *   pushCopyId.  The e-mail is functions/weekly_email.js.  Off:
- *   everything exactly as above.
+ *   everything exactly as above (T24 for all seven weeks).
  */
 
 "use strict";
@@ -109,8 +119,9 @@ const DEFAULTS = {
   week4CloseDay: 29,
   djgWeeks: [1, 2, 3],
   pgicOnlyDays: [35, 42, 49],
-  // The hour of today's weekly push (weeklySurveyReminder, Sunday 20:00).
-  pushHour: 20,
+  // T24 push hour (reminders v2 off only).  10/20 item 98: 10, the
+  // production value since 10/20 (item 96) and the App's default.
+  pushHour: 10,
   socialContactProbeEnabled: false,
   pilotBundleDays: [1, 3, 5, 7],
   pilotWindowDays: 1,
@@ -140,6 +151,9 @@ const PUSH_TITLE = "陪住";
 // isPlaceholder() still guards any override that carries the mark.
 const PUSH_BODY = "今個禮拜嘅問卷開咗，得閒入嚟答幾條。";
 const REMINDER_BODY = "今個禮拜嘅問卷仲未答完，得閒入嚟答埋佢。";
+/** Item 98: v2 copy ids of W5–W7, sent with PUSH_BODY / REMINDER_BODY. */
+const S14_OPEN = "S14-open";
+const S14_REMINDER = "S14-rem";
 
 /** 1020 G(1): app_config/feature_flags switch for the reminders v2. */
 const REMINDER_V2_FLAG = "weeklyReminderV2Enabled";
@@ -246,7 +260,8 @@ function scheduleModeFor(user) {
  * @param {string} mode "standard" | "pilot"
  * @return {Array<{id: string, index: number, studyWeek: number,
  *     pushDay: number, parts: string[], windowDays: number,
- *     closeRule: string}>}  closeRule: "window" | "week4"
+ *     closeRule: string, pgicOnly: boolean}>}  closeRule: "window" |
+ *     "week4"; pgicOnly: a W5–W7 bundle (pgicOnlyDays)
  */
 function bundlesFor(cfg, mode) {
   const out = [];
@@ -263,6 +278,7 @@ function bundlesFor(cfg, mode) {
         id: `W${i + 1}`, index: i, studyWeek: studyWeek.studyWeekOf(day),
         bundleWeek: i + 1, pushDay: day, parts: common(i < 3),
         windowDays: cfg.pilotWindowDays, closeRule: "window",
+        pgicOnly: false,
       });
     });
     return out;
@@ -275,6 +291,7 @@ function bundlesFor(cfg, mode) {
       parts: common(cfg.djgWeeks.indexOf(week) >= 0),
       windowDays: cfg.windowDays,
       closeRule: week === 4 ? "week4" : "window",
+      pgicOnly: false,
     });
   });
   cfg.pgicOnlyDays.forEach((day, j) => {
@@ -282,7 +299,7 @@ function bundlesFor(cfg, mode) {
     out.push({
       id: `W${week}`, index: cfg.bundleDays.length + j, studyWeek: week,
       bundleWeek: week, pushDay: day, parts: [PART.PGIC],
-      windowDays: cfg.windowDays, closeRule: "window",
+      windowDays: cfg.windowDays, closeRule: "window", pgicOnly: true,
     });
   });
   return out;
@@ -343,12 +360,13 @@ function week4CloseV2(w0Key, recordedOn, bundle) {
 /**
  * The window of a bundle for one participant.
  *
- * Reminders v2 on (cfg.reminderV2, 1020e 二.1 / 二.2) and the bundle is
- * W1–W4: whole Hong Kong days.  W1–W3 open at 00:00 of the push day (7,
- * 14, 21) and close at the end of the push day + weeklyWindowDays − 1 (day
- * 9, 16, 23 at 23:59:59); W4 opens at 00:00 of day 26 and closes as
- * week4CloseV2.  Otherwise (switch off, or W5–W7) exactly T24: open at
- * weeklyPushHour on the push day, 72 h, W4 by week4CloseFor.
+ * Reminders v2 on (cfg.reminderV2, 1020e 二.1 / 二.2, item 98): whole Hong
+ * Kong days for every bundle.  W1–W3 and W5–W7 open at 00:00 of the push
+ * day (7, 14, 21; 35, 42, 49) and close at the end of the push day +
+ * weeklyWindowDays − 1 (day 9, 16, 23; 37, 44, 51 at 23:59:59); W4 opens
+ * at 00:00 of day 26 and closes as week4CloseV2.  Switch off: exactly
+ * T24 — open at weeklyPushHour on the push day, 72 h, W4 by
+ * week4CloseFor.
  * @param {object} bundle bundlesFor() element
  * @param {string} w0Key YYYY-MM-DD
  * @param {object} cfg
@@ -398,13 +416,15 @@ function openBundleAt(cfg, mode, w0Key, now, opts) {
 
 /**
  * Does reminders v2 cover this bundle?  W1–W3 (the first three bundle
- * days) and W4 (closeRule "week4").  The PGIC-only weeks W5–W7 are left as
- * they are (1020e 二.3; W8 is T35, not built).
+ * days), W4 (closeRule "week4") and, since item 98, the PGIC-only weeks
+ * W5–W7 (pgicOnly) — every standard bundle.  W8 is T35, not built; the
+ * retired pilot mode's fourth bundle is not covered.
  * @param {?object} bundle bundlesFor() element
  * @return {boolean}
  */
 function isReminderV2Bundle(bundle) {
   return !!bundle && (bundle.closeRule === "week4" ||
+    bundle.pgicOnly === true ||
     (bundle.closeRule === "window" && bundle.index < 3));
 }
 
@@ -428,6 +448,11 @@ function closingDayKey(win) {
  *          the e-mail day).
  *   W4     preview day 25 (all), open day 26 (all), one reminder day 28
  *          (the e-mail day).
+ *   W5–W7  (item 98) open on the push day (35, 42, 49; all), one reminder
+ *          the next day (36, 43, 50; PGIC not answered).  No preview, no
+ *          last-day reminder, no e-mail; the S14 texts (S14_OPEN,
+ *          S14_REMINDER); the reminder goes in reminderSentAt (T24's
+ *          field), the open push in pushedAt.
  * A push is sent only while its window is not closed (W4 may close early
  * when the visit is recorded).
  * @param {object} bundle bundlesFor() element
@@ -439,6 +464,12 @@ function v2StepsFor(bundle, win) {
   const day = (n) => studyWeek.addDays(win.pushDateKey, n);
   const step = (name, dateKey, copyId, field, all, email) =>
     ({step: name, dateKey, copyId, field, all, email});
+  if (bundle.pgicOnly === true) {
+    return [
+      step("open", day(0), S14_OPEN, "pushedAt", true, false),
+      step("remind1", day(1), S14_REMINDER, "reminderSentAt", false, false),
+    ];
+  }
   if (bundle.closeRule === "week4") {
     return [
       step("preview", day(-1), "W4-pre", "previewSentAt", true, false),
@@ -458,13 +489,31 @@ function v2StepsFor(bundle, win) {
 
 /**
  * The day the research lead's e-mail lists a bundle (1020e 二.1(3),
- * 二.2(3)): day 9 / 16 / 23 for W1–W3, day 28 for W4.
+ * 二.2(3)): day 9 / 16 / 23 for W1–W3, day 28 for W4; never for W5–W7
+ * (item 98).
  * @param {object} bundle
  * @param {object} win windowFor() result
- * @return {string} YYYY-MM-DD
+ * @return {?string} YYYY-MM-DD, or null when the e-mail never lists it
  */
 function emailDayKeyFor(bundle, win) {
-  return v2StepsFor(bundle, win).filter((s) => s.email)[0].dateKey;
+  const s = v2StepsFor(bundle, win).filter((x) => x.email)[0];
+  return s ? s.dateKey : null;
+}
+
+/**
+ * The body of a v2 push: an override in `copy` (tests), the S14 texts for
+ * W5–W7 (copy.push / copy.reminder, item 98 (4): the existing two), else
+ * the 1020e weekly text (push_copy.js) for the bundle's week.
+ * @param {{copyId: string}} step v2StepsFor() element
+ * @param {object} bundle
+ * @param {object} copy {push, reminder, …overrides by copy id}
+ * @return {string}
+ */
+function v2BodyFor(step, bundle, copy) {
+  if (typeof copy[step.copyId] === "string") return copy[step.copyId];
+  if (step.copyId === S14_OPEN) return copy.push;
+  if (step.copyId === S14_REMINDER) return copy.reminder;
+  return pushCopy.weeklyText(step.copyId, bundle.bundleWeek);
 }
 
 /**
@@ -799,9 +848,10 @@ async function markMissedParts(userRef, p) {
  * Hourly job: per-person push when a bundle opens, T18's one reminder,
  * the missed marks after the window.  Returns at once with the switch
  * off.  Phase B and pilot participants only (cohort), testers excluded,
- * no arm check.  With weeklyReminderV2Enabled (1020e 二.1 / 二.2) W1–W4
- * use the v2 windows and the 10:00 pushes of v2StepsFor instead (file
- * header); the missed marks follow the v2 windows.
+ * no arm check.  With weeklyReminderV2Enabled (1020e 二.1 / 二.2; W5–W7
+ * since item 98) every bundle uses the v2 window and the 10:00 pushes of
+ * v2StepsFor instead (file header); the missed marks follow the v2
+ * windows.  Off: T24 for every bundle.
  * @param {object} db admin.firestore()
  * @param {{send: function(object): Promise<string>}} messaging
  * @param {{now: (Date|undefined), log: (function|undefined),
@@ -878,8 +928,7 @@ async function dispatchWeeklyBundles(db, messaging, opts) {
             bump("quiet_hours");
             continue;
           }
-          const body = typeof copy[step.copyId] === "string" ?
-            copy[step.copyId] : pushCopy.weeklyText(step.copyId, b.bundleWeek);
+          const body = v2BodyFor(step, b, copy);
           if (isPlaceholder(body)) {
             bump("blocked_placeholder");
             continue;
@@ -1040,4 +1089,6 @@ module.exports = {
   REMINDER_V2_FLAG, V2_PUSH_HOUR, V2_WEEK4_LATEST_CLOSE_DAY,
   isReminderV2Bundle, closingDayKey, week4CloseV2, v2StepsFor,
   emailDayKeyFor, windowOptsFor, reminderV2On, outsideWindowOf,
+  // 10/20 item 98: W5–W7 under reminders v2
+  S14_OPEN, S14_REMINDER, v2BodyFor,
 };

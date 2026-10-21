@@ -15,7 +15,7 @@ rules_version = '2';
 //                                                   *new* strataCell)
 //   users/{uid}/events/{eventId}                 -> analytics events
 //   users/{uid}/memory/{moduleId}/entries/{id}   -> legacy module summaries
-//   users/{uid}/action_plans/{id}                -> M7 plans
+//   users/{uid}/action_plans/{id}                -> M7 plans (1020m: + home-row fields followUpSource, homeRow*; generic owner rule)
 //   users/{uid}/thought_records/{id}             -> legacy M4 records (read-only after Sprint 1)
 //   users/{uid}/thought_exercise/entries/{id}    -> *new* B.4 expanded TE entries
 //   users/{uid}/m3_reminiscence/...              -> M3 sessions
@@ -52,9 +52,10 @@ rules_version = '2';
 //   users/{uid}/social_contact_probes/{Wn}       -> T24 weekly social-contact probe (client: answers 0–3; server: study-week stamps)
 //   users/{uid}/weekly_pr|pgic|brief_pr          -> T24: studyWeek/studyDay/window/missed fields are server-only
 //   weekly_status/{uid}                          -> T24 weekly bundle status, research ID, push times (server only)
-//   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events, 1020c reader_* rows (owner: create only; server stamps research ID, study day, uploadedLate)
+//   users/{uid}/usage_events/{id}                -> T40 foreground / background usage events, 1020c reader_* rows, 1020m home_small_action_* rows (owner: create only; server stamps research ID, study day, uploadedLate)
 //   intake_audit_log/{id}                        -> T47 researcher-recorded intake log (server-only)
 //   users/{uid}.intakeGateUnlockedAt             -> 1020e §2.14 explanation gate unlocked (owner: once, server time only)
+//   users/{uid}.quietHoursStart|quietHoursEnd    -> 1020o 安靜時段 「由」/「到」 (owner: only the allowed half-hour values)
 //   ops_daily/{uid}/days/{dayKey}, ops_audit_log/{id} -> T39 operations dashboard: stored day rows + open log (server only)
 //   users/{uid}/reminiscence_chapters/week_{N}   -> 1020d 小篇章 (owner: request, rule text, edits; server: result fields;
 //                                                   .../runs/{requestId} archive is server only)
@@ -203,15 +204,49 @@ service cloud.firestore {
             && request.resource.data.intakeGateUnlockedAt == request.time);
     }
 
+    // 1020o 第三节 (decision 0066): the elder's own 安靜時段 —
+    // `quietHoursStart` (「由」) and `quietHoursEnd` (「到」), Hong Kong
+    // "HH:mm".  Only the values the App's pickers offer are accepted
+    // (Junyu 10/20: start 20:00–23:00, end 06:00–08:00, half-hour steps;
+    // the same lists as functions/quiet_hours.js RANGE and
+    // lib/core/notifications/quiet_hours_range.dart).  Checked only when a
+    // write sets or changes the field, so ordinary profile saves (which
+    // leave both out) pass whatever is stored; removing one is refused.
+    function quietStartValues() {
+      return ['20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00'];
+    }
+
+    function quietEndValues() {
+      return ['06:00', '06:30', '07:00', '07:30', '08:00'];
+    }
+
+    function createQuietHoursOk(data) {
+      return (!('quietHoursStart' in data)
+          || data.quietHoursStart in quietStartValues())
+        && (!('quietHoursEnd' in data)
+          || data.quietHoursEnd in quietEndValues());
+    }
+
+    function updateQuietHoursOk() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let d = request.resource.data;
+      return (!changed.hasAny(['quietHoursStart'])
+          || d.get('quietHoursStart', null) in quietStartValues())
+        && (!changed.hasAny(['quietHoursEnd'])
+          || d.get('quietHoursEnd', null) in quietEndValues());
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)
         && createLeavesAssignmentEmpty(request.resource.data)
         && createLeavesTesterEmpty(request.resource.data)
-        && createIntakeGateOk(request.resource.data);
+        && createIntakeGateOk(request.resource.data)
+        && createQuietHoursOk(request.resource.data);
       allow update: if isOwner(uid) && updateLeavesAssignmentUntouched()
         && updateLeavesTesterUntouched()
-        && updateIntakeGateOk();
+        && updateIntakeGateOk()
+        && updateQuietHoursOk();
       allow delete: if false;
     }
 
@@ -271,12 +306,14 @@ service cloud.firestore {
         && collection != 'social_contact_probes'
         && collection != 'usage_events'
         && collection != 'reminiscence_chapters'
+        && collection != 'chat_transcripts'
         && !(collection in phaseASurveyCollections());
       allow write: if isOwner(uid) && !collection.matches('mem_.*')
         && collection != 'djg_responses'
         && collection != 'social_contact_probes'
         && collection != 'usage_events'
         && collection != 'reminiscence_chapters'
+        && collection != 'chat_transcripts'
         && !(collection in phaseASurveyCollections())
         && researchWriteOpen(uid, collection)
         && leavesWeekStampsAlone(collection)
@@ -482,6 +519,15 @@ service cloud.firestore {
     // a unit id, a section id, a CTA code or whole seconds.  Ids must be
     // short lower-case slugs (the pattern in usage_event_recorder.dart and
     // tool/check_reader_html.js), so no text can ride along.
+    //
+    // 1020m 第二节 — page 1's small-action row (both arms) shares it too:
+    // home_small_action_shown (+ rowState ask / plan / done /
+    // next_day_plan (1020n); + planId unless ask), home_small_action_open,
+    // home_small_action_later, home_small_action_more and
+    // home_small_action_list (1020n), home_small_action_done (+ planId),
+    // home_small_action_postpone (+ planId, moved).  A plan id is an
+    // action_plans document id (letters, digits, _ and -), so no text
+    // fits.
     // ============================================================
     function isEnrolledParticipant(uid) {
       let u = get(/databases/$(database)/documents/users/$(uid)).data;
@@ -500,7 +546,9 @@ service cloud.firestore {
         && d.buildNumber is string
         && d.platform is string
         && d.schemaVersion == 1
-        && (usageLifecycleValid(d) || usageReaderValid(d));
+        && (usageLifecycleValid(d) || usageReaderValid(d)
+            || usageHomeSmallActionValid(d)
+            || usageQuietHoursValid(d));
     }
 
     // T40 foreground / background: the base fields only.
@@ -518,7 +566,7 @@ service cloud.firestore {
         && d.keys().hasAll(extra);
     }
 
-    // 1020c reader rows.
+    // 1020c reader rows (1021: cta chat_siu_yan, the 小欣 chat).
     function usageReaderValid(d) {
       return readerIdOk(d.get('unitId', null)) && (
         (d.type == 'reader_open' && usageReaderOnly(d, ['unitId']))
@@ -527,10 +575,49 @@ service cloud.firestore {
             && readerIdOk(d.sectionId))
         || (d.type == 'reader_cta'
             && usageReaderOnly(d, ['unitId', 'cta'])
-            && d.cta in ['small_action', 'plan', 'thought'])
+            && d.cta in ['small_action', 'plan', 'thought', 'chat_siu_yan'])
         || (d.type == 'reader_close'
             && usageReaderOnly(d, ['unitId', 'seconds'])
             && d.seconds is int && d.seconds >= 0 && d.seconds <= 86400));
+    }
+
+    // 1020m small-action row.
+    function planIdOk(v) {
+      return v is string && v.matches('^[A-Za-z0-9_-]{1,64}$');
+    }
+
+    function usageHomeSmallActionValid(d) {
+      return (d.type == 'home_small_action_shown'
+            && ((d.get('rowState', null) == 'ask'
+                 && usageReaderOnly(d, ['rowState']))
+              || (d.get('rowState', null) in ['plan', 'done', 'next_day_plan']
+                 && usageReaderOnly(d, ['rowState', 'planId'])
+                 && planIdOk(d.planId))))
+        || (d.type in ['home_small_action_open', 'home_small_action_later',
+                       'home_small_action_more', 'home_small_action_list']
+            && d.keys().hasOnly(usageEventClientKeys()))
+        || (d.type == 'home_small_action_done'
+            && usageReaderOnly(d, ['planId'])
+            && planIdOk(d.planId))
+        || (d.type == 'home_small_action_postpone'
+            && usageReaderOnly(d, ['planId', 'moved'])
+            && planIdOk(d.planId)
+            && d.moved is bool);
+    }
+
+    // 1020o 第三节: one row per change of 安靜時段 — `field` (start / end),
+    // `from` (the time shown before) and `to` (the time picked; an
+    // allowed value).  Times only, no text.
+    function hhmmOk(v) {
+      return v is string && v.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+    }
+
+    function usageQuietHoursValid(d) {
+      return d.type == 'quiet_hours_changed'
+        && usageReaderOnly(d, ['field', 'from', 'to'])
+        && hhmmOk(d.from)
+        && ((d.field == 'start' && d.to in quietStartValues())
+          || (d.field == 'end' && d.to in quietEndValues()));
     }
 
     match /users/{uid}/usage_events/{eventId} {
@@ -539,6 +626,95 @@ service cloud.firestore {
         && isEnrolledParticipant(uid)
         && request.resource.data.keys().hasAll(usageEventClientKeys())
         && usageEventValid(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // ============================================================
+    // 1020l (1020j 一 (4)) — research transcript,
+    // users/{uid}/chat_transcripts/{turnId}: the elder's message and the
+    // reply shown, written by the App (ChatSessionRecorder.logTurn) once
+    // per turn with the turn's id.  Only while
+    // app_config/feature_flags.researchTranscriptEnabled is true; only for
+    // enrolled participants and testers.  Write-once: no client reads,
+    // updates or deletes it — not even the elder; the Admin SDK reads it
+    // (unblinded tools) and tool/delete_participant.js deletes it.
+    //
+    // Decision 0069 — schema 2 adds `role` and `userInput`:
+    //   role 'elder'     — one message of the elder (userInput 'text',
+    //                      'voice' or 'button'; null = none known) and, in
+    //                      replyText, every companion bubble shown after it;
+    //   role 'companion' — companion bubbles with no elder message before
+    //                      them (an opener): userText, userInput and
+    //                      userSentAt null, replyText not empty.
+    // Schema 1 rows (App builds before the freeze) are still accepted.
+    // ============================================================
+    function transcriptKeysV1() {
+      return ['sessionId', 'turnId', 'agentId', 'moduleId', 'userText',
+              'replyText', 'replyStatus', 'userSentAt', 'replyShownAt',
+              'receivedAt', 'schemaVersion'];
+    }
+
+    // Schema 2 (the current App).
+    function transcriptKeys() {
+      return ['sessionId', 'turnId', 'agentId', 'moduleId', 'role',
+              'userText', 'userInput', 'replyText', 'replyStatus',
+              'userSentAt', 'replyShownAt', 'receivedAt', 'schemaVersion'];
+    }
+
+    function transcriptSwitchOn() {
+      return get(/databases/$(database)/documents/app_config/feature_flags)
+        .data.get('researchTranscriptEnabled', false) == true;
+    }
+
+    // Fields both schemas share, with their limits.
+    function transcriptCommonValid(turnId, d) {
+      return d.turnId == turnId
+        && d.sessionId is string
+        && d.sessionId.size() > 0 && d.sessionId.size() <= 128
+        && d.agentId is string && d.agentId.size() <= 64
+        && d.moduleId is string && d.moduleId.size() <= 64
+        && (d.userText == null
+            || (d.userText is string && d.userText.size() <= 5000))
+        && d.replyText is string && d.replyText.size() <= 10000
+        && d.replyStatus is string && d.replyStatus.size() <= 32
+        && d.replyShownAt is timestamp
+        && d.receivedAt == request.time;
+    }
+
+    function transcriptValidV1(turnId, d) {
+      return d.keys().hasOnly(transcriptKeysV1())
+        && d.keys().hasAll(transcriptKeysV1())
+        && transcriptCommonValid(turnId, d)
+        && d.userSentAt is timestamp
+        && d.schemaVersion == 1;
+    }
+
+    function transcriptValidV2(turnId, d) {
+      return d.keys().hasOnly(transcriptKeys())
+        && d.keys().hasAll(transcriptKeys())
+        && transcriptCommonValid(turnId, d)
+        && d.schemaVersion == 2
+        && ((d.role == 'elder'
+              && d.userSentAt is timestamp
+              && (d.userInput == null
+                  || d.userInput in ['text', 'voice', 'button']))
+            || (d.role == 'companion'
+              && d.userText == null
+              && d.userInput == null
+              && d.userSentAt == null
+              && d.replyText.size() > 0));
+    }
+
+    function transcriptValid(turnId, d) {
+      return transcriptValidV2(turnId, d) || transcriptValidV1(turnId, d);
+    }
+
+    match /users/{uid}/chat_transcripts/{turnId} {
+      allow read: if false;
+      allow create: if isOwner(uid)
+        && enrolledOrTester(uid)
+        && transcriptSwitchOn()
+        && transcriptValid(turnId, request.resource.data);
       allow update, delete: if false;
     }
 

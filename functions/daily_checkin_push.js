@@ -17,8 +17,10 @@
  *   - "Done" also covers a chat check-in stopped by an acute safety hit,
  *     unless the research lead marked it a false alarm (rowCompletes).
  *   - Quiet hours (functions/quiet_hours.js, fixed on, 22:00–08:00 by
- *     default) skip the push; each slot runs once a day, so a skipped push
- *     is not sent later.
+ *     default; 1020o: the elder's own 「由」/「到」 first) skip the push;
+ *     each slot runs once a day, so a skipped push is not sent later.  The
+ *     allowed personal range (start 20:00–23:00, end 06:00–08:00) never
+ *     covers 08:30 or 19:00.
  *   - At most one P1 and one P2 per person per Hong Kong day: every send
  *     writes users/{uid}/events `daily_checkin_push_sent` (slot, dateKey,
  *     copyId, tokens, delivered) and a second run of the same day finds it.

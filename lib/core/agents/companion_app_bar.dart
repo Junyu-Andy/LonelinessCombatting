@@ -42,8 +42,11 @@ class CompanionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final agent = AgentRegistry.byId(agentId);
+    // 1020l: `of`, not `read` — the title is often a const widget, so it
+    // must listen: after the elder switches 阿珍／阿伯 on the profile page
+    // (opened from this avatar) the bar shows the new choice straight away.
     final pairing = agentId == AgentRegistry.ahJanAhBakId
-        ? AppSettingsScope.read(context).profile?.ahJanAhBakVariant
+        ? AppSettingsScope.of(context).profile?.ahJanAhBakVariant
         : null;
     final variant = agent.resolveVariant(pairing);
     return Row(
