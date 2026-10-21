@@ -105,6 +105,28 @@ void main() {
       }
     });
 
+    // 1020o 第四节, 第一节: the landing bubble, the four theme lines (by
+    // week index) and the 自己 page entry.
+    test('landing page and the 自己 entry', () {
+      expect(ReminiscenceV2Copy.landingIntro, rows['L-INTRO']![2]);
+      expect(ReminiscenceV2Copy.chaptersEntrySubtitle, rows['L-ME']![2]);
+      expect(ReminiscenceV2Copy.themeLines.keys, [1, 2, 3, 4]);
+      for (final w in [1, 2, 3, 4]) {
+        expect(ReminiscenceV2Copy.themeLines[w], rows['L-THEME-$w']![2]);
+        expect(rows['L-THEME-$w']![1],
+            contains('「${ReminiscenceTheme.byIndex(w).titleZh}」'));
+      }
+    });
+
+    // 1020o (4a): the line under each week's scene picture.
+    test('scene lines', () {
+      expect(ReminiscenceV2Copy.sceneLines.keys, [1, 2, 3, 4]);
+      for (final w in [1, 2, 3, 4]) {
+        expect(ReminiscenceV2Copy.sceneLines[w], rows['SCENE-$w']![2]);
+        expect(rows['SCENE-$w']![1], contains('scene_$w.jpg'));
+      }
+    });
+
     test('the three rating items and the rating buttons', () {
       final items = ReminiscenceV2Copy.ratingItems;
       expect(items, hasLength(3));

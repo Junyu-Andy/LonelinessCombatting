@@ -9,6 +9,10 @@
 /// exist in the App are kept (完成); labels not in docs/spec/copy/ are
 /// `【占位】` drafts.
 ///
+/// 1020k (switch `scaleDirectionCuesEnabled`): question 4 gets the line
+/// [DirectionCues.briefPrQ4] between the page stem and the question;
+/// questions 1–3 get nothing.
+///
 /// The answers go through [BriefPrScheduler.submit]: all four →
 /// `completed`; abandoned with some answers → `partially_completed`; with
 /// none → `skipped`.  The record is keyed by session id, so a second
@@ -18,6 +22,8 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/feature_flags/remote_feature_flags.dart';
+import '../../../../core/survey/direction_cue.dart';
 import '../../data/brief_pr_record.dart';
 import '../../data/brief_pr_scheduler.dart';
 import '../../data/brief_pr_v2.dart';
@@ -165,6 +171,15 @@ class _BriefPrFlowPageState extends State<BriefPrFlowPage> {
                 ),
               ),
               const SizedBox(height: 6),
+              if (item.key == 'insensitivity' &&
+                  RemoteFeatureFlags.current.scaleDirectionCuesEnabled) ...[
+                const DirectionCue(
+                  key: Key('brief_pr_q4_cue'),
+                  text: DirectionCues.briefPrQ4,
+                  emphasis: DirectionCues.briefPrQ4Emphasis,
+                ),
+                const SizedBox(height: 6),
+              ],
               Text(
                 item.stem(name),
                 key: const Key('brief_pr_item_text'),

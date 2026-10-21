@@ -56,6 +56,14 @@ class AppTheme {
       onSurfaceVariant: inkMuted,
       outline: outline,
       outlineVariant: outline,
+      // 1020p §1 (decision 0068): Flutter 3.44's colour library derives
+      // these four from the seed differently (text on tinted boxes came
+      // out lighter).  Kept at the values Flutter 3.35.3 derived, so
+      // nothing an elder sees changes.  Both arms, both contrast modes.
+      onPrimaryContainer: const Color(0xFF331200),
+      onSecondaryContainer: const Color(0xFF2B160A),
+      onTertiaryContainer: const Color(0xFF1E1C00),
+      onErrorContainer: const Color(0xFF410002),
     );
 
     const String serifFamily = 'NotoSerifHK';
@@ -289,6 +297,16 @@ class AppTheme {
       ),
       sliderTheme: const SliderThemeData(
         trackHeight: 8,
+      ),
+      // 1020p §1 (decision 0068): Flutter 3.44 made Android pages slide and
+      // fade ("predictive back") instead of the zoom used so far.  Android
+      // keeps the zoom, so every page opens and closes as before; the other
+      // platforms keep Flutter's default (iPhone unchanged).  Both arms.
+      pageTransitionsTheme: PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          ...const PageTransitionsTheme().builders,
+          TargetPlatform.android: const ZoomPageTransitionsBuilder(),
+        },
       ),
     );
   }

@@ -40,6 +40,7 @@ const dailyCheckInPush = require("./daily_checkin_push");
 const weeklyEmail = require("./weekly_email");
 const pushCopy = require("./push_copy");
 const reminiscenceChapter = require("./reminiscence_chapter");
+const articleQa = require("./article_qa");
 
 admin.initializeApp();
 
@@ -453,6 +454,11 @@ exports.proxyDeepSeek = onCall(
     }));
     const codedSession = sessionCodeFor(request.auth && request.auth.uid);
 
+    // 1021 (T-R6): 通通's article / 小讀本 Q&A runs on deepseek-v4-pro
+    // (functions/article_qa.js); llm_calls keeps the requested and the
+    // returned model as for every call.
+    const articleQaCall = articleQa.isArticleQa(agentId, payload.contextSuffix);
+
     // C04: deepSeekChat logs model / tokens / latency to llm_calls.
     const response = await llmLog.deepSeekChat(admin.firestore(), {
       apiKey: DEEPSEEK_API_KEY.value(),
@@ -461,7 +467,8 @@ exports.proxyDeepSeek = onCall(
       // Under the 55 s function timeout, so a hung call is still logged.
       timeoutMs: 50000,
       log: {
-        callType: llmLog.callTypeForModule(moduleId),
+        callType: articleQaCall ? "article_qa" :
+          llmLog.callTypeForModule(moduleId),
         agentId,
         uid: request.auth.uid,
         // T25 — the App's session id (same field memory injection logs).
@@ -469,7 +476,7 @@ exports.proxyDeepSeek = onCall(
           payload.sessionId : null,
       },
       body: {
-        model: DEEPSEEK_MODEL,
+        model: articleQaCall ? articleQa.ARTICLE_QA_MODEL : DEEPSEEK_MODEL,
         thinking: DEEPSEEK_THINKING,
         messages: [
           {role: "system", content: systemPrompt},
@@ -2834,13 +2841,15 @@ exports.adaStaffSave = onCall(
 // ---------------------------------------------------------------------------
 // Action Loop follow-up reminders (SPEC:C07, decision 0022).  The app queues
 // them at users/{uid}/reminders; this sends the due ones to the
-// participant's own devices.  Every 15 min, 08:00–21:45 HKT, so nothing
-// goes out at night.  Both arms, no LLM.  Off unless
-// app_config/reminders.m7FollowupPushEnabled === true (functions/reminders.js).
+// participant's own devices.  Every 15 min, 06:00–22:45 HKT (1020o: was
+// 08:00–21:45); each elder's 安靜時段 (own window, else the global
+// 22:00–08:00) holds the push, so nothing goes out at night.  Both arms, no
+// LLM.  Off unless app_config/reminders.m7FollowupPushEnabled === true
+// (functions/reminders.js).
 // ---------------------------------------------------------------------------
 exports.dispatchReminders = onSchedule(
   {
-    schedule: "*/15 8-21 * * *",
+    schedule: "*/15 6-22 * * *",
     timeZone: "Asia/Hong_Kong",
     region: "asia-east2",
     retryCount: 0,

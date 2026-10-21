@@ -43,13 +43,13 @@ App 里写死连 `loneliness-pilot-dev`（`lib/firebase_options.dart`、`android
 
 ### 方法一：在自己的电脑上打包（现在就能用）
 
-要先装好：Flutter 3.35.3（不要用更新的版本，Gradle 8.12 不支持）、Java 17、Android SDK（装 Android Studio 时会一起装）。
+要先装好：Flutter 3.44.1（和 CI 一样；10/20 起，决策 0068）、Java 17、Android SDK（装 Android Studio 时会一起装）。
 
 ```bash
 cd ~/path/to/LonelinessCombatting
 git checkout main && git pull
 git log --oneline -1          # 记下提交号，写进测试记录
-flutter --version             # 必须是 3.35.3
+flutter --version             # 必须是 3.44.1
 flutter pub get
 flutter build apk --release \
   --dart-define=PHASE_B=true \

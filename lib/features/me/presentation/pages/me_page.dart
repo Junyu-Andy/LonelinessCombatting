@@ -1,10 +1,10 @@
 /// 做啲嘢 (Do-things) — third tab per Product Overview §3.2.
 ///
 /// Tools, non-personified:
-///   - Action Loop (M7)
-///   - Thought Exercise (5-field; entry point "望一望心入面")
-///   - Education library (M8)
-///   - Social suggestions (M6)
+///   - Social suggestions (M6) — 今日小行動
+///   - Action Loop (M7) — 我嘅計劃
+///   - Education library (M8) — 讀少少
+///   - Thought Exercise (5-field) — 望一望心入面
 ///
 /// Personal / admin entries (Progress, Profile, Emergency, FAQ, Privacy,
 /// Settings) moved to 自己 in the same restructure.
@@ -13,20 +13,21 @@
 /// site; the class name [MePage] is kept as a stable alias.  Internally
 /// this is the "Do" tab.
 ///
-/// 1020 batch 3 (`homeLayoutV2Enabled`): each tool gets Junyu's final
-/// picture on a coloured tile ([MeToolArt]); labels unchanged; both arms
-/// identical.  Off: the Material icons as before.
+/// 1020m 一 (10/19 第 37 条): four big cards ([MeToolCard]) in the order
+/// 今日小行動 → 我嘅計劃 → 讀少少 → 望一望心入面, each with Junyu's
+/// picture on its coloured tile (batch 3, [MeToolArt]) and the title and
+/// line of 10/19 第 37 条 (2), and one line on top, 「自己隨時用」
+/// ([MeToolsCopy]).  No switch; the old list is gone.  Same pages behind
+/// the cards; both arms identical.
 library;
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/feature_flags/remote_feature_flags.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../action_loop/presentation/pages/action_loop_landing.dart';
 import '../../../education/presentation/pages/education_library_page.dart';
 import '../../../social_suggestions/presentation/pages/social_suggestions_page.dart';
 import '../../../thought_exercise/presentation/thought_exercise_page.dart';
-import '../widgets/me_list_item.dart';
+import '../widgets/me_tool_card.dart';
 
 /// The four tool pictures (assets/tools/, 512×512 transparent PNG) and
 /// their tile colours.  Only these four; older names are void.
@@ -42,110 +43,100 @@ class MeToolArt {
   static const all = [thought, plan, reading, smallAction];
 }
 
+/// 1020m 一 — the four card titles and lines (10/19 第 37 条 (2)) and the
+/// line on top of the page.
+class MeToolsCopy {
+  MeToolsCopy._();
+
+  static const intro = '自己隨時用';
+
+  static const smallAction = ('今日小行動', '諗下今日可以同邊個做啲咩');
+  static const plan = ('我嘅計劃', '訂個小計劃，睇返做咗未');
+  static const reading = ('讀少少', '幾分鐘睇完嘅短文');
+  static const thought = ('望一望心入面', '了解吓自己嘅心情');
+
+  // Tester view in English only.
+  static const introEn = 'Use them any time on your own.';
+  static const smallActionEn =
+      ('Small action today', 'Think of something to do with someone today');
+  static const planEn = ('My plan', 'Make a small plan and see if it got done');
+  static const readingEn = ('Read a little', 'Short reads, a few minutes each');
+  static const thoughtEn =
+      ('Look at a thought', 'Gently understand your own mood');
+}
+
 class MePage extends StatelessWidget {
   const MePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final art = RemoteFeatureFlags.current.homeLayoutV2Enabled;
+    void open(Widget page) => Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => page));
+    (String, String) t((String, String) zh, (String, String) en) =>
+        isEn ? en : zh;
+    // Same keys (`me_tool_*`) as the old list, so analytics and tests that
+    // find a tool by key keep working.
+    final cards = [
+      (
+        'me_tool_small_action',
+        MeToolArt.smallAction,
+        Icons.people_outline,
+        t(MeToolsCopy.smallAction, MeToolsCopy.smallActionEn),
+        const SocialSuggestionsPage(),
+      ),
+      (
+        'me_tool_plan',
+        MeToolArt.plan,
+        Icons.checklist_outlined,
+        t(MeToolsCopy.plan, MeToolsCopy.planEn),
+        const ActionLoopLandingPage(),
+      ),
+      (
+        'me_tool_reading',
+        MeToolArt.reading,
+        Icons.menu_book_outlined,
+        t(MeToolsCopy.reading, MeToolsCopy.readingEn),
+        const EducationLibraryPage(),
+      ),
+      (
+        'me_tool_thought',
+        MeToolArt.thought,
+        Icons.lightbulb_outline,
+        t(MeToolsCopy.thought, MeToolsCopy.thoughtEn),
+        const ThoughtExercisePage(),
+      ),
+    ];
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(0, 12, 0, 100),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
             child: Text(
-              isEn
-                  ? 'Small tools you can use on your own — no companion walks you through them.'
-                  : '幾個小工具，自己用都得，唔需要夥伴陪。',
-              style: theme.textTheme.bodyMedium?.copyWith(
+              isEn ? MeToolsCopy.introEn : MeToolsCopy.intro,
+              key: const ValueKey('me_tools_intro'),
+              style: theme.textTheme.bodyLarge?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 height: 1.4,
               ),
             ),
           ),
-          MeListItem(
-            key: const ValueKey('me_tool_thought'),
-            icon: Icons.lightbulb_outline,
-            image: art ? MeToolArt.thought.$1 : null,
-            tileColor: art ? MeToolArt.thought.$2 : null,
-            // Phase A spec §5.2 — locked label "望一望心入面".
-            // Research Review v2 Item 5: subtitle = "了解吓自己嘅心情".
-            label: isEn ? 'Look at a thought' : '望一望心入面',
-            subtitle: isEn
-                ? 'Gently understand your own mood'
-                : '了解吓自己嘅心情',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ThoughtExercisePage(),
-              ),
+          for (final (key, art, icon, (title, line), page) in cards) ...[
+            MeToolCard(
+              key: ValueKey(key),
+              image: art.$1,
+              tileColor: art.$2,
+              icon: icon,
+              title: title,
+              subtitle: line,
+              onTap: () => open(page),
             ),
-          ),
-          _Divider(theme: theme),
-          MeListItem(
-            key: const ValueKey('me_tool_plan'),
-            icon: Icons.checklist_outlined,
-            image: art ? MeToolArt.plan.$1 : null,
-            tileColor: art ? MeToolArt.plan.$2 : null,
-            label: l10n.meItemActionLoop,
-            subtitle: l10n.meItemActionLoopSubtitle,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ActionLoopLandingPage(),
-              ),
-            ),
-          ),
-          _Divider(theme: theme),
-          MeListItem(
-            key: const ValueKey('me_tool_reading'),
-            icon: Icons.menu_book_outlined,
-            image: art ? MeToolArt.reading.$1 : null,
-            tileColor: art ? MeToolArt.reading.$2 : null,
-            label: l10n.meItemArticles,
-            subtitle: l10n.meItemArticlesSubtitle,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const EducationLibraryPage(),
-              ),
-            ),
-          ),
-          _Divider(theme: theme),
-          MeListItem(
-            key: const ValueKey('me_tool_small_action'),
-            icon: Icons.people_outline,
-            image: art ? MeToolArt.smallAction.$1 : null,
-            tileColor: art ? MeToolArt.smallAction.$2 : null,
-            label: isEn ? 'Social suggestions' : '一啲社交小行動',
-            subtitle: isEn
-                ? "Small things to try with people you already know"
-                : '同你熟悉嘅人試一啲細微嘅事',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const SocialSuggestionsPage(),
-              ),
-            ),
-          ),
+            const SizedBox(height: 14),
+          ],
         ],
-      ),
-    );
-  }
-}
-
-class _Divider extends StatelessWidget {
-  final ThemeData theme;
-  const _Divider({required this.theme});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Divider(
-        color: theme.colorScheme.outlineVariant,
-        height: 1,
       ),
     );
   }

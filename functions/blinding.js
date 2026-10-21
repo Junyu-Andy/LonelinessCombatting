@@ -279,6 +279,9 @@ const HELD_BACK = [
   // `source` hybrid / rule names the arm) and its ratings (also carry
   // `source`).  Metadata and ratings go to the process / analysis exports.
   "reminiscence_v2", "reminiscence_chapters", "reminiscence_chapter_ratings",
+  // 1020l (1020j 一 (4)): the research transcript (the elder's message and
+  // the reply shown, per turn).  Never in a blinded export.
+  "chat_transcripts",
 ];
 
 /**

@@ -33,7 +33,8 @@ const CHECKS = [
   ['app_config/feature_flags', 'checkInChatV2Enabled', true,
     'T55 check-in 对话化 + 08:30 P1、19:00 P2（10/21 开）'],
   ['app_config/feature_flags', 'weeklyReminderV2Enabled', true,
-    'T56 每周问卷整日窗口、10:00 提醒、给 Junyu 的电邮（1020e；装新构建后开）'],
+    'T56 每周问卷整日窗口、10:00 提醒、给 Junyu 的电邮（1020e；第 5 至 7 周 ' +
+    'PGIC 也按整日，10/20 第 98 条；装新构建后开）'],
   // 1020b §2: two of #126's switches stay off for 10/21; 1020c 一: Junyu
   // turns the other two on once the 10/20 phone test passes, before the
   // first RCT- registration.
@@ -43,6 +44,10 @@ const CHECKS = [
     '#126，被第 3 批 D 节取代'],
   ['app_config/feature_flags', 'appFontScaleOnlyEnabled', true,
     '#126，1020c 定开（10/20 手机测试过后、第一位 RCT- 前）'],
+  // 1020l §二 (2): iPad only (phones never change); expected value set by
+  // Junyu.
+  ['app_config/feature_flags', 'wideScreenFrameEnabled', null,
+    '1020l iPad 等大屏内容限宽 600、居中（手机不变，两组相同），期望值待 Junyu 定'],
   ['app_config/feature_flags', 'suggestionsUseProfileEnabled', true,
     '#126，1020c 定开（同上）'],
   ['app_config/feature_flags', 'usageEventsEnabled', true, 'T40 使用事件'],
@@ -75,20 +80,39 @@ const CHECKS = [
   // then.  homeLayoutV2Enabled and moodRowV2Enabled must be on together:
   // with only one on, the old mood board's Hybrid-only pop-up and the old
   // mood words are still reachable (1020g 二 (5)(b)).
-  ['app_config/feature_flags', 'homeLayoutV2Enabled', null,
-    '第 3 批首页两页（#133），须和 moodRowV2Enabled 同开同关'],
+  // 1020m 第五节: page 1 is on in production (the small-action row of
+  // 1020m 第二节 has no switch of its own — it is part of page 1).
+  ['app_config/feature_flags', 'homeLayoutV2Enabled', true,
+    '第 3 批首页两页（#133），须和 moodRowV2Enabled 同开同关；1020m 小行动一行在里面'],
   ['app_config/feature_flags', 'moodRowV2Enabled', null,
     '第 3 批心情一行（#133），须和 homeLayoutV2Enabled 同开同关'],
   ['app_config/feature_flags', 'keyboardCompactHeaderEnabled', null,
     '1020c 键盘打开时顶栏变一行（#131），真机测过就开'],
-  ['app_config/feature_flags', 'htmlReadersEnabled', null,
-    '1020c 小讀本（#130），真机测不完就整项留到 Phase B 之后'],
+  ['app_config/feature_flags', 'htmlReadersEnabled', true,
+    '小讀本 14 篇随冻结构建进包（decisions-log 10/21 第 109–113 条）'],
+  // 1020k (decisions-log 10/20 items 77–79): the lines before the reverse
+  // items and the Weekly PR pages.  Expected value set by Junyu.
+  ['app_config/feature_flags', 'scaleDirectionCuesEnabled', null,
+    '1020k 反向题前的过渡句 + Weekly PR 反向三题固定第 3 页（两组相同），期望值待 Junyu 定'],
+  // 1020l (1020j 一 (4)): research transcript of every chat turn.  Junyu
+  // decides when (consent wording first); "—" until then.
+  ['app_config/feature_flags', 'researchTranscriptEnabled', null,
+    '1020l 对话原文存档（两组，老人看不到变化），期望值待 Junyu 定'],
+  // 1020o 二 (4) / 四 (1): copy that can override the new FAQ answer 4 and
+  // the reminiscence landing line.  Shown only; "—" = no expectation.
+  ['app_config/usage_copy', 'faq_skip_checkin_answer_zh', null,
+    '1020o 常見問題第 4 条；设了就盖住新答案'],
+  ['app_config/usage_copy', 'reminiscence_landing_intro_zh', null,
+    '1020o 人生點滴页顶一句；设了就盖住新文字'],
   ['app_config/feature_flags', 'sessionBriefPrV2Enabled', 'absent',
     '放错位置的键，应删掉（正确位置在 phase_b）'],
   ['app_config/phase_b', 'sessionBriefPrV2Enabled', true, 'T25 收尾按钮'],
   ['app_config/phase_b', 'weeklyScheduleV2Enabled', true, 'T24 每周问卷'],
   ['app_config/phase_b', 'socialContactProbeEnabled', true, '社会接触探针'],
-  ['app_config/phase_b', 'weeklyPushHour', 20, '每周推送 20:00'],
+  ['app_config/phase_b', 'weeklyPushHour', 10,
+    '只在 weeklyReminderV2Enabled 关时用（第 1 至 7 周推送和 72 小时窗口' +
+    '的钟点）；开着时不读，每周都是 00:00 开、10:00 推。代码默认也是 10' +
+    '（10/20 第 96、98 条）'],
   ['app_config/phase_a', 'sessionIdleTimeoutMin', 'absent',
     '测试残留，应删（正式 30 分钟来自 phase_b）'],
   ['app_config/phase_a', 'w2DayOffset', 'absent', '测试残留，应删'],

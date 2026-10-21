@@ -36,6 +36,17 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- 10/20 (decisions-log 99/100): every notification uses the white
+             陪住 silhouette (tool/make_notification_icon.py) on the theme
+             colour, instead of the full-colour app icon, which Android shows
+             as a blank shape.  The App posts no local notifications; all
+             come through FCM, which reads these two. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_peizhu" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

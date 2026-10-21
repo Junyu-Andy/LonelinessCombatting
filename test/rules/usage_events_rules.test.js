@@ -160,7 +160,7 @@ describe('T40: users/{uid}/usage_events', () => {
           await assertSucceeds(addDoc(col(me()), reader('reader_open')));
           await assertSucceeds(addDoc(col(me()),
             reader('reader_section', { sectionId: 's2_middle' })));
-          for (const cta of ['small_action', 'plan', 'thought']) {
+          for (const cta of ['small_action', 'plan', 'thought', 'chat_siu_yan']) {
             await assertSucceeds(addDoc(col(me()),
               reader('reader_cta', { cta })));
           }

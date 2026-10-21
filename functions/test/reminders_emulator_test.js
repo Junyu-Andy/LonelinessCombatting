@@ -269,6 +269,115 @@ test("a reminder claimed as 'sending' by a crashed run is not resent",
       assert.strictEqual(m.sent.length, 0);
     });
 
+// ---- 1020m 第二节: 「改日」 / 「做咗」 on page 1's small-action row ----
+
+async function seedHomePlan(uid, planId, fields, fireAt) {
+  await db.doc(`users/${uid}/action_plans/${planId}`).set(Object.assign({
+    action: "去公園行下", whenText: "上晝", arm: "B", outcome: null,
+  }, fields));
+  await db.doc(`users/${uid}/reminders/r_${planId}`).set({
+    kind: "m7_followup",
+    fireAt,
+    titleZh: "件事點呀？",
+    titleEn: "How did it go?",
+    bodyZh: "你之前計劃做：去公園行下。",
+    bodyEn: "Your plan: 去公園行下.",
+    linkedDocId: planId,
+    delivered: false,
+  });
+}
+
+test("1020m: a reminder the App moved after the first 改日 is sent on the " +
+    "new day (both arms)", async () => {
+  await reset({enabled: true});
+  await seedUser("ua", {arm: "A"});
+  await seedUser("ub", {arm: "B"});
+  for (const uid of ["ua", "ub"]) {
+    // 改日 on 10/07; the App moved the reminder from 10/07 09:30.
+    await seedHomePlan(uid, "p1", {homeRowStatus: "later",
+      homeRowAnsweredDate: "2026-10-07", homeRowLaterCount: 1,
+      homeRowDueDate: "2026-10-08"}, "2026-10-08T09:30:00.000");
+  }
+  const m = fakeMessaging();
+  const r = await reminders.dispatchDueReminders(db, m,
+      {now: NOW, log: silent});
+  assert.strictEqual(r.sent, 2);
+  assert.strictEqual((await rem("ub", "r_p1")).dispatchStatus, "sent");
+});
+
+test("1020m: the App's move did not land → the server moves the reminder " +
+    "to the plan's new day, same time, and sends it then", async () => {
+  await reset({enabled: true});
+  await seedUser("u1");
+  // 改日 at 08:00 on 10/08; the reminder is still on 10/08 09:30.
+  await seedHomePlan("u1", "p1", {homeRowStatus: "later",
+    homeRowAnsweredDate: "2026-10-08", homeRowLaterCount: 1,
+    homeRowDueDate: "2026-10-09"}, "2026-10-08T09:30:00.000");
+  const m = fakeMessaging();
+  const r = await reminders.dispatchDueReminders(db, m,
+      {now: NOW, log: silent});
+  assert.strictEqual(r.moved_home_later, 1);
+  assert.strictEqual(m.sent.length, 0);
+  const d = await rem("u1", "r_p1");
+  assert.strictEqual(d.fireAt, "2026-10-09T09:30:00.000");
+  assert.strictEqual(d.movedFromFireAt, "2026-10-08T09:30:00.000");
+  assert.strictEqual(d.movedBy, "server_home_row");
+  assert.strictEqual(d.delivered, false);
+  assert.strictEqual(d.dispatchStatus, undefined);
+  // Later that day: waiting.  The next day at 09:45: sent once.
+  const again = await reminders.dispatchDueReminders(db, m,
+      {now: new Date("2026-10-08T12:00:00Z"), log: silent});
+  assert.strictEqual(again.sent, undefined);
+  const next = await reminders.dispatchDueReminders(db, m,
+      {now: new Date("2026-10-09T01:45:00Z"), log: silent});
+  assert.strictEqual(next.sent, 1);
+  assert.strictEqual(m.sent.length, 1);
+});
+
+test("1020m: answered on the row that day (second 改日) → no push",
+    async () => {
+      await reset({enabled: true});
+      await seedUser("u1");
+      await seedHomePlan("u1", "p1", {homeRowStatus: "later",
+        homeRowAnsweredDate: "2026-10-08", homeRowLaterCount: 2,
+        homeRowDueDate: "2026-10-08"}, "2026-10-08T09:30:00.000");
+      const m = fakeMessaging();
+      const r = await reminders.dispatchDueReminders(db, m,
+          {now: NOW, log: silent});
+      assert.strictEqual(r.skipped_home_answered, 1);
+      assert.strictEqual(m.sent.length, 0);
+      assert.strictEqual((await rem("u1", "r_p1")).dispatchStatus,
+          "skipped_home_answered");
+      // Terminal.
+      const again = await reminders.dispatchDueReminders(db, m,
+          {now: NOW, log: silent});
+      assert.strictEqual(again.skipped_home_answered, undefined);
+    });
+
+test("1020m: 做咗 on the row (outcome happened, followUpSource home_row) " +
+    "→ skipped_followed_up as before", async () => {
+  await reset({enabled: true});
+  await seedUser("u1", {arm: "B"});
+  await seedHomePlan("u1", "p1", {outcome: "happened",
+    followUpSource: "home_row", homeRowStatus: "done",
+    homeRowAnsweredDate: "2026-10-08"}, "2026-10-08T09:30:00.000");
+  const m = fakeMessaging();
+  const r = await reminders.dispatchDueReminders(db, m,
+      {now: NOW, log: silent});
+  assert.strictEqual(r.skipped_followed_up, 1);
+  assert.strictEqual(m.sent.length, 0);
+});
+
+test("1020m: a plan never touched by the row is sent as before", async () => {
+  await reset({enabled: true});
+  await seedUser("u1");
+  await seedHomePlan("u1", "p1", {}, "2026-10-08T09:30:00.000");
+  const m = fakeMessaging();
+  const r = await reminders.dispatchDueReminders(db, m,
+      {now: NOW, log: silent});
+  assert.strictEqual(r.sent, 1);
+});
+
 (async () => {
   let failed = 0;
   for (const t of tests) {

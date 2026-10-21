@@ -8,8 +8,14 @@
 ///   (b) Brief PR invitation — the existing BriefPrCardHost (TodayPage).
 ///   (c) [QuestionnaireTodoRow] — W5 while a weekly questionnaire is open
 ///       (請盡快回答 / 聽日截止 / 今晚截止; week 4 記得喺見面之前答埋佢 —
-///       1020e), else W4 (the next opening day by study week).
-///   (d) the action-plan follow-up — the existing ActivePlanBanner.
+///       1020e), else W4 (the next opening day by study week).  1020l §二
+///       (1): two lines like the check-in row — a title, then a small
+///       line with the deadline day (W5-2) or the opening day (W4).
+///   (d) 1020m 第二节: the small-action row ([HomeSmallActionRow],
+///       home_small_action_row.dart) — 「今日想做啲咩小行動？」 / 「今日計劃：
+///       {…}」 with 「做咗」「改日」.  It replaced batch 3's action-plan
+///       follow-up here (the old ActivePlanBanner, which stays only in the
+///       old one-page layout).
 library;
 
 import 'dart:async';
@@ -28,9 +34,11 @@ import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/data/user_profile.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
+import '../../../context/data/check_in_response_store.dart';
 import '../../../weekly_bundle/data/weekly_bundle.dart';
 import '../../../weekly_bundle/presentation/weekly_bundle_flow_page.dart';
 import '../../data/home_v2_copy.dart';
+import '../../data/mood_recorder.dart';
 import '../home_v2_scope.dart';
 
 /// D1 「今日要做嘅事」.
@@ -64,6 +72,9 @@ class TodoRowTile extends StatelessWidget {
     this.subtitle,
     this.onTap,
     this.done = false,
+    this.trailing,
+    this.footer,
+    this.titleMaxLines,
   });
 
   final IconData leading;
@@ -71,6 +82,15 @@ class TodoRowTile extends StatelessWidget {
   final String? subtitle;
   final VoidCallback? onTap;
   final bool done;
+
+  /// 1020m: in place of the chevron (the 「遲啲先」 text button).
+  final Widget? trailing;
+
+  /// 1020m: full width under the title line (「做咗」「改日」).
+  final Widget? footer;
+
+  /// 1020m: 1 = one line ending in 「…」 (a plan's text); null = wraps.
+  final int? titleMaxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +112,7 @@ class TodoRowTile extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 60),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
-              child: Row(
+              child: _withFooter(Row(
                 children: [
                   Icon(leading,
                       size: 26,
@@ -105,6 +125,10 @@ class TodoRowTile extends StatelessWidget {
                       children: [
                         Text(
                           title,
+                          maxLines: titleMaxLines,
+                          overflow: titleMaxLines == null
+                              ? null
+                              : TextOverflow.ellipsis,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: fg,
@@ -124,14 +148,26 @@ class TodoRowTile extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (onTap != null)
+                  if (trailing != null)
+                    trailing!
+                  else if (onTap != null)
                     Icon(Icons.chevron_right_rounded, size: 28, color: fg),
                 ],
-              ),
+              )),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _withFooter(Widget row) {
+    final f = footer;
+    if (f == null) return row;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [row, const SizedBox(height: 10), f],
     );
   }
 }
@@ -196,13 +232,26 @@ class _CheckInTodoRowState extends State<CheckInTodoRow>
     final uid = AppSettingsScope.read(context).profile?.uid;
     if (uid == null) return;
     final scope = HomeV2Scope.maybeOf(context);
-    final check =
-        AdherenceCheck(available: AuthServiceScope.of(context).available);
+    final available = AuthServiceScope.of(context).available;
+    final check = AdherenceCheck(available: available);
+    final responses = scope?.checkInResponses ??
+        FirestoreCheckInResponseStore(available: available);
+    // The real clock, as 小欣's page (tests: the scope's clock).
+    final today = MoodRecorder.dateIsoFor(HomeV2Scope.now(context));
     var done = false;
     int? days;
     try {
       done = await (scope?.checkedInToday ?? check.hasCheckedInToday)(uid);
     } catch (_) {}
+    // 10/20 第 99–100 条: a check-in an acute hit ended today, not marked
+    // 誤觸, counts as done — as on the server and on 小欣's page, which then
+    // opens as the chat.  Same Hong Kong date as the check-in.
+    if (!done) {
+      try {
+        final rows = await responses.rowsForDay(uid: uid, dateIso: today);
+        done = rows.values.any(isStoppedUnmarked);
+      } catch (_) {}
+    }
     try {
       days = await (scope?.daysSinceLastCheckIn ?? check.daysSinceLastCheckIn)(
           uid);
@@ -279,6 +328,7 @@ class QuestionnaireRowInfo {
 
   bool get isOpen => due != null;
 
+  /// The whole sentence (W4 / W5), as in the spec.
   String get text => switch (state) {
         null => HomeV2Copy.w4(opensOn!),
         QuestionnaireOpenState.asap => HomeV2Copy.w5(HomeV2Copy.w5Asap),
@@ -288,6 +338,32 @@ class QuestionnaireRowInfo {
         QuestionnaireOpenState.beforeVisit =>
           HomeV2Copy.w5(HomeV2Copy.w5BeforeVisit),
       };
+
+  /// 1020l §二 (1) — the row's title line: W5 without its full stop (a
+  /// title, like 「同小欣 check-in」; it then fits one line on a 360-wide
+  /// phone at the standard size); W4 up to its colon (`下次問卷`).
+  String get title {
+    if (state == null) return HomeV2Copy.w4Title;
+    final t = text;
+    return t.endsWith('。') ? t.substring(0, t.length - 1) : t;
+  }
+
+  /// 1020l §二 (1) — the small second line: W4 after its colon (the opening
+  /// day …); W5-2 (the window's last day) while open in weeks 1–3 / 5–7;
+  /// none in week 4 (closes after the visit, no date to give).
+  String? get subtitle {
+    final s = state;
+    if (s == null) return HomeV2Copy.w4Subtitle(opensOn!);
+    if (s == QuestionnaireOpenState.beforeVisit) return null;
+    return HomeV2Copy.w5Deadline(lastDay(due!.window));
+  }
+
+  /// The calendar day of the window's last instant (a window ending at
+  /// 00:00 ends the day before).
+  static DateTime lastDay(WeeklyWindow window) {
+    final last = window.close.subtract(const Duration(microseconds: 1));
+    return DateTime(last.year, last.month, last.day);
+  }
 
   /// From the window the App's schedule gives (no day numbers here, so a
   /// moved window — batch 4's day 7 00:00 – day 9 23:59, the week-4 close
@@ -455,6 +531,10 @@ class _QuestionnaireTodoRowState extends State<QuestionnaireTodoRow>
     HomeV2Refresh.bump();
   }
 
+  /// 1020l §二 (1): the same tile as the check-in row — a title line and a
+  /// small second line (the deadline day, or the opening day), the arrow
+  /// only when it opens the questionnaire.  Tapping is unchanged: open →
+  /// the questionnaire; not yet open → nothing.
   @override
   Widget build(BuildContext context) {
     final info = _info;
@@ -467,7 +547,8 @@ class _QuestionnaireTodoRowState extends State<QuestionnaireTodoRow>
       leading: info.isOpen
           ? Icons.assignment_outlined
           : Icons.event_available_outlined,
-      title: info.text,
+      title: info.title,
+      subtitle: info.subtitle,
       onTap: due == null ? null : () => _open(due),
     );
   }

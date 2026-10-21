@@ -60,6 +60,20 @@ class AgentDisplayVariant {
     required this.avatarAsset,
     this.variant,
   });
+
+  /// 1020l: the one character drawn when the picture cannot load — this
+  /// companion's own initial (阿伯 → 伯, 阿珍 → 珍, 小欣 → 小, 通通 → 通).
+  String get initialZh => avatarInitial(displayNameZh);
+}
+
+/// 1020l: the initial of a companion name, for a round avatar whose picture
+/// cannot load.  Names starting with 「阿」 use the next character, because
+/// 「阿」 is the same for 阿珍 and 阿伯 and would not tell them apart.
+String avatarInitial(String name) {
+  final chars = name.characters;
+  if (chars.isEmpty) return '';
+  if (chars.length > 1 && chars.first == '阿') return chars.elementAt(1);
+  return chars.first;
 }
 
 /// Static description of an agent. Holds presentation, mapping to the

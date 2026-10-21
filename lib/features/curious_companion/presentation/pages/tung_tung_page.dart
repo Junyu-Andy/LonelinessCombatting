@@ -55,6 +55,7 @@ import '../../data/tung_tung_rule_pool.dart';
 import '../../data/tung_tung_rule_responder.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
+import '../../../crisis/presentation/widgets/crisis_chat_message.dart';
 
 class TungTungPage extends StatefulWidget {
   /// Optional article body / title injected by M8's "問下呢篇" entry.
@@ -224,6 +225,9 @@ class _TungTungPageState extends State<TungTungPage> {
           DateTime.now().difference(DateTime.utc(2026)).inDays;
       final opener = TungTungRulePool.openerFor(_openerOffset);
       setState(() => _turns.add(_Turn.bot(isEn ? opener.en : opener.zh)));
+      // Decision 0069: the opener opens the research transcript (both arms).
+      _recorder?.transcriptCompanion(isEn ? opener.en : opener.zh,
+          status: LlmStatus.ruleBased);
       unawaited(AnalyticsScope.of(context).logEvent('tung_tung_opener_shown', {
         'opener_id': opener.id,
         'pool_version': TungTungRulePool.version,
@@ -239,6 +243,7 @@ class _TungTungPageState extends State<TungTungPage> {
           ? 'I read the piece you opened. Ask me anything about it.'
           : '我睇完你揀嘅嗰篇。有咩想問都得。';
       setState(() => _turns.add(_Turn.bot(opener)));
+      _recorder?.transcriptCompanion(opener);
       return;
     }
 
@@ -256,6 +261,8 @@ class _TungTungPageState extends State<TungTungPage> {
         if (!mounted) return;
         if (cached != null && cached.isNotEmpty) {
           setState(() => _turns.add(_Turn.bot(cached)));
+          // Written by the model earlier (agent_greetings).
+          _recorder?.transcriptCompanion(cached, status: LlmStatus.ok);
           return;
         }
       } catch (_) {
@@ -277,6 +284,7 @@ class _TungTungPageState extends State<TungTungPage> {
             : '你好啊。最近有冇咩想知或者想傾嘅嘢？');
     if (mounted) {
       setState(() => _turns.add(_Turn.bot(opener)));
+      _recorder?.transcriptCompanion(opener);
     }
   }
 
@@ -367,6 +375,7 @@ class _TungTungPageState extends State<TungTungPage> {
           modality: usedVoice ? InputModality.voice : InputModality.text,
           voiceMs: voiceMs,
           charCount: text.length,
+          userText: text,
         );
         return;
       }
@@ -464,6 +473,7 @@ class _TungTungPageState extends State<TungTungPage> {
 
     final history = _turns
         .take(_turns.length - 1)
+        .where((t) => !t.crisis)
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
     final response = await core.llm.send(
@@ -502,11 +512,11 @@ class _TungTungPageState extends State<TungTungPage> {
     final modality = usedVoice ? InputModality.voice : InputModality.text;
     final mode = widget.articleContext != null ? 'A' : 'B';
     if (response.shortCircuited) {
-      // S-2 — acute: template instead of any reply; session ends `crisis`.
+      // S-2 — acute: the fixed safety message instead of any reply
+      // (1020m 第三节: [CrisisChatMessage]); session ends `crisis`.
       setState(() {
         _busy = false;
-        _turns.add(_Turn.system(
-            SafetyCopy.acuteAck(AgentRegistry.tungTungId, isEn: isEn)));
+        _turns.add(_Turn.crisis());
       });
       unawaited(_recorder?.logTurn(TurnRecord(
         agentId: AgentRegistry.tungTungId,
@@ -516,6 +526,7 @@ class _TungTungPageState extends State<TungTungPage> {
         modality: modality,
         voiceDurationMs: voiceMs,
         charCount: text.length,
+        userText: text,
         detector: response.inputFlag,
         shortCircuited: true,
         ackShown: true,
@@ -523,6 +534,7 @@ class _TungTungPageState extends State<TungTungPage> {
         tungTungMode: mode,
         tungTungArticleId: widget.articleId,
         tungTungSearchInvoked: searchThisTurn,
+        shownReply: [CrisisChatMessage.transcriptText(isEn: isEn)],
       )));
       unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
@@ -539,12 +551,16 @@ class _TungTungPageState extends State<TungTungPage> {
     final moderateAck = escalation.interrupts
         ? SafetyCopy.moderateAck(AgentRegistry.tungTungId, isEn: isEn)
         : null;
+    // 1020m 第三节: acute on the reply scan → the fixed safety message
+    // under the reply (the crisis page opens below, as before).
+    final crisis = escalation.level == DistressLevel.acute;
     final replyShownAt = DateTime.now();
     setState(() {
       _busy = false;
       _turns.add(_Turn.bot(replyText,
           promptHash: response.metadata.systemPromptHash));
       if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
+      if (crisis) _turns.add(_Turn.crisis());
     });
     final turnIndex = _turns.lastIndexWhere((t) => !t.fromUser && !t.isSystem);
     final turnDocId = await _recorder?.logTurn(TurnRecord(
@@ -555,13 +571,21 @@ class _TungTungPageState extends State<TungTungPage> {
       modality: modality,
       voiceDurationMs: voiceMs,
       charCount: text.length,
+      userText: text,
       detector: escalation,
       shortCircuited: false,
-      ackShown: moderateAck != null,
+      ackShown: moderateAck != null || crisis,
       response: response,
       tungTungMode: mode,
       tungTungArticleId: widget.articleId,
       tungTungSearchInvoked: searchThisTurn,
+      // Decision 0069: as shown — the fallback line, the safety line, the crisis
+      // message.
+      shownReply: [
+        replyText,
+        if (moderateAck != null) moderateAck,
+        if (crisis) CrisisChatMessage.transcriptText(isEn: isEn),
+      ],
     ));
     if (mounted && turnDocId != null && turnIndex >= 0) {
       setState(() =>
@@ -606,6 +630,7 @@ class _TungTungPageState extends State<TungTungPage> {
     required InputModality modality,
     required int? voiceMs,
     required int charCount,
+    required String userText,
   }) async {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final analytics = AnalyticsScope.of(context);
@@ -623,6 +648,7 @@ class _TungTungPageState extends State<TungTungPage> {
       modality: modality,
       voiceDurationMs: voiceMs,
       charCount: charCount,
+      userText: userText,
       detector: flag,
       shortCircuited: false,
       ackShown: false,
@@ -639,6 +665,7 @@ class _TungTungPageState extends State<TungTungPage> {
       ),
       tungTungMode: 'B',
       tungTungSearchInvoked: false,
+      shownReply: [replyText],
     ));
     unawaited(analytics.logEvent('tung_tung_search_off_reply', {
       'arm': 'A',
@@ -694,7 +721,11 @@ class _TungTungPageState extends State<TungTungPage> {
           .match;
     }
 
-    TurnRecord record(String reply, {required bool acute, bool ack = false}) =>
+    // Decision 0069: [shown] = the bubbles added in reply (research transcript).
+    TurnRecord record(String reply,
+            {required bool acute,
+            bool ack = false,
+            required List<String> shown}) =>
         TurnRecord(
           agentId: AgentRegistry.tungTungId,
           moduleId: 'tung_tung_chat',
@@ -703,6 +734,7 @@ class _TungTungPageState extends State<TungTungPage> {
           modality: modality,
           voiceDurationMs: voiceMs,
           charCount: text.length,
+          userText: text,
           detector: flag,
           shortCircuited: acute,
           ackShown: ack,
@@ -719,15 +751,19 @@ class _TungTungPageState extends State<TungTungPage> {
             turnId: safetyTurnId,
           ),
           tungTungMode: 'B',
+          shownReply: shown,
         );
 
     if (flag.level == DistressLevel.acute) {
+      // 1020m 第三节: the same fixed safety message as the Hybrid page.
       setState(() {
         _busy = false;
-        _turns.add(_Turn.system(
-            SafetyCopy.acuteAck(AgentRegistry.tungTungId, isEn: isEn)));
+        _turns.add(_Turn.crisis());
       });
-      unawaited(_recorder?.logTurn(record('', acute: true, ack: true)));
+      unawaited(_recorder?.logTurn(record('',
+          acute: true,
+          ack: true,
+          shown: [CrisisChatMessage.transcriptText(isEn: isEn)])));
       unawaited(_recorder?.end(SessionEndReason.crisis));
       if (!mounted) return;
       await core.distressRouter.route(flag, context: context);
@@ -769,8 +805,10 @@ class _TungTungPageState extends State<TungTungPage> {
       if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
     });
     if (searchOff) _logS1aShown(arm: 'B');
-    final turnDocId = await _recorder
-        ?.logTurn(record(replyText, acute: false, ack: moderateAck != null));
+    final turnDocId = await _recorder?.logTurn(record(replyText,
+        acute: false,
+        ack: moderateAck != null,
+        shown: [replyText, if (moderateAck != null) moderateAck]));
     unawaited(analytics.logEvent('tung_tung_rule_reply', {
       'template_id': reply.id,
       'responder_version': TungTungRuleResponder.version,
@@ -1106,6 +1144,7 @@ class _TurnBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (turn.crisis) return const CrisisChatMessage();
     final theme = Theme.of(context);
     final color = turn.fromUser
         ? theme.colorScheme.primaryContainer
@@ -1424,12 +1463,18 @@ class _Turn {
 
   /// L-1 — id of the logged `turns/{turnId}` doc (assistant turns only).
   final String? turnDocId;
+
+  /// 1020m 第三节: shown as [CrisisChatMessage]; never sent to the model.
+  final bool crisis;
   const _Turn._(this.fromUser, this.isSystem, this.text,
-      {this.promptHash, this.turnDocId});
+      {this.promptHash, this.turnDocId, this.crisis = false});
   factory _Turn.user(String t) => _Turn._(true, false, t);
   factory _Turn.bot(String t, {String? promptHash}) =>
       _Turn._(false, false, t, promptHash: promptHash);
   factory _Turn.system(String t) => _Turn._(false, true, t);
-  _Turn withTurnDocId(String id) =>
-      _Turn._(fromUser, isSystem, text, promptHash: promptHash, turnDocId: id);
+
+  /// 1020m 第三节: the fixed safety message after an acute trigger.
+  factory _Turn.crisis() => _Turn._(false, true, '', crisis: true);
+  _Turn withTurnDocId(String id) => _Turn._(fromUser, isSystem, text,
+      promptHash: promptHash, turnDocId: id, crisis: crisis);
 }

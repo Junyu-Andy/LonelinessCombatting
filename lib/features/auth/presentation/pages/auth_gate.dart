@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -8,7 +7,6 @@ import '../../../../core/config/usage_copy_loader.dart';
 import '../../../../core/feature_flags/feature_flags.dart';
 import '../../../../core/feature_flags/remote_feature_flags.dart';
 
-import '../../../../app/app_settings.dart';
 import '../../../../app/app_settings_scope.dart';
 import '../../../../app/main_shell.dart';
 import '../../../../shared/widgets/app_loading_indicator.dart';
@@ -124,7 +122,6 @@ class _AuthGateState extends State<AuthGate> {
             // see the real values.
             if (profile != null) {
               await _reloadRemoteConfig();
-              await _syncQuietHours(profile.uid, settings);
               if (mounted) setState(() => _configRevision++);
             }
           }
@@ -172,25 +169,9 @@ Future<void> _reloadRemoteConfig() async {
   }
 }
 
-/// 10/14 fix: keep 「安靜時段」 on the phone and on the server in step.
-/// The server value wins when it exists (a reinstall or a second phone
-/// picks up the elder's earlier choice); when it is missing, the local
-/// value is written so the push senders see the same thing the page shows.
-Future<void> _syncQuietHours(String uid, AppSettings settings) async {
-  try {
-    final ref = FirebaseFirestore.instance.collection('users').doc(uid);
-    final snap = await ref.get();
-    final remote = snap.data()?['quietHoursEnabled'];
-    if (remote is bool) {
-      if (settings.quietHours != remote) settings.quietHours = remote;
-    } else {
-      await ref.set({'quietHoursEnabled': settings.quietHours},
-          SetOptions(merge: true));
-    }
-  } catch (e) {
-    if (kDebugMode) debugPrint('[AuthGate] quiet hours sync failed: $e');
-  }
-}
+// 1020o: the 10/14 「安靜時段」 on/off sync (users/{uid}.quietHoursEnabled)
+// is gone; the elder's window is read with the profile
+// (UserProfile.quietHoursStart / quietHoursEnd).
 
 class _Loading extends StatelessWidget {
   const _Loading();

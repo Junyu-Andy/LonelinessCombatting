@@ -37,6 +37,7 @@ import '../l10n/app_localizations.dart';
 import 'app_settings.dart';
 import 'app_settings_scope.dart';
 import 'app_theme.dart';
+import 'wide_screen_frame.dart';
 
 class MyApp extends StatefulWidget {
   final AppSettings settings;
@@ -168,6 +169,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
+        // Decision 0069: research transcript rows wait for the next message again.
+        ChatSessionRecorder.transcriptAppResumed();
         if (!_sessionOpen) {
           _sessionOpen = true;
           _sessionStartedAt = DateTime.now();
@@ -185,6 +188,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
         ScreenDwellTracker.instance.backgroundAll();
+        // Decision 0069: write the research transcript rows still open (the OS may
+        // end the process in the background).
+        ChatSessionRecorder.transcriptAppPaused();
         if (_sessionOpen) {
           _sessionOpen = false;
           widget.analytics.logEvent(PhaseAEvents.appBackground);
@@ -275,11 +281,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               );
               return MediaQuery(
                 data: scaled,
-                // 1020c: pages (the 小讀本 reader) reach the recorder here.
-                child: UsageEventsScope(
-                  recorder: _usage,
-                  child: SafetyOverlay(
-                    child: child ?? const SizedBox.shrink(),
+                // 1020l §二 (2): on an iPad the pages sit in one centred
+                // column at most 600 wide; phones are untouched
+                // (wide_screen_frame.dart).
+                child: WideScreenFrame(
+                  enabled: RemoteFeatureFlags.current.wideScreenFrameEnabled,
+                  // 1020c: pages (the 小讀本 reader) reach the recorder here.
+                  child: UsageEventsScope(
+                    recorder: _usage,
+                    child: SafetyOverlay(
+                      child: child ?? const SizedBox.shrink(),
+                    ),
                   ),
                 ),
               );

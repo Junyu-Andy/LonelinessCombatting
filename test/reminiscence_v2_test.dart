@@ -483,7 +483,8 @@ void main() {
       await _answerAll(tester, run);
 
       expect(run.kinds(), [
-        'opener', 'opener', 'opener',
+        // 1020o (4a): the week's picture first.
+        'scene', 'opener', 'opener', 'opener',
         for (var q = 1; q <= 7; q++) ...['question', 'answer', 'fixed_line'],
         'question', 'answer', 'closing',
       ]);
@@ -770,7 +771,7 @@ void main() {
       expect(_says(ReminiscenceV2Copy.skipLine), findsOneWidget);
       expect(_says(ReminiscenceV2Copy.week(1).question(3)), findsOneWidget);
 
-      expect(run.kinds().sublist(3), [
+      expect(run.kinds().sublist(4), [
         'question', 'answer', 'followup', 'followup_answer', 'reply',
         'question', 'skip', 'fixed_line', 'question',
       ]);
@@ -1050,7 +1051,8 @@ void main() {
         await _leave(tester);
         return [
           for (final m in run.messages())
-            if (m['kind'] == 'opener' ||
+            if (m['kind'] == 'scene' ||
+                m['kind'] == 'opener' ||
                 m['kind'] == 'question' ||
                 m['kind'] == 'closing')
               m['text'] as String,
@@ -1060,7 +1062,7 @@ void main() {
       final a = await walk(ArmAssignment.a);
       final b = await walk(ArmAssignment.b);
       expect(a, b);
-      expect(a, hasLength(3 + 8 + 1));
+      expect(a, hasLength(1 + 3 + 8 + 1));
     }, skip: !_bothTestable);
 
     testWidgets('我嘅人生小篇章: ready chapters by week, 改一改 again',
