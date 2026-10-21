@@ -24,6 +24,7 @@ import '../core/safety/safety_overlay.dart';
 import '../core/session/chat_session_recorder.dart';
 import '../features/brief_pr/data/brief_pr_v2.dart';
 import '../core/telemetry/screen_dwell_observer.dart';
+import '../core/version/app_build_recorder.dart';
 import '../core/version/build_info.dart';
 import '../core/telemetry/screen_dwell_tracker.dart';
 import '../core/usage/usage_event_recorder.dart';
@@ -151,6 +152,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           widget.settings.profile?.ahJanAhBakVariant;
       unawaited(ChatSessionRecorder.sweepUnclosed(uid,
           onRecovered: BriefPrV2.onRecovered));
+      // T35 开工方式 (4): which build this phone runs (users/{uid}.appBuild,
+      // once per App open), so the research lead can see who still needs
+      // the build with the W8 page.  Nothing the elder sees.
+      if (widget.authService.available) {
+        unawaited(AppBuildRecorder.record(uid, platform: _currentPlatform()));
+      }
       await widget.fcm.initialize(uid);
     } else {
       await widget.fcm.deregister();

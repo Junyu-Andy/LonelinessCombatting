@@ -58,3 +58,9 @@ randomization_sequence_*.json
 node_modules
 node_modules/
 **/_sweep_shots/
+
+# Local ops dashboard (decision 0061): its key and exports live outside the
+# repository; these lines catch a copy that lands here by mistake.
+**/dashboard-viewer*.json
+**/*service-account*.json
+dashboard-exports/

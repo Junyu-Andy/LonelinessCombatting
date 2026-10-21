@@ -12,6 +12,8 @@ import 'package:app_demo/core/feature_flags/remote_feature_flags.dart';
 import 'package:app_demo/core/time/app_clock.dart';
 import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:app_demo/features/settings/presentation/pages/tester_weekly_bundle_page.dart';
+import 'package:app_demo/features/w8/data/w8_store.dart';
+import 'package:app_demo/features/w8/presentation/w8_flow_page.dart';
 import 'package:app_demo/features/weekly_bundle/presentation/weekly_bundle_flow_page.dart';
 import 'package:app_demo/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
@@ -83,6 +85,32 @@ void main() {
     expect(find.textContaining('今次一共有 3 部分'), findsOneWidget);
   });
 
+  testWidgets('T35: the W8 card previews the W8 flow (nothing saved)',
+      (tester) async {
+    await _pump(tester);
+    expect(find.byKey(const Key('tester_weekly_W8')), findsOneWidget);
+    await tester.ensureVisible(
+        find.byKey(const Key('tester_weekly_preview_W8')));
+    await tester.tap(find.byKey(const Key('tester_weekly_preview_W8')));
+    await tester.pumpAndSettle();
+    final flow = tester.widget<W8FlowPage>(find.byType(W8FlowPage));
+    expect(flow.store, isA<MemoryW8Store>(), reason: 'nothing is saved');
+    expect(find.text('今次一共有 5 部分，大約 8 分鐘，可以隨時停，下次由停低嗰度繼續。'),
+        findsOneWidget);
+  });
+
+  testWidgets('T35: 模擬 W8 jumps the clock to day 56 at the push hour + 30',
+      (tester) async {
+    await _pump(tester);
+    await tester.ensureVisible(
+        find.byKey(const Key('tester_weekly_simulate_W8')));
+    await tester.tap(find.byKey(const Key('tester_weekly_simulate_W8')));
+    await tester.pumpAndSettle();
+    // W0 2026-10-12 → day 56 = 12/7; weeklyPushHour default 10.
+    expect(AppClock.now().difference(DateTime(2026, 12, 7, 10, 30))
+        .inMinutes.abs(), lessThan(2));
+  }, skip: !FeatureFlags.phaseB);
+
   testWidgets('default (Phase A) build: 模擬 is off and says why',
       (tester) async {
     await _pump(tester);
@@ -123,7 +151,17 @@ void main() {
     expect(find.text('W6 · 第 42 天 · 11月23日 10:00 開'), findsOneWidget);
     expect(find.text('W7 · 第 49 天 · 11月30日 10:00 開'), findsOneWidget);
     expect(find.text('W1 · 第 7 天 · 10月19日 10:00 開'), findsOneWidget);
-    expect(find.textContaining('20:00'), findsNothing);
+    for (var i = 1; i <= 7; i++) {
+      expect(
+          find.descendant(
+              of: find.byKey(Key('tester_weekly_W$i')),
+              matching: find.textContaining('20:00')),
+          findsNothing,
+          reason: 'W$i');
+    }
+    // T35: W8 is pushed at weeklyPushHour (handover 1021-W8 一 (6)).
+    expect(find.text('W8 · 最後一份問卷 · 第 56 天 · 12月7日 20:00 推送'),
+        findsOneWidget);
     if (!FeatureFlags.phaseB) return;
     await tester.ensureVisible(
         find.byKey(const Key('tester_weekly_simulate_W5')));

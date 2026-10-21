@@ -275,6 +275,35 @@ test("the module never reads an outcome collection", () => {
   assert.ok(code.indexOf("\"turns\"") < 0, "reads conversation turns");
 });
 
+test("T35 W8 cell: real completion status from weekly_status.bundles.W8, " +
+    "counts only", () => {
+  assert.deepStrictEqual(O.w8DetailFor(null, 40), {status: "not_yet",
+    partsSubmitted: 0, parts: 5, completedAt: null,
+    completedOutOfWindow: null, optionalPart: null});
+  assert.strictEqual(O.w8DetailFor(null, 57).status, "open");
+  assert.strictEqual(O.w8DetailFor({status: "in_progress",
+    partsSubmitted: 2}, 58).partsSubmitted, 2);
+  assert.strictEqual(O.w8DetailFor({status: "not_started"}, 65).status,
+      "late");
+  const done = O.w8DetailFor({status: "completed", partsSubmitted: 5,
+    completedAt: at("2026-12-11T02:00:00Z"), completedOutOfWindow: false,
+    aimhs: "declined", parts: {djg: "submitted"}}, 66);
+  assert.deepStrictEqual(done, {status: "done", partsSubmitted: 5, parts: 5,
+    completedAt: "2026-12-11T02:00:00.000Z", completedOutOfWindow: false,
+    optionalPart: "declined"});
+  assert.strictEqual(O.w8DetailFor({closedAt: NOW}, 71).status, "missed");
+});
+
+test("T35 开工方式 (4): the App build a phone reported; null = none", () => {
+  assert.strictEqual(O.appBuildOf(null), null);
+  assert.strictEqual(O.appBuildOf("1.0.0"), null);
+  assert.deepStrictEqual(O.appBuildOf({version: "1.0.0", build: "3",
+    w8: true, platform: "android", seenAt: NOW, extra: "x"}), {
+    version: "1.0.0", build: "3", w8: true, platform: "android",
+    seenAt: NOW.toISOString()});
+  assert.strictEqual(O.appBuildOf({version: "1.0.0", build: "3"}).w8, false);
+});
+
 (async () => {
   let failed = 0;
   for (const t of tests) {
