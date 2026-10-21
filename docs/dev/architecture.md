@@ -1,5 +1,6 @@
 # 陪住 App 技术文档
 
+> 2026-10-21 决策 0072（取代 0061）：本机看板 `tool/dashboard/` 的总览每人一行显示 W1–W7 整份每周问卷的完成状态（`pages.weeklyCellsFor`／`bundleCellFor`，调用 `weekly_schedule.bundlesFor`、`windowFor`＋`windowOptsFor`、`closingDayKey`；做完按 `weekly_schedule.partSubmitted`，PGIC 看 `answeredAt`、不读分数；W8 `not_built`）；每人页多一张每周问卷表，`days[].moods` 显示每日心情数值（`daily_mood` 多读 `mood`、`is_primary`、`entry_seq_today`）。`fields.READ_EXCEPTIONS`／`OUTPUT_ALLOW`：`mood` 只在 `/api/person` 的 `$.days[].moods[].mood` 放行（数字或空），其余页面和 CSV 照旧拦下。
 > 2026-10-21 第 127 条：#152 并入，Flutter 3.44.1 是冻结构建的版本（CI、Build APK、Codemagic、`.metadata`）。
 > 2026-10-21 第 126 条 (6)：`crisis_resources.json` 的 `emergency_999` 名称改为「緊急求助」／Emergency services（`SafetyCopy.fallback` 同改），`build_info.g.dart` 的 prompt 包哈希重算。
 > 2026-10-21 第 117、118 条：`WeeklyPrItems` v3 改为「冇對我指指點點」，`weekly_pr_page.dart` 关键字同改；规格新建 `docs/spec/instruments/weekly_pr.md`（测试逐字比对）。`reminders.heldUntilFor`：过期起算点除了 fireAt 所在安靜時段的结束，还包括「下一次派发（15 分钟）前就开始、且在 fireAt 12 小时后才结束」的时段的结束（`quiet_hours.firstQuietEndAfter`）。
