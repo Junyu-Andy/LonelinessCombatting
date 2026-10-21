@@ -1,9 +1,23 @@
-/// B.4 — Thought Exercise 5-field page (Phase A spec May 2026).
+/// B.4 — Thought Exercise page 「望一望心入面」.
+///
+/// Form v2 (10/21, decisions-log 10/21 item 133 (2), PI final handoff);
+/// the v1 page is gone.  Opening line, then four questions on one scroll
+/// page:
+///   一 心入面有冇一句說話轉嚟轉去？寫低佢。 (required) + hint line;
+///      pre-filled with the elder's sentence from 小欣's invite (Hybrid)
+///   二 寫低之後，你而家覺得點？ (face, required) + 有幾強烈？ 1–10
+///      (required)
+///   三 呢個諗法係由咩引起？（可以留空） (optional)
+///   四 如果有個好朋友都咁諗，你會同佢講咩？ (optional)
+/// then 繼續 saves, the safety check runs on 一/三/四, and 前後對照
+/// asks the after-rating (1–10).  Words: docs/spec/copy/
+/// thought-exercise.md.  Stored fields: see [ThoughtExerciseEntry].
 ///
 /// Pixel-identical across arms.  Only difference is the entry pathway:
 ///   - Arm A Siu Yan offer: launches with [initialThought] auto-filled
-///     and provenance fields populated (entryPathway = 'siu_yan_offer').
-///   - Both arms via 做啲嘢 tab: blank fields, user types Field 3
+///     into 一 and provenance fields populated
+///     (entryPathway = 'siu_yan_offer').
+///   - Both arms via 做啲嘢 tab: blank fields, user types 一
 ///     (entryPathway = 'me_tile').
 ///
 /// No LLM dialogue, no follow-up questions, no system commentary
@@ -24,7 +38,8 @@ import '../../../core/session/chat_session_recorder.dart';
 import '../../../shared/widgets/keyboard_compact.dart';
 
 class ThoughtExercisePage extends StatefulWidget {
-  /// Pre-fill for Field 3 when launched from Siu Yan's offer pathway.
+  /// Pre-fill for 一 (the thought) when launched from Siu Yan's offer
+  /// pathway.
   final String? initialThought;
 
   /// Provenance (B.5 audit).  When [agentId] is non-null, the entry is
@@ -33,12 +48,18 @@ class ThoughtExercisePage extends StatefulWidget {
   final String? agentInvitationText;
   final String? originTurnRef;
 
+  /// Tests only: where the entry is saved.  Null = Firestore
+  /// ([ThoughtExerciseRepository]).
+  @visibleForTesting
+  final ThoughtExerciseRepository? repository;
+
   const ThoughtExercisePage({
     super.key,
     this.initialThought,
     this.agentId,
     this.agentInvitationText,
     this.originTurnRef,
+    this.repository,
   });
 
   @override
@@ -46,17 +67,12 @@ class ThoughtExercisePage extends StatefulWidget {
 }
 
 class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
-  // 5 emoji choices for Field 2.  Kept few + culturally neutral.
+  // 5 emoji choices for 二.  Kept few + culturally neutral.
   static const _emojis = ['😟', '😔', '😐', '🙂', '😊'];
 
-  // Research Review v2 Item 5: first-visit hint.  In-memory flag resets
-  // each app session; persistent suppression requires Firestore/prefs integration.
-  static bool _firstVisitHintShown = false;
-  bool _showFirstVisitHint = false;
-
-  late final TextEditingController _situationCtrl;
+  // 一 → thought, 三 → situation, 四 → anotherWayToLook (v1 field names).
   late final TextEditingController _thoughtCtrl;
-  final _reasonCtrl = TextEditingController();
+  final _situationCtrl = TextEditingController();
   final _alternativeCtrl = TextEditingController();
 
   // B14 — no prefilled default.  A pre-selected midpoint emoji / midpoint
@@ -75,19 +91,12 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
   @override
   void initState() {
     super.initState();
-    _situationCtrl = TextEditingController();
     _thoughtCtrl = TextEditingController(text: widget.initialThought ?? '');
-    // Each required field drives the "繼續" button's enabled state via
-    // [_isComplete], which is recomputed during build.  Without these
-    // listeners the button stayed disabled forever because TextField
+    // The required text field (一) drives the "繼續" button's enabled
+    // state via [_isComplete], which is recomputed during build.  Without
+    // this listener the button stayed disabled forever because TextField
     // edits don't rebuild on their own.
-    _situationCtrl.addListener(_onFieldChanged);
     _thoughtCtrl.addListener(_onFieldChanged);
-    _reasonCtrl.addListener(_onFieldChanged);
-    if (!_firstVisitHintShown) {
-      _showFirstVisitHint = true;
-      _firstVisitHintShown = true;
-    }
   }
 
   void _onFieldChanged() {
@@ -97,23 +106,19 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
 
   @override
   void dispose() {
-    _situationCtrl.removeListener(_onFieldChanged);
     _thoughtCtrl.removeListener(_onFieldChanged);
-    _reasonCtrl.removeListener(_onFieldChanged);
-    _situationCtrl.dispose();
     _thoughtCtrl.dispose();
-    _reasonCtrl.dispose();
+    _situationCtrl.dispose();
     _alternativeCtrl.dispose();
     super.dispose();
   }
 
+  // Required: 一 (the thought) and 二 (face + 1–10).  三 and 四 may be
+  // blank.
   bool get _isComplete =>
-      _situationCtrl.text.trim().isNotEmpty &&
       _emoji != null &&
       _intensityBefore != null &&
-      _thoughtCtrl.text.trim().isNotEmpty &&
-      _reasonCtrl.text.trim().isNotEmpty;
-  // Field 5 (anotherWayToLook) is allowed to be blank per spec.
+      _thoughtCtrl.text.trim().isNotEmpty;
 
   Future<void> _saveAndAdvanceToExit() async {
     final profile = AppSettingsScope.read(context).profile;
@@ -123,13 +128,13 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
       return;
     }
     setState(() => _saving = true);
-    final repo = ThoughtExerciseRepository(available: auth.available);
+    final repo = widget.repository ??
+        ThoughtExerciseRepository(available: auth.available);
     final entry = ThoughtExerciseEntry(
       situation: _situationCtrl.text.trim(),
       emotionEmoji: _emoji!,
       intensityBefore: _intensityBefore!,
       thought: _thoughtCtrl.text.trim(),
-      oneReasonTrue: _reasonCtrl.text.trim(),
       anotherWayToLook: _alternativeCtrl.text.trim(),
       agentId: widget.agentId,
       agentInvitationText: widget.agentInvitationText,
@@ -139,13 +144,13 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
           widget.agentId != null ? 'siu_yan_offer' : 'me_tile',
     );
     final id = await repo.create(profile.uid, entry);
-    // T7 — the four text fields go through the shared safety check (both
-    // arms) after the entry is saved; acute opens the crisis page.
+    // T7 — the text fields (v2: 一/三/四) go through the shared safety
+    // check (both arms) after the entry is saved; acute opens the crisis
+    // page.
     if (mounted) {
       await SafetyService.of(context).checkAndRoute(
         context,
-        [entry.situation, entry.thought, entry.oneReasonTrue,
-          entry.anotherWayToLook].join('\n'),
+        [entry.thought, entry.situation, entry.anotherWayToLook].join('\n'),
         point: SafetyInputPoint.thoughtExercise,
         uid: profile.uid,
         agentId: widget.agentId,
@@ -154,9 +159,8 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
     if (mounted) {
       _entryId = id;
       await AnalyticsScope.of(context).logM5ThoughtExerciseSaved(
-        totalCharLen: entry.situation.length +
-            entry.thought.length +
-            entry.oneReasonTrue.length +
+        totalCharLen: entry.thought.length +
+            entry.situation.length +
             entry.anotherWayToLook.length,
       );
     }
@@ -178,7 +182,8 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
       return;
     }
     setState(() => _saving = true);
-    final repo = ThoughtExerciseRepository(available: auth.available);
+    final repo = widget.repository ??
+        ThoughtExerciseRepository(available: auth.available);
     await repo.setIntensityAfter(
       uid: profile.uid,
       entryId: _entryId!,
@@ -240,79 +245,37 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Research Review v2 Item 5: first-visit hint banner.
-            if (_showFirstVisitHint) ...[
-              Container(
-                padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        isEn
-                            ? 'Here you can look back at your recent moods and thoughts. Take it slow — no rush.'
-                            : '呢度可以畀你睇返自己最近嘅心情同諗法。慢慢嚟，唔趕。',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 18),
-                      color: theme.colorScheme.onPrimaryContainer,
-                      onPressed: () => setState(() => _showFirstVisitHint = false),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            // Intro line (pixel-identical across arms, static text)
+            // Opening line (pixel-identical across arms, static text).
             Text(
               isEn
-                  ? 'A small practice to look at a thought you have. No one '
-                      'will comment. There are no right answers. Take your time.'
-                  : '呢個小練習係幫你慢慢望一望自己嘅諗法。冇人會評論，亦都冇答案。慢慢嚟。',
+                  ? 'This small practice helps you look at a thought that is '
+                      'stuck in your mind. Nothing special needs to have '
+                      'happened — if a sentence keeps going round and round in '
+                      'your mind, you can write it down. No one will comment, '
+                      'and there is no right answer.'
+                  : '呢個小練習幫你望一望心入面卡住嘅諗法。唔使有咩特別事發生，'
+                      '有句說話喺心入面轉嚟轉去，都可以寫低。冇人會評論，'
+                      '亦都冇標準答案。',
               style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
             ),
             const SizedBox(height: 22),
-            _Label(text: isEn ? '1. The situation' : '一、嗰陣係咩情況？'),
-            TextField(
-              controller: _situationCtrl,
-              minLines: 1,
-              maxLines: 3,
-              style: const TextStyle(fontSize: 17, height: 1.4),
-              decoration: const InputDecoration(border: OutlineInputBorder()),
+            _Label(
+              text: isEn
+                  ? '1. Is there a sentence going round and round in your '
+                      'mind? Write it down.'
+                  : '一、心入面有冇一句說話轉嚟轉去？寫低佢。',
             ),
-            const SizedBox(height: 18),
-            _Label(text: isEn ? '2. How did you feel?' : '二、我嗰陣覺得點？'),
-            _EmojiRow(
-              value: _emoji,
-              choices: _emojis,
-              onChanged: (e) => setState(() => _emoji = e),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                isEn
+                    ? "For example: nobody remembers me; I'm useless."
+                    : '例如：冇人記得我、我冇用。',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              isEn
-                  ? 'How strong is the feeling? Tap a number (1–10)'
-                  : '感覺有幾強烈？撳一個數字（1–10）',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 8),
-            LikertScale(
-              points: 10,
-              value: _intensityBefore,
-              onChanged: (v) => setState(() => _intensityBefore = v),
-              lowLabel: isEn ? 'Very mild' : '好輕微',
-              highLabel: isEn ? 'Very strong' : '好強烈',
-            ),
-            const SizedBox(height: 8),
-            _Label(text: isEn ? '3. The thought' : '三、嗰個諗法係：'),
             TextField(
               controller: _thoughtCtrl,
               minLines: 1,
@@ -323,21 +286,48 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
             const SizedBox(height: 18),
             _Label(
               text: isEn
-                  ? '4. One reason this thought might be true'
-                  : '四、一個令呢個諗法可能成立嘅理由',
+                  ? '2. Now that you have written it, how do you feel?'
+                  : '二、寫低之後，你而家覺得點？',
+            ),
+            _EmojiRow(
+              value: _emoji,
+              choices: _emojis,
+              onChanged: (e) => setState(() => _emoji = e),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isEn
+                  ? 'How strong is it? Tap a number (1 to 10)'
+                  : '有幾強烈？撳一個數字（1 至 10）',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            LikertScale(
+              points: 10,
+              value: _intensityBefore,
+              onChanged: (v) => setState(() => _intensityBefore = v),
+              lowLabel: isEn ? 'Very mild' : '好輕微',
+              highLabel: isEn ? 'Very strong' : '好強烈',
+            ),
+            const SizedBox(height: 18),
+            _Label(
+              text: isEn
+                  ? '3. What brought this thought on? (optional)'
+                  : '三、呢個諗法係由咩引起？（可以留空）',
             ),
             TextField(
-              controller: _reasonCtrl,
-              minLines: 2,
-              maxLines: 4,
+              controller: _situationCtrl,
+              minLines: 1,
+              maxLines: 3,
               style: const TextStyle(fontSize: 17, height: 1.4),
               decoration: const InputDecoration(border: OutlineInputBorder()),
             ),
             const SizedBox(height: 18),
             _Label(
               text: isEn
-                  ? '5. One other way to look at it (optional)'
-                  : '五、一個睇呢件事嘅另一個角度（可以留空）',
+                  ? '4. If a good friend thought the same, what would you '
+                      'say to them?'
+                  : '四、如果有個好朋友都咁諗，你會同佢講咩？',
             ),
             TextField(
               controller: _alternativeCtrl,
@@ -370,9 +360,9 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
         children: [
           Text(
             isEn
-                ? 'Re-rate how you feel right now. No judgement, no escalation '
-                    "— it's fine for the number to be higher, lower, or the same."
-                : '依家再 rate 一下你嘅感覺。冇判斷、冇升降警示 —— 個數字高、低、一樣 都 OK。',
+                ? "Now that you've written it, look again at how strong the "
+                    'feeling is now. Higher, lower or the same — all fine.'
+                : '寫完之後，再睇下而家嘅感覺有幾強烈。高咗、低咗、一樣都冇問題。',
             style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
           ),
           const SizedBox(height: 20),
@@ -387,20 +377,15 @@ class _ThoughtExercisePageState extends State<ThoughtExercisePage> {
               ),
               const Icon(Icons.arrow_forward, size: 28),
               _BeforeAfterTile(
-                label: isEn ? 'Now' : '依家',
+                label: isEn ? 'Now' : '而家',
                 emoji: _emoji ?? '', // emoji not re-selected, only intensity
                 value: _intensityAfter,
               ),
             ],
           ),
           const SizedBox(height: 24),
-          Text(
-            isEn
-                ? 'How strong is it now? Tap a number (1–10)'
-                : '依家有幾強烈？撳一個數字（1–10）',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 8),
+          // v2: the explanation above is the only prompt (the v1 line
+          // 「依家有幾強烈？…」 is gone).
           LikertScale(
             points: 10,
             value: _intensityAfter,

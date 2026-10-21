@@ -34,6 +34,9 @@
 #      (T35, decision 0036: test/w8_questionnaire_test.dart runs in 1, 2 and
 #      3 — the W8 questionnaire's words, flow, home card and 1.30 text;
 #      the same pages for both arms, no model)
+#      (10/21 item 133 (2): test/thought_exercise_v2_1021_test.dart runs in
+#      1, 2 and 3 — 「望一望心入面」 v2 words, fields and safety check, the
+#      same form for both arms, no model)
 #   4. MEMORY_V1=true         — memory v1 client tests (memory branch)
 #   5. RULE_TEMPLATE_REPLIES=true — final templates on (T33: no placeholder
 #      left, so the switch alone turns them on)
@@ -94,6 +97,7 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/pgic_whole_days_1020_test.dart \
   test/research_transcript_v2_test.dart \
   test/w8_questionnaire_test.dart \
+  test/thought_exercise_v2_1021_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
@@ -120,6 +124,7 @@ run "phase B arm B pages" \
   test/pgic_whole_days_1020_test.dart \
   test/research_transcript_v2_test.dart \
   test/w8_questionnaire_test.dart \
+  test/thought_exercise_v2_1021_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \
   --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
