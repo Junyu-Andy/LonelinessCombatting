@@ -1397,6 +1397,9 @@ class _ReminiscenceV2PageState extends State<ReminiscenceV2Page> {
     final s = _state!;
     if (s.status == ReminiscenceWeekStatus.questionsDone ||
         s.status == ReminiscenceWeekStatus.inProgress) {
+      // 10/21 (decisions-log 131 (3) (b)): 「完成今個禮拜」 only once all
+      // eight questions are answered or 「唔想講」.
+      if (!s.questionsFinished) return const SizedBox.shrink();
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: FilledButton(

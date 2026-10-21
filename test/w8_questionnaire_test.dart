@@ -159,6 +159,7 @@ void main() {
       final c = _copy();
       expect(c['W8-push'], W8Texts.push);
       expect(c['W8-title'], W8Texts.title);
+      expect(c['W8-home-sub'], W8Texts.homeSubtitle);
       expect(c['W8-intro'], W8Texts.intro);
       expect([for (var i = 1; i <= 5; i++) c['W8-part$i']], W8Texts.partNames);
       expect([for (final p in W8Items.parts) p.title], W8Texts.partNames);
@@ -176,7 +177,7 @@ void main() {
       expect(c['W8-lsns-q4'], W8Items.lsns6.items[3].lead);
       expect(c['W8-aimhs-title'], W8Items.aimhs.title);
       expect(c['W8-aimhs-intro'], W8Items.aimhs.instruction);
-      expect(c.length, 22, reason: 'every row is checked');
+      expect(c.length, 23, reason: 'every row is checked');
     });
 
     test('the handover wording as given (spot checks)', () {
@@ -468,6 +469,8 @@ void main() {
       expect(await shown(tester, now: hk('2026-12-09', 23, 59)), isFalse);
       expect(await shown(tester, now: hk('2026-12-10', 0, 1)), isTrue);
       expect(find.text('最後一份問卷'), findsOneWidget);
+      // 10/21 item 131 (1): the card's second line.
+      expect(find.text('一共 5 部分，可以分開做。'), findsOneWidget);
       expect(await shown(tester, now: hk('2026-12-17', 23, 59)), isTrue);
       expect(await shown(tester, now: hk('2026-12-18')), isTrue,
           reason: 'day 64: after the window, still taken');

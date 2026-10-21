@@ -2,8 +2,8 @@
 // Re-run the tool after changing any prompt, safety JSON, the lexicon
 // or pubspec.yaml; test/phase_a_version_pin_test.dart guards staleness.
 
-const String kAppVersion = '1.0.0';
-const String kBuildNumber = '3';
+const String kAppVersion = '1.0.1';
+const String kBuildNumber = '4';
 const String kLexiconVersion = 'v5-2026-09';
 const String kPromptBundleHash = '03ebdd9faa73d95dabd348a536ab40a88cee2235044ff7f3e9d0a03614bb8f97';
 const String kGeneratedAt = '2026-10-21';

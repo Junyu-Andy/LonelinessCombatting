@@ -78,6 +78,9 @@ class W8Texts {
   /// 標題 — the home card and the page title.
   static const title = '最後一份問卷';
 
+  /// The home card's second line (decisions-log 10/21 item 131 (1)).
+  static const homeSubtitle = '一共 5 部分，可以分開做。';
+
   /// 開頭 — at the top of the flow before anything is done.
   static const intro =
       '今次一共有 5 部分，大約 8 分鐘，可以隨時停，下次由停低嗰度繼續。';

@@ -267,6 +267,13 @@ class ReminiscenceV2Copy {
   /// 「第 N 章整理好喇」 (the page, the landing card).
   static String chapterReady(int weekIndex) => '第 $weekIndex 章整理好喇';
 
+  /// 10/21 (decisions-log 131 (3)): a started week that is not finished,
+  /// on its landing card — [handled] of the 8 questions answered or
+  /// 「唔想講」.
+  static String weekProgress(int handled) => '講咗 $handled／8 條';
+
+  static String weekProgressEn(int handled) => '$handled of 8 talked about';
+
   // ---------------------------------------------------------------------
   // 1020o — the 自己 page entry and the 人生點滴 landing page (both arms;
   // no switch).  Final (Junyu, 10/20).

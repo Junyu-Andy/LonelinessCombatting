@@ -135,6 +135,33 @@ class ReminiscenceWeekStatus {
   static const chapterReady = 'chapter_ready';
 }
 
+/// 10/21 (decisions-log 131 (3)) — how far a week is, for its landing card,
+/// from the v2 week doc only (the old M3 session doc no longer counts).
+class ReminiscenceWeekProgress {
+  const ReminiscenceWeekProgress({required this.handled, required this.finished});
+
+  /// Questions answered or 「唔想講」, 0–8 (the question being asked is not
+  /// counted until the next one is asked).
+  final int handled;
+
+  /// All eight handled and 「完成今個禮拜」 pressed (a chapter requested).
+  final bool finished;
+
+  /// Null: the week was never started.
+  static ReminiscenceWeekProgress? of(ReminiscenceWeekState? s) {
+    if (s == null) return null;
+    final handled = (s.currentQuestion - 1)
+        .clamp(0, ReminiscenceV2Copy.questionsPerWeek)
+        .toInt();
+    final pressed = s.status == ReminiscenceWeekStatus.chapterRequested ||
+        s.status == ReminiscenceWeekStatus.chapterReady;
+    return ReminiscenceWeekProgress(
+      handled: handled,
+      finished: handled == ReminiscenceV2Copy.questionsPerWeek && pressed,
+    );
+  }
+}
+
 /// `users/{uid}/reminiscence_v2/week_{N}`.
 class ReminiscenceWeekState {
   ReminiscenceWeekState({

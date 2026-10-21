@@ -16,8 +16,9 @@
 /// with the server time.  An account with no users/{uid} document (staff)
 /// gets nothing: the write is an update, never a create.
 ///
-/// Note: until the release raises `version:` in pubspec.yaml, every build
-/// says 1.0.0 (3); `w8` is what tells the builds apart.
+/// 10/21 (decisions-log 131, #153 item 10): the freeze build raised
+/// `version:` to 1.0.1 (4); builds before it say 1.0.0 (3), and `w8` also
+/// tells them apart.
 library;
 
 import 'package:cloud_firestore/cloud_firestore.dart';

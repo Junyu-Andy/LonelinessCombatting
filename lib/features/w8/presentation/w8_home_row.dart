@@ -8,7 +8,8 @@
 /// 71 ([W8Schedule]), outside a Phase B build, or for an account that is
 /// not registered ([W8Gate]).  The App's own clock decides ([AppClock]:
 /// testers' 日程模擬 moves it); the server's stamps stay real.  Both arms
-/// identical; no switch.  Only the title, as the handover words it.
+/// identical; no switch.  The title and, since 10/21 (decisions-log item
+/// 131 (1)), the second line 「一共 5 部分，可以分開做。」.
 library;
 
 import 'dart:async';
@@ -142,6 +143,7 @@ class _W8TodoRowState extends State<W8TodoRow> with WidgetsBindingObserver {
       key: const ValueKey('today_todo_w8'),
       leading: Icons.assignment_outlined,
       title: W8Texts.title,
+      subtitle: W8Texts.homeSubtitle,
       onTap: _open,
     );
   }

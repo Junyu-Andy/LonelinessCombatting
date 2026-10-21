@@ -20,6 +20,8 @@
 // (tool/ci_flutter_tests.sh "phase B arm gating").  In the default build
 // everybody is Hybrid: the rule-arm cases are skipped.  Synthetic data
 // only; no Firebase; fake model, fake stores, fake clock.
+import 'dart:io';
+
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
 import 'package:app_demo/core/agent_context/agent_context_service.dart';
@@ -54,6 +56,7 @@ import 'package:app_demo/features/brief_pr/presentation/widgets/session_close_hi
 import 'package:app_demo/features/crisis/presentation/pages/emergency_support_page.dart';
 import 'package:app_demo/features/reminiscence/data/reminiscence_themes.dart';
 import 'package:app_demo/features/reminiscence/data/reminiscence_v2_copy.dart';
+import 'package:app_demo/features/reminiscence/data/reminiscence_v2_models.dart';
 import 'package:app_demo/features/reminiscence/data/reminiscence_v2_store.dart';
 import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_arm_a_page.dart';
 import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_arm_b_page.dart';
@@ -1113,6 +1116,126 @@ void main() {
       expect(find.byKey(const ValueKey('reminiscence_landing_ready_1')),
           findsNothing, reason: 'saved: no more 整理好喇');
       expect(run.llm.calls, isEmpty);
+    });
+  });
+
+  // 10/21 (decisions-log 132, 133 (4)): the landing reads the v2 week doc
+  // only — no icon until done; 「講咗 n／8 條」 once one is handled; the
+  // check after all eight and 「完成今個禮拜」.  Same in both arms.
+  group('landing check and 講咗 n／8 條', () {
+    const done1 = ValueKey('reminiscence_landing_done_1');
+
+    /// Icons on a theme card (the picture is an image, not an icon).
+    Finder cardIcons(String title, {bool skipOffstage = true}) =>
+        find.descendant(
+            of: find.ancestor(
+                of: find.text(title, skipOffstage: skipOffstage),
+                matching: find.byType(Card, skipOffstage: skipOffstage)),
+            matching: find.byType(Icon, skipOffstage: skipOffstage));
+
+    test('progress from the week doc: handled = questions before the one '
+        'being asked; finished needs all eight and the press', () {
+      ReminiscenceWeekProgress p(int q, String status) =>
+          ReminiscenceWeekProgress.of(ReminiscenceWeekState(
+              weekIndex: 1, arm: 'B', currentQuestion: q, status: status))!;
+      expect(ReminiscenceWeekProgress.of(null), isNull);
+      expect(p(1, ReminiscenceWeekStatus.inProgress).handled, 0);
+      expect(p(3, ReminiscenceWeekStatus.inProgress).handled, 2);
+      expect(p(9, ReminiscenceWeekStatus.questionsDone).handled, 8);
+      expect(p(9, ReminiscenceWeekStatus.questionsDone).finished, isFalse);
+      expect(p(9, ReminiscenceWeekStatus.chapterRequested).finished, isTrue);
+      expect(p(9, ReminiscenceWeekStatus.chapterReady).finished, isTrue);
+      // A chapter asked for before all eight (an older build): no check.
+      expect(p(5, ReminiscenceWeekStatus.chapterRequested).finished, isFalse);
+      expect(ReminiscenceV2Copy.weekProgress(2), '講咗 2／8 條');
+    });
+
+    for (final arm in [
+      if (_hybridTestable) ArmAssignment.a,
+      if (_ruleTestable) ArmAssignment.b,
+    ]) {
+      final name = arm == ArmAssignment.a ? 'Hybrid' : 'rule arm';
+
+      testWidgets('$name: answer 2 and leave → no check, 講咗 2／8 條; no '
+          '完成今個禮拜 before all eight', (tester) async {
+        final run = _Run(arm);
+        await _boot(tester, run, home: const ReminiscenceLandingPage());
+        expect(find.textContaining('講咗'), findsNothing,
+            reason: 'never entered: no line');
+        for (final title in ['童年同屋企', '後生時期同工作', '一生人嘅朋友']) {
+          expect(cardIcons(title), findsNothing,
+              reason: 'never entered: no icon ($title)');
+        }
+        await tester.tap(find.text('童年同屋企'));
+        await _settle(tester);
+        for (var q = 1; q <= 2; q++) {
+          await _type(tester, _answers[q - 1]);
+          if (!run.rule) await _type(tester, '補充第 $q 題');
+        }
+        expect(find.byKey(const Key('reminiscence_finish_week')), findsNothing);
+        await _leave(tester);
+        expect(find.byType(ReminiscenceV2Page), findsNothing);
+        expect(find.text('講咗 2／8 條'), findsOneWidget);
+        expect(find.byKey(done1), findsNothing);
+        expect(cardIcons('童年同屋企'), findsNothing);
+        if (run.rule) expect(run.llm.calls, isEmpty);
+      });
+
+      testWidgets('$name: all eight (Q7 唔想講) → still no check until '
+          '完成今個禮拜; pressed → check, no 講咗 line', (tester) async {
+        final run = _Run(arm);
+        await _boot(tester, run, home: const ReminiscenceLandingPage());
+        await tester.tap(find.text('童年同屋企'));
+        await _settle(tester);
+        await _answerAll(tester, run, skip: {7});
+        expect(find.text('講咗 8／8 條', skipOffstage: false), findsOneWidget);
+        expect(find.byKey(done1, skipOffstage: false), findsNothing);
+        await tester.tap(find.byKey(const Key('reminiscence_finish_week')));
+        if (run.rule) {
+          await _settle(tester);
+        } else {
+          await _pumps(tester); // 整理緊… spins
+        }
+        run.navKey.currentState!.pop();
+        await _settle(tester);
+        expect(find.byType(ReminiscenceV2Page), findsNothing);
+        expect(find.byKey(done1), findsOneWidget);
+        expect(cardIcons('童年同屋企'), findsOneWidget);
+        expect(find.textContaining('講咗'), findsNothing);
+        if (run.rule) expect(run.llm.calls, isEmpty);
+      });
+    }
+
+    testWidgets('an old-version record does not count: legacy saves for all '
+        'four weeks, no v2 week → no check anywhere', (tester) async {
+      final run = _Run(_ruleTestable ? ArmAssignment.b : ArmAssignment.a);
+      for (var w = 1; w <= 4; w++) {
+        await run.summaries.save(
+            uid: 'u1', weekIndex: w, armCode: run.rule ? 'B' : 'A',
+            summary: '舊版回憶第 $w 週');
+      }
+      // A week whose chapter was asked for before all eight were handled.
+      await run.weeks.save(
+          'u1',
+          ReminiscenceWeekState(
+              weekIndex: 2,
+              arm: run.rule ? 'B' : 'A',
+              currentQuestion: 5,
+              status: ReminiscenceWeekStatus.chapterRequested),
+          retainTranscript: true);
+      await _boot(tester, run, home: const ReminiscenceLandingPage());
+      for (var w = 1; w <= 4; w++) {
+        expect(find.byKey(ValueKey('reminiscence_landing_done_$w')),
+            findsNothing, reason: 'week $w');
+      }
+      expect(find.text('講咗 4／8 條'), findsOneWidget);
+      expect(cardIcons('童年同屋企'), findsNothing);
+      // The landing no longer reads the old M3 session doc at all.
+      final src = File(
+              'lib/features/reminiscence/presentation/pages/reminiscence_landing.dart')
+          .readAsStringSync();
+      expect(src, isNot(contains('m3_reminiscence')));
+      expect(src, isNot(contains('cloud_firestore')));
     });
   });
 

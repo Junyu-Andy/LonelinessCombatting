@@ -454,11 +454,14 @@ void main() {
         expect(find.text('一路以嚟陪住你嘅朋友'), findsOneWidget);
         expect(find.text('做人嘅道理，想話畀後生一代知嘅嘢'), findsOneWidget);
 
-        // (4) 「第 N 章整理好喇」 and the arrow / tick stay.
+        // (4) 「第 N 章整理好喇」 stays.  10/21 (decisions-log 132): no
+        // arrow on the theme cards any more (no icon until the week is
+        // done); the only arrow left is 反思傾偈's (Hybrid).
         expect(find.byKey(const ValueKey('reminiscence_landing_ready_1')),
             findsOneWidget);
         expect(find.text('第 1 章整理好喇'), findsOneWidget);
-        expect(find.byIcon(Icons.chevron_right_rounded), findsWidgets);
+        expect(find.byIcon(Icons.chevron_right_rounded),
+            run.rule ? findsNothing : findsOneWidget);
 
         // The 小篇章 button on this page stays (第一节 (2)).
         expect(find.byKey(const Key('reminiscence_chapters_entry')),

@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../app/app_settings_scope.dart';
@@ -18,8 +17,15 @@ import 'reminiscence_chapters_page.dart';
 import 'reminiscence_memories_page.dart';
 
 /// M3 entry point. Lists the [ReminiscenceTheme.totalWeeks] weekly themes
-/// with a "completed" check per week (any saved entry for that theme counts). Same UI in both
-/// arms — only the session experience that opens differs.
+/// with a "completed" check per week. Same UI in both arms — only the
+/// session experience that opens differs.
+///
+/// 10/21 (decisions-log 132, 133 (4); both arms), from the v2 week doc
+/// only — the old M3 session doc no longer counts:
+///   - never entered (or nothing handled yet): no icon on the right;
+///   - at least one question answered or 「唔想講」, not finished:
+///     「講咗 n／8 條」 under its line, no icon;
+///   - all eight handled and 「完成今個禮拜」 pressed: the green check.
 ///
 /// 1020d (switch `reminiscenceV2Enabled`): the weeks open the v2 page,
 /// 「我嘅回憶」 becomes 「我嘅人生小篇章」, and a week whose new chapter is
@@ -93,8 +99,9 @@ class ReminiscenceLandingPage extends StatelessWidget {
               _ThemeCard(
                 theme: t,
                 onOpen: () => _open(context, t),
-                completedStream:
-                    _completedStream(auth, profile?.uid, t.weekIndex),
+                progressStream: _progressStream(
+                    auth, profile?.uid, t.weekIndex,
+                    arm: Arm.isA(context) ? 'A' : 'B'),
                 readyStream: v2 && profile != null
                     ? _readyStream(auth, profile.uid, t.weekIndex)
                     : null,
@@ -142,51 +149,50 @@ class ReminiscenceLandingPage extends StatelessWidget {
     );
   }
 
-  Stream<bool> _completedStream(
-      AuthService auth, String? uid, int weekIndex) {
-    if (!auth.available || uid == null) {
+  /// 10/21 (decisions-log 131 (3)): from `users/{uid}/reminiscence_v2/
+  /// week_N` only.  Null: not started (or no account).
+  Stream<ReminiscenceWeekProgress?> _progressStream(
+      AuthService auth, String? uid, int weekIndex,
+      {required String arm}) {
+    if (uid == null) {
       // 1020o: a card scrolled out of the list and back listens again, so
       // this must allow more than one listener (Stream.value does not).
-      return Stream<bool>.multi((sink) {
-        sink.add(false);
+      return Stream<ReminiscenceWeekProgress?>.multi((sink) {
+        sink.add(null);
         sink.close();
       });
     }
-    // P2.2 schema: single doc per (uid, weekIndex). The week counts as
-    // completed once status flips to 'completed'.
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('memory')
-        .doc('m3_reminiscence')
-        .collection('sessions')
-        .doc('week_$weekIndex')
-        .snapshots()
-        .map((snap) {
-      if (!snap.exists) return false;
-      final status = snap.data()?['status'] as String?;
-      return status == 'completed';
-    });
+    return ReminiscenceV2Stores.week(available: auth.available)
+        .watch(uid, weekIndex, arm: arm)
+        .map(ReminiscenceWeekProgress.of);
   }
 }
 
 class _ThemeCard extends StatelessWidget {
   final ReminiscenceTheme theme;
   final VoidCallback onOpen;
-  final Stream<bool> completedStream;
+  final Stream<ReminiscenceWeekProgress?> progressStream;
   final Stream<bool>? readyStream;
 
   const _ThemeCard({
     required this.theme,
     required this.onOpen,
-    required this.completedStream,
+    required this.progressStream,
     this.readyStream,
   });
 
   @override
   Widget build(BuildContext context) {
+    return StreamBuilder<ReminiscenceWeekProgress?>(
+      stream: progressStream,
+      builder: (context, snap) => _card(context, snap.data),
+    );
+  }
+
+  Widget _card(BuildContext context, ReminiscenceWeekProgress? progress) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final t = Theme.of(context);
+    final done = progress != null && progress.finished;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
@@ -221,6 +227,24 @@ class _ThemeCard extends StatelessWidget {
                           height: 1.35,
                         ),
                       ),
+                      // 10/21: at least one handled, not finished.
+                      if (progress != null && !done && progress.handled > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            isEn
+                                ? ReminiscenceV2Copy.weekProgressEn(
+                                    progress.handled)
+                                : ReminiscenceV2Copy.weekProgress(
+                                    progress.handled),
+                            key: ValueKey(
+                                'reminiscence_landing_progress_${theme.weekIndex}'),
+                            style: t.textTheme.bodyMedium?.copyWith(
+                              color: t.colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       if (readyStream != null)
                         StreamBuilder<bool>(
                           stream: readyStream,
@@ -243,21 +267,14 @@ class _ThemeCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                StreamBuilder<bool>(
-                  stream: completedStream,
-                  builder: (_, snap) {
-                    final done = snap.data == true;
-                    return Icon(
-                      done
-                          ? Icons.check_circle_rounded
-                          : Icons.chevron_right_rounded,
-                      size: 28,
-                      color: done
-                          ? Colors.green
-                          : t.colorScheme.primary,
-                    );
-                  },
-                ),
+                if (done)
+                  Icon(
+                    Icons.check_circle_rounded,
+                    key: ValueKey(
+                        'reminiscence_landing_done_${theme.weekIndex}'),
+                    size: 28,
+                    color: Colors.green,
+                  ),
               ],
             ),
           ),
