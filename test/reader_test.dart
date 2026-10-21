@@ -20,6 +20,7 @@ import 'dart:convert';
 
 import 'package:app_demo/app/app_settings.dart';
 import 'package:app_demo/app/app_settings_scope.dart';
+import 'package:app_demo/app/app_theme.dart';
 import 'package:app_demo/core/agent_context/agent_context_service.dart';
 import 'package:app_demo/core/agent_context/shared_context_service.dart';
 import 'package:app_demo/core/agents/persona_resolver.dart';
@@ -280,6 +281,9 @@ Widget _harness(
   final memory = MemoryStore(available: false);
   final state = DistressState();
   Widget app = MaterialApp(
+    // The App's own theme (as lib/app/app.dart), so pages open and close
+    // with the App's transition, not Flutter's default (1020p §1).
+    theme: AppTheme.light,
     locale: const Locale('zh'),
     supportedLocales: const [Locale('zh'), Locale('en')],
     localizationsDelegates: const [

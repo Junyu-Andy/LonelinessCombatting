@@ -24,10 +24,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      # Pinned to the team's Flutter (.metadata); bump together with Gradle.
+      # Pinned to the team's Flutter (.metadata; 3.44.1 since 1020p §1,
+      # decision 0068); keep the same as build-apk.yml and codemagic.yaml.
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.35.3
+          flutter-version: 3.44.1
           channel: stable
           cache: true
       - run: flutter pub get

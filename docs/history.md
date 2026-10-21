@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-21 #152 Flutter 3.44.1 并入冻结版（第 127 条）
+
+- Junyu 用 Run #23 的包在真机上照 `docs/release/flutter-3441-phone-check.md` 走完：覆盖安装（不卸载、登录还在）和两组的五步都过了。#152 合进 #151，没有冲突。
+- CLAUDE.md 的 Flutter 一行改为 3.44.1（Junyu 批准）。决策 0068 照旧；它写的「提议中」以第 127 条为准，已采纳。
+- 合并后在 GitHub 上用 3.44.1 重跑 CI 和 Build APK，确认指纹不变。
+
 ## 2026-10-21 冻结前：危机页第四项改名、安靜時段说明句（第 126 条 (6)，冻结合并分支 #151）
 
 - 危机页第四项「急症室 / 999」改为「緊急求助」（英文 Emergency services）。原来名称和号码连读是「999 999」。危机页和急性后聊天消息读同一份 `crisis_resources.json`，两处一起变；App 内置的备用列表同改。号码、时段、说明句和其他三项都不动，两组相同。截图 `docs/dev-reports/1021-shots/crisis/`（两组，1.06 和最大字号 1.30）。
@@ -45,6 +51,14 @@
 - 规则组回应池：X5-4、Z5-4（以及 check-in 聊天里的 X5-4）原来叫老人去「求助資料」，App 里没有这一页。整句换成小讀本里的求助句，一字不差。「睇今日」是第一个分页的名字，「睇更多支援熱線」是首页安全卡上按钮的字，都核对过。号码不改。版本号改 `2026-10-21-help-line`，分析时可以分开前后。
 - 「問下通通」：服务器认出通通的文章问答（App 放在最前面的文章标题行），就用 deepseek-v4-pro。短文和小讀本两处都算，只在 Hybrid 组。决策 0071。要部署 Functions 才生效。
 - 上线检查脚本里 `htmlReadersEnabled` 的期望值改为 true。
+## 2026-10-20 1020p 第一节：Flutter 3.35.3 升 3.44.1，只换工具版本（决策 0068，分支 `claude/zealous-fermat-8rgqtg-flutter344`，PR 草稿，base 冻结分支）
+
+- 结论：CI、Build APK、Codemagic、`.metadata`、本机测试脚本改为 Flutter 3.44.1（Dart 3.12.1）。插件版本、Gradle 8.12、AGP 8.9.1、Kotlin 2.1.0、签名设定都不变。两组相同，老人看到的不变。
+- `pubspec.lock` 只有 Flutter 自带的 5 个依赖跟着变（characters 1.4.0→1.4.1、matcher 0.12.17→0.12.19、material_color_utilities 0.11.1→0.13.0、meta 1.16.0→1.18.0、test_api 0.7.6→0.7.11）。
+- 3.44.1 改了两处默认样子：Android 换页动画（放大淡入改成滑动淡入）和四个由主色推出来的字色（变浅）。在 `lib/app/app_theme.dart` 锁回 3.35.3 的样子；两种主题逐项比对一样，12 个截图测试文件（100 个用例）3.35.3 和 3.44.1 逐个像素相同。没锁回的只有 Android 列表拉过头时的拉伸画法。
+- iPhone：`pubspec.yaml` 加 `enable-swift-package-manager: false`，插件照旧用 CocoaPods 组装（3.44.1 默认改 Swift Package Manager）。另发现 `ios/Runner/AppDelegate.swift` 用的 `FlutterImplicitEngineDelegate` 在 3.35.3 里没有，按 3.35.3 打 iPhone 包很可能编不过；3.44.1 有这个接口。要在 Mac 上确认。
+- 测试只改 `test/reader_test.dart` 的外壳主题（改用 App 主题；原来用 Flutter 默认主题，新版换页变慢，3 至 4 个测试等不到页面关完）。`flutter analyze` 两个版本都是同样的 92 条，0 error。
+- 没做的：Android 模拟器走查（这里没有 KVM 和 Android SDK）；真机清单 `docs/release/flutter-3441-phone-check.md`。`CLAUDE.md` 的「Flutter 固定 3.35.3」那行要 Junyu 改（开发窗口不改 CLAUDE.md）。
 
 ## 2026-10-20 研究原文补全：陪伴者的每一句都存（decisions-log 第 65、80、99/100 条，分支 `claude/zealous-fermat-8rgqtg-transcript2`，并入 #151）
 

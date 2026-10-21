@@ -12,7 +12,7 @@
 #
 #   tool/readers_shots_1021.sh [unit id]     (default: the first unit)
 #
-# Needs: Flutter 3.35.3 on PATH, Node with Playwright (npm root -g) and
+# Needs: Flutter 3.44.1 on PATH, Node with Playwright (npm root -g) and
 # Chromium (CHROMIUM_PATH or /opt/pw-browsers/chromium), the WenQuanYi Zen
 # Hei font.  Uses the phase_b_templates defines (the arm comes from the
 # profile).  Afterwards analysis_options.yaml / pubspec.lock are restored.
