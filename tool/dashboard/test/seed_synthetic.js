@@ -4,19 +4,30 @@
  * dashboard's emulator test and for `start.sh --demo`.  EMULATOR ONLY:
  * refuses to run without FIRESTORE_EMULATOR_HOST.
  *
- * Every answer, mood value, free text, allocation field and text-like
- * field carries the marker SENTINEL (or the number SENTINEL_NUM): the
- * test checks that neither ever reaches the dashboard — not even its
- * memory (field masks), let alone a page or a CSV.
+ * Every answer, free text, allocation field and text-like field carries
+ * the marker SENTINEL (or the number SENTINEL_NUM): the test checks that
+ * neither ever reaches the dashboard — not even its memory (field
+ * masks), let alone a page or a CSV.
  *
- * "Today" is NOW = 2026-11-20 10:00 Hong Kong.
- *   RCT-001 A day 30  opens daily; W1–W3 done; ops_daily stored for days
- *                     1–28 (day 29 missing → computed); acknowledged alert
- *   RCT-002 B day 16  last opened day 12 → WhatsApp; W2 closes today
- *                     with PGIC missing → (c); unacknowledged acute alert
- *   RCT-003 A day 12  last opened day 5 → phone
- *   RCT-004 B day 40  follow-up period; W4 paper entries
- *   RCT-005 A day 35, RCT-006 B day 33, RCT-007 B day 45, RCT-008 A day 50
+ * Mood values (decision 0072: shown on the person page) are 1–5
+ * (moodValues); seed(db, admin, {moodBase}) adds moodBase to each, so the
+ * emulator test can trace them: on the person page, nowhere else.
+ *
+ * "Today" is NOW = 2026-11-20 10:00 Hong Kong.  Weekly questionnaires
+ * (S12 on: W1–W3 have 4 parts, W4 3, W5–W7 PGIC only):
+ *   RCT-001 A day 30  opens daily; W1–W3 done, W4 open 0/3; ops_daily
+ *                     stored for days 1–28 (day 29 missing → computed);
+ *                     acknowledged alert
+ *   RCT-002 B day 16  last opened day 12 → WhatsApp; W1 done; W2 closes
+ *                     today with PGIC missing (3/4) → (c); unacknowledged
+ *                     acute alert
+ *   RCT-003 A day 12  last opened day 5 → phone; W1 Weekly PR only (1/4)
+ *   RCT-004 B day 40  follow-up period; W1, W2 done, W3 missed; W4 visit
+ *                     recorded day 30 (W4 closed, missed); W4 paper
+ *   RCT-005 A day 35  W1, W3 done, W2 missed, W4 2/3, W5 open
+ *   RCT-006 B day 33  W1–W3 done, W4 missed
+ *   RCT-007 B day 45  W2, W6 done, the rest missed
+ *   RCT-008 A day 50  W1–W5 done, W6 missed, W7 open
  *   PILOT-01 A day 9  W1 closes today, nothing done → (c); not in the
  *                     completion rates (pilot)
  *   tester            isTester, unacknowledged alert (hidden by default)
@@ -39,28 +50,46 @@ const PEOPLE = [
   {rid: 'RCT-002', uid: 'uidRct002', arm: 'B', day: 16, period: 'B',
     cohort: 'rct', lastOpened: 12, done: ['W1'], partial: ['W2']},
   {rid: 'RCT-003', uid: 'uidRct003', arm: 'A', day: 12, period: 'B',
-    cohort: 'rct', lastOpened: 5, done: ['W1']},
+    cohort: 'rct', lastOpened: 5, done: [], wprOnly: ['W1']},
   {rid: 'RCT-004', uid: 'uidRct004', arm: 'B', day: 40, period: 'B',
     cohort: 'rct', lastOpened: 39, done: ['W1', 'W2'], w4Paper: true},
   {rid: 'RCT-005', uid: 'uidRct005', arm: 'A', day: 35, period: 'B',
-    cohort: 'rct', lastOpened: 35, done: ['W1', 'W3'], w4Paper: true},
+    cohort: 'rct', lastOpened: 35, done: ['W1', 'W3'], partial: ['W4'],
+    w4Paper: true},
   {rid: 'RCT-006', uid: 'uidRct006', arm: 'B', day: 33, period: 'B',
     cohort: 'rct', lastOpened: 33, done: ['W1', 'W2', 'W3'], w4Paper: true},
   {rid: 'RCT-007', uid: 'uidRct007', arm: 'B', day: 45, period: 'B',
-    cohort: 'rct', lastOpened: 44, done: ['W2'], w4Paper: true},
+    cohort: 'rct', lastOpened: 44, done: ['W2', 'W6'], w4Paper: true},
   {rid: 'RCT-008', uid: 'uidRct008', arm: 'A', day: 50, period: 'B',
-    cohort: 'rct', lastOpened: 50, done: ['W1', 'W2', 'W3'], w4Paper: true},
+    cohort: 'rct', lastOpened: 50, done: ['W1', 'W2', 'W3', 'W4', 'W5'],
+    w4Paper: true},
   {rid: 'PILOT-01', uid: 'uidPilot01', arm: 'A', day: 9, period: 'PILOT',
     cohort: 'pilot', lastOpened: 9, done: []},
 ];
 const TESTER_UID = 'uidTester1';
+/** Push days of the standard schedule (weekly_schedule DEFAULTS). */
+const BUNDLE_DAYS = [['W1', 7], ['W2', 14], ['W3', 21], ['W4', 26],
+  ['W5', 35], ['W6', 42], ['W7', 49]];
+/** The W4 visit day of the people with W4 paper entries. */
+const W4_VISIT_DAY = 30;
+
+/**
+ * Mood values of person [i] (index in PEOPLE) on study day [d]: the
+ * day's first entry, and on days 3, 10, 17, … a second one.  1–5.
+ * @return {Array<number>}
+ */
+function moodValues(i, d) {
+  const first = ((d + 2 * i) % 5) + 1;
+  return d % 7 === 3 ? [first, ((d + i + 2) % 5) + 1] : [first];
+}
 
 function hkAt(dayKey, hour, minute) {
   return new Date(studyWeek.hkInstant(dayKey, hour).getTime() +
     (minute || 0) * 60000);
 }
 
-async function seed(db, admin) {
+async function seed(db, admin, opts) {
+  const moodBase = (opts && opts.moodBase) || 0;
   if (!process.env.FIRESTORE_EMULATOR_HOST) {
     throw new Error('seed_synthetic: emulator only (FIRESTORE_EMULATOR_HOST)');
   }
@@ -79,7 +108,7 @@ async function seed(db, admin) {
   set('pilot_assignment_log/x1', {arm: 'B', note: SENTINEL});
   set('research_id_map/uidRct001', {researchId: 'RCT-001', note: SENTINEL});
 
-  for (const p of PEOPLE) {
+  for (const [pi, p] of PEOPLE.entries()) {
     const w0 = studyWeek.addDays(TODAY, -p.day);
     p.w0 = w0;
     set(`enrollments/${p.uid}`, {
@@ -89,11 +118,14 @@ async function seed(db, admin) {
       sequencePosition: SENTINEL_NUM, sequenceSha256: SENTINEL,
       sequenceVersion: SENTINEL, allocatedArm: SENTINEL,
     });
-    set(`users/${p.uid}`, {
+    const user = {
       isTester: false, cohort: p.cohort, w0Date: w0, arm: p.arm,
       strataCell: SENTINEL, baselineUclaScore: SENTINEL_NUM,
       displayName: SENTINEL,
-    });
+    };
+    // assessor.js writes the W4 visit day; it closes W4 (reminders v2).
+    if (p.w4Paper) user.w4RecordedOn = studyWeek.addDays(w0, W4_VISIT_DAY);
+    set(`users/${p.uid}`, user);
 
     const usage = [];
     const sessions = [];
@@ -126,8 +158,21 @@ async function seed(db, admin) {
           flow: 'chat_v2', completed: true, stopped_by_safety: false,
           answers: {q1: SENTINEL_NUM, q3b: SENTINEL}});
       }
+      // MoodRecorder's fields; a second entry the same day sorts before
+      // the first by id, so the person page must order them itself.
+      const moods = moodValues(pi, d);
       set(`users/${p.uid}/daily_mood/m${d}`, {date_iso: key,
-        mood: SENTINEL_NUM, note: SENTINEL});
+        mood: moodBase + moods[0], is_primary: true, supplementary: false,
+        entry_seq_today: 1, prompted_at: ts(hkAt(key, 9, 1)),
+        responded_at: ts(hkAt(key, 9, 2)), source_surface: 'home_hero',
+        arm: p.arm, note: SENTINEL});
+      if (moods.length > 1) {
+        set(`users/${p.uid}/daily_mood/a${d}`, {date_iso: key,
+          mood: moodBase + moods[1], is_primary: false, supplementary: true,
+          entry_seq_today: 2, prompted_at: ts(hkAt(key, 20)),
+          responded_at: ts(hkAt(key, 20, 1)), source_surface: 'check_in',
+          arm: p.arm, note: SENTINEL});
+      }
     }
     // An old Hybrid check-in marker (event row) with answer codes.
     if (p.arm === 'A' && p.day >= 2) {
@@ -161,26 +206,32 @@ async function seed(db, admin) {
       }
     }
 
-    // Weekly questionnaires: status per bundle, part records.
+    // Weekly questionnaires: status per bundle, part records.  done: every
+    // part; partial: all but PGIC; wprOnly: Weekly PR only.  W5–W7 have
+    // PGIC only.
     const bundles = {};
-    for (const [w, day] of [['W1', 7], ['W2', 14], ['W3', 21], ['W4', 26]]) {
+    const has = (list, w) => (list || []).indexOf(w) >= 0;
+    for (const [w, day] of BUNDLE_DAYS) {
       if (p.day < day) continue;
       bundles[w] = {pushedAt: ts(hkAt(studyWeek.addDays(w0, day), 10))};
-      const done = p.done.indexOf(w) >= 0;
-      const partial = (p.partial || []).indexOf(w) >= 0;
-      if (done || partial) {
+      const done = has(p.done, w);
+      const partial = has(p.partial, w);
+      const pgicOnly = day >= 35;
+      if (!pgicOnly && (done || partial || has(p.wprOnly, w))) {
         set(`users/${p.uid}/weekly_pr/${w}`, {status: 'completed',
-          items: [SENTINEL_NUM], agentId: 'siu_yan'});
+          items: [SENTINEL_NUM], agentId: 'siu_yan', bundle: w});
+      }
+      if (!pgicOnly && (done || partial)) {
         if (w !== 'W4') {
           set(`users/${p.uid}/djg_responses/${w}`, {status: 'submitted',
             answers: {q1: SENTINEL_NUM}, scores: {total: SENTINEL_NUM}});
         }
         set(`users/${p.uid}/social_contact_probes/${w}`, {status: 'submitted',
-          answers: {q1: SENTINEL_NUM, q2: SENTINEL}});
-        if (done) {
-          set(`users/${p.uid}/pgic/${w}`, {value: SENTINEL_NUM,
-            answeredAt: ts(hkAt(studyWeek.addDays(w0, day), 12))});
-        }
+          answers: {q1: SENTINEL_NUM, q2: SENTINEL}, bundle: w});
+      }
+      if (done) {
+        set(`users/${p.uid}/pgic/${w}`, {value: SENTINEL_NUM, bundle: w,
+          answeredAt: ts(hkAt(studyWeek.addDays(w0, day), 12))});
       }
     }
     set(`weekly_status/${p.uid}`, {researchId: p.rid, bundles,
@@ -236,7 +287,8 @@ async function seed(db, admin) {
   return {writes: writes.length};
 }
 
-module.exports = {NOW, TODAY, SENTINEL, SENTINEL_NUM, PEOPLE, TESTER_UID, seed};
+module.exports = {NOW, TODAY, SENTINEL, SENTINEL_NUM, PEOPLE, TESTER_UID,
+  W4_VISIT_DAY, moodValues, seed};
 
 if (require.main === module) {
   const admin = require('firebase-admin');

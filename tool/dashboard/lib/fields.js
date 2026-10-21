@@ -1,6 +1,6 @@
 /**
  * tool/dashboard/lib/fields.js — what the local ops dashboard may read
- * (decision 0061; dev-tasks 1020i 第二版 §2).
+ * (decision 0072, which supersedes 0061; dev-tasks 1020i 第二版 §2).
  *
  * READ_ALLOW: path template → the only fields Firestore sends back (a
  * field mask on every query, applied by guarded_db.js; there is no other
@@ -14,6 +14,12 @@
  * FORBIDDEN_OUTPUT_KEYS: answer / allocation / text field names that must
  * never appear in anything the dashboard sends to the browser or writes
  * to a CSV (leak_guard.js).
+ *
+ * The one exception (decision 0072, decisions-log 10/20 第 66 条): the
+ * daily mood value `mood` is read from users/{uid}/daily_mood
+ * (READ_EXCEPTIONS) and may leave only on the person page, at the paths
+ * in OUTPUT_ALLOW.person, and only as a number.  Everywhere else — the
+ * overview, today, completion, the CSVs — `mood` is still blocked.
  */
 'use strict';
 
@@ -59,10 +65,14 @@ const READ_ALLOW = {
     'stopped_by_safety', 'falseAlarm'],
   // Only the old Hybrid check-in marker; never `params` (answer codes).
   'users/{uid}/events': ['name', 'timestamp'],
-  // Which days have a mood entry — never the mood (10/20 第 65 条 (4)).
-  'users/{uid}/daily_mood': ['date_iso'],
+  // Decision 0072: the mood value (1–5, MoodRecorder) is shown on the
+  // person page; is_primary / entry_seq_today order a day's entries.
+  // Never `arm`, `source_surface` or anything else on the entry.
+  'users/{uid}/daily_mood': ['date_iso', 'mood', 'is_primary',
+    'entry_seq_today'],
   'users/{uid}/weekly_pr': ['status'],
-  // Outcome questionnaires: done or not only.
+  // Outcome questionnaires: done or not only (decision 0072: shown per
+  // week next to the arm), never an answer or a score.
   'users/{uid}/djg_responses': ['status', 'missed'],
   'users/{uid}/social_contact_probes': ['status', 'missed'],
   'users/{uid}/pgic': ['answeredAt', 'missed'],
@@ -86,8 +96,18 @@ const FORBIDDEN_OUTPUT_KEYS = ['answers', 'scores', 'scoringVersion',
   'finalText', 'editedText', 'ruleText', 'input', 'params',
   'shortTermBuffer', 'raw_output', 'items', 'text', 'before', 'after'];
 
+/** Decision 0072: forbidden-named fields a template may still read. */
+const READ_EXCEPTIONS = {'users/{uid}/daily_mood': ['mood']};
+
+/**
+ * Decision 0072: where such a field may leave, per page — output paths
+ * with array indexes written as [] (leak_guard.findLeaks), number or null
+ * only.  The person page's day rows, nothing else.
+ */
+const OUTPUT_ALLOW = {person: ['$.days[].moods[].mood']};
+
 module.exports = {
   READ_ALLOW, EVENT_NAMES, CONFIG_DOCS, DENIED_COLLECTIONS,
-  FORBIDDEN_OUTPUT_KEYS, DAY_ROW_FIELDS, SESSION_FIELDS, BRIEF_PR_FIELDS,
-  ALERT_FIELDS,
+  FORBIDDEN_OUTPUT_KEYS, READ_EXCEPTIONS, OUTPUT_ALLOW, DAY_ROW_FIELDS,
+  SESSION_FIELDS, BRIEF_PR_FIELDS, ALERT_FIELDS,
 };

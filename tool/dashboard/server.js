@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * tool/dashboard/server.js — the local ops dashboard (decision 0061;
- * dev-tasks 1020i 第二版 §2).  Start it with tool/dashboard/start.sh; the
+ * tool/dashboard/server.js — the local ops dashboard (decision 0072,
+ * which supersedes 0061; dev-tasks 1020i 第二版 §2).  Start it with tool/dashboard/start.sh; the
  * guide is docs/release/ops-dashboard-local.md.
  *
  *   - Listens on 127.0.0.1 only; requests whose Host is not this machine
@@ -13,7 +13,8 @@
  *   - Writes nothing to Firestore.  確認處理 / 標記誤觸 run in the browser
  *     with Junyu's own App login against the existing callables
  *     (public/auth.js); this process never sees the password or token.
- *   - Every JSON reply and CSV passes lib/leak_guard.js.
+ *   - Every JSON reply and CSV passes lib/leak_guard.js; only the person
+ *     page may carry the daily mood values (fields.OUTPUT_ALLOW.person).
  *   - Reads are cached in memory for CACHE_MS; 「刷新」 clears the cache.
  *
  * Usage:
@@ -33,6 +34,7 @@ const os = require('os');
 const path = require('path');
 
 const pages = require('./lib/pages');
+const fields = require('./lib/fields');
 const {guardedDb} = require('./lib/guarded_db');
 const leak = require('./lib/leak_guard');
 const keyCheck = require('./lib/key_check');
@@ -160,8 +162,9 @@ function handler(ctx) {
     res.end(body);
   }
 
-  function json(res, value) {
-    send(res, 200, JSON.stringify(leak.assertNoLeak(value)));
+  /** [allow]: fields.OUTPUT_ALLOW of the page (person only). */
+  function json(res, value, allow) {
+    send(res, 200, JSON.stringify(leak.assertNoLeak(value, allow)));
   }
 
   async function route(req, res, url) {
@@ -193,7 +196,7 @@ function handler(ctx) {
       const value = await cache.get(`person:${id}`, async () =>
         pages.person(ctx.g, id, ctx.now(), await base()));
       if (!value) return send(res, 404, '{"error":"unknown research id"}');
-      return json(res, value);
+      return json(res, value, fields.OUTPUT_ALLOW.person);
     }
     if (req.method === 'GET' && p === '/api/completion') {
       const value = await cache.get('completion', async () =>

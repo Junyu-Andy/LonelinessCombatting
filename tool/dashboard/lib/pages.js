@@ -16,10 +16,14 @@
  *   exportCsv(g, now, base)    §2.2 (5): per person per week, and per
  *                              day (the App's ops CSV columns)
  *
- * Blinding (2.3(1)): the overview's weekly cells are the Weekly PR part
- * only — process data, as in the App's ops dashboard — so no page puts an
- * outcome next to the arm.  Outcome "done or not" appears only in
- * today().weeklyDue (no arm) and completion() (pooled).
+ * Decision 0072 (decisions-log 10/20 第 66 条, supersedes 0061's two
+ * blinding limits): the overview's weekly cells are the WHOLE weekly
+ * questionnaire of each week (every part of that week's bundle: DJG-ES,
+ * Weekly PR, PGIC, S12; W5–W7 PGIC only) — done or not, never an answer
+ * — on the same row as the arm; the person page shows each day's mood
+ * values (server.js lets them out on that page only).  Mood values
+ * appear nowhere else: not on the overview, today, completion or in the
+ * CSVs.
  */
 'use strict';
 
@@ -32,8 +36,11 @@ const processExport = require('../../../functions/process_export');
 const L = require('./load');
 
 const COMPANIONS = ops.COMPANIONS;
-/** W8 (T35) is not built: the column says so. */
+const PART = weeklySchedule.PART;
+/** W8 (T35) is not built: its cell says so, as in the App's dashboard. */
 const W8_STATUS = 'not_built';
+/** The overview's part order within a week. */
+const PART_ORDER = [PART.DJG, PART.WEEKLY_PR, PART.PGIC, PART.SOCIAL];
 /** In-App outcome parts shown on the completion page (2.2(4)). */
 const COMPLETION_PARTS = [
   {label: 'DJG-ES', part: weeklySchedule.PART.DJG},
@@ -58,6 +65,79 @@ function addValid(acc, vs) {
   }
 }
 
+/**
+ * Pure (decision 0072): one week's whole questionnaire for one person.
+ * Every part done (L.partDone, the server's rule) → done; otherwise
+ * missed once the window has closed (or the server marked it missed),
+ * open while the window is open (or the push went out), else not_yet.
+ * Completion only: which parts are done, never an answer.
+ * @param {object} bundle weekly_schedule.bundlesFor() element
+ * @param {{open: Date, close: Date, pushDateKey: string}} win windowFor()
+ * @param {Object<string, Object<string, object>>} recs part → Wn → masked
+ *     record (L.partRecords)
+ * @param {?object} bundleStatus weekly_status.bundles[Wn]
+ * @param {Date} now
+ * @return {{status: string, partsDone: number, partsTotal: number,
+ *     parts: Object<string, boolean>, opensOn: string, closesOn: string}}
+ */
+function bundleCellFor(bundle, win, recs, bundleStatus, now) {
+  const parts = {};
+  let done = 0;
+  for (const part of PART_ORDER) {
+    if (bundle.parts.indexOf(part) < 0) continue;
+    const ok = L.partDone(part, (recs[part] || {})[bundle.id] || null);
+    parts[part] = ok;
+    if (ok) done++;
+  }
+  const total = Object.keys(parts).length;
+  const st = bundleStatus || {};
+  let status = 'not_yet';
+  if (done === total) status = 'done';
+  else if (st.missedAt || now >= win.close) status = 'missed';
+  else if (now >= win.open || st.pushedAt) status = 'open';
+  return {status, partsDone: done, partsTotal: total, parts,
+    opensOn: win.pushDateKey, closesOn: weeklySchedule.closingDayKey(win)};
+}
+
+/**
+ * Pure: the cells W1…W7 of the standard schedule (the windows of this
+ * person: weekly_schedule.windowFor with the W4 visit day), then W8,
+ * which the App does not have yet (T35).  Schedule switch off: "off".
+ * @param {object} cfg weekly_schedule config (base().cfg)
+ * @param {string} w0Date
+ * @param {object} user users/{uid} meta (w4RecordedOn)
+ * @param {object} recs L.partRecords()
+ * @param {object} statuses weekly_status.bundles
+ * @param {Date} now
+ * @return {Object<string, object>} Wn → bundleCellFor() / {status}
+ */
+function weeklyCellsFor(cfg, w0Date, user, recs, statuses, now) {
+  const out = {};
+  for (const b of weeklySchedule.bundlesFor(cfg,
+      weeklySchedule.MODE_STANDARD)) {
+    if (!cfg.enabled) {
+      out[b.id] = {status: 'off'};
+      continue;
+    }
+    const win = weeklySchedule.windowFor(b, w0Date, cfg,
+        weeklySchedule.windowOptsFor(user || {}, cfg));
+    out[b.id] = bundleCellFor(b, win, recs, (statuses || {})[b.id] || null,
+        now);
+  }
+  out.W8 = {status: W8_STATUS};
+  return out;
+}
+
+/** Every part any bundle of the schedule has (what partRecords reads). */
+function partsOf(cfg) {
+  const all = [];
+  for (const b of weeklySchedule.bundlesFor(cfg,
+      weeklySchedule.MODE_STANDARD)) {
+    for (const part of b.parts) if (all.indexOf(part) < 0) all.push(part);
+  }
+  return PART_ORDER.filter((part) => all.indexOf(part) >= 0);
+}
+
 /** Pure: the overview row from one person's reads. */
 function overviewRow(p, x) {
   const todayDay = x.todayDay;
@@ -77,11 +157,6 @@ function overviewRow(p, x) {
   }
   const weekStartDay = week >= 1 ? (week - 1) * 7 + 1 : null;
   const daysSoFar = weekStartDay ? todayDay - weekStartDay + 1 : 0;
-  const weeklyPr = {};
-  for (const w of L.WEEKLY_PR_WEEKS) {
-    weeklyPr[w] = ops.weeklyCellFor(x.weeklyPrDocs[w] || null,
-        x.bundles[w] || null);
-  }
   return {
     researchId: p.researchId,
     cohort: p.cohort,
@@ -98,8 +173,7 @@ function overviewRow(p, x) {
     validSessions: {thisWeek, all},
     briefPr: {invited, completed},
     checkIn: {daysThisWeek: x.checkInDaysThisWeek, daysSoFar},
-    weeklyPr,
-    w8: W8_STATUS,
+    weekly: x.weekly,
     pendingAlerts: x.pendingAlerts,
   };
 }
@@ -137,13 +211,13 @@ async function loadOverviewPerson(g, p, ctx, dayRowsRead) {
   const weekStartKey = week >= 1 ?
     studyWeek.addDays(p.w0Date, (week - 1) * 7 + 1) : null;
   const dr = dayRowsRead || await L.dayRows(g, p, now);
-  const [lastOpen, checkInDays, weeklyPrRows] = await Promise.all([
+  const [lastOpen, checkInDays, recs] = await Promise.all([
     L.lastOpen(g, p.uid, dr.usageSince),
     weekStartKey ? L.checkInDoneDays(g, p.uid, weekStartKey) : new Set(),
-    g.query('users/{uid}/weekly_pr', {uid: p.uid}).get(),
+    ctx.cfg.enabled ? L.partRecords(g, p.uid, partsOf(ctx.cfg)) : {},
   ]);
-  const weeklyPrDocs = {};
-  for (const r of weeklyPrRows) weeklyPrDocs[r.id] = r.data;
+  const weekly = weeklyCellsFor(ctx.cfg, p.w0Date, ctx.meta[p.uid] || {},
+      recs, ctx.bundles[p.uid] || {}, now);
   let checkInDaysThisWeek = 0;
   for (const k of checkInDays) {
     if (weekStartKey && k >= weekStartKey && k <= todayKey) {
@@ -152,7 +226,7 @@ async function loadOverviewPerson(g, p, ctx, dayRowsRead) {
   }
   return overviewRow(p, {
     todayDay, days: dr.days, hasUsageEvents: dr.hasUsageEvents, lastOpen,
-    checkInDaysThisWeek, weeklyPrDocs, bundles: ctx.bundles[p.uid] || {},
+    checkInDaysThisWeek, weekly,
     pendingAlerts: ctx.pending.filter((a) => a.uid === p.uid).length,
   });
 }
@@ -195,7 +269,7 @@ async function base(g) {
 async function overview(g, now, b, opts) {
   const withTesters = !!(opts && opts.testers);
   const pending = pendingAlertsFor(b.alerts, b.meta, withTesters);
-  const ctx = {now, bundles: b.bundles, pending};
+  const ctx = {now, bundles: b.bundles, pending, cfg: b.cfg, meta: b.meta};
   const rows = await L.mapLimit(b.people, L.PARALLEL,
       (p) => loadOverviewPerson(g, p, ctx));
   const out = {
@@ -262,7 +336,35 @@ async function today(g, now, b, ov) {
   };
 }
 
-/** §2.2 (3): one person, process data only. */
+/**
+ * Pure (decision 0072): mood entries by Hong Kong day, the day's first
+ * (is_primary, the one analyses use) first, then by entry number.  The
+ * value only (1–5), nothing else of the entry.
+ * @param {Array<{data: object}>} rows masked users/{uid}/daily_mood rows
+ * @return {Object<string, Array<{mood: ?number, primary: boolean}>>}
+ */
+function moodsByDay(rows) {
+  const by = {};
+  for (const r of rows) {
+    const d = r.data;
+    if (typeof d.date_iso !== 'string') continue;
+    if (!by[d.date_iso]) by[d.date_iso] = [];
+    by[d.date_iso].push(d);
+  }
+  const rank = (d) => (d.is_primary === true ? 0 : 1000) +
+    (typeof d.entry_seq_today === 'number' ? d.entry_seq_today : 999);
+  const out = {};
+  for (const k of Object.keys(by)) {
+    out[k] = by[k].sort((x, y) => rank(x) - rank(y)).map((d) => ({
+      mood: typeof d.mood === 'number' && isFinite(d.mood) ? d.mood : null,
+      primary: d.is_primary === true,
+    }));
+  }
+  return out;
+}
+
+/** §2.2 (3): one person — process data, the weekly questionnaires (done
+ * or not) and the daily mood values (decision 0072). */
 async function person(g, researchId, now, b) {
   const p = b.people.find((x) => x.researchId === researchId);
   if (!p) return null;
@@ -271,14 +373,15 @@ async function person(g, researchId, now, b) {
   const dr = await L.dayRows(g, p, now);
   const [row, checkInDays, moodRows, sessions, brief, safety] =
     await Promise.all([
-      loadOverviewPerson(g, p, {now, bundles: b.bundles, pending}, dr),
+      loadOverviewPerson(g, p, {now, bundles: b.bundles, pending, cfg: b.cfg,
+        meta: b.meta}, dr),
       L.checkInDoneDays(g, p.uid, null),
       g.query('users/{uid}/daily_mood', uid).get(),
       g.query('users/{uid}/sessions', uid).get(),
       g.query('users/{uid}/brief_pr', uid).get(),
       g.query('safety_events').where('uid', '==', p.uid).get(),
     ]);
-  const moodDays = new Set(moodRows.map((r) => r.data.date_iso));
+  const moods = moodsByDay(moodRows);
   const days = dr.days.map((d) => ({
     dayKey: d.dayKey, studyDay: d.studyDay, basis: d.basis || null,
     opened: d.opened === true, firstOpenAt: d.firstOpenAt || null,
@@ -288,7 +391,8 @@ async function person(g, researchId, now, b) {
     briefPrInvited: d.briefPrInvited || 0,
     briefPrCompleted: d.briefPrCompleted || 0,
     checkInDone: checkInDays.has(d.dayKey),
-    moodRecorded: moodDays.has(d.dayKey),
+    moodRecorded: !!moods[d.dayKey],
+    moods: moods[d.dayKey] || [],
   })).reverse();
   const sessionRows = sessions.map((r) => {
     const s = r.data;
@@ -507,8 +611,9 @@ async function exportCsv(g, now, b) {
 }
 
 module.exports = {
-  W8_STATUS, COMPLETION_PARTS, COMPLETION_BUNDLES, W4_DUE_FROM_DAY,
-  WEEKLY_CSV_COLUMNS,
+  W8_STATUS, PART_ORDER, COMPLETION_PARTS, COMPLETION_BUNDLES,
+  W4_DUE_FROM_DAY, WEEKLY_CSV_COLUMNS,
+  bundleCellFor, weeklyCellsFor, partsOf, moodsByDay,
   overviewRow, pendingAlertsFor, alertRow, weeklyRowsFor, validOf,
   base, overview, today, person, completion, exportCsv,
 };

@@ -77,7 +77,9 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .pill.done { background: var(--ok-bg); color: var(--ok); }
 .pill.open { background: var(--warn-bg); color: var(--warn); }
 .pill.missed, .pill.bad { background: var(--bad-bg); color: var(--bad); }
-.pill.not_yet, .pill.not_built, .pill.none { background: #eef1f5; color: var(--muted); }
+.pill.not_yet, .pill.not_built, .pill.none, .pill.off { background: #eef1f5; color: var(--muted); }
+/* Overview weekly cell: W1–W4 on one line, W5–W8 under it. */
+.weeks { display: grid; grid-template-columns: repeat(4, auto); gap: 3px 4px; justify-content: start; justify-items: start; }
 .pill.whatsapp { background: var(--warn-bg); color: var(--warn); }
 .pill.phone { background: var(--bad-bg); color: var(--bad); }
 .actions { display: flex; gap: 6px; }

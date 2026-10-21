@@ -1,12 +1,12 @@
 /**
  * tool/dashboard/lib/guarded_db.js — the only way the dashboard touches
- * Firestore (decision 0061).  Read only:
+ * Firestore (decisions 0061, 0072).  Read only:
  *
  *   - a query names a path template from fields.READ_ALLOW; anything else
  *     (and anything in DENIED_COLLECTIONS) throws before Firestore is
  *     called;
  *   - every query gets that template's field mask (`select`), so fields
- *     not listed — answers, mood values, conversation — never leave
+ *     not listed — answers, scores, conversation — never leave
  *     Firestore;
  *   - `where` / `orderBy` only on listed fields (or the document id);
  *     `users/{uid}/events` only by name, from EVENT_NAMES;

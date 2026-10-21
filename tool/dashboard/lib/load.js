@@ -4,10 +4,11 @@
  * functions/ (the same code the App's researcher pages run):
  *
  *   study day / week        functions/study_week.js
- *   day rows, follow-up,    functions/ops_dashboard.js (pure functions
- *   Weekly PR cell          only: its loaders write ops_daily and read
+ *   day rows, follow-up     functions/ops_dashboard.js (pure functions
+ *                           only: its loaders write ops_daily and read
  *                           whole documents, so they are not used here)
- *   questionnaire windows   functions/weekly_schedule.js
+ *   questionnaire bundles,  functions/weekly_schedule.js (bundlesFor,
+ *   windows, part done      windowFor, partSubmitted)
  *   check-in done           functions/daily_checkin_push.rowCompletes
  *
  * Day rows: the finished days the server already stored in
@@ -28,8 +29,6 @@ const MS_PER_DAY = 86400000;
 /** Same scan depth as the server's last-open lookup. */
 const LAST_USE_SCAN = 60;
 const CHECK_IN_EVENT = 'check_in_submitted';
-/** Weekly PR is part of W1–W4 only. */
-const WEEKLY_PR_WEEKS = ['W1', 'W2', 'W3', 'W4'];
 const PARALLEL = 6;
 
 function toDate(v) {
@@ -242,24 +241,23 @@ async function partRecords(g, uid, parts) {
   return out;
 }
 
-/** Done or not from the masked part record (never the answer). */
+/**
+ * Done or not from the masked part record (never the answer), by the
+ * server's rule, weekly_schedule.partSubmitted: DJG-ES / S12 submitted,
+ * Weekly PR completed / skipped / no_referent.  PGIC: the server checks
+ * that the answer `value` is a number; the dashboard never reads it.
+ * The App writes `value` and `answeredAt` in the same write
+ * (pgic_page.dart) and the missed mark writes neither, so `answeredAt`
+ * gives the same result.
+ */
 function partDone(part, data) {
   if (!data) return false;
-  switch (part) {
-    case weeklySchedule.PART.DJG:
-    case weeklySchedule.PART.SOCIAL:
-      return data.status === 'submitted';
-    case weeklySchedule.PART.WEEKLY_PR:
-      return ['completed', 'skipped', 'no_referent'].indexOf(data.status) >= 0;
-    case weeklySchedule.PART.PGIC:
-      return !!toDate(data.answeredAt) && data.missed !== true;
-    default:
-      return false;
-  }
+  if (part === weeklySchedule.PART.PGIC) return !!toDate(data.answeredAt);
+  return weeklySchedule.partSubmitted(part, data);
 }
 
 module.exports = {
-  MS_PER_DAY, WEEKLY_PR_WEEKS, PARALLEL, CHECK_IN_EVENT,
+  MS_PER_DAY, PARALLEL, CHECK_IN_EVENT,
   toDate, iso, mapLimit, cohortOf, participants, usersMeta, weeklyStatusAll,
   alertsAll, scheduleConfig, dayRows, lastOpen, checkInDoneDays,
   partRecords, partDone,

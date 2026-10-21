@@ -1,5 +1,7 @@
 /**
- * tool/dashboard/public/app.js — the dashboard pages (1020i 第二版 §2.2).
+ * tool/dashboard/public/app.js — the dashboard pages (1020i 第二版 §2.2;
+ * decision 0072: whole weekly questionnaire on the overview, mood values
+ * on the person page).
  * Plain DOM, no libraries; data from the local server's /api/*.  Every
  * value is set as text (never as HTML).
  */
@@ -12,11 +14,17 @@
   const COMPANIONS = ['siu_yan', 'ah_jan_ah_bak', 'tung_tung'];
   const STAGE = {whatsapp: '发 WhatsApp', phone: '打电话',
     follow_up_period: '随访期', none: '—'};
+  /** Whole weekly questionnaire of one week (decision 0072). */
   const CELL = {not_yet: '未开始', open: '未做完', missed: '已过时间',
-    done: '已完成', skipped: '已完成（跳过）', not_built: '未做'};
-  /** Short labels for the overview's one Weekly PR cell. */
+    done: '已完成', not_built: 'App 里还没有', off: '问卷排期没开'};
+  /** Short labels for the overview's weekly cell. */
   const CELL_SHORT = {not_yet: '未开始', open: '未做完', missed: '过时',
-    done: '完成', skipped: '完成'};
+    done: '完成', not_built: '未做', off: '没排'};
+  const PART = {djg: 'DJG-ES', weekly_pr: 'Weekly PR', pgic: 'PGIC',
+    social_contact: 'S12'};
+  /** The App's five mood faces (MoodFace / check-in Q1), 1–5. */
+  const MOOD = {1: '好唔開心', 2: '唔係幾好', 3: '一般般', 4: '幾好',
+    5: '好開心'};
   const LEVEL = {acute: '急性', moderate: '中度', low: '轻度'};
   const SOURCE_GROUP = {participant_input: '老人输入',
     ai_reply_scan: '夥伴回复扫描', questionnaire: '问卷',
@@ -233,6 +241,36 @@
     return h('a', {href: `#/person/${encodeURIComponent(rid)}`}, rid);
   }
 
+  /** W1, W2, … W8 in order. */
+  function weekIds(weekly) {
+    return Object.keys(weekly || {}).sort((a, b) =>
+      Number(a.slice(1)) - Number(b.slice(1)));
+  }
+
+  /** "2/4" after 未做完 / 过时, so a reminder knows how much is left. */
+  function partsCount(c) {
+    return (c.status === 'open' || c.status === 'missed') && c.partsTotal ?
+      ` ${c.partsDone}/${c.partsTotal}` : '';
+  }
+
+  /** One pill per week: the whole questionnaire, done or not. */
+  function weeklyPills(weekly) {
+    return h('span', {class: 'weeks'}, weekIds(weekly).map((w) => {
+      const c = weekly[w];
+      return pill(c.status, `${w} ${CELL_SHORT[c.status] || c.status}` +
+        partsCount(c));
+    }));
+  }
+
+  /** "3 一般般", then the day's later entries. */
+  function moodText(moods) {
+    if (!moods || !moods.length) return '—';
+    const one = (m) => m.mood === null ? '？' :
+      `${m.mood}${MOOD[m.mood] ? ` ${MOOD[m.mood]}` : ''}`;
+    const rest = moods.slice(1).map((m) => m.mood === null ? '？' : m.mood);
+    return one(moods[0]) + (rest.length ? `（再记 ${rest.join('、')}）` : '');
+  }
+
   // ---------------------------------------------------------------- pages
 
   async function renderOverview() {
@@ -269,16 +307,11 @@
             cell: (r) => `${r.checkIn.daysThisWeek} / ${r.checkIn.daysSoFar} 天`},
         ])
         .concat([{
-          label: 'Weekly PR（W1–W4）',
-          get: (r) => ['W1', 'W2', 'W3', 'W4'].filter((w) =>
-            r.weeklyPr[w] === 'done' || r.weeklyPr[w] === 'skipped').length,
-          cell: (r) => h('span', {class: 'actions'}, ['W1', 'W2', 'W3', 'W4']
-              .map((w) => pill(r.weeklyPr[w] === 'skipped' ? 'done' : r.weeklyPr[w],
-                  `${w} ${CELL_SHORT[r.weeklyPr[w]] || r.weeklyPr[w]}`))),
-        }])
-        .concat([
-          {label: 'W8', get: (r) => r.w8, cell: (r) => pill(r.w8, CELL[r.w8])},
-        ]);
+          label: '每周问卷（整份，做完没有）',
+          get: (r) => weekIds(r.weekly).filter((w) =>
+            r.weekly[w].status === 'done').length,
+          cell: (r) => weeklyPills(r.weekly),
+        }]);
     const testerBox = h('input', {type: 'checkbox', id: 'show-testers',
       checked: showTesters || null});
     testerBox.addEventListener('change', () => {
@@ -290,9 +323,10 @@
       h('div', {class: 'controls'},
           h('label', null, testerBox, ' 显示测试账号'),
           h('span', {class: 'muted'},
-              '有效会话从研究第 1 天算起，括号里是小欣 / 阿珍阿伯 / 通通；' +
-              '「每周问卷」一格只看 Weekly PR（过程数据）。' +
-              '结局问卷的完成情况见「今天要做」和「结局完成率」，不和组别放在一起。')),
+              '有效会话从研究第 1 天算起，括号里是小欣 / 阿珍阿伯 / 通通。' +
+              '「每周问卷」看整份：那一周的每一部分（DJG-ES、Weekly PR、PGIC、S12；' +
+              'W5–W7 只有 PGIC）都做完才算完成，「2/4」是做完几部分。' +
+              '只看做没做完，不读答案（决策 0072）。')),
       table(cols, data.people, {sortIdx: 0, empty: '还没有登记的参与者。'}),
     ];
     if (data.testers) {
@@ -354,9 +388,9 @@
             p.studyDay < 1 ? '未开始' : `第 ${p.studyDay} 天（第 ${p.studyWeek} 周）`)),
         h('span', null, '最后打开 ', h('b', null, hk(p.lastOpenAt))),
         h('span', null, '跟进 ', h('b', null, p.stage === 'none' ? '—' :
-          `${STAGE[p.stage]}（${p.consecutiveUnopenedDays} 天没打开）`)),
-        h('span', null, 'Weekly PR ', h('b', null, ['W1', 'W2', 'W3', 'W4']
-            .map((w) => `${w} ${CELL[p.weeklyPr[w]]}`).join('，'))));
+          `${STAGE[p.stage]}（${p.consecutiveUnopenedDays} 天没打开）`)));
+    const weekRows = weekIds(p.weekly).map((w) =>
+      Object.assign({week: w}, p.weekly[w]));
     const pendingSafety = data.safety.filter((s) => s.alert &&
       !s.alert.acknowledgedAt);
     return [
@@ -376,6 +410,17 @@
           nosort: true,
           cell: (s) => s.alert ? alertButtons(s.alert) : '（没有告警）'},
       ], data.safety, {empty: '没有安全事件。'}),
+      h('h3', null, '每周问卷（整份，只看做没做完）'),
+      table([
+        {label: '问卷', get: (c) => Number(c.week.slice(1)), cell: (c) => c.week},
+        {label: '开放', get: (c) => c.opensOn},
+        {label: '截止（含这天）', get: (c) => c.closesOn},
+        {label: '状态', get: (c) => c.status,
+          cell: (c) => pill(c.status, (CELL[c.status] || c.status) + partsCount(c))},
+        {label: '各部分', get: () => 0, nosort: true,
+          cell: (c) => c.parts ? Object.keys(c.parts).map((k) =>
+            `${PART[k] || k} ${c.parts[k] ? '✓' : '—'}`).join(' · ') : '—'},
+      ], weekRows, {sortIdx: 0}),
       h('h3', null, '每日'),
       table([
         {label: '日期', get: (d) => d.dayKey},
@@ -389,8 +434,9 @@
           cell: (d) => `${d.briefPrInvited} / ${d.briefPrCompleted}`},
         {label: 'check-in', get: (d) => d.checkInDone,
           cell: (d) => d.checkInDone ? '✓' : '—'},
-        {label: '心情（只看有没有记）', get: (d) => d.moodRecorded,
-          cell: (d) => d.moodRecorded ? '有记' : '—'},
+        {label: '心情（1 好唔開心 … 5 好開心）',
+          get: (d) => d.moods.length ? d.moods[0].mood : null,
+          cell: (d) => moodText(d.moods)},
       ]), data.days, {empty: '还没到研究第 1 天。'}),
       h('h3', null, `会话（${data.sessions.length}）`),
       table([
@@ -465,7 +511,7 @@
       h('ul', null,
           h('li', null, 'process_weekly：每人每个研究周一行（打开天数、前台分钟、有效会话、Brief PR、check-in 天数、记了心情的天数）；'),
           h('li', null, 'process_daily：每人每天一行，和 App 运营看板导出的列相同。')),
-      h('p', {class: 'muted'}, '只有过程数据和组别；没有结局答案、心情值、对话。'),
+      h('p', {class: 'muted'}, '只有过程数据和组别；没有问卷答案、心情数值、对话。心情数值只在每人页看。'),
       button, status,
     ];
   }
