@@ -58,6 +58,7 @@
 'use strict';
 
 const {parseArgs, checkTarget} = require('./firestore_target');
+const studyPeriod = require('../functions/study_period');
 
 const COLLECTION = 'chat_transcripts';
 
@@ -71,11 +72,10 @@ const REFUSE_NOT_TESTER = '这个工具只给测试员账号用。真实参与�
   '不读；给非盲角色、带审计记录的正式读取工具冻结后再做（见 ' +
   'docs/dev/backlog.md）。';
 
-/** Study research-ID prefixes (functions/study_period.js); never read. */
-const STUDY_PREFIXES = ['RCT-', 'PB-', 'PILOT-'];
-
-/** Study cohorts, set from those prefixes (firestore.rules enrolledCohort). */
-const STUDY_COHORTS = ['phase_b', 'rct', 'pilot'];
+/** Study research-ID prefixes (RCT-, PB-, PILOT-) and the cohorts set from
+ * them: the one list in functions/study_period.js. */
+const STUDY_PREFIXES = studyPeriod.PERIODS.map((p) => p.prefix);
+const STUDY_COHORTS = studyPeriod.ENROLLED_COHORTS;
 
 /** @return {?Date} */
 function toDate(v) {
