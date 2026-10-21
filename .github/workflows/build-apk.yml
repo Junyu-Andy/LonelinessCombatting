@@ -17,9 +17,18 @@
 #                APK to a participant.  The 小讀本 section also needs
 #                app_config/feature_flags.htmlReadersEnabled = true.
 #
-# Signed with the debug key: fine for testing, not for a store release.
-# Flutter is pinned to the team's version (.metadata: 3.35.3); newer
-# Flutter needs a Gradle upgrade first (android/gradle/wrapper).
+# Signing (1020j §2): every APK is signed with the project's ONE fixed
+# release key, restored from four repository secrets
+# (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,
+# ANDROID_KEY_PASSWORD), so each new APK installs over the previous one.
+# Without them the build stops: it never falls back to a throw-away key
+# (each CI machine's debug key is new, which forced an uninstall and a
+# re-login on every update).  The certificate's SHA-256 is printed in the
+# run summary; with the repository variable ANDROID_SIGNING_SHA256 set,
+# a different certificate fails the run.  docs/release/android-signing.md.
+# Flutter is pinned to the team's version (.metadata: 3.44.1, 1020p §1,
+# decision 0068).  Gradle 8.12 / AGP 8.9.1 / Kotlin 2.1.0 are inside
+# 3.44.1's supported range; a newer Flutter needs them raised first.
 name: Build APK
 
 on:
@@ -43,12 +52,33 @@ jobs:
           java-version: 17
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.35.3
+          flutter-version: 3.44.1
           channel: stable
           cache: true
       - run: flutter pub get
+      - name: Release signing key (fixed, from repository secrets)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=""
+          [ -n "$KEYSTORE_BASE64" ] || missing="$missing ANDROID_KEYSTORE_BASE64"
+          [ -n "$STORE_PASSWORD" ] || missing="$missing ANDROID_KEYSTORE_PASSWORD"
+          [ -n "$KEY_ALIAS" ] || missing="$missing ANDROID_KEY_ALIAS"
+          [ -n "$KEY_PASSWORD" ] || missing="$missing ANDROID_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Release signing secrets missing:$missing — see docs/release/android-signing.md. Not building with a throw-away key."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
       - name: Build
         env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           # Optional repo secret: unlocks the tester tools (schedule
           # simulator, test pushes) in this build — About page, tap the
           # version 7×. Without it the build has no tester access at all.
@@ -70,6 +100,32 @@ jobs:
           # (secrets such as TESTER_PIN are masked by GitHub).
           echo "dart-defines: $DEFINES"
           flutter build apk --release $DEFINES
+      - name: Signing certificate (the same for every build)
+        env:
+          EXPECTED_SHA256: ${{ vars.ANDROID_SIGNING_SHA256 }}
+        run: |
+          rm -f "$RUNNER_TEMP/release.jks"
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          "$BT/apksigner" verify --print-certs "$APK" | tee "$RUNNER_TEMP/certs.txt"
+          SHA=$(grep -m 1 'certificate SHA-256 digest' "$RUNNER_TEMP/certs.txt" | awk '{print $NF}')
+          VERSION=$("$BT/aapt2" dump badging "$APK" | grep -m 1 '^package:')
+          {
+            echo "### APK 签名"
+            echo ""
+            echo "- 证书 SHA-256：\`$SHA\`"
+            echo "- $VERSION"
+            echo ""
+            echo "每次构建这一行都应该一样。不一样就不要发给参与者。"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$SHA" ]; then
+            echo "::error::Could not read the APK signing certificate."
+            exit 1
+          fi
+          if [ -n "$EXPECTED_SHA256" ] && [ "$(echo "$EXPECTED_SHA256" | tr 'A-F:' 'a-f ' | tr -d ' ')" != "$(echo "$SHA" | tr 'A-F:' 'a-f ' | tr -d ' ')" ]; then
+            echo "::error::Signing certificate $SHA is not ANDROID_SIGNING_SHA256 ($EXPECTED_SHA256). Do not give this APK to participants."
+            exit 1
+          fi
       # Branch names like claude/x contain "/", which artifact names forbid.
       - name: Artifact name
         id: artifact

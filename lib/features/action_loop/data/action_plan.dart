@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import 'home_small_action.dart';
+
 /// M7 implementation-intention record. Conceptually one if-then plan:
 ///   "If <when> <where>, with <whoWith>, I will <action>. If it doesn't
 ///    work out, I will <fallback>."
@@ -51,6 +53,29 @@ class ActionPlan {
   /// When the elder deleted it (soft delete; the row stays).
   final DateTime? deletedAt;
 
+  // ---- 1020m 第二节: page 1's small-action row (HomeSmallActionRow).
+  // Written only by the row's 「做咗」 / 「改日」; null / 0 on every other
+  // plan.  See [HomeSmallAction] and decision 0064. ----
+
+  /// Hong Kong day (yyyy-MM-dd) the plan is for after 「改日」 moved it.
+  /// Null = never moved: the day of its follow-up reminder (saved + 24 h,
+  /// [HomeSmallAction.dueDateOf]).
+  final String? homeRowDueDate;
+
+  /// The row's last answer: `done` (做咗) or `later` (改日).
+  final String? homeRowStatus;
+
+  /// Hong Kong day (yyyy-MM-dd) of that answer.
+  final String? homeRowAnsweredDate;
+
+  /// How many times 「改日」 was pressed (the first one moves the plan,
+  /// the second does not).
+  final int homeRowLaterCount;
+
+  /// Where the follow-up answer (`outcome`) came from: `home_row` when
+  /// 「做咗」 set it; null = the 「件事點呀？」 page (as before).
+  final String? followUpSource;
+
   const ActionPlan({
     this.id,
     required this.action,
@@ -68,6 +93,11 @@ class ActionPlan {
     this.seedAction,
     this.editCount = 0,
     this.deletedAt,
+    this.homeRowDueDate,
+    this.homeRowStatus,
+    this.homeRowAnsweredDate,
+    this.homeRowLaterCount = 0,
+    this.followUpSource,
   });
 
   /// Switch off: exactly the ten keys plans have always had.  The 1020e
@@ -116,6 +146,11 @@ class ActionPlan {
       seedAction: map['seedAction'] as String?,
       editCount: (map['editCount'] as num?)?.toInt() ?? 0,
       deletedAt: map['deletedAt'] == null ? null : parse(map['deletedAt']),
+      homeRowDueDate: map['homeRowDueDate'] as String?,
+      homeRowStatus: map['homeRowStatus'] as String?,
+      homeRowAnsweredDate: map['homeRowAnsweredDate'] as String?,
+      homeRowLaterCount: (map['homeRowLaterCount'] as num?)?.toInt() ?? 0,
+      followUpSource: map['followUpSource'] as String?,
     );
   }
 
@@ -285,6 +320,86 @@ class ActionPlanRepository {
     }, SetOptions(merge: true));
     for (final d in await _unsentReminders(uid, plan.id!)) {
       await d.reference.delete();
+    }
+  }
+
+  /// 1020m 第二节 — 「做咗」 on page 1's small-action row: the follow-up
+  /// answer as the 「件事點呀？」 page writes it (`outcome: happened`,
+  /// `followedUpAt`) plus `followUpSource: home_row` and the row's status
+  /// fields ([HomeSmallAction.doneUpdate]); then the plan's unsent
+  /// reminders go, as that page does.  No model call in either arm.
+  Future<void> markDoneFromHome(String uid, ActionPlan plan,
+      {required DateTime now}) async {
+    if (!available || plan.id == null) return;
+    final data = Map<String, dynamic>.of(HomeSmallAction.doneUpdate(now));
+    final entry = data.remove(HomeSmallAction.logEntryKey);
+    await _ref(uid).doc(plan.id).set({
+      ...data,
+      'followedUpAt': FieldValue.serverTimestamp(),
+      'homeRowAnsweredAt': FieldValue.serverTimestamp(),
+      'homeRowLog': FieldValue.arrayUnion([entry]),
+    }, SetOptions(merge: true));
+    await _applyReminderOps(uid,
+        HomeSmallAction.reminderOpsAfterDone(await _planReminders(uid, plan)));
+  }
+
+  /// 1020m 第二节 — 「改日」 on page 1's small-action row: status only
+  /// ([HomeSmallAction.postponeUpdate]; no `outcome`, so the plan stays in
+  /// 「我嘅計劃」).  The first press moves the plan and its reminder to
+  /// tomorrow, same clock time; the second drops the reminder
+  /// ([HomeSmallAction.reminderOpsAfterPostpone]).
+  Future<HomeSmallActionPostpone> postponeFromHome(String uid, ActionPlan plan,
+      {required DateTime now}) async {
+    final p = HomeSmallAction.postpone(plan, now);
+    if (!available || plan.id == null) return p;
+    final data = Map<String, dynamic>.of(HomeSmallAction.postponeUpdate(p, now));
+    final entry = data.remove(HomeSmallAction.logEntryKey);
+    await _ref(uid).doc(plan.id).set({
+      ...data,
+      'homeRowAnsweredAt': FieldValue.serverTimestamp(),
+      'homeRowLog': FieldValue.arrayUnion([entry]),
+    }, SetOptions(merge: true));
+    await _applyReminderOps(
+        uid,
+        HomeSmallAction.reminderOpsAfterPostpone(
+            plan, p, await _planReminders(uid, plan)));
+    return p;
+  }
+
+  Future<List<PlanReminder>> _planReminders(String uid, ActionPlan plan) async {
+    final docs = await _unsentReminders(uid, plan.id!);
+    return [
+      for (final d in docs)
+        if (d.data()['kind'] == 'm7_followup')
+          PlanReminder(
+            id: d.id,
+            fireAt: d.data()['fireAt'] as String?,
+            dispatchStatus: d.data()['dispatchStatus'] as String?,
+          ),
+    ];
+  }
+
+  Future<void> _applyReminderOps(String uid, List<PlanReminderOp> ops) async {
+    final col = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('reminders');
+    for (final op in ops) {
+      switch (op.kind) {
+        case PlanReminderOpKind.move:
+          await col.doc(op.id).update({
+            'fireAt': op.to,
+            'movedFromFireAt': op.from,
+            'movedBy': HomeSmallAction.movedBy,
+          });
+        case PlanReminderOpKind.delete:
+          await col.doc(op.id).delete();
+        case PlanReminderOpKind.create:
+          await col.add({
+            ...op.request!.toMap(),
+            'movedBy': HomeSmallAction.movedBy,
+          });
+      }
     }
   }
 

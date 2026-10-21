@@ -8,6 +8,14 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// 1020j §2 — release builds are signed with ONE fixed key, so a new APK
+// installs over the old one (no uninstall, no re-login).  The Build APK
+// workflow restores the key from repository secrets and sets these
+// variables (docs/release/android-signing.md).  Without them — a local
+// `flutter run --release` — the debug key is used, as before; the workflow
+// refuses to build a release APK without the fixed key.
+val releaseKeystore: String? = System.getenv("ANDROID_KEYSTORE_PATH")
+
 android {
     namespace = "com.example.app_demo"
     compileSdk = flutter.compileSdkVersion
@@ -33,11 +41,24 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (releaseKeystore != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

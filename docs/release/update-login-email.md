@@ -59,7 +59,7 @@ NODE_PATH=functions/node_modules node tool/update_login_email.js \
 
 ## 记录里有什么
 
-`account_admin_log` 每次正式修改写一条，内容如下。只有服务器和管理钥匙能读，App 读不到。
+`account_admin_log` 每次正式修改写一条，内容如下。只有服务器和管理钥匙能读，App 读不到。删除参与者（`tool/delete_participant.js`）时**不删**这些记录，和其他审计日志一样保留；删除回执的「没覆盖到」一栏会列出它（decisions-log 10/21，第 130 条之后的答复）。
 
 | 字段 | 内容 |
 |---|---|

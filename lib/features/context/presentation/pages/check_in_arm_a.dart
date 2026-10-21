@@ -41,6 +41,7 @@ import '../../../today/data/mood_recorder.dart';
 import 'check_in_shared.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
+import '../../../crisis/presentation/widgets/crisis_chat_message.dart';
 
 /// M2 — hybrid check-in (Arm A). Free-text or voice opener, LLM produces
 /// a brief empathetic reflection + at most one adaptive follow-up. The
@@ -221,11 +222,12 @@ class _CheckInArmAState extends State<CheckInArmA> {
         _resolvingMood = false;
         _moodGateResolved = true;
         final prev = widget.previousMoodValue;
-        _turns.add(_Turn.bot(
-          (prev != null && prev != widget.initialMoodValue)
-              ? _moodChangeOpener(isEn, prev, widget.initialMoodValue!)
-              : _openingLine(isEn),
-        ));
+        final opener = (prev != null && prev != widget.initialMoodValue)
+            ? _moodChangeOpener(isEn, prev, widget.initialMoodValue!)
+            : _openingLine(isEn);
+        _turns.add(_Turn.bot(opener));
+        // Decision 0069: the opener opens the research transcript.
+        _recorder?.transcriptCompanion(opener);
       } else {
         // Entered via the agent tile — look up today's mood first; if
         // none, fall back to the most recent record so Siu Yan can at
@@ -268,6 +270,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
         _moodValueAlreadyInDailyMood = moodValue;
         _moodGateResolved = true;
         _turns.add(_Turn.bot(_openingLine(isEn)));
+        _recorder?.transcriptCompanion(_openingLine(isEn));
       } else {
         // Not logged today → show the mood gate first; the opener is
         // seeded once the user picks (see _onGatePicked).
@@ -311,6 +314,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
       _resolvedMoodIsToday = true;
       _moodGateResolved = true;
       _turns.add(_Turn.bot(_openingLine(isEn)));
+      _recorder?.transcriptCompanion(_openingLine(isEn));
     });
   }
 
@@ -611,6 +615,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
 
     final history = _turns
         .take(_turns.length - 1)
+        .where((t) => !t.crisis)
         .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
         .toList();
     final response = await core.llm.send(
@@ -648,12 +653,12 @@ class _CheckInArmAState extends State<CheckInArmA> {
     }
     if (!mounted) return;
     if (response.shortCircuited) {
-      // S-2 — acute: template INSTEAD of any reply (system voice), crisis
-      // page, session closed as `crisis` (no Brief PR).
-      final ack = SafetyCopy.acuteAck(AgentRegistry.siuYanId, isEn: isEn);
+      // S-2 — acute: the fixed safety message INSTEAD of any reply
+      // (1020m 第三节: [CrisisChatMessage], the crisis page's numbers),
+      // crisis page, session closed as `crisis` (no Brief PR).
       setState(() {
         _busy = false;
-        _turns.add(_Turn.system(ack));
+        _turns.add(_Turn.crisis());
       });
       unawaited(_recorder?.logTurn(TurnRecord(
         agentId: AgentRegistry.siuYanId,
@@ -663,10 +668,12 @@ class _CheckInArmAState extends State<CheckInArmA> {
         modality: usedVoice ? InputModality.voice : InputModality.text,
         voiceDurationMs: voiceMs,
         charCount: text.length,
+        userText: text,
         detector: response.inputFlag,
         shortCircuited: true,
         ackShown: true,
         response: response,
+        shownReply: [CrisisChatMessage.transcriptText(isEn: isEn)],
       )));
       unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
@@ -686,6 +693,9 @@ class _CheckInArmAState extends State<CheckInArmA> {
     final moderateAck = escalation.interrupts
         ? SafetyCopy.moderateAck(AgentRegistry.siuYanId, isEn: isEn)
         : null;
+    // 1020m 第三节: acute on the reply scan → the fixed safety message
+    // under the reply (the crisis page opens below, as before).
+    final crisis = escalation.level == DistressLevel.acute;
 
     // Phase A spec §2.6 — decide the Thought Exercise offer now so the
     // exact invitation text is logged on this turn (L-3).
@@ -708,6 +718,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
       _turns.add(_Turn.bot(replyText,
           promptHash: response.metadata.systemPromptHash));
       if (moderateAck != null) _turns.add(_Turn.system(moderateAck));
+      if (crisis) _turns.add(_Turn.crisis());
     });
     final turnIndex = _turns.lastIndexWhere((t) => !t.fromUser && !t.isSystem);
     final turnDocId = await _recorder?.logTurn(TurnRecord(
@@ -718,11 +729,19 @@ class _CheckInArmAState extends State<CheckInArmA> {
       modality: usedVoice ? InputModality.voice : InputModality.text,
       voiceDurationMs: voiceMs,
       charCount: text.length,
+      userText: text,
       detector: escalation,
       shortCircuited: false,
-      ackShown: moderateAck != null,
+      ackShown: moderateAck != null || crisis,
       response: response,
       teOfferText: teOfferText,
+      // Decision 0069: as shown — the fallback line, the safety line, the crisis
+      // message (the thought-exercise card is not a chat bubble).
+      shownReply: [
+        replyText,
+        if (moderateAck != null) moderateAck,
+        if (crisis) CrisisChatMessage.transcriptText(isEn: isEn),
+      ],
     ));
     if (mounted && turnDocId != null && turnIndex >= 0) {
       setState(() => _turns[turnIndex] = _turns[turnIndex].withTurnDocId(turnDocId));
@@ -785,6 +804,7 @@ class _CheckInArmAState extends State<CheckInArmA> {
         profile: profile,
         userTurn: text,
         recentTurns: _turns
+            .where((t) => !t.crisis)
             .map((t) => LlmTurn(fromUser: t.fromUser, text: t.text))
             .toList(),
         localeCode: isEn ? 'en' : 'zh',
@@ -1178,14 +1198,20 @@ class _Turn {
 
   /// L-1 — id of the logged `turns/{turnId}` doc (assistant turns only).
   final String? turnDocId;
+
+  /// 1020m 第三节: shown as [CrisisChatMessage]; never sent to the model.
+  final bool crisis;
   const _Turn._(this.fromUser, this.isSystem, this.text,
-      {this.promptHash, this.turnDocId});
+      {this.promptHash, this.turnDocId, this.crisis = false});
   factory _Turn.user(String t) => _Turn._(true, false, t);
   factory _Turn.bot(String t, {String? promptHash}) =>
       _Turn._(false, false, t, promptHash: promptHash);
   factory _Turn.system(String t) => _Turn._(false, true, t);
-  _Turn withTurnDocId(String id) =>
-      _Turn._(fromUser, isSystem, text, promptHash: promptHash, turnDocId: id);
+
+  /// 1020m 第三节: the fixed safety message after an acute trigger.
+  factory _Turn.crisis() => _Turn._(false, true, '', crisis: true);
+  _Turn withTurnDocId(String id) => _Turn._(fromUser, isSystem, text,
+      promptHash: promptHash, turnDocId: id, crisis: crisis);
 }
 
 class _TurnBubble extends StatelessWidget {
@@ -1194,6 +1220,7 @@ class _TurnBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (turn.crisis) return const CrisisChatMessage();
     final theme = Theme.of(context);
     final align = turn.fromUser ? Alignment.centerRight : Alignment.centerLeft;
     final color = turn.fromUser

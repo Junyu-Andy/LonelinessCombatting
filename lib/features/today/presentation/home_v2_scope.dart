@@ -7,27 +7,40 @@ library;
 import 'package:flutter/widgets.dart';
 
 import '../../../core/session/session_entry_surface.dart';
+import '../../context/data/check_in_response_store.dart';
 import '../../context/presentation/pages/check_in_page.dart';
+import '../../action_loop/presentation/pages/action_loop_landing.dart';
 import '../../context/presentation/pages/siu_yan_chat_page.dart';
+import '../../social_suggestions/presentation/pages/social_suggestions_page.dart';
 import '../../weekly_bundle/data/weekly_bundle.dart';
 import '../data/mood_row_copy.dart';
 import '../data/mood_row_store.dart';
+import '../data/small_action_row_store.dart';
 
 class HomeV2Scope extends InheritedWidget {
   const HomeV2Scope({
     super.key,
     required super.child,
     this.checkedInToday,
+    this.checkInResponses,
     this.daysSinceLastCheckIn,
     this.moodStore,
     this.weeklyStore,
     this.clock,
     this.moodChatPage,
     this.checkInPage,
+    this.smallActionStore,
+    this.smallActionPage,
+    this.myPlansPage,
   });
 
   /// Today's check-in done?  Default: the `check_in_submitted` event.
   final Future<bool> Function(String uid)? checkedInToday;
+
+  /// Today's chat check-in rows (an acute stop not marked 誤觸 also ticks
+  /// the row — [isStoppedUnmarked]).  Default:
+  /// [FirestoreCheckInResponseStore].
+  final CheckInResponseStore? checkInResponses;
 
   /// Days since the last check-in (null = never).  Default: the event.
   final Future<int?> Function(String uid)? daysSinceLastCheckIn;
@@ -41,6 +54,18 @@ class HomeV2Scope extends InheritedWidget {
 
   /// The page the check-in row opens.  Default: [CheckInPage].
   final Widget Function()? checkInPage;
+
+  /// 1020m 第二节 — the small-action row's plans and marks.  Default:
+  /// [DefaultSmallActionRowStore] (Firestore + shared_preferences).
+  final SmallActionRowStore? smallActionStore;
+
+  /// The page 「今日想做啲咩小行動？」 opens.  Default:
+  /// [SocialSuggestionsPage] (今日小行動, the 做啲嘢 page's first card).
+  final Widget Function()? smallActionPage;
+
+  /// 1020n: the page 「仲有 N 個計劃」 opens.  Default:
+  /// [ActionLoopLandingPage] (我嘅計劃).
+  final Widget Function()? myPlansPage;
 
   static HomeV2Scope? maybeOf(BuildContext context) =>
       context.getInheritedWidgetOfExactType<HomeV2Scope>();
@@ -57,6 +82,13 @@ class HomeV2Scope extends InheritedWidget {
 
   static Widget buildCheckIn(BuildContext context) =>
       maybeOf(context)?.checkInPage?.call() ?? const CheckInPage();
+
+  static Widget buildSmallActionPage(BuildContext context) =>
+      maybeOf(context)?.smallActionPage?.call() ??
+      const SocialSuggestionsPage();
+
+  static Widget buildMyPlansPage(BuildContext context) =>
+      maybeOf(context)?.myPlansPage?.call() ?? const ActionLoopLandingPage();
 
   @override
   bool updateShouldNotify(HomeV2Scope oldWidget) => false;

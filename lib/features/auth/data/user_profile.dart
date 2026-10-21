@@ -329,6 +329,15 @@ class UserProfile {
   /// it in memory so the gate moves on at once.
   final DateTime? intakeGateUnlockedAt;
 
+  /// 1020o 第三节 (decision 0066) — the elder's own 「安靜時段」 (「由」 /
+  /// 「到」, Hong Kong "HH:mm"); null = not picked, the server uses the
+  /// global window.  Written one field at a time by `QuietHoursStore`
+  /// (firestore.rules accept only the picker's values), so never in
+  /// [toMap]: a profile save can neither erase them nor put back an old
+  /// value.  [copyWith] sets them in memory so the page shows the pick.
+  final String? quietHoursStart;
+  final String? quietHoursEnd;
+
   const UserProfile({
     required this.uid,
     required this.email,
@@ -366,6 +375,8 @@ class UserProfile {
     this.baselineUclaScore,
     this.onboardingCompletedAt,
     this.intakeGateUnlockedAt,
+    this.quietHoursStart,
+    this.quietHoursEnd,
   });
 
   /// B.10 — true when the activation timestamp is for the current local day.
@@ -421,6 +432,8 @@ class UserProfile {
     int? baselineUclaScore,
     DateTime? onboardingCompletedAt,
     DateTime? intakeGateUnlockedAt,
+    String? quietHoursStart,
+    String? quietHoursEnd,
   }) {
     return UserProfile(
       uid: uid,
@@ -463,6 +476,8 @@ class UserProfile {
       onboardingCompletedAt:
           onboardingCompletedAt ?? this.onboardingCompletedAt,
       intakeGateUnlockedAt: intakeGateUnlockedAt ?? this.intakeGateUnlockedAt,
+      quietHoursStart: quietHoursStart ?? this.quietHoursStart,
+      quietHoursEnd: quietHoursEnd ?? this.quietHoursEnd,
     );
   }
 
@@ -517,7 +532,8 @@ class UserProfile {
         if (onboardingCompletedAt != null)
           'onboardingCompletedAt': onboardingCompletedAt!.toIso8601String(),
         // 1020e §2.14: `intakeGateUnlockedAt` is never written from here —
-        // see the field.
+        // see the field.  1020o: nor are `quietHoursStart` /
+        // `quietHoursEnd` (QuietHoursStore writes them).
       };
 
   factory UserProfile.fromMap(String uid, Map<String, dynamic> map) {
@@ -608,6 +624,11 @@ class UserProfile {
       baselineUclaScore: (map['baselineUclaScore'] as num?)?.toInt(),
       onboardingCompletedAt: parseDate(map['onboardingCompletedAt']),
       intakeGateUnlockedAt: parseDate(map['intakeGateUnlockedAt']),
+      quietHoursStart: map['quietHoursStart'] is String
+          ? map['quietHoursStart'] as String
+          : null,
+      quietHoursEnd:
+          map['quietHoursEnd'] is String ? map['quietHoursEnd'] as String : null,
     );
   }
 }

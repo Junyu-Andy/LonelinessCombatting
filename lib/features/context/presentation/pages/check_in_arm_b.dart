@@ -14,6 +14,7 @@ import '../../../analytics/data/analytics_service.dart';
 import '../../../analytics/presentation/analytics_scope.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/rule_submission_flow.dart';
+import '../../../crisis/presentation/widgets/crisis_chat_message.dart';
 import '../../../rule_replies/data/rule_reply_history_store.dart';
 import '../../../rule_replies/data/rule_reply_pool.dart';
 import '../../../rule_replies/data/rule_reply_service.dart';
@@ -62,6 +63,11 @@ class _CheckInArmBState extends State<CheckInArmB> {
   /// submission only).  Null keeps the original fixed line.
   String? _ruleReply;
   bool _picking = false;
+
+  /// 1020m 第三节: the saved note tripped acute → the fixed safety message
+  /// ([CrisisChatMessage], the crisis page's numbers) where the saved line
+  /// was, as the Hybrid check-in chat shows it.
+  bool _acute = false;
 
   @override
   void didChangeDependencies() {
@@ -164,7 +170,10 @@ class _CheckInArmBState extends State<CheckInArmB> {
                   ? _save
                   : null,
             ),
-            if (_saved && _ruleReply != null) ...[
+            if (_saved && _acute) ...[
+              const SizedBox(height: 12),
+              const CrisisChatMessage(),
+            ] else if (_saved && _ruleReply != null) ...[
               const SizedBox(height: 12),
               RuleReplyBubble(
                 text: _ruleReply!,
@@ -278,6 +287,7 @@ class _CheckInArmBState extends State<CheckInArmB> {
       _saved = true;
       _picking = false;
       _ruleReply = ruleReply;
+      _acute = distress.level == DistressLevel.acute;
     });
 
     // Decision 0015 — the submission is one agent session, like a chat.
@@ -295,6 +305,10 @@ class _CheckInArmBState extends State<CheckInArmB> {
       safetyTurnId: safetyTurnId,
       replyText:
           ruleReply ?? (isEn ? 'Saved. See you tomorrow.' : '收到喇。聽日再見。'),
+      // Decision 0069: after acute the page shows the fixed safety message.
+      shownReply: distress.level == DistressLevel.acute
+          ? [CrisisChatMessage.transcriptText(isEn: isEn)]
+          : null,
     );
     if (!mounted) return;
 

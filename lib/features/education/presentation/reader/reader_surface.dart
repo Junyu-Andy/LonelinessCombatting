@@ -20,20 +20,31 @@ import '../../data/reader_html.dart';
 class ReaderSurfaceRequest {
   const ReaderSurfaceRequest({
     required this.html,
-    required this.onSection,
+    required this.onMessage,
     required this.onCta,
+    required this.onOpenUnit,
+    required this.bridge,
     required this.background,
   });
 
-  /// Already prepared ([prepareReaderHtml]: CSP, viewport, `--fs`,
-  /// section script).
+  /// Already prepared ([prepareReaderHtml]: CSP, `data-chrome` /
+  /// `data-ask`, viewport, `--fs`, read state, the App's page script).
+  /// A new value (「讀下一篇」, T-R4b) loads in the same view.
   final String html;
 
-  /// Raw message from the page's section script (the page validates it).
-  final ValueChanged<String> onSection;
+  /// Raw message from the App's page script ([parseReaderMessage]; the
+  /// page validates it).
+  final ValueChanged<String> onMessage;
 
-  /// One of the three `peizhu://cta/…` links was tapped.
+  /// One of the `peizhu://cta/…` links was tapped.
   final ValueChanged<ReaderCta> onCta;
+
+  /// 1021 T-R4b: `peizhu://reader/open?id=<id>` was tapped.
+  final ValueChanged<String> onOpenUnit;
+
+  /// 1021 T-R2 / T-R3: the view attaches its JavaScript runner here, so
+  /// the page can call `window.peizhuReader.back()` / `readIds()`.
+  final ReaderJsBridge bridge;
 
   final Color background;
 }
@@ -80,7 +91,7 @@ class _WebViewReaderState extends State<_WebViewReader> {
       ..setBackgroundColor(widget.request.background)
       ..addJavaScriptChannel(
         kReaderJsChannel,
-        onMessageReceived: (m) => widget.request.onSection(m.message),
+        onMessageReceived: (m) => widget.request.onMessage(m.message),
       )
       ..setNavigationDelegate(NavigationDelegate(
         onNavigationRequest: (request) {
@@ -94,6 +105,9 @@ class _WebViewReaderState extends State<_WebViewReader> {
               return NavigationDecision.navigate;
             case ReaderNavAction.cta:
               widget.request.onCta(d.cta!);
+              return NavigationDecision.prevent;
+            case ReaderNavAction.openUnit:
+              widget.request.onOpenUnit(d.unitId!);
               return NavigationDecision.prevent;
             case ReaderNavAction.block:
               if (kDebugMode) debugPrint('[Readers] blocked ${request.url}');
@@ -114,8 +128,29 @@ class _WebViewReaderState extends State<_WebViewReader> {
       platform.setAllowsLinkPreview(false);
       platform.setAllowsBackForwardNavigationGestures(false);
     }
+    widget.request.bridge.attach(_controller.runJavaScriptReturningResult);
     // No base URL: the page has no origin to load relative files from.
     _controller.loadHtmlString(widget.request.html);
+  }
+
+  @override
+  void didUpdateWidget(_WebViewReader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.request.bridge, widget.request.bridge)) {
+      oldWidget.request.bridge.detach();
+      widget.request.bridge.attach(_controller.runJavaScriptReturningResult);
+    }
+    // 「讀下一篇」 (T-R4b): another unit in the same view.
+    if (oldWidget.request.html != widget.request.html) {
+      _initialLoadPending = true;
+      _controller.loadHtmlString(widget.request.html);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.request.bridge.detach();
+    super.dispose();
   }
 
   @override

@@ -5,8 +5,9 @@
 ///  1. 「直接打開（預覽，唔儲存）」 opens the real flow at once — the same
 ///     pages in the same order a participant gets, nothing saved, so it can
 ///     be repeated as often as needed ([WeeklyBundleFlowPage.previewFor]).
-///  2. 「模擬到嗰日 20:30」 moves the in-app scheduling clock ([AppClock]) to
-///     half an hour after that bundle's push and returns to 屋企, where the
+///  2. 「模擬到嗰日 10:30」 (the push hour + 30 min) moves the in-app
+///     scheduling clock ([AppClock]) to half an hour after that bundle's
+///     push and returns to 屋企, where the
 ///     「每週問卷」 card shows exactly as on that day.  Answers given there
 ///     ARE saved, to this tester account (testers are excluded from the
 ///     research data).  This needs the schedule to apply to the account:
@@ -55,11 +56,12 @@ class _TesterWeeklyBundlePageState extends State<TesterWeeklyBundlePage> {
     Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
-  /// The push hour of [b]: 10:00 for W1–W4 with weeklyReminderV2Enabled
-  /// (functions/weekly_schedule.js V2_PUSH_HOUR), else weeklyPushHour.
+  /// The push hour of [b]: 10:00 with weeklyReminderV2Enabled (W1–W7 since
+  /// item 98; functions/weekly_schedule.js V2_PUSH_HOUR), else
+  /// weeklyPushHour.
   static int _pushHourOf(WeeklyBundle b, PhaseBConfig cfg) =>
       WeeklySchedule.v2Default && WeeklySchedule.isV2Bundle(b)
-          ? 10
+          ? WeeklySchedule.v2PushHour
           : cfg.weeklyPushHour;
 
   @override

@@ -113,6 +113,24 @@ test("exported field lists never contain a denied field", () => {
   }
 });
 
+test("Decision 0069: a chat_transcripts file (schema 1 or 2) and its " +
+    "fields are flagged in a blinded export", () => {
+  const row = {researchId: "P0ZAHQ5", groupCode: "Group_X",
+    role: "companion", userText: null, userInput: null,
+    replyText: "尋日成日整體過得點？", replyStatus: "rule_based",
+    schemaVersion: 2};
+  const held = checker.checkExport([writeExport({chat_transcripts: [row]})]);
+  assert.ok(held.findings.some((f) => f.indexOf("chat_transcripts") >= 0),
+      held.findings.join("\n"));
+  // The same fields smuggled into an allowed file are flagged too.
+  const leaked = checker.checkExport([writeExport({brief_pr: [row]})]);
+  for (const k of ["userText", "replyText", "replyStatus", "userInput"]) {
+    assert.ok(leaked.findings.some((f) => f.indexOf("." + k + ":") >= 0), k);
+  }
+  assert.ok(blinding.HELD_BACK.indexOf("chat_transcripts") >= 0);
+  assert.ok(checker.HELD_BACK_FILES.indexOf("chat_transcripts") >= 0);
+});
+
 test("checker passes a clean export", () => {
   const dir = writeExport({
     participants: [{researchId: "P0ZAHQ5", groupCode: "Group_X",

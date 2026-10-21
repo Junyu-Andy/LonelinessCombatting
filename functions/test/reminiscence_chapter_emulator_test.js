@@ -242,7 +242,14 @@ async function partB() {
   assert.strictEqual(draftRow.agent_id, "ah_jan_ah_bak");
   const run = (await chRef("tr").collection("runs").doc("req-1").get())
       .data();
-  assert.strictEqual(run.push.status, "no_tokens");
+  // The trigger reads the real clock, and quiet hours are always on
+  // (22:00–08:00 Hong Kong): a run at night is held back as quiet_hours
+  // before the missing device token is noticed.  Either is right here.
+  const hkHour = Number(new Date().toLocaleString("en-GB",
+      {timeZone: "Asia/Hong_Kong", hour: "2-digit", hour12: false}));
+  const night = hkHour >= 21 || hkHour < 9;
+  assert.ok(run.push.status === "no_tokens" ||
+      (night && run.push.status === "quiet_hours"), run.push.status);
   console.log("ok  B1 trigger end to end: Pro thinking on, Flash thinking " +
       "off, llm_calls rows, ready");
 

@@ -47,6 +47,8 @@ function hk(day, hour, minute) {
 }
 const ALL_ON = {
   weeklyScheduleV2Enabled: true,
+  // The T24 path at its pre-10/20 hour (the default is 10 since item 98).
+  weeklyPushHour: 20,
   socialContactProbeEnabled: true,
   sessionBriefPrV2Enabled: true,
   djgW2InAppEnabled: true,

@@ -9,8 +9,28 @@
 #   3. PHASE_B + FORCE_ARM=B  — Arm B pages (rule-based Tung Tung)
 #      (1020e §2.14: the researcher intake gate runs in 1, 2 and 3 — the
 #      same page and flow for both arms)
+#      (1020l: test/wide_screen_1020l_test.dart runs in 1, 2 and 3 — the
+#      iPad column; phones unchanged, same for both arms)
 #      (1020c 小讀本: test/reader_test.dart runs in 2 and 3 for the
 #      「問下通通」 split — Hybrid only, no LLM path for the rule arm)
+#      (1020k: test/scale_direction_cues_1020k_test.dart runs in 1, 2 and 3
+#      — the reverse-item lines and Weekly PR pages, same for both arms)
+#      (1020l: test/reminiscence_avatar_1020l_test.dart runs in 1, 2 and 3 —
+#      the chosen 阿珍／阿伯 avatar on both arms)
+#      (1020m 第三节: test/crisis_chat_message_1020m_test.dart runs in 1, 2
+#      and 3 — the one fixed safety message after acute, both arms)
+#      (1020o: test/selfpage_landing_1020o_test.dart runs in 1, 2 and 3 —
+#      自己 → 我嘅人生小篇章 and the 人生點滴 landing on both arms; the old
+#      My Story page and test/my_story_arm_test.dart are gone)
+#      (1020o 第三节: test/quiet_hours_settings_1020o_test.dart runs in 1, 2
+#      and 3 — 我的設定 → 安靜時段 「由」/「到」, same for both arms)
+#      (1020o (4a): test/reminiscence_scene_1020o_test.dart runs in 1, 2 and
+#      3 — the week's scene picture before the opener, both arms, no model)
+#      (10/20 item 98: test/pgic_whole_days_1020_test.dart runs in 1, 2 and
+#      3 — weeks 5–7 PGIC on whole days and the home row's words, both arms)
+#      (decision 0069: test/research_transcript_v2_test.dart runs in 1, 2 and 3 —
+#      every elder message and companion bubble in chat_transcripts, one
+#      session per chat page per arm, zero model calls in the rule arm)
 #   4. MEMORY_V1=true         — memory v1 client tests (memory branch)
 #   5. RULE_TEMPLATE_REPLIES=true — final templates on (T33: no placeholder
 #      left, so the switch alone turns them on)
@@ -48,23 +68,53 @@ run "phase B arm gating" --dart-define=PHASE_B=true \
   test/reminiscence_avoid_topics_test.dart \
   test/memory_handover_pages_test.dart \
   test/check_in_chat_v2_test.dart \
+  test/siu_yan_prompts_mood_1020l_test.dart \
   test/keyboard_compact_header_test.dart \
   test/action_plan_simplified_test.dart \
   test/reminiscence_v2_test.dart \
   test/profile_editor_keyboard_test.dart \
   test/home_v2_test.dart test/mood_row_v2_test.dart \
+  test/home_small_action_row_1020m_test.dart \
+  test/wide_screen_1020l_test.dart \
+  test/home_flags_1020l_test.dart \
   test/researcher_intake_gate_test.dart \
   test/reader_test.dart \
+  test/scale_direction_cues_1020k_test.dart \
+  test/weekly_pr_v3_1021_test.dart \
+  test/reminiscence_avatar_1020l_test.dart \
+  test/crisis_chat_message_1020m_test.dart \
+  test/faq_1020o_test.dart \
+  test/crisis_verified_date_1020p_test.dart \
+  test/selfpage_landing_1020o_test.dart \
+  test/quiet_hours_settings_1020o_test.dart \
+  test/reminiscence_scene_1020o_test.dart \
+  test/pgic_whole_days_1020_test.dart \
+  test/research_transcript_v2_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 run "phase B arm B pages" \
   --dart-define=PHASE_B=true --dart-define=FORCE_ARM=B \
-  test/tung_tung_arm_b_test.dart test/my_story_arm_test.dart \
+  test/tung_tung_arm_b_test.dart \
   test/memory_handover_pages_test.dart \
+  test/siu_yan_prompts_mood_1020l_test.dart \
   test/keyboard_compact_header_test.dart \
   test/home_v2_test.dart test/mood_row_v2_test.dart \
+  test/home_small_action_row_1020m_test.dart \
+  test/wide_screen_1020l_test.dart \
+  test/home_flags_1020l_test.dart \
   test/action_plan_simplified_test.dart \
   test/researcher_intake_gate_test.dart \
   test/reader_test.dart \
+  test/scale_direction_cues_1020k_test.dart \
+  test/weekly_pr_v3_1021_test.dart \
+  test/reminiscence_avatar_1020l_test.dart \
+  test/crisis_chat_message_1020m_test.dart \
+  test/faq_1020o_test.dart \
+  test/crisis_verified_date_1020p_test.dart \
+  test/selfpage_landing_1020o_test.dart \
+  test/quiet_hours_settings_1020o_test.dart \
+  test/reminiscence_scene_1020o_test.dart \
+  test/pgic_whole_days_1020_test.dart \
+  test/research_transcript_v2_test.dart \
   test_manual/ui_text_scale_sweep_test.dart
 [ -f test/memory_v1_client_test.dart ] && run "memory v1 client" \
   --dart-define=MEMORY_V1=true test/memory_v1_client_test.dart
@@ -74,7 +124,8 @@ run "rule template replies (switch only)" \
 run "rule template replies on" \
   --dart-define=RULE_TEMPLATE_REPLIES=true \
   --dart-define=RULE_TEMPLATE_REPLIES_ALLOW_PLACEHOLDER=true \
-  test/rule_reply_pool_test.dart test/rule_reply_pages_test.dart
+  test/rule_reply_pool_test.dart test/rule_reply_pages_test.dart \
+  test/siu_yan_prompts_mood_1020l_test.dart
 
 if [ ${#failed[@]} -gt 0 ]; then
   echo "Failed suites: ${failed[*]}"

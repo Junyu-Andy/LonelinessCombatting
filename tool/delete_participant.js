@@ -127,6 +127,11 @@ const NOT_COVERED = [
       'integrity)',
   'pilot_assignment_log (T21 pilot-run version choice: research ID, ' +
       'arm, time, operator; kept like the allocation log)',
+  // decisions-log 10/21 (reply after item 130): kept like the other audit
+  // logs; tool/update_login_email.js writes it.
+  'account_admin_log (login e-mail / password changes: research ID, uid, ' +
+      'last four characters before the @ of the old and new e-mail, ' +
+      'operator; kept like the other audit logs)',
   'vector index: none exists in this codebase',
 ];
 

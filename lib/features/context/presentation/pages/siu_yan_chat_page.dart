@@ -33,7 +33,17 @@
 /// moderate_interrupt and acute get no template and the safety flow runs.
 /// Acute ends the check-in early (both arms); once the researcher marks the
 /// alert a false alarm (誤觸), the same day's next visit resumes it at the
-/// question where it stopped (1020e 二.9).
+/// question where it stopped (1020e 二.9).  1020m 第三节: after acute the
+/// chat shows the fixed [CrisisChatMessage] (the crisis page's numbers and
+/// 「打開緊急求助頁」), both arms alike.
+///
+/// Research transcript (decision 0069; switch
+/// `researchTranscriptEnabled`): every bubble Siu Yan shows is in
+/// `chat_transcripts`, both arms alike — the questions and openers
+/// ([_transcribe]), each button answer as the elder's row
+/// ([ChatSessionRecorder.transcriptButton]) and each reply as shown,
+/// with the safety line or crisis message under it (`shown:` of
+/// [_logTurn]).
 ///
 /// Records: `check_in_responses` ([CheckInChatRecord]); a completed
 /// check-in marks its session valid ([ChatSessionRecorder.markCheckInCompleted]);
@@ -43,6 +53,22 @@
 ///
 /// The rule arm never calls the LLM here: every model call sits behind
 /// `!_ruleArm`, and the server refuses Arm B anyway.
+///
+/// 1020l §一 (2) — notes at the top: every note that used to pop up at the
+/// bottom over the input bar shows in one area right under the app bar,
+/// the body's top slot ([_ChatBodyLayout]: the message list gets shorter,
+/// nothing is covered): the S9 first-use note, the moderate safety notice (the same
+/// [DistressModerateSheet], via `showModerateInline`), the voice notes and
+/// the offline line.  The moderate notice keeps the sheet's words, choices
+/// and timing (the check-in goes on once it is closed, as before); in the
+/// chat the input box stays usable under it, and sending closes it (as a
+/// tap outside closed the sheet).  The page has its own ScaffoldMessenger,
+/// so a snack bar left from the page before (e.g. the home page) is not
+/// drawn over the input bar.  Same in both arms; the crisis page and the
+/// dialogs are unchanged.
+/// 1020l §一 (3) — the answer buttons are one even grid
+/// ([EqualButtonGrid]): same width, same height, labels on one line
+/// whenever the screen allows.
 library;
 
 import 'dart:async';
@@ -69,6 +95,7 @@ import '../../../../core/memory/cross_module_memory.dart';
 import '../../../../core/memory/memory_mode.dart';
 import '../../../../core/privacy/shared_context_consent.dart';
 import '../../../../core/safety/distress_detector.dart';
+import '../../../../core/safety/distress_router.dart';
 import '../../../../core/safety/safety_check.dart';
 import '../../../../core/safety/safety_copy.dart';
 import '../../../../core/scheduling/study_week.dart';
@@ -76,8 +103,10 @@ import '../../../../core/scheduling/w0_date.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 import '../../../../core/voice/voice_input_button.dart';
 import '../../../../shared/widgets/composer_send_button.dart';
+import '../../../../shared/widgets/equal_button_grid.dart';
 import '../../../../shared/widgets/keyboard_compact.dart';
 import '../../../../shared/widgets/rich_chat_text.dart';
+import '../../../../shared/widgets/top_notice_area.dart';
 import '../../../action_loop/data/action_plan.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_a_page.dart';
 import '../../../action_loop/presentation/pages/action_loop_arm_b_page.dart';
@@ -89,6 +118,7 @@ import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../brief_pr/data/brief_pr_gate.dart';
 import '../../../brief_pr/data/brief_pr_v2.dart';
 import '../../../brief_pr/presentation/pages/brief_pr_page.dart';
+import '../../../crisis/presentation/widgets/crisis_chat_message.dart';
 import '../../../reflective_dialogue/data/negative_cognition_detector.dart';
 import '../../../rule_replies/data/rule_reply_history_store.dart';
 import '../../../rule_replies/data/rule_reply_picker.dart';
@@ -153,6 +183,15 @@ class SiuYanChatPage extends StatefulWidget {
   static String get activePromptKey =>
       RemoteFeatureFlags.current.moodRowV2Enabled ? promptKeyMoodRow : promptKey;
 
+  /// 1020l §一 (2): the moderate safety notice's id in the top area.
+  static const String moderateNoticeId = 'moderate_safety';
+
+  /// The message list keeps at least this much of the page body (and at
+  /// least [minListShare] of it) when notes are shown at the top; the
+  /// notes get the rest and scroll only beyond that.
+  static const double minListHeight = 160;
+  static const double minListShare = 0.25;
+
   /// Session moduleIds: the check-in session (type check-in), and a plain
   /// chat once today's check-in is done (type free chat, ≥3 replied
   /// messages to count).
@@ -183,6 +222,12 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
 
   final _inputCtrl = TextEditingController();
   final _voice = VoiceInputController();
+
+  /// 1020l §一 (2): the notes under the app bar.
+  final _notices = TopNoticeController();
+
+  /// Done when the moderate notice now shown is closed.
+  Completer<void>? _moderateClosed;
   final List<_Bubble> _bubbles = [];
 
   /// Elder messages whose exchange tripped a safety flag: kept on screen,
@@ -210,6 +255,11 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
   bool _recordWritten = false;
 
   ChatSessionRecorder? _recorder;
+
+  /// Decision 0069 — Siu Yan's lines shown before the first session's recorder
+  /// exists (Q0 + Q1, SY0, the opener), with how they were made and when;
+  /// handed to the recorder by [_ensureSession].
+  final List<(String, LlmStatus, DateTime)> _unrecorded = [];
   AnalyticsService? _analytics;
   bool _briefPrSurfaced = false;
   String? _closeReason;
@@ -273,6 +323,8 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     _connSub?.cancel();
     _recorder?.dispose();
     _inputCtrl.dispose();
+    _releaseModerateWait();
+    _notices.dispose();
     super.dispose();
   }
 
@@ -360,7 +412,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
           r['completed'] == true) {
         continue;
       }
-      if (r['falseAlarm'] != true) {
+      if (isStoppedUnmarked(r)) {
         stoppedUnmarked = true;
         continue;
       }
@@ -455,6 +507,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       _busy = false;
       _bubbles.add(_Bubble.bot(text, copyId: id));
     });
+    _transcribe(text, id == 'llm_opener' ? LlmStatus.ok : LlmStatus.fallback);
   }
 
   /// 1020 E (5) — from M7 / M8.  Rule arm: O1–O5 / C1 / C2 (5.2), no LLM.
@@ -489,6 +542,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       _busy = false;
       _bubbles.add(_Bubble.bot(text, copyId: id));
     });
+    _transcribe(text, id == 'llm_opener' ? LlmStatus.ok : LlmStatus.fallback);
     widget.onPromptShown?.call(id, text, const []);
   }
 
@@ -497,11 +551,32 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
   // ---------------------------------------------------------------------
 
   /// A fixed Siu Yan line (question or opener).  Call inside setState.
+  /// The questions are the same in both arms (`fixed_reply`); the other
+  /// lines said here are the rule arm's openers (SY0, O1–O5, C1, C2).
   void _say(String id, String text, [List<CheckInOption> options = const []]) {
     _bubbles.add(_Bubble.bot(text, copyId: id));
     if (id.startsWith('Q')) _record?.questionsShown.add(id);
+    _transcribe(
+        text, id.startsWith('Q') ? LlmStatus.fixedReply : LlmStatus.ruleBased);
     widget.onPromptShown?.call(id, text, [for (final o in options) o.label]);
   }
+
+  /// Decision 0069 — a Siu Yan line that is not part of a logged reply, for the
+  /// research transcript (the recorder adds it to the open row, or starts
+  /// a companion row).  Before the first session's recorder exists it waits
+  /// in [_unrecorded].
+  void _transcribe(String text, LlmStatus status) {
+    final rec = _recorder;
+    if (rec != null) {
+      rec.transcriptCompanion(text, status: status);
+    } else {
+      _unrecorded.add((text, status, DateTime.now()));
+    }
+  }
+
+  /// 1020m 第三节's fixed safety message as the transcript stores it.
+  String _crisisText() => CrisisChatMessage.transcriptText(
+      isEn: Localizations.localeOf(context).languageCode == 'en');
 
   /// Show a question and wait for its answer.  Call inside setState.
   void _ask(_Stage stage, String id, String text, List<CheckInOption> options) {
@@ -525,12 +600,15 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     final stage = _stage;
     final qid = _questionId(stage);
     if (qid.isEmpty) return;
+    _dismissModerateNotice();
+    final pressedAt = DateTime.now();
     setState(() {
       _stage = _Stage.waiting;
       _bubbles.add(_Bubble.user(o.label));
     });
     await _ensureSession();
     _recorder?.bumpActivity();
+    _recorder?.transcriptButton(o.label, at: pressedAt);
     final answer = <String, dynamic>{
       'question_id': qid,
       'value': o.code,
@@ -569,6 +647,8 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     final stage = _stage;
     if (stage != _Stage.q3b && stage != _Stage.q4) return;
     final qid = _questionId(stage);
+    _dismissModerateNotice();
+    final pressedAt = DateTime.now();
     setState(() {
       _stage = _Stage.waiting;
       _bubbles.add(_Bubble.user(CheckInChatCopy.skipLabel));
@@ -576,6 +656,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     });
     await _ensureSession();
     _recorder?.bumpActivity();
+    _recorder?.transcriptButton(CheckInChatCopy.skipLabel, at: pressedAt);
     _record?.answers[qid] = {'question_id': qid, 'skipped': true, 'text': null};
     _persist();
     if (!mounted) return;
@@ -791,6 +872,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       input: input,
       flag: flag,
       response: _ruleResponse(entry.zh, flag, turnId),
+      shown: [entry.zh],
     );
     _logTemplate(entry.id, version, theme: 'check_in_chat', band: entry.band);
     if (mounted && flag.level != DistressLevel.none) {
@@ -834,6 +916,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     await _logTurn(
       input: null,
       flag: none,
+      shown: [text],
       response: _ruleArm
           ? _ruleResponse(text, none, null)
           : LlmResponse(
@@ -892,6 +975,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       input: input,
       flag: flag,
       response: _ruleResponse(entry.zh, flag, turnId),
+      shown: [entry.zh],
     );
     _logTemplate(entry.id, SiuYanRuleChatPool.version,
         theme: 'free_chat', band: entry.band);
@@ -949,16 +1033,16 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     return (r.match, turnId);
   }
 
-  /// Acute: the safety template instead of any reply, session ends
+  /// Acute: the fixed safety message instead of any reply (1020m 第三节:
+  /// [CrisisChatMessage], the crisis page's numbers), session ends
   /// `crisis`, crisis page (as every chat page, both arms).
   Future<void> _ruleAcute(
       _FreeInput input, DistressMatch flag, String turnId) async {
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
     final core = CoreServicesScope.of(context);
     _safetyFlagged.add(input.bubble);
     setState(() {
       _busy = false;
-      _bubbles.add(_Bubble.system(SafetyCopy.acuteAck(_siuYan, isEn: isEn)));
+      _bubbles.add(_Bubble.crisis());
     });
     unawaited(_logTurn(
       input: input,
@@ -966,6 +1050,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       response: _ruleResponse('', flag, turnId, acute: true),
       shortCircuited: true,
       ackShown: true,
+      shown: [_crisisText()],
     ));
     unawaited(_recorder?.end(SessionEndReason.crisis));
     if (!mounted) return;
@@ -989,6 +1074,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       flag: flag,
       response: _ruleResponse('', flag, turnId),
       ackShown: ack != null,
+      shown: [if (ack != null) ack],
     );
     if (mounted) await _route(flag, turnDocId);
   }
@@ -1161,7 +1247,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       if (input != null) _safetyFlagged.add(input.bubble);
       setState(() {
         _busy = false;
-        _bubbles.add(_Bubble.system(SafetyCopy.acuteAck(_siuYan, isEn: isEn)));
+        _bubbles.add(_Bubble.crisis());
       });
       unawaited(_logTurn(
         input: input,
@@ -1169,6 +1255,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
         response: response,
         shortCircuited: true,
         ackShown: true,
+        shown: [_crisisText()],
       ));
       unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
@@ -1181,6 +1268,9 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     final ack = escalation.interrupts
         ? SafetyCopy.moderateAck(_siuYan, isEn: isEn)
         : null;
+    // 1020m 第三节: the reply scan found acute → the fixed safety message
+    // under the reply (the crisis page opens below, as before).
+    final crisis = escalation.level == DistressLevel.acute;
     if (response.hasEscalation && input != null) _safetyFlagged.add(input.bubble);
     final id = response.isFallback ? 'llm_fallback' : 'llm';
     setState(() {
@@ -1188,12 +1278,14 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       _bubbles.add(_Bubble.bot(replyText,
           copyId: id, promptHash: response.metadata.systemPromptHash));
       if (ack != null) _bubbles.add(_Bubble.system(ack));
+      if (crisis) _bubbles.add(_Bubble.crisis());
     });
     final turnDocId = await _logTurn(
       input: input,
       flag: escalation,
       response: response,
-      ackShown: ack != null,
+      ackShown: ack != null || crisis,
+      shown: [replyText, if (ack != null) ack, if (crisis) _crisisText()],
     );
     await _appendToBuffer(fromUser: false, text: response.text, response: response);
     if (mounted && escalation.level != DistressLevel.none) {
@@ -1249,6 +1341,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     await _logTurn(
       input: null,
       flag: r == null ? none : _higher(r.inputFlag, r.outputFlag),
+      shown: [text],
       response: r ??
           LlmResponse(
             text: '',
@@ -1330,7 +1423,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       _safetyFlagged.add(bubble);
       setState(() {
         _busy = false;
-        _bubbles.add(_Bubble.system(SafetyCopy.acuteAck(_siuYan, isEn: isEn)));
+        _bubbles.add(_Bubble.crisis());
       });
       unawaited(_logTurn(
         input: input,
@@ -1338,6 +1431,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
         response: response,
         shortCircuited: true,
         ackShown: true,
+        shown: [_crisisText()],
       ));
       unawaited(_recorder?.end(SessionEndReason.crisis));
       await core.distressRouter.route(response.inputFlag, context: context);
@@ -1351,6 +1445,8 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
     final ack = escalation.interrupts
         ? SafetyCopy.moderateAck(_siuYan, isEn: isEn)
         : null;
+    // 1020m 第三节: acute on the reply scan → the fixed safety message.
+    final crisis = escalation.level == DistressLevel.acute;
     if (response.hasEscalation) _safetyFlagged.add(bubble);
 
     // Phase A spec §2.6 — Siu Yan's Thought Exercise offer.
@@ -1373,13 +1469,15 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
           copyId: response.isFallback ? 'llm_fallback' : 'llm',
           promptHash: response.metadata.systemPromptHash));
       if (ack != null) _bubbles.add(_Bubble.system(ack));
+      if (crisis) _bubbles.add(_Bubble.crisis());
     });
     final turnDocId = await _logTurn(
       input: input,
       flag: escalation,
       response: response,
-      ackShown: ack != null,
+      ackShown: ack != null || crisis,
       teOfferText: teOfferText,
+      shown: [replyText, if (ack != null) ack, if (crisis) _crisisText()],
     );
     await _appendToBuffer(fromUser: false, text: response.text, response: response);
     if (!mounted) return;
@@ -1517,6 +1615,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
   Future<void> _sendInner() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _busy) return;
+    _dismissModerateNotice();
     if (_stage == _Stage.q3b || _stage == _Stage.q4) {
       await _onFreeAnswer(text);
       return;
@@ -1550,13 +1649,56 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
             'turnId': turnDocId,
             'matchedTerm': flag.matchedTerm,
           }),
+          // 1020l §一 (2): the same notice at the top, both arms.
+          showModerateInline: _showModerateNotice,
         );
   }
 
+  /// 1020l §一 (2): the moderate notice under the app bar; done when it is
+  /// closed (as the sheet's route was).  The keyboard goes down, as it did
+  /// when the sheet opened, so the notice has room.
+  Future<void> _showModerateNotice() {
+    if (!mounted) return Future<void>.value();
+    _releaseModerateWait();
+    final closed = _moderateClosed = Completer<void>();
+    FocusManager.instance.primaryFocus?.unfocus();
+    _notices.show(
+      SiuYanChatPage.moderateNoticeId,
+      (context) {
+        final theme = Theme.of(context);
+        return Material(
+          color: theme.colorScheme.surface,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                  bottom: BorderSide(color: theme.dividerColor, width: 1)),
+            ),
+            child: DistressModerateSheet(onClose: _dismissModerateNotice),
+          ),
+        );
+      },
+    );
+    return closed.future;
+  }
+
+  void _dismissModerateNotice() {
+    _notices.dismiss(SiuYanChatPage.moderateNoticeId);
+    _releaseModerateWait();
+  }
+
+  void _releaseModerateWait() {
+    final c = _moderateClosed;
+    _moderateClosed = null;
+    if (c != null && !c.isCompleted) c.complete();
+  }
+
+  /// [shown]: the bubbles added in reply, in order, as the elder saw them
+  /// (decision 0069, research transcript only).
   Future<String?> _logTurn({
     required _FreeInput? input,
     required DistressMatch flag,
     required LlmResponse response,
+    required List<String> shown,
     bool shortCircuited = false,
     bool ackShown = false,
     String? teOfferText,
@@ -1571,11 +1713,13 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
       modality: input?.voice == true ? InputModality.voice : InputModality.text,
       voiceDurationMs: input?.voiceMs,
       charCount: input?.text.length ?? 0,
+      userText: input?.text,
       detector: flag,
       shortCircuited: shortCircuited,
       ackShown: ackShown,
       response: response,
       teOfferText: teOfferText,
+      shownReply: shown,
     ));
   }
 
@@ -1589,8 +1733,7 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
         ? SiuYanChatPage.checkInModule
         : SiuYanChatPage.chatModule;
     if (current == null || current.moduleId != module) {
-      current?.dispose();
-      _recorder = ChatSessionRecorder(
+      final next = ChatSessionRecorder(
         uid: _uid,
         agentId: _siuYan,
         moduleId: module,
@@ -1599,6 +1742,15 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
         onIdleTimeout: _onIdleTimeout,
         onSwitchedAway: _onSwitchedAway,
       );
+      // Decision 0069: lines shown since the last session ended, or before the
+      // first one, go into the transcript with the session starting now.
+      if (current != null) next.adoptTranscriptFrom(current);
+      current?.dispose();
+      for (final (text, status, at) in _unrecorded) {
+        next.transcriptCompanion(text, status: status, at: at);
+      }
+      _unrecorded.clear();
+      _recorder = next;
       // T27 — a failed transcription goes into this session's log.
       _voice.onTranscriptionFailed =
           (c) => _recorder?.logVoiceTranscriptionFailed(c);
@@ -1750,20 +1902,47 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
         onPopInvokedWithResult: (didPop, _) {
           if (didPop) unawaited(_finalizeOnExit());
         },
-        child: Scaffold(
-          appBar: companionAppBar(context, agentId: _siuYan, onClose: () {
-            _closeReason = SessionEndReason.closeButton;
-            Navigator.of(context).maybePop();
-          }),
-          body: SafeArea(
-            child: Column(
-              children: [
-                Expanded(
-                  // 1020c 二: back to the newest message when the keyboard
-                  // opens (switch keyboardCompactHeaderEnabled).
-                  child: KeyboardScrollToLatest(
-                    keyboardOpen: KeyboardCompact.active(context),
-                    child: ListView(
+        // 1020l §一 (2): notes go to the area under the app bar; the
+        // page's own messenger keeps an earlier page's snack bar off it.
+        child: TopNoticeHost(
+          controller: _notices,
+          child: ScaffoldMessenger(child: _scaffold(isEn)),
+        ),
+      ),
+    );
+  }
+
+  Widget _scaffold(bool isEn) {
+    return Scaffold(
+      appBar: companionAppBar(context, agentId: _siuYan, onClose: () {
+        _closeReason = SessionEndReason.closeButton;
+        Navigator.of(context).maybePop();
+      }),
+      body: SafeArea(
+        // 1020l §一 (2): notes under the app bar, then the list, then the
+        // answer bar / input box; the list gets shorter, nothing floats.
+        child: CustomMultiChildLayout(
+          delegate: _ChatBodyLayout(
+            minList: SiuYanChatPage.minListHeight,
+            minListShare: SiuYanChatPage.minListShare,
+          ),
+          children: [
+            LayoutId(
+              id: _BodySlot.notes,
+              child: TopNoticeArea(
+                leading: [
+                  if (_pendingOffline != null)
+                    OfflinePendingBanner(text: _pendingOffline!, isEn: isEn),
+                ],
+              ),
+            ),
+            LayoutId(
+              id: _BodySlot.list,
+              // 1020c 二: back to the newest message when the keyboard
+              // opens (switch keyboardCompactHeaderEnabled).
+              child: KeyboardScrollToLatest(
+                  keyboardOpen: KeyboardCompact.active(context),
+                  child: ListView(
                     // Newest at the bottom edge; follows the keyboard up.
                     reverse: true,
                     padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
@@ -1802,14 +1981,10 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
                         ),
                     ].reversed.toList(),
                   ),
-                  ),
                 ),
-                if (_pendingOffline != null)
-                  OfflinePendingBanner(text: _pendingOffline!, isEn: isEn),
-                _bottom(),
-              ],
             ),
-          ),
+            LayoutId(id: _BodySlot.bottom, child: _bottom()),
+          ],
         ),
       ),
     );
@@ -1850,6 +2025,47 @@ class _SiuYanChatPageState extends State<SiuYanChatPage> {
   }
 }
 
+enum _BodySlot { notes, list, bottom }
+
+/// 1020l §一 (2) — the body, top to bottom: the notes, the message list,
+/// the answer bar / input box.  The bottom bar keeps its height; the notes
+/// get what is left after the list's minimum (more scrolls inside the
+/// notes); the list gets the rest.  So no note covers the bar or the
+/// newest message.
+class _ChatBodyLayout extends MultiChildLayoutDelegate {
+  _ChatBodyLayout({required this.minList, required this.minListShare});
+
+  final double minList;
+  final double minListShare;
+
+  @override
+  void performLayout(Size size) {
+    final w = size.width;
+    final bottom = layoutChild(_BodySlot.bottom,
+            BoxConstraints(minWidth: w, maxWidth: w, maxHeight: size.height))
+        .height;
+    final keep = minList > size.height * minListShare
+        ? minList
+        : size.height * minListShare;
+    final room = size.height - bottom - keep;
+    final notes = layoutChild(
+            _BodySlot.notes,
+            BoxConstraints(
+                minWidth: w, maxWidth: w, maxHeight: room > 0 ? room : 0))
+        .height;
+    final list = size.height - bottom - notes;
+    layoutChild(_BodySlot.list,
+        BoxConstraints.tightFor(width: w, height: list > 0 ? list : 0));
+    positionChild(_BodySlot.notes, Offset.zero);
+    positionChild(_BodySlot.list, Offset(0, notes));
+    positionChild(_BodySlot.bottom, Offset(0, size.height - bottom));
+  }
+
+  @override
+  bool shouldRelayout(_ChatBodyLayout oldDelegate) =>
+      oldDelegate.minList != minList || oldDelegate.minListShare != minListShare;
+}
+
 class _FreeInput {
   const _FreeInput({
     required this.text,
@@ -1877,16 +2093,27 @@ class _ReplyOutcome {
 
 class _Bubble {
   _Bubble._(this.fromUser, this.isSystem, this.text,
-      {this.copyId, this.freeText = false, this.promptHash});
+      {this.copyId,
+      this.freeText = false,
+      this.promptHash,
+      this.crisis = false});
   factory _Bubble.user(String t, {bool freeText = false}) =>
       _Bubble._(true, false, t, freeText: freeText);
   factory _Bubble.bot(String t, {String? copyId, String? promptHash}) =>
       _Bubble._(false, false, t, copyId: copyId, promptHash: promptHash);
   factory _Bubble.system(String t) => _Bubble._(false, true, t);
 
+  /// 1020m 第三节: the fixed safety message after an acute trigger
+  /// ([CrisisChatMessage]).  A system line: never sent to the model.
+  factory _Bubble.crisis() =>
+      _Bubble._(false, true, '', copyId: CrisisChatMessage.from, crisis: true);
+
   final bool fromUser;
   final bool isSystem;
   final String text;
+
+  /// Shown as [CrisisChatMessage] (1020m 第三节).
+  final bool crisis;
 
   /// Siu Yan's lines: the copy id (Q1, X2-1, SY4, …) or `llm`.
   final String? copyId;
@@ -1905,6 +2132,7 @@ class _BubbleView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final b = bubble;
+    if (b.crisis) return const CrisisChatMessage();
     final color = b.fromUser
         ? theme.colorScheme.primaryContainer
         : b.isSystem
@@ -1935,8 +2163,9 @@ class _BubbleView extends StatelessWidget {
   }
 }
 
-/// The button replies of Q1, Q2, Q3 and Q5 (≥ 52 px tall, wrap on small
-/// phones and large text).
+/// The button replies of Q1, Q2, Q3 and Q5 (≥ 52 px tall).  1020l §一 (3):
+/// one even grid — every button the same width and height, labels centred
+/// and on one line whenever the screen allows ([EqualButtonGrid]).
 class _AnswerBar extends StatelessWidget {
   const _AnswerBar({
     required this.questionId,
@@ -1954,6 +2183,7 @@ class _AnswerBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SafeArea(
+      key: const ValueKey('siu_yan_answer_bar'),
       top: false,
       child: Container(
         width: double.infinity,
@@ -1961,7 +2191,7 @@ class _AnswerBar extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: theme.dividerColor, width: 1)),
         ),
-        child: Wrap(
+        child: EqualButtonGrid(
           spacing: 8,
           runSpacing: 8,
           children: [
@@ -1971,10 +2201,15 @@ class _AnswerBar extends StatelessWidget {
                 onPressed: enabled ? () => onPick(o) : null,
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(64, 52),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  // Some room each side of the label; when a row of three
+                  // would squeeze it, the grid goes to two per row.
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   side: BorderSide(color: theme.colorScheme.primary, width: 1.4),
                 ),
-                child: Text(o.label, style: const TextStyle(fontSize: 18)),
+                child: Text(o.label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 18)),
               ),
           ],
         ),
@@ -2005,6 +2240,7 @@ class _Composer extends StatelessWidget {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
     return SafeArea(
+      key: const ValueKey('siu_yan_input_bar'),
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),

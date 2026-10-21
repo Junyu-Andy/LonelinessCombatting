@@ -7,16 +7,19 @@ import '../../../../core/memory/memory_mode.dart';
 import '../../../../core/privacy/transcript_retention.dart';
 import '../../../../core/testing/tester_gate.dart';
 import '../../../../core/version/build_info.dart';
+import '../../data/quiet_hours_store.dart';
 import '../../data/tester_arm_switch.dart';
 import '../../data/tester_tools.dart';
+import '../widgets/quiet_hours_card.dart';
 import '../widgets/tester_arm_switch_card.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_confirm_dialog.dart';
 import '../../../auth/presentation/auth_service_scope.dart';
 import '../../../crisis/presentation/pages/emergency_support_page.dart';
 import '../../../personalization/presentation/pages/personalization_page.dart';
+import '../../../reminiscence/data/reminiscence_v2_copy.dart';
+import '../../../reminiscence/presentation/pages/reminiscence_chapters_page.dart';
 import '../../../memory/presentation/pages/remembered_page.dart';
-import '../../../my_story/presentation/pages/my_story_page.dart';
 import '../../../assessment/presentation/pages/pgic_page.dart';
 import '../../../assessment/presentation/pages/agent_diff_page.dart';
 import '../../../../core/config/phase_a_schedule_config.dart';
@@ -96,8 +99,8 @@ class _SettingsPageState extends State<SettingsPage> {
           // 2026-07 IA cleanup: 「關於我」grab-bag split into 個人資料
           // (who I am) and 反饋／問卷 (research instruments); the weekly
           // recap tile removed (你嘅一個禮拜 lives behind Today's 進度
-          // shortcut). 人生回顧 stays here TEMPORARILY pending its new
-          // home (likely 搵人傾) — removing it now would orphan M3.
+          // shortcut).  1020o: 人生回顧 (the old My Story page) became
+          // 我嘅人生小篇章, the reminiscence v2 chapters page.
           const SizedBox(height: 24),
           _SectionHeader(
             icon: Icons.person_outline,
@@ -126,14 +129,20 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 10),
+          // 1020o 第一节: same page as the 「我嘅人生小篇章」 button on the
+          // 阿珍／阿伯 page (both arms).
           _NavTileCard(
+            key: const Key('me_life_chapters_entry'),
             icon: Icons.menu_book_outlined,
-            title: isEn ? 'Life-review progress' : '人生回顧',
+            title: isEn
+                ? 'My life chapters'
+                : ReminiscenceV2Copy.chaptersPageTitle,
             subtitle: isEn
-                ? 'Take your time — skip anything you\'d rather not discuss.'
-                : '慢慢嚟，可以跳過唔想講嘅時期。',
+                ? 'After each week, your short write-up is kept here.'
+                : ReminiscenceV2Copy.chaptersEntrySubtitle,
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const MyStoryPage()),
+              MaterialPageRoute<void>(
+                  builder: (_) => const ReminiscenceChaptersPage()),
             ),
           ),
           // C20 / decision 0020: the participant's own off switch for
@@ -225,9 +234,10 @@ class _SettingsPageState extends State<SettingsPage> {
             isEn: isEn,
           ),
           // 10/20 (dev-tasks-1020 §H): 高對比 moved one level down to
-          // 我的設定 → 顯示; the 通知 section (安靜時段, 今日休息) is gone —
-          // quiet hours are fixed on (22:00–08:00) and the server ignores
-          // quietHoursEnabled and quietTodayActivatedAt.
+          // 我的設定 → 顯示; the 通知 section (安靜時段, 今日休息) is gone
+          // from this level; the server ignores quietHoursEnabled and
+          // quietTodayActivatedAt.  1020o: 安靜時段 is back one level down,
+          // 我的設定 → 安靜時段 (「由」 / 「到」, no switch).
           const SizedBox(height: 14),
           _NavTileCard(
             key: const Key('settings_my_settings'),
@@ -1172,10 +1182,17 @@ class _SurveyPreviewButtons extends StatelessWidget {
 }
 
 /// 10/20 (dev-tasks-1020 §H(1)) — 自己 → 我的設定: the settings that left the
-/// first level.  For now only 顯示 → 高對比模式 (same switch, same stored
-/// preference as before).
+/// first level.  顯示 → 高對比模式 (same switch, same stored preference as
+/// before); 1020o 第三节 (decision 0066): 安靜時段 with 「由」 / 「到」 (no
+/// on/off switch; replaces 10/19 第 14 条 (2) "fixed on").  Both arms.
 class MySettingsPage extends StatelessWidget {
-  const MySettingsPage({super.key});
+  const MySettingsPage({
+    super.key,
+    this.quietHoursStore = const FirestoreQuietHoursStore(),
+  });
+
+  /// Where a 安靜時段 pick is written (tests: an in-memory store).
+  final QuietHoursStore quietHoursStore;
 
   @override
   Widget build(BuildContext context) {
@@ -1202,6 +1219,13 @@ class MySettingsPage extends StatelessWidget {
               value: settings.highContrast,
               onChanged: (value) => settings.highContrast = value,
             ),
+            const SizedBox(height: 28),
+            _SectionHeader(
+              icon: Icons.bedtime_outlined,
+              title: isEn ? 'Quiet hours' : '安靜時段',
+            ),
+            const SizedBox(height: 14),
+            QuietHoursCard(store: quietHoursStore),
           ],
         ),
       ),

@@ -35,7 +35,9 @@ function hk(day, hour, minute) {
   return new Date(`${key}T${hh}:${mm}:00+08:00`);
 }
 const FINAL_COPY = {push: "（測試）每週問卷", reminder: "（測試）提醒"};
-const ON = {weeklyScheduleV2Enabled: true};
+// The T24 path (reminders v2 off) at its pre-10/20 hour: these cases were
+// written for 20:00; the default is 10 since item 98.
+const ON = {weeklyScheduleV2Enabled: true, weeklyPushHour: 20};
 
 function fakeMessaging() {
   const sent = [];

@@ -101,6 +101,12 @@
 ///                               phone's system font size is ignored, so
 ///                               every page scales the same way.  Off: the
 ///                               two multiply, capped at 特大 (app.dart).
+///   - [wideScreenFrameEnabled] — 1020l §二 (2): on an iPad (shorter side
+///                               ≥ 600) the pages sit in one centred column
+///                               at most 600 wide, the App's background in
+///                               the margins (lib/app/wide_screen_frame.dart).
+///                               Phones never change, on or off.  Both arms
+///                               the same.  Off: iPad as before.
 ///   - [briefPrHomeBannerEnabled] — 10/19 (Junyu): the Brief PR invitation
 ///                               card also sits at the top of 睇今日, under
 ///                               the greeting, not only on the companion
@@ -221,6 +227,24 @@
 ///                               exactly as before; on with no packaged
 ///                               unit = still hidden.  Both arms identical
 ///                               except 「問下通通」 (Hybrid only, C08).
+///   - [scaleDirectionCuesEnabled] — 1020k (decisions-log 10/20 items
+///                               77–79): a line before the reverse items —
+///                               Brief PR question 4, Weekly PR i1–i3 (now
+///                               always on page 3, the nine positive items
+///                               shuffled over pages 1–2; the record gets
+///                               `itemOrder`), DJG-ES question 4
+///                               (`DirectionCue`).  Both arms identical;
+///                               items, options, storage and scoring
+///                               unchanged.  Off = exactly as before.
+///   - [researchTranscriptEnabled] — 1020l (1020j 一 (4)): every chat turn
+///                               also writes the elder's message and the
+///                               reply shown to
+///                               `users/{uid}/chat_transcripts/{turnId}`
+///                               (`ChatSessionRecorder.logTurn`).  Both
+///                               arms; nothing on screen changes; no model
+///                               call.  firestore.rules checks the same
+///                               switch and lets no client read the rows.
+///                               Off (default) = nothing written.
 ///
 /// Call [RemoteFeatureFlags.load] once at startup; read via [current].
 /// [lastKnown] is for a gate that must not decide on a failed read (1020e
@@ -252,6 +276,7 @@ class RemoteFeatureFlags {
     this.homeMoodOpensCheckInEnabled = false,
     this.suggestionsUseProfileEnabled = false,
     this.appFontScaleOnlyEnabled = false,
+    this.wideScreenFrameEnabled = false,
     this.briefPrHomeBannerEnabled = false,
     this.testerToolsEnabled = false,
     this.transcriptRetentionToggleEnabled = false,
@@ -267,6 +292,8 @@ class RemoteFeatureFlags {
     this.weeklyReminderV2Enabled = false,
     this.researcherIntakeGateEnabled = false,
     this.htmlReadersEnabled = false,
+    this.scaleDirectionCuesEnabled = false,
+    this.researchTranscriptEnabled = false,
   });
 
   final bool webSearchEnabled;
@@ -287,6 +314,7 @@ class RemoteFeatureFlags {
   final bool homeMoodOpensCheckInEnabled;
   final bool suggestionsUseProfileEnabled;
   final bool appFontScaleOnlyEnabled;
+  final bool wideScreenFrameEnabled;
   final bool briefPrHomeBannerEnabled;
   final bool testerToolsEnabled;
   final bool transcriptRetentionToggleEnabled;
@@ -317,6 +345,8 @@ class RemoteFeatureFlags {
   final bool weeklyReminderV2Enabled;
   final bool researcherIntakeGateEnabled;
   final bool htmlReadersEnabled;
+  final bool scaleDirectionCuesEnabled;
+  final bool researchTranscriptEnabled;
 
   static RemoteFeatureFlags _current = const RemoteFeatureFlags();
 
@@ -406,6 +436,7 @@ class RemoteFeatureFlags {
         suggestionsUseProfileEnabled:
             map['suggestionsUseProfileEnabled'] == true,
         appFontScaleOnlyEnabled: map['appFontScaleOnlyEnabled'] == true,
+        wideScreenFrameEnabled: map['wideScreenFrameEnabled'] == true,
         briefPrHomeBannerEnabled: map['briefPrHomeBannerEnabled'] == true,
         testerToolsEnabled: map['testerToolsEnabled'] == true,
         transcriptRetentionToggleEnabled:
@@ -426,6 +457,8 @@ class RemoteFeatureFlags {
         researcherIntakeGateEnabled:
             map['researcherIntakeGateEnabled'] == true,
         htmlReadersEnabled: map['htmlReadersEnabled'] == true,
+        scaleDirectionCuesEnabled: map['scaleDirectionCuesEnabled'] == true,
+        researchTranscriptEnabled: map['researchTranscriptEnabled'] == true,
       );
 
   /// Phase B (`PHASE_B=true` build) hides the Hybrid-only 👍/👎 reply

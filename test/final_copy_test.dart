@@ -7,21 +7,14 @@
 //   - check-in-chat.md (1020 F) and home-v2.md (1020 D, E, G (2)): drafts.
 import 'dart:io';
 
-import 'package:app_demo/app/app_settings.dart';
-import 'package:app_demo/app/app_settings_scope.dart';
 import 'package:app_demo/core/config/usage_copy.dart';
 import 'package:app_demo/core/voice/voice_copy.dart';
-import 'package:app_demo/features/auth/data/auth_service.dart';
-import 'package:app_demo/features/auth/presentation/auth_service_scope.dart';
 import 'package:app_demo/features/context/data/check_in_chat_copy.dart';
 import 'package:app_demo/features/context/data/siu_yan_rule_chat_pool.dart';
 import 'package:app_demo/features/curious_companion/data/tung_tung_search_intent.dart';
-import 'package:app_demo/features/reminiscence/presentation/pages/reminiscence_landing.dart';
 import 'package:app_demo/features/rule_replies/data/rule_reply_pool.dart';
 import 'package:app_demo/features/today/data/home_v2_copy.dart';
 import 'package:app_demo/features/today/data/mood_row_copy.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Table rows of a spec file as trimmed cells (header / rule rows kept;
@@ -89,7 +82,20 @@ void main() {
         expect(e.zh, row[2], reason: id);
         expect(e.band, _moodBand[row[1]], reason: id);
       }
-      expect(RuleReplyPool.version, '2026-10-10-final');
+      expect(RuleReplyPool.version, '2026-10-21-help-line-2');
+    });
+
+    // decisions-log 10/21 items 113 and 114 (1): the 小讀本's help line, then
+    // each sentence's original ending, in all three places.
+    test('X5-4 / Z5-4: help line plus the original ending', () {
+      const help = '如果覺得好辛苦，可以喺「睇今日」嗰頁最底，撳「睇更多支援熱線」，'
+          '嗰度有可以即刻傾嘅熱線。';
+      String zh(List<RuleReplyEntry> list, String id) =>
+          list.firstWhere((e) => e.id == id).zh;
+      expect(zh(RuleReplyPool.entries, 'X5-4'), '$help你唔係一個人。');
+      expect(zh(RuleReplyPool.checkInChatEntries, 'X5-4'), '$help你唔係一個人。');
+      expect(zh(RuleReplyPool.entries, 'Z5-4'), '$help今日辛苦你喇。');
+      expect(RuleReplyPool.checkInChatVersion, '2026-10-21-help-line-2');
     });
 
     test('every text is verbatim, in the right agent and mood group', () {
@@ -134,33 +140,10 @@ void main() {
       expect(VoiceCopy.s6TranscriptionFailed, short['S6']);
     });
 
-    test('S3: reminiscence landing count sentence', () {
-      expect(ReminiscenceLandingPage.s3(4), short['S3']);
-    });
-
-    testWidgets('S3: shown on the landing page', (tester) async {
-      await tester.pumpWidget(
-        AppSettingsScope(
-          settings: AppSettings(locale: const Locale('zh')),
-          child: AuthServiceScope(
-            authService: AuthService(available: false),
-            child: const MaterialApp(
-              locale: Locale('zh'),
-              supportedLocales: [Locale('zh'), Locale('en')],
-              localizationsDelegates: [
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              home: ReminiscenceLandingPage(),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      expect(find.textContaining(short['S3']!), findsOneWidget);
-      expect(find.textContaining('4 個禮拜'), findsNothing);
-    });
+    // S3 (the landing count sentence) was replaced on 10/20 by the
+    // companion's bubble (1020o 第四节; reminiscence-v2.md L-INTRO, checked
+    // in test/reminiscence_v2_copy_test.dart and
+    // test/selfpage_landing_1020o_test.dart).
 
     test('S5: onboarding usage advice', () {
       expect(UsageCopy.onboardingUsageAdviceS5, short['S5']);
@@ -261,6 +244,29 @@ void main() {
       expect(HomeV2Copy.w4(DateTime(2026, 10, 25)),
           '下次問卷：10月25日（星期日）開，開咗之後三日內答都得。');
       expect(HomeV2Copy.w5(HomeV2Copy.w5Tomorrow), '問卷開咗，聽日截止。');
+      // 1020l §二 (1): two lines.
+      expect(HomeV2Copy.w5DeadlineTemplate, rows['W5-2']![2]);
+      expect(HomeV2Copy.w5Deadline(DateTime(2026, 10, 24)),
+          '10月24日（星期六）截止');
+      expect(HomeV2Copy.w4Title, '下次問卷');
+      expect(HomeV2Copy.w4Subtitle(DateTime(2026, 10, 25)),
+          '10月25日（星期日）開，開咗之後三日內答都得。');
+    });
+
+    test('1020m 第二节: the small-action row SA1–SA5, verbatim', () {
+      expect(HomeV2Copy.smallActionAsk, rows['SA1']![2]);
+      expect(HomeV2Copy.smallActionLater, rows['SA2']![2]);
+      expect(HomeV2Copy.smallActionPlanTemplate, rows['SA3']![2]);
+      expect(HomeV2Copy.smallActionDone, rows['SA4']![2]);
+      expect(HomeV2Copy.smallActionPostpone, rows['SA5']![2]);
+      expect(HomeV2Copy.smallActionPlan('同阿明飲茶'), '今日計劃：同阿明飲茶');
+    });
+
+    test('1020n 第三节: SA6–SA8, verbatim', () {
+      expect(HomeV2Copy.smallActionNextDayTemplate, rows['SA6']![2]);
+      expect(HomeV2Copy.smallActionMore, rows['SA7']![2]);
+      expect(HomeV2Copy.smallActionOverflowTemplate, rows['SA8']![2]);
+      expect(HomeV2Copy.smallActionOverflow(2), '仲有 2 個計劃');
     });
 
     test('1020e 二.12: the five face words F1–F5 = check-in Q1 words', () {
