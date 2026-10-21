@@ -62,7 +62,6 @@ class AnalyticsService {
     'm7_plan_saved', 'm7_followup_completed',
     // 1020e 二.7 (switch actionPlanSimplifiedEnabled).
     'm7_plan_edited', 'm7_plan_deleted',
-    'm8_article_opened',
     'm9_progress_viewed',
     'cross_referral_offered', 'cross_referral_accepted',
     'cross_referral_declined',
@@ -344,10 +343,6 @@ class AnalyticsService {
 
   Future<void> logM7FollowUpCompleted({required String outcome}) =>
       logEvent('m7_followup_completed', {'outcome': outcome});
-
-  // M8 — education
-  Future<void> logM8ArticleOpened({required String articleId}) =>
-      logEvent('m8_article_opened', {'id': articleId});
 
   // M9 — progress
   Future<void> logM9ProgressViewed() => logEvent('m9_progress_viewed');

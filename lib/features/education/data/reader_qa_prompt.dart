@@ -5,7 +5,8 @@
 /// server's `tung_tung.v3` and already says 「你叫通通（一個電腦程式夥伴）」.
 /// The only App-side words are the header in front of the article text.
 /// For a 小讀本 the App sends this reader-specific header instead of the
-/// article one; the 15 articles keep theirs unchanged.  Its first line is
+/// article one (the 15 old articles that used it were removed 10/21,
+/// decisions-log 133 (1)).  Its first line is
 /// the article-mode marker the persona prompt already knows; the second
 /// line uses the 「電腦程式夥伴」 wording of the v2 companion prompts (#118,
 /// as in social_suggestions_page `_systemPromptZhV2`).

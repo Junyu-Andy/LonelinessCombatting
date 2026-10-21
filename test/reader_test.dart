@@ -47,7 +47,6 @@ import 'package:app_demo/features/auth/data/user_profile.dart';
 import 'package:app_demo/features/auth/presentation/auth_service_scope.dart';
 import 'package:app_demo/features/context/presentation/pages/check_in_page.dart';
 import 'package:app_demo/features/curious_companion/presentation/pages/tung_tung_page.dart';
-import 'package:app_demo/features/education/data/education_library.dart';
 import 'package:app_demo/features/education/data/reader_html.dart';
 import 'package:app_demo/features/education/data/reader_qa_prompt.dart';
 import 'package:app_demo/features/education/data/reader_read_marks.dart';
@@ -931,41 +930,45 @@ void main() {
       await _pumpFor(tester);
     }
 
-    Future<void> expectArticlesAsBefore(WidgetTester tester) async {
-      await tester.scrollUntilVisible(
-          find.text('每篇短短，平實啲講。睇啱嘅，唔啱就過。'), 300);
-      final first = EducationLibrary.articles.firstWhere((a) => a.enabled);
-      await tester.scrollUntilVisible(find.text(first.titleZh), 300);
-      expect(find.text(first.titleZh), findsOneWidget);
+    // 10/21 (decisions-log 133 (1)): the 15 old articles are gone — the
+    // first one's title and the line that introduced them appear nowhere.
+    void expectNoOldArticles() {
+      expect(find.text('孤獨感係咩？'), findsNothing);
+      expect(find.text('每篇短短，平實啲講。睇啱嘅，唔啱就過。'), findsNothing);
     }
 
-    testWidgets('switch off: no 小讀本 section, the source is not even read',
-        (tester) async {
+    testWidgets('no switch: with htmlReadersEnabled at its default (off) the '
+        '小讀本 are listed; no old article', (tester) async {
+      expect(RemoteFeatureFlags.current.htmlReadersEnabled, isFalse);
       final source = _source();
       var asked = false;
       await pumpList(tester,
           source: _SpySource(source, onUnits: () => asked = true));
-      expect(find.byKey(const Key('readers_section')), findsNothing);
-      expect(find.text('小讀本'), findsNothing);
-      expect(asked, isFalse);
-      await expectArticlesAsBefore(tester);
+      expect(asked, isTrue);
+      expect(find.byKey(const Key('readers_section')), findsOneWidget);
+      expect(find.text('小讀本'), findsOneWidget);
+      expect(find.text(_unitA.titleZh), findsOneWidget);
+      expectNoOldArticles();
     });
 
-    testWidgets('switch on, no packaged unit: still hidden', (tester) async {
-      RemoteFeatureFlags.current =
-          const RemoteFeatureFlags(htmlReadersEnabled: true);
+    testWidgets('no packaged unit: nothing below the title, no crash',
+        (tester) async {
       await pumpList(tester, source: FakeReaderSource(const []));
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('education_library_title')), findsOneWidget);
       expect(find.byKey(const Key('readers_section')), findsNothing);
-      await expectArticlesAsBefore(tester);
+      expect(
+          find.descendant(
+              of: find.byType(ListView), matching: find.byType(Text)),
+          findsNothing);
+      expectNoOldArticles();
     });
 
     for (final arm in [ArmAssignment.a, ArmAssignment.b]) {
       testWidgets('${arm == ArmAssignment.a ? 'Hybrid' : 'rule arm'}: the 14 '
           'packaged units in three parts with their headings, icons, 約 n 分鐘; '
-          '✓ 讀完 only when every section is read (360 wide, text 1.30)',
-          (tester) async {
-        RemoteFeatureFlags.current =
-            const RemoteFeatureFlags(htmlReadersEnabled: true);
+          '✓ 讀完 only when every section is read (360 wide, text 1.30); no '
+          'old article', (tester) async {
         tester.view.physicalSize = const Size(360, 800) * 3;
         tester.view.devicePixelRatio = 3;
         addTearDown(tester.view.resetPhysicalSize);
@@ -1020,6 +1023,8 @@ void main() {
             }
           }
         }
+        // The last unit is at the bottom of the list: nothing after it.
+        expectNoOldArticles();
         // No emoji: the tick is an icon and the word.
         final done = find.byKey(const Key('reader_done_small_steps'));
         await tester.scrollUntilVisible(done, -200);
@@ -1047,8 +1052,6 @@ void main() {
 
     testWidgets('open a unit, read all three sections, come back: 讀完',
         (tester) async {
-      RemoteFeatureFlags.current =
-          const RemoteFeatureFlags(htmlReadersEnabled: true);
       final marks = InMemoryReaderReadMarks();
       final surface = FakeReaderSurface();
       await pumpList(tester, source: _source(), marks: marks, surface: surface);
@@ -1070,8 +1073,8 @@ void main() {
 
     testWidgets('做啲嘢 → the third card 讀少少 → the 小讀本 list of the '
         'packaged units (1020m four cards)', (tester) async {
-      RemoteFeatureFlags.current = const RemoteFeatureFlags(
-          htmlReadersEnabled: true, homeLayoutV2Enabled: true);
+      RemoteFeatureFlags.current =
+          const RemoteFeatureFlags(homeLayoutV2Enabled: true);
       SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(_harness(const Scaffold(body: MePage()),
           profile: _profile(ArmAssignment.b), client: ThrowingLlmClient()));
@@ -1091,6 +1094,7 @@ void main() {
       expect(find.text('第一部分：認識孤單'), findsOneWidget);
       expect(find.byKey(const Key('reader_card_what_is_loneliness')),
           findsOneWidget);
+      expectNoOldArticles();
     });
   });
 
