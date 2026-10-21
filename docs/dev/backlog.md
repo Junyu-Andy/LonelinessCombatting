@@ -1,6 +1,6 @@
 # 待办与待决定
 
-> 2026-10-21 收尾 PR（第 131–133 条，决策 0073）：已做，见 history。待办：① 合并后在 main 上打 tag phase-b-freeze-20261020；② 研究侧同步 B07 §5、B13 一行、App 固定文字附件、工作台登记表（C08、C09 版本记录）；③ 冻结后：Maria 问题 7（测试模式下 check-in 不跟模拟日期，只影响测试账号，第 133 条 (5)）；④ 「回忆列表只看 v2」要 `reminiscenceV2Enabled` 在生产是开的才会出勾，`tool/check_prelaunch_values.js` 里这一项的期望值还是待定，请 Junyu 定。
+> 2026-10-21 收尾 PR（第 131–133 条，决策 0073）：已做，见 history。待办：① 合并后在 main 上打 tag phase-b-freeze-20261020；② 研究侧同步 B07 §5、B13 一行、App 固定文字附件、工作台登记表（C08、C09 版本记录）；③ 冻结后：Maria 问题 7（测试模式下 check-in 不跟模拟日期，只影响测试账号，第 133 条 (5)）；④ 「回忆列表只看 v2」要 `reminiscenceV2Enabled` 在生产是开的才会出勾，`tool/check_prelaunch_values.js` 里这一项的期望值还是待定，请 Junyu 定；⑤ 小欣聊天里自己说的邀请句（`siu_yan.v4.txt`）还是旧句，卡片已换新句；要不要新建 prompt 版本让两处一致，请 Junyu 定。
 > 2026-10-21 T35 W8 问卷（决策 0036，分支 `claude/zealous-fermat-8rgqtg-w8-1021`）：已做，见 history。待办：① 12/3 前合并、部署 Functions 和 Firestore 规则（最早第 56 天：PILOT-02、03 约 12/10）；② W4 面访时给每人装有 W8 页面的新包，第 56 天前用看板「App 版本」或 `tool/w8_dates.js` 查还没装的人（字段要新包打开过一次才有）；③ Junyu 在生产跑一次 `tool/w8_dates.js`，把按研究编号的第 56 天日期表补进交接（开发没有生产权限）；④ 发新包前考虑把 `pubspec.yaml` 的版本号从 1.0.0+3 往上调（现在所有包都报 1.0.0／3，只能靠 `w8` 标记分新旧）；⑤ 研究员后台的全体合并完成率（`outcomeCompletionSummary`）还没有 W8 一行；⑥ 第 63 天后的 debrief（T42）未做。
 > 2026-10-21 第 127 条：Flutter 3.44.1（#152）真机走查通过（覆盖安装、两组五步），已并入 #151，10/20 那行的待办①②做完。
 > 2026-10-21 Junyu 定，冻结后做：① `docs/release/w0-install-script.md` 写明 iPhone 最低 iOS 15.0，并更正 STUDY_CHANGELOG 10/15 那行写的「保持 13.0」（`ios-testflight.md` 「iOS 15 以下走 USB」一句一起核对）；② 看板 #142 照 decisions-log 10/20 第 66 条改（总览显示整份每周问卷完成状态、每人页显示每日心情数值），先写新决策记录取代 0061 再改代码。已定不改：回忆四周不按研究周锁，「一個禮拜講一個」当建议。
