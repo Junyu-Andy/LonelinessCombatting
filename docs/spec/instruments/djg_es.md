@@ -15,7 +15,7 @@
 | W0 | 纸本 | 登记当天 | 非盲研究员在登记页只录情感分（0–3） |
 | W2 | App 内 | 第 14–20 天 | 老人自填（T18） |
 | W4 | 纸本 | 第 25–31 天 | 评估员（`blinded`）在评估员视图录入；超窗照样可录，记 `outOfWindow: true` |
-| W8 | App 内 | 第 53–63 天 | 老人自填（T35） |
+| W8 | App 内 | 第 56–63 天（第 64–70 天仍收，记 `outOfWindow: true`；2026-10-21 交接 1021-W8） | 老人自填（T35，决策 0036） |
 
 ## 3. 题目与选项（粤语原文，照用，不要改写）
 
@@ -49,7 +49,7 @@
 
 ## 5. 存储
 
-- W2、W8：`users/{uid}/djg_responses/{W2|W8}`（T18、T35 的格式）。
+- W2、W8：`users/{uid}/djg_responses/{W2|W8}`（T18、T35 的格式）。W8 另存每题作答的服务器时间 `answeredAt`（题号 → 时间），服务器写 `studyWeek`（8）、`studyDay`、`submittedStudyDay`、`outOfWindow`；第 4 题上面一直显示过渡句「跟住三句講你身邊嘅人。」（W1–W3 只在 `scaleDirectionCuesEnabled` 开时显示）。题目、选项、计分和 W1–W3 一样（`docs/spec/copy/w8-questionnaire.md`）。
 - W4 纸本：`outcome_entries/{自动编号}`（只有服务器能读写，T30）。字段：研究编号、`uid`（只给服务器做删除和合并用）、`instrument: "DJG-ES"`、`instrumentVersion`、`timepoint: "W4"`、施测日期 `assessmentDate`、施测方式 `mode`（`in_person` 當面 / `phone` 電話 / `video` 視像）、评估员 `assessorUid`、`assessorEmail`、录入时间 `enteredAt`、每题原始值 `answers`、缺答的题 `missingItems`、分数 `scores`、`scoringVersion`、窗口 `windowStartDate`、`windowEndDate`、`studyDay`、`outOfWindow`、`status: "submitted"`、更正标记 `correctedAt`。提交后评估员不能改；更正只能用 `tool/correct_outcome_entry.js`（写理由，记 `outcome_entry_corrections`）。
 
 ## 6. 规格文件格式（给以后的纸本问卷）

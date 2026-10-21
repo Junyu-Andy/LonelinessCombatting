@@ -132,6 +132,8 @@ function chapterRow(d) {
 const OUTCOME_COLLECTIONS = [
   "outcome_entries", "djg_responses", "djg_es", "pgic", "loneliness_probes",
   "daily_mood", "ucla3_responses",
+  // T35: the other W8 records (w8_questionnaire.js).
+  "ci_responses", "lsns6_responses", "aimhs_responses",
 ];
 
 /**

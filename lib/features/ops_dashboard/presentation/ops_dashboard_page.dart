@@ -324,7 +324,11 @@ class _PersonTile extends StatelessWidget {
                 '低級 ${p.safety['low'] ?? 0}　待確認 ${p.safety['pendingAck'] ?? 0}　'
                 // 1020e 二.9: events the researcher marked 誤觸.
                 '誤觸 ${p.safety['falseAlarm'] ?? 0}　'
-                'W8 ${weeklyCellLabel(p.w8Status)}　Debrief 未做（T42）'),
+                'Debrief 未做（T42）'),
+            // T35: W8 completion (no answer) and the App build.
+            Text(p.w8.line, key: Key('ops_w8_${p.researchId}')),
+            Text(appBuildLine(p.appBuild),
+                key: Key('ops_app_build_${p.researchId}')),
             if (p.chapters.isNotEmpty)
               Text('小篇章：待核對 ${p.chapters['flagged'] ?? 0}　'
                   '整理失敗 ${p.chapters['failed'] ?? 0}'),

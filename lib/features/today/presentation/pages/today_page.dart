@@ -24,6 +24,7 @@ import '../widgets/daily_mood_prompt.dart';
 import '../widgets/simulated_clock_strip.dart';
 import '../widgets/pending_prompts_banner.dart';
 import '../widgets/today_todo_rows.dart';
+import '../../../w8/presentation/w8_home_row.dart';
 import '../home_v2_scope.dart';
 import '../../../../core/session/session_entry_surface.dart';
 import '../widgets/week1_nudge_banner.dart';
@@ -160,6 +161,9 @@ class _TodayPageState extends State<TodayPage> {
           // only with Firebase — guest mode and widget tests leave it out.
           if (AuthServiceScope.of(context).available)
             const PendingPromptsBanner(),
+          // T35 — the W8 questionnaire, days 56–70 (Phase B build,
+          // registered account; hides itself otherwise).
+          if (AuthServiceScope.of(context).available) const W8TodoRow(),
           // P-1 — first-week "try {agent}" nudge (days 3 and 6).
           const Week1NudgeBanner(),
           const MissedCheckInBanner(),
@@ -197,6 +201,8 @@ class _TodayPageState extends State<TodayPage> {
             const CheckInTodoRow(),
             const BriefPrCardHost(),
             if (questionnaireRow) const QuestionnaireTodoRow(),
+            // T35 — 「最後一份問卷」 on days 56–70 (hides itself otherwise).
+            if (firebase) const W8TodoRow(),
             // Whatever else the study still asks for here (Phase A items,
             // the pre-T24 weekly card): the old banner, minus the weekly
             // card the row above already shows.  Needs Firebase to read.

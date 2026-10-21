@@ -131,6 +131,9 @@ async function participant(p) {
     await u.collection("events").add({name: "voice_transcription_failed",
       params: {}, timestamp: NOW});
     await u.collection("weekly_pr").doc("W1").set({status: "completed"});
+    // T35 开工方式 (4): this phone reported the W8 build.
+    await u.set({appBuild: {version: "1.0.0", build: "3", w8: true,
+      platform: "android", seenAt: NOW}}, {merge: true});
     await db.collection("weekly_status").doc(uid).set({uid,
       bundles: {W1: {pushedAt: NOW}, W2: {pushedAt: NOW, missedAt: NOW}}});
     // 1020d — three chapters: flagged, failed, clean.
@@ -295,7 +298,16 @@ test("unblinded: the table, 13 rows, numbers right", async () => {
   assert.strictEqual(pb1.weekly.W1, "done");
   assert.strictEqual(pb1.weekly.W2, "missed");
   assert.strictEqual(pb1.weekly.W3, "not_yet");
-  assert.strictEqual(pb1.weekly.W8, "not_built");
+  // T35: the real W8 status (before day 56: not yet); completion only.
+  assert.strictEqual(pb1.weekly.W8, "not_yet");
+  assert.strictEqual(pb1.w8Status, "not_yet");
+  assert.deepStrictEqual(pb1.w8, {status: "not_yet", partsSubmitted: 0,
+    parts: 5, completedAt: null, completedOutOfWindow: null,
+    optionalPart: null});
+  // 开工方式 (4): the App build; null = never reported (an old build).
+  assert.deepStrictEqual(pb1.appBuild, {version: "1.0.0", build: "3",
+    w8: true, platform: "android", seenAt: NOW.toISOString()});
+  assert.strictEqual(pb2.appBuild, null);
   // 1020d — chapter counts by research ID; no text.
   assert.deepStrictEqual(pb1.chapters, {flagged: 1, failed: 1});
   assert.deepStrictEqual(by["PB-002"].chapters, {flagged: 0, failed: 0});

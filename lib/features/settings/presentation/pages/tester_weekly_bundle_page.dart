@@ -16,6 +16,13 @@
 ///
 /// Only the App's own scheduling decisions read the simulated clock; the
 /// server's pushes, Firestore timestamps and study-day stamps stay real.
+///
+/// T35 (handover 1021-W8): a last card for W8 「最後一份問卷」 — the same two
+/// buttons: preview the five parts and the optional AIMHS (kept in memory
+/// only, nothing saved), or simulate day 56 at the push hour + 30 min so
+/// the home card shows.  Testers never get the real W8 pushes (the server
+/// leaves every tester out); 測試員工具 → 日程模擬 sends the W8 push text
+/// to the tester's own phone (kind `w8_open`).
 library;
 
 import 'package:flutter/material.dart';
@@ -29,6 +36,10 @@ import '../../../../core/scheduling/weekly_schedule.dart';
 import '../../../../core/time/app_clock.dart';
 import '../../../weekly_bundle/data/weekly_bundle.dart';
 import '../../../weekly_bundle/presentation/weekly_bundle_flow_page.dart';
+import '../../../auth/data/user_profile.dart';
+import '../../../w8/data/w8_items.dart';
+import '../../../w8/data/w8_schedule.dart';
+import '../../../w8/presentation/w8_flow_page.dart';
 
 class TesterWeeklyBundlePage extends StatefulWidget {
   const TesterWeeklyBundlePage({super.key});
@@ -63,6 +74,11 @@ class _TesterWeeklyBundlePageState extends State<TesterWeeklyBundlePage> {
       WeeklySchedule.v2Default && WeeklySchedule.isV2Bundle(b)
           ? WeeklySchedule.v2PushHour
           : cfg.weeklyPushHour;
+
+  /// 「模擬到嗰日」 can show the W8 card only for a registered account (a
+  /// study period and a W0 date) in a Phase B build.
+  static bool _w8Simulatable(UserProfile? profile) =>
+      W8Gate.activeFor(profile, phaseB: FeatureFlags.phaseB);
 
   @override
   Widget build(BuildContext context) {
@@ -142,6 +158,22 @@ class _TesterWeeklyBundlePageState extends State<TesterWeeklyBundlePage> {
                             week4RecordedOn: w4RecordedOnFor(profile)),
                         _pushHourOf(b, cfg)),
               ),
+            // T35 — W8: day 56 (window to day 63, card to day 70).
+            _W8Card(
+              w0: w0,
+              pushHour: cfg.weeklyPushHour,
+              onPreview: () => Navigator.of(context).push<bool>(
+                  MaterialPageRoute<bool>(
+                      builder: (_) => W8FlowPage.preview())),
+              onSimulate: !_w8Simulatable(profile) || w0 == null
+                  ? null
+                  : () {
+                      final d = W8Schedule.dateOf(w0, W8Schedule.openDay);
+                      AppClock.instance.simulate(DateTime(
+                          d.year, d.month, d.day, cfg.weeklyPushHour, 30));
+                      Navigator.of(context).popUntil((r) => r.isFirst);
+                    },
+            ),
           ],
         ),
       ),
@@ -199,6 +231,67 @@ class _BundleCard extends StatelessWidget {
               onPressed: onSimulate,
               icon: const Icon(Icons.schedule),
               label: Text('模擬到嗰日 $pushHour:30，返主頁睇'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// T35 — the W8 card of the tester page.
+class _W8Card extends StatelessWidget {
+  const _W8Card({
+    required this.w0,
+    required this.pushHour,
+    required this.onPreview,
+    required this.onSimulate,
+  });
+
+  final DateTime? w0;
+  final int pushHour;
+  final VoidCallback onPreview;
+  final VoidCallback? onSimulate;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final start = w0;
+    final open = start == null
+        ? null
+        : W8Schedule.dateOf(start, W8Schedule.openDay);
+    final when = open == null
+        ? 'W0 後第 ${W8Schedule.openDay} 天 $pushHour:00 推送'
+        : '第 ${W8Schedule.openDay} 天 · ${open.month}月${open.day}日 '
+            '$pushHour:00 推送';
+    return Card(
+      key: const Key('tester_weekly_W8'),
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('W8 · ${W8Texts.title} · $when',
+                style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              '${W8Texts.partNames.join(' → ')}，之後可選 ${W8Texts.aimhsTitle}',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              key: const Key('tester_weekly_preview_W8'),
+              onPressed: onPreview,
+              icon: const Icon(Icons.visibility_outlined),
+              label: const Text('直接打開（預覽，唔儲存）'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: const Key('tester_weekly_simulate_W8'),
+              onPressed: onSimulate,
+              icon: const Icon(Icons.schedule),
+              label: Text('模擬到第 56 天 $pushHour:30，返主頁睇'),
             ),
           ],
         ),
