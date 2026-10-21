@@ -2,9 +2,9 @@
   "name": "firestore-rules-tests",
   "version": "1.0.0",
   "private": true,
-  "description": "Firestore security-rules unit tests (T19 allocation, profile arm, memory, llm_calls, blinding, app_config, djg_responses, ADA, T34 safety alerts, T30 assessor / uploader roles, T40 usage events, T39 ops dashboard, 1014e isTester admin-only, 1020e intake gate unlock time, 1020l research transcript, 1020m home small-action row, 1020o personal quiet hours). Run inside the Firestore emulator.",
+  "description": "Firestore security-rules unit tests (T19 allocation, profile arm, memory, llm_calls, blinding, app_config, djg_responses, ADA, T34 safety alerts, T30 assessor / uploader roles, T40 usage events, T39 ops dashboard, 1014e isTester admin-only, 1020e intake gate unlock time, 1020l research transcript, 1020m home small-action row, 1020o personal quiet hours, T35 W8 questionnaire and appBuild). Run inside the Firestore emulator.",
   "scripts": {
-    "test": "mocha profile_arm.test.js memory_rules.test.js llm_calls_rules.test.js safety_events_rules.test.js safety_alert_rules.test.js blinding_rules.test.js app_config_rules.test.js djg_responses_rules.test.js ada_rules.test.js randomization_rules.test.js enrollment_gate_rules.test.js onboarding_marker_rules.test.js assessor_rules.test.js weekly_schedule_rules.test.js usage_events_rules.test.js ops_dashboard_rules.test.js tester_flag_rules.test.js reminiscence_chapter_rules.test.js intake_gate_rules.test.js chat_transcripts_rules.test.js home_small_action_rules.test.js quiet_hours_rules.test.js --timeout 20000"
+    "test": "mocha profile_arm.test.js memory_rules.test.js llm_calls_rules.test.js safety_events_rules.test.js safety_alert_rules.test.js blinding_rules.test.js app_config_rules.test.js djg_responses_rules.test.js ada_rules.test.js randomization_rules.test.js enrollment_gate_rules.test.js onboarding_marker_rules.test.js assessor_rules.test.js weekly_schedule_rules.test.js usage_events_rules.test.js ops_dashboard_rules.test.js tester_flag_rules.test.js reminiscence_chapter_rules.test.js intake_gate_rules.test.js chat_transcripts_rules.test.js home_small_action_rules.test.js quiet_hours_rules.test.js w8_questionnaire_rules.test.js --timeout 20000"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",

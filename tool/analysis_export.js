@@ -81,6 +81,19 @@ const TABLES = {
   ucla3_responses: ['dataset', 'researchId', 'arm', 'timepoint',
     'studyWeek', 'studyDay', 'answers', 'scores', 'status', 'submittedAt',
     'outOfWindow'],
+  // T35 (W8, decision 0036): the other W8 records, same columns.  CI and
+  // AIMHS have no server score (null); AIMHS status may be "declined"
+  // (the optional questionnaire not filled); AIMHS item 1 is reversed at
+  // analysis, never here.
+  ci_responses: ['dataset', 'researchId', 'arm', 'timepoint',
+    'studyWeek', 'studyDay', 'answers', 'scores', 'status', 'submittedAt',
+    'outOfWindow'],
+  lsns6_responses: ['dataset', 'researchId', 'arm', 'timepoint',
+    'studyWeek', 'studyDay', 'answers', 'scores', 'status', 'submittedAt',
+    'outOfWindow'],
+  aimhs_responses: ['dataset', 'researchId', 'arm', 'timepoint',
+    'studyWeek', 'studyDay', 'answers', 'scores', 'status', 'submittedAt',
+    'outOfWindow'],
   weekly_pr: ['dataset', 'researchId', 'arm', 'weekIso', 'agentId', 'items',
     'status', 'promptedAt', 'respondedAt', 'studyWeek', 'studyDay'],
   brief_pr: ['dataset', 'researchId', 'arm', 'schemaVersion',
@@ -305,7 +318,8 @@ async function collectReal(db, opts) {
       analysisSet: analysisSetOf(u.cohort, researchId),
     })));
 
-    for (const t of ['djg_responses', 'pgic', 'ucla3_responses', 'weekly_pr',
+    for (const t of ['djg_responses', 'pgic', 'ucla3_responses',
+      'ci_responses', 'lsns6_responses', 'aimhs_responses', 'weekly_pr',
       'brief_pr', 'daily_mood', 'loneliness_probes', 'sessions', 'events']) {
       const sub = await userDoc.ref.collection(t).get();
       for (const d of sub.docs) {
@@ -520,6 +534,33 @@ function generateSynthetic(opts) {
             scores: {total: a.q1 + a.q2 + a.q3}, status: 'submitted',
             submittedAt: `${addDays(w0Date, 56)}T06:00:00.000Z`,
             outOfWindow: false})));
+      // T35: the rest of the W8 questionnaire, same day.
+      const w8 = (n, lo, hi) => {
+        const a = {};
+        for (let i = 1; i <= n; i++) {
+          a[`q${i}`] = rand() < 0.04 ? 'skipped' :
+            lo + Math.floor(rand() * (hi - lo + 1));
+        }
+        return a;
+      };
+      const w8Row = (answers, scores, status) => Object.assign({}, tag, {
+        timepoint: 'W8', studyWeek: 8, studyDay: 56, answers, scores,
+        status, submittedAt: status === 'submitted' ?
+          `${addDays(w0Date, 56)}T06:20:00.000Z` : null,
+        outOfWindow: status === 'submitted' ? false : null});
+      files.ci_responses.push(row('ci_responses',
+          w8Row(w8(3, 1, 5), null, 'submitted')));
+      const l = w8(6, 0, 5);
+      const sub = (ks) => (ks.some((k) => l[k] === 'skipped') ? null :
+        ks.reduce((t, k) => t + l[k], 0));
+      const fam = sub(['q1', 'q2', 'q3']);
+      const fr = sub(['q4', 'q5', 'q6']);
+      files.lsns6_responses.push(row('lsns6_responses', w8Row(l,
+          {family: fam, friends: fr,
+            total: fam === null || fr === null ? null : fam + fr},
+          'submitted')));
+      files.aimhs_responses.push(row('aimhs_responses', rand() < 0.3 ?
+        w8Row({}, null, 'declined') : w8Row(w8(5, 1, 5), null, 'submitted')));
     }
     const weeks = withdrawn ? 3 : 8;
     for (let wk = 1; wk <= weeks; wk++) {

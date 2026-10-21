@@ -54,7 +54,9 @@ async function seedUser(uid) {
     password: 'synthetic-only'});
   const u = db.collection('users').doc(uid);
   await u.set({uid, email: `${uid}@example.invalid`, displayName: 'Synth',
-    arm: 'A', consent: {transcriptRetention: true}});
+    arm: 'A', consent: {transcriptRetention: true},
+    // T35 开工方式 (4): the App build the phone reported.
+    appBuild: {version: '1.0.0', build: '3', w8: true, seenAt: new Date()}});
   const sub = {
     'onboarding/intake': {onMind: SECRET},
     'sessions/s1': {participantId: uid},
@@ -86,6 +88,19 @@ async function seedUser(uid) {
     // T24: weekly bundle part record (S12 probe) with study-week stamps.
     'social_contact_probes/W1': {bundle: 'W1', answers: {q1: 2, q2: 0},
       status: 'submitted', studyWeek: 1, studyDay: 7},
+    // T35: the six W8 records (handover 1021-W8 四 (5)).
+    'djg_responses/W8': {timepoint: 'W8', bundle: 'W8',
+      answers: {q1: 'yes'}, status: 'submitted', studyWeek: 8},
+    'ucla3_responses/W8': {timepoint: 'W8', bundle: 'W8',
+      answers: {q1: 2}, status: 'submitted', studyWeek: 8,
+      outOfWindow: false},
+    'pgic/W8': {bundle: 'W8', value: 3, status: 'submitted', studyWeek: 8},
+    'ci_responses/W8': {timepoint: 'W8', bundle: 'W8', answers: {q1: 4},
+      status: 'in_progress'},
+    'lsns6_responses/W8': {timepoint: 'W8', bundle: 'W8',
+      answers: {q1: 0}, status: 'missed', missed: true},
+    'aimhs_responses/W8': {timepoint: 'W8', bundle: 'W8', answers: {},
+      status: 'declined'},
     // T17 (decision 0026): Phase A ADA + day-7 open questions.
     'ada_responses/visit1': {uid, timepoint: 'visit1', formVersion: 'short',
       freeText: SECRET, status: 'submitted'},
@@ -176,6 +191,12 @@ test('dry run lists everything and deletes nothing', async () => {
   assert.strictEqual(by['users/{uid}/day7_open_responses/*'], 1);
   assert.strictEqual(by['users/{uid}/social_contact_probes/*'], 1);
   assert.strictEqual(by['users/{uid}/chat_transcripts/*'], 2);
+  // T35: the W8 records.
+  for (const c of ['ucla3_responses', 'ci_responses', 'lsns6_responses',
+    'aimhs_responses', 'pgic']) {
+    assert.strictEqual(by[`users/{uid}/${c}/*`], 1, c);
+  }
+  assert.strictEqual(by['users/{uid}/djg_responses/*'], 2, 'W2 + W8');
   for (const c of ['llm_calls', 'safety_events', 'safety_event_dedup',
     'pi_alerts', 'te_audit_queue', 'stt_usage',
     'pending_loneliness_probes', 'ada_status', 'weekly_status']) {
@@ -200,8 +221,9 @@ test('--confirm deletes everything of that person, nothing else', async () => {
   const n = again.found.firestore.reduce((s, g) => s + g.count, 0);
   // incl. djg_es + djg_responses (T18), ada + day-7 (T17), ada_status
   // (T17b), social_contact_probes + weekly_status (T24), chat_transcripts
-  // (1020l; decision 0069: an elder row and a companion row)
-  assert.strictEqual(n, 36);
+  // (1020l; decision 0069: an elder row and a companion row), and the six
+  // W8 records (T35)
+  assert.strictEqual(n, 42);
   assert.strictEqual(again.found.auth, 1);
   // Exports are only counted by default.
   assert.strictEqual(r.exportsPolicy, 'counted only, files not modified');
