@@ -154,7 +154,7 @@ void main() {
           (tester) async {
         await _open(tester, _profile(arm));
         expect(find.text('安靜時段'), findsOneWidget);
-        expect(find.text('呢段時間 App 唔會彈出通知。'), findsOneWidget);
+        expect(find.text('呢段時間 App 唔會彈通知。'), findsOneWidget);
         expect(find.text('由'), findsOneWidget);
         expect(find.text('到'), findsOneWidget);
         expect(_rowValue(tester, 'quiet_hours_start'), '22:00');

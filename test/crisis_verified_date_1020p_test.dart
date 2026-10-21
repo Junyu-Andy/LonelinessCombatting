@@ -32,8 +32,24 @@ void main() {
       ('生命熱線', '2382 0000'),
       ('撒瑪利亞會', '2896 0000'),
       ('醫院管理局精神健康專線', '2466 7350'),
-      ('急症室 / 999', '999'),
+      ('緊急求助', '999'),
     ]);
+  });
+
+  // 10/21 (decisions-log 126 (6)): the fourth line no longer reads 999
+  // twice.  Only its two names change; the built-in fallback matches.
+  test('emergency_999 is 緊急求助 / Emergency services; the rest unchanged',
+      () {
+    final r = ((_json()['resources'] as List)[3] as Map).cast<String, dynamic>();
+    expect(r['id'], 'emergency_999');
+    expect(r['nameZh'], '緊急求助');
+    expect(r['nameEn'], 'Emergency services');
+    expect(r['number'], '999');
+    expect(r['hoursZh'], '緊急情況');
+    expect(r['noteZh'], '即時危險時請即刻撥打，或去最近嘅急症室。');
+    final fallback = CrisisResources.fallback.resources.single;
+    expect((fallback.id, fallback.nameZh, fallback.nameEn, fallback.number),
+        ('emergency_999', '緊急求助', 'Emergency services', '999'));
   });
 
   for (final arm in [ArmAssignment.a, ArmAssignment.b]) {

@@ -109,8 +109,9 @@ class CrisisResources {
     resources: [
       CrisisResource(
         id: 'emergency_999',
-        nameZh: '急症室 / 999',
-        nameEn: 'A&E / 999',
+        // 10/21 (decisions-log 126 (6)): the same name as the JSON.
+        nameZh: '緊急求助',
+        nameEn: 'Emergency services',
         number: '999',
         hoursZh: '緊急情況',
         hoursEn: 'Emergencies',

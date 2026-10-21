@@ -42,7 +42,8 @@ class QuietHoursCard extends StatelessWidget {
             Text(
               isEn
                   ? 'The App won\'t show notifications during this time.'
-                  : '呢段時間 App 唔會彈出通知。',
+                  // 10/21 (Junyu): 「彈通知」, final.
+                  : '呢段時間 App 唔會彈通知。',
               style: theme.textTheme.bodyLarge,
             ),
             const SizedBox(height: 16),
