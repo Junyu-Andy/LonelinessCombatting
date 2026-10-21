@@ -207,6 +207,8 @@ class _TesterSchedulePageState extends State<TesterSchedulePage> {
               ('weekly4_open', '第四週問卷開咗（10:00）'),
               ('weekly4_rem', '第四週問卷：仲未答完（10:00）'),
               ('w2_push', '第 2 週問卷推送（舊，10:00 嗰條）'),
+              // T35: the W8 push (days 56, 58, 60 — the same words).
+              ('w8_open', '最後一份問卷 W8（第 56、58、60 天，10:00）'),
             ])
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),

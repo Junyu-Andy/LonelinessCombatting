@@ -80,6 +80,10 @@ class _OpsPersonPageState extends State<OpsPersonPage> {
                 '連續 ${p.consecutiveUnopenedDays} 日冇打開　回訪階段：${stageLabel(p.stage)}',
                 key: const Key('ops_person_stage'),
               ),
+              // T35: W8 completion (no answer) and the App build.
+              Text(p.w8.line, key: const Key('ops_person_w8')),
+              Text(appBuildLine(p.appBuild),
+                  key: const Key('ops_person_app_build')),
               if (p.legacyBasis)
                 const Padding(
                   padding: EdgeInsets.only(top: 4),

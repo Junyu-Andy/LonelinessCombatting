@@ -43,9 +43,103 @@ String weeklyCellLabel(String v) => switch (v) {
       'open' => '窗口中',
       'missed' => '過期未填',
       'not_yet' => '未到',
+      // T35 (W8): started, not all five parts; after day 63 still taken.
+      'in_progress' => '未做完',
+      'late' => '過咗窗口（第 70 日前仍可補）',
       'not_built' => '未做（T35）',
       _ => v,
     };
+
+/// T35 — the W8 completion behind the cell (completion only: no answer,
+/// no score).  From weekly_status.bundles.W8 on the server.
+class OpsW8 {
+  final String status;
+  final int partsSubmitted;
+  final int parts;
+  final DateTime? completedAt;
+  final bool? completedOutOfWindow;
+
+  /// AIMHS (optional): `submitted`, `declined`, `in_progress` or null.
+  final String? aimhs;
+
+  const OpsW8({
+    required this.status,
+    this.partsSubmitted = 0,
+    this.parts = 5,
+    this.completedAt,
+    this.completedOutOfWindow,
+    this.aimhs,
+  });
+
+  factory OpsW8.fromMap(Map<String, dynamic>? m, String fallbackStatus) {
+    if (m == null) return OpsW8(status: fallbackStatus);
+    return OpsW8(
+      status: m['status'] as String? ?? fallbackStatus,
+      partsSubmitted: _int(m['partsSubmitted']),
+      parts: m['parts'] == null ? 5 : _int(m['parts']),
+      completedAt: m['completedAt'] is String
+          ? DateTime.tryParse(m['completedAt'] as String)
+          : null,
+      completedOutOfWindow: m['completedOutOfWindow'] as bool?,
+      aimhs: m['optionalPart'] as String?,
+    );
+  }
+
+  /// One line for the researcher.
+  String get line {
+    final buf = StringBuffer('W8 最後一份問卷：${weeklyCellLabel(status)}');
+    if (status != 'not_yet' && status != 'not_built') {
+      buf.write('（$partsSubmitted／$parts 部分）');
+    }
+    final at = completedAt?.toLocal();
+    if (at != null) {
+      buf.write('　完成 ${at.month}月${at.day}日');
+      if (completedOutOfWindow == true) buf.write('（超窗）');
+    }
+    final a = switch (aimhs) {
+      'submitted' => '已填',
+      'declined' => '唔填',
+      'in_progress' => '未做完',
+      _ => null,
+    };
+    if (a != null) buf.write('　可選 AIMHS：$a');
+    return buf.toString();
+  }
+}
+
+/// T35 开工方式 (4) — the App build a phone last reported
+/// (users/{uid}.appBuild).  null = never reported: a build from before the
+/// W8 one, which has no W8 page.
+class OpsAppBuild {
+  final String? version;
+  final String? build;
+  final bool w8;
+  final String? platform;
+  final DateTime? seenAt;
+
+  const OpsAppBuild(
+      {this.version, this.build, this.w8 = false, this.platform, this.seenAt});
+
+  factory OpsAppBuild.fromMap(Map<String, dynamic> m) => OpsAppBuild(
+        version: m['version'] as String?,
+        build: m['build'] as String?,
+        w8: m['w8'] == true,
+        platform: m['platform'] as String?,
+        seenAt: m['seenAt'] is String
+            ? DateTime.tryParse(m['seenAt'] as String)
+            : null,
+      );
+}
+
+/// 「App 版本」 for the researcher.
+String appBuildLine(OpsAppBuild? b) {
+  if (b == null) return 'App 版本：未有報告（舊版，冇 W8 問卷頁，要裝新版）';
+  final at = b.seenAt?.toLocal();
+  final when = at == null ? '' : '　最後報告 ${at.month}月${at.day}日';
+  return 'App 版本：${b.version ?? '?'}（build ${b.build ?? '?'}）'
+      '${b.platform == null ? '' : '　${b.platform}'}'
+      '　${b.w8 ? '有 W8 問卷頁' : '冇 W8 問卷頁，要裝新版'}$when';
+}
 
 String armLabelShort(String? arm) => switch (arm) {
       'A' => 'A 組（Hybrid）',
@@ -98,6 +192,12 @@ class OpsPerson {
   /// 1020d §6 (2)(d): 小篇章 still flagged after the check, and failed.
   final Map<String, int> chapters;
   final String w8Status;
+
+  /// T35: the counts behind [w8Status].
+  final OpsW8 w8;
+
+  /// T35 开工方式 (4): null = no report (an old build without W8).
+  final OpsAppBuild? appBuild;
   final String debriefStatus;
 
   const OpsPerson({
@@ -122,6 +222,8 @@ class OpsPerson {
     required this.safety,
     this.chapters = const {},
     required this.w8Status,
+    this.w8 = const OpsW8(status: 'not_yet'),
+    this.appBuild,
     required this.debriefStatus,
   });
 
@@ -153,6 +255,13 @@ class OpsPerson {
       safety: _intMap(m['safety']),
       chapters: _intMap(m['chapters']),
       w8Status: m['w8Status'] as String? ?? 'not_built',
+      w8: OpsW8.fromMap(
+          m['w8'] is Map ? Map<String, dynamic>.from(m['w8'] as Map) : null,
+          m['w8Status'] as String? ?? 'not_built'),
+      appBuild: m['appBuild'] is Map
+          ? OpsAppBuild.fromMap(
+              Map<String, dynamic>.from(m['appBuild'] as Map))
+          : null,
       debriefStatus: m['debriefStatus'] as String? ?? 'not_built',
     );
   }
