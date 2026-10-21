@@ -86,7 +86,21 @@ class _EducationLibraryPageState extends State<EducationLibraryPage> {
     return ToolSessionScope(
       toolId: 'education',
       child: Scaffold(
-      appBar: AppBar(title: Text(isEn ? 'Read a little' : '讀少少')),
+      // 10/21: the page title stands apart from the content — white bar, a
+      // line under it, bold, like the 小讀本 reader's own top bar.
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        shape: Border(
+            bottom: BorderSide(color: theme.colorScheme.outlineVariant)),
+        title: Text(
+          isEn ? 'Read a little' : '讀少少',
+          key: const Key('education_library_title'),
+          style: theme.appBarTheme.titleTextStyle
+              ?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -176,7 +190,8 @@ class _ReadersSection extends StatelessWidget {
       children: [
         Text(
           isEn ? 'Little readers' : '小讀本',
-          style: theme.textTheme.titleLarge,
+          style: theme.textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 6),
         Text(

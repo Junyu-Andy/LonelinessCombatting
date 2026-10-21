@@ -34,6 +34,13 @@ const TESTER = "synthReadTxTester000000001";
 const PARTICIPANT = "synthReadTxParticipant0002";
 const STRING_FLAG = "synthReadTxStringFlag00003";
 const MISSING = "synthReadTxNoUserDoc000004";
+// 10/21: testers that also carry a study research ID (or cohort) — refused.
+const TESTER_RCT = "synthReadTxTesterRct000005";
+const TESTER_PB = "synthReadTxTesterPb0000006";
+const TESTER_PILOT = "synthReadTxTesterPilot0007";
+const TESTER_COHORT = "synthReadTxTesterCohort008";
+// A tester with the export's own pseudonym (P + 6, not a study prefix).
+const TESTER_PSEUDO = "synthReadTxTesterPseudo009";
 const TESTER_MAIL = "tester-secret-mail@example.invalid";
 const PARTICIPANT_MAIL = "participant-mail@example.invalid";
 const RESEARCH_ID = "RCT-901";
@@ -129,7 +136,7 @@ const ROWS = {
 };
 
 async function reset() {
-  for (const p of ["users", "enrollments"]) {
+  for (const p of ["users", "enrollments", "research_id_map"]) {
     await db.recursiveDelete(db.collection(p));
   }
 }
@@ -155,6 +162,28 @@ async function seed() {
   await db.doc(`users/${STRING_FLAG}`).set({isTester: "true"});
   await db.doc(`users/${STRING_FLAG}/chat_transcripts/s1`).set(v2("P2", {
     role: "companion", replyText: SECRET, replyStatus: "fixed_reply",
+    replyShownAt: "2026-10-21T01:00:00Z",
+    receivedAt: "2026-10-21T01:00:01Z"}));
+  // Testers with a study research ID or cohort: their rows are never read.
+  for (const [uid, rid] of [[TESTER_RCT, "RCT-905"], [TESTER_PB, "pb-02"],
+    [TESTER_PILOT, "PILOT-03"]]) {
+    await db.doc(`users/${uid}`).set({isTester: true, arm: "A"});
+    await db.doc(`research_id_map/${uid}`).set({researchId: rid});
+    await db.doc(`users/${uid}/chat_transcripts/t1`).set(v2("P4", {
+      role: "companion", replyText: SECRET, replyStatus: "fixed_reply",
+      replyShownAt: "2026-10-21T01:00:00Z",
+      receivedAt: "2026-10-21T01:00:01Z"}));
+  }
+  await db.doc(`users/${TESTER_COHORT}`).set({isTester: true, cohort: "rct"});
+  await db.doc(`users/${TESTER_COHORT}/chat_transcripts/t1`).set(v2("P5", {
+    role: "companion", replyText: SECRET, replyStatus: "fixed_reply",
+    replyShownAt: "2026-10-21T01:00:00Z",
+    receivedAt: "2026-10-21T01:00:01Z"}));
+  await db.doc(`users/${TESTER_PSEUDO}`).set({isTester: true});
+  await db.doc(`research_id_map/${TESTER_PSEUDO}`).set(
+      {researchId: "PB3K9QZ"});
+  await db.doc(`users/${TESTER_PSEUDO}/chat_transcripts/t1`).set(v2("P6", {
+    role: "companion", replyText: "測試員自己嘅一句", replyStatus: "fixed_reply",
     replyShownAt: "2026-10-21T01:00:00Z",
     receivedAt: "2026-10-21T01:00:01Z"}));
   // No users doc, rows anyway.
@@ -254,7 +283,8 @@ test("tester: schema 1 + 2 rows in time order, grouped by session; " +
   const r = cli([`--uid=${TESTER}`]);
   assert.strictEqual(r.status, 0, r.stderr);
   const out = r.stdout;
-  assert.match(out, /账号 synthReadTxTester000000001：测试员（isTester = true）✓/);
+  assert.match(out,
+      /账号 synthReadTxTester000000001：测试员（isTester = true），没有正式研究编号 ✓/);
   assert.match(out, /共 9 行；显示 9 行，3 个会话。/);
   for (const h of [
     "══ 会话 1/3 · sessionId: S1 · 2 行 · " +
@@ -354,10 +384,11 @@ test("non-tester, isTester \"true\" (string), no account: refused " +
       sinceText: null, limit: null, mode: "full", target: "test"}, out);
     assert.strictEqual(res.status, 3, uid);
     assert.deepStrictEqual(out.lines, [], `${uid}: nothing on stdout`);
-    // Exactly one read: users/{uid}, field mask isTester only.
+    // Exactly one read: users/{uid}, field mask isTester and cohort only.
     assert.deepStrictEqual(spy.calls, [
       {op: "doc", path: `users/${uid}`},
-      {op: "getAll", paths: [`users/${uid}`], fieldMask: ["isTester"]},
+      {op: "getAll", paths: [`users/${uid}`],
+        fieldMask: ["isTester", "cohort"]},
     ], uid);
     assert.ok(!JSON.stringify(spy.calls).includes("chat_transcripts"));
     const msg = out.errors.join("\n");
@@ -381,6 +412,41 @@ test("non-tester, isTester \"true\" (string), no account: refused " +
   assert.strictEqual(j.stdout, "");
 });
 
+test("10/21: a tester with an RCT- / PB- / PILOT- research ID or a study " +
+    "cohort is refused; nothing private is read or printed", async () => {
+  for (const uid of [TESTER_RCT, TESTER_PB, TESTER_PILOT, TESTER_COHORT]) {
+    const spy = spyDb(db);
+    const out = capture();
+    const res = await tool.run(spy, {uid, json: false, since: null,
+      sinceText: null, limit: null, mode: "full", target: "test"}, out);
+    assert.strictEqual(res.status, 3, uid);
+    assert.deepStrictEqual(out.lines, [], `${uid}: nothing on stdout`);
+    // users/{uid} (isTester, cohort), then research_id_map (researchId).
+    assert.deepStrictEqual(spy.calls.map((c) => [c.op, c.fieldMask || null]),
+        [["doc", null], ["getAll", ["isTester", "cohort"]],
+          ["doc", null], ["getAll", ["researchId"]]], uid);
+    assert.ok(!JSON.stringify(spy.calls).includes("chat_transcripts"));
+    assert.ok(!JSON.stringify(spy.calls).includes("enrollments"));
+    const msg = out.errors.join("\n");
+    assert.match(msg, /虽然是测试员，但有正式研究编号/);
+    assert.match(msg, /（RCT-、PB- 或 PILOT- 开头），没有读取任何原文/);
+    for (const rid of ["RCT-905", "pb-02", "PB-02", "PILOT-03"]) {
+      assert.ok(!msg.includes(rid), `${uid}: printed ${rid}`);
+    }
+    assert.ok(!msg.includes(SECRET));
+  }
+  const r = cli([`--uid=${TESTER_RCT}`]);
+  assert.strictEqual(r.status, 3, r.stderr);
+  assert.strictEqual(r.stdout, "");
+  assert.ok(!(r.stdout + r.stderr).includes("RCT-905"));
+  assert.ok(!(r.stdout + r.stderr).includes(SECRET));
+  // The export's pseudonym (P + 6) is not a study ID: allowed.
+  const ok = cli([`--uid=${TESTER_PSEUDO}`]);
+  assert.strictEqual(ok.status, 0, ok.stderr);
+  assert.match(ok.stdout, /測試員自己嘅一句/);
+  assert.ok(!ok.stdout.includes("PB3K9QZ"));
+});
+
 test("tester: the account check is the first read, the transcript after",
     async () => {
       const spy = spyDb(db);
@@ -391,9 +457,12 @@ test("tester: the account check is the first read, the transcript after",
       assert.strictEqual(res.status, 0);
       assert.strictEqual(res.rows, 9);
       assert.deepStrictEqual(spy.calls.map((c) => c.op),
-          ["doc", "getAll", "collection", "get"]);
-      assert.deepStrictEqual(spy.calls[1].fieldMask, ["isTester"]);
-      assert.strictEqual(spy.calls[2].path,
+          ["doc", "getAll", "doc", "getAll", "collection", "get"]);
+      assert.deepStrictEqual(spy.calls[1].fieldMask, ["isTester", "cohort"]);
+      assert.deepStrictEqual(spy.calls[3].paths,
+          [`research_id_map/${TESTER}`]);
+      assert.deepStrictEqual(spy.calls[3].fieldMask, ["researchId"]);
+      assert.strictEqual(spy.calls[4].path,
           `users/${TESTER}/chat_transcripts`);
     });
 
@@ -407,15 +476,15 @@ test("dry run (real project, no --production): account check and counts; " +
   assert.strictEqual(res.status, 0);
   const text = out.lines.join("\n");
   assert.match(text, /试运行（dry run）/);
-  assert.match(text, /测试员（isTester = true）✓/);
+  assert.match(text, /测试员（isTester = true），没有正式研究编号 ✓/);
   assert.match(text, /共 9 行；会显示 7 行，2 个会话（按 --since=2026-10-21）。/);
   assert.match(text, /加 --production 再跑一次/);
   for (const w of [Q0, "幾好", ACUTE, "今日去咗飲茶", "replyText", "S2"]) {
     assert.ok(!text.includes(w), `dry run printed ${w}`);
   }
   assert.deepStrictEqual(spy.calls.map((c) => c.op),
-      ["doc", "getAll", "collection", "select"]);
-  assert.deepStrictEqual(spy.calls[3].fields,
+      ["doc", "getAll", "doc", "getAll", "collection", "select"]);
+  assert.deepStrictEqual(spy.calls[5].fields,
       ["sessionId", "userSentAt", "replyShownAt", "receivedAt"]);
   // --json dry run: counts only.
   const j = capture();

@@ -5,13 +5,20 @@
  * so the lead can check, after a phone test, what the App stored.  Writes
  * nothing.
  *
- * Test accounts only.  It first reads `users/{uid}` with a field mask of
- * `isTester` alone; unless that is literally `true` it refuses (exit 3)
- * BEFORE any transcript is read.  Real participants are refused outright:
+ * Test accounts only (decisions-log 10/21: isTester true AND no RCT-,
+ * PB- or PILOT- research ID; everything else refused).  It first reads
+ * `users/{uid}` with a field mask of `isTester` and `cohort` only; unless
+ * isTester is literally `true` it refuses (exit 3) BEFORE anything else is
+ * read.  A tester is then refused too when its cohort is a study one
+ * (`phase_b` / `rct` / `pilot`, set from those prefixes) or when
+ * `research_id_map/{uid}` (field mask `researchId` only) holds an ID
+ * starting RCT-, PB- or PILOT-.  Real participants are refused outright:
  * the proper tool (non-blinded roles, by research ID, with an audit log)
- * comes after the freeze (docs/dev/backlog.md).  It never prints or reads
- * a research ID, an e-mail address, an arm or any allocation data, and
- * never touches the randomization collections.
+ * comes after the freeze (docs/dev/backlog.md).  The research ID is read
+ * only to check its prefix and is never printed; it never reads an e-mail
+ * address, an arm or any allocation data, and never touches the
+ * randomization collections (sequences, randomization_state, the
+ * allocation log, arm corrections).
  *
  * Output: the rows in time order — each row's time is `userSentAt`, else
  * `replyShownAt` (companion rows have no `userSentAt`), else `receivedAt`;
@@ -63,6 +70,12 @@ const PART_SEPARATOR = '\n\n';
 const REFUSE_NOT_TESTER = '这个工具只给测试员账号用。真实参与者的原文一律' +
   '不读；给非盲角色、带审计记录的正式读取工具冻结后再做（见 ' +
   'docs/dev/backlog.md）。';
+
+/** Study research-ID prefixes (functions/study_period.js); never read. */
+const STUDY_PREFIXES = ['RCT-', 'PB-', 'PILOT-'];
+
+/** Study cohorts, set from those prefixes (firestore.rules enrolledCohort). */
+const STUDY_COHORTS = ['phase_b', 'rct', 'pilot'];
 
 /** @return {?Date} */
 function toDate(v) {
@@ -145,14 +158,15 @@ function decideMode(t, args) {
 }
 
 /**
- * Step 1: is users/{uid} a tester?  Reads that one document with a field
- * mask, so nothing but `isTester` is fetched (no e-mail, research ID or
- * arm).
+ * Step 1: is users/{uid} a tester without a study research ID?  Reads
+ * users/{uid} with a field mask of `isTester` and `cohort` (no e-mail or
+ * arm); only for a tester, `research_id_map/{uid}` with a field mask of
+ * `researchId`.  The ID is compared with [STUDY_PREFIXES], never printed.
  * @return {Promise<{ok: boolean, message: string}>}
  */
 async function checkAccount(db, uid) {
   const [snap] = await db.getAll(db.doc(`users/${uid}`),
-      {fieldMask: ['isTester']});
+      {fieldMask: ['isTester', 'cohort']});
   if (!snap.exists) {
     return {ok: false, message: `拒绝：users/${uid} 不存在，没有读取任何原文。`};
   }
@@ -160,7 +174,18 @@ async function checkAccount(db, uid) {
     return {ok: false, message: `拒绝：users/${uid} 不是测试员账号` +
       '（isTester 不是 true），没有读取任何原文。\n' + REFUSE_NOT_TESTER};
   }
-  return {ok: true, message: `账号 ${uid}：测试员（isTester = true）✓`};
+  const [map] = await db.getAll(db.doc(`research_id_map/${uid}`),
+      {fieldMask: ['researchId']});
+  const rid = map.exists ? map.get('researchId') : null;
+  const studyId = typeof rid === 'string' && STUDY_PREFIXES.some(
+      (p) => rid.trim().toUpperCase().indexOf(p) === 0);
+  if (studyId || STUDY_COHORTS.indexOf(snap.get('cohort')) !== -1) {
+    return {ok: false, message: `拒绝：users/${uid} 虽然是测试员，但有正式` +
+      '研究编号（RCT-、PB- 或 PILOT- 开头），没有读取任何原文。\n' +
+      REFUSE_NOT_TESTER};
+  }
+  return {ok: true, message: `账号 ${uid}：测试员（isTester = true），` +
+    '没有正式研究编号 ✓'};
 }
 
 /**

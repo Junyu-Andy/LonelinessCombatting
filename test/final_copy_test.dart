@@ -82,7 +82,20 @@ void main() {
         expect(e.zh, row[2], reason: id);
         expect(e.band, _moodBand[row[1]], reason: id);
       }
-      expect(RuleReplyPool.version, '2026-10-21-help-line');
+      expect(RuleReplyPool.version, '2026-10-21-help-line-2');
+    });
+
+    // decisions-log 10/21 items 113 and 114 (1): the 小讀本's help line, then
+    // each sentence's original ending, in all three places.
+    test('X5-4 / Z5-4: help line plus the original ending', () {
+      const help = '如果覺得好辛苦，可以喺「睇今日」嗰頁最底，撳「睇更多支援熱線」，'
+          '嗰度有可以即刻傾嘅熱線。';
+      String zh(List<RuleReplyEntry> list, String id) =>
+          list.firstWhere((e) => e.id == id).zh;
+      expect(zh(RuleReplyPool.entries, 'X5-4'), '$help你唔係一個人。');
+      expect(zh(RuleReplyPool.checkInChatEntries, 'X5-4'), '$help你唔係一個人。');
+      expect(zh(RuleReplyPool.entries, 'Z5-4'), '$help今日辛苦你喇。');
+      expect(RuleReplyPool.checkInChatVersion, '2026-10-21-help-line-2');
     });
 
     test('every text is verbatim, in the right agent and mood group', () {

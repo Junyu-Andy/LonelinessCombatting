@@ -7,7 +7,7 @@
 - 用**两个测试员账号**，一个切到 Hybrid 组，一个切到规则组。每个账号做同样四步：check-in、和小欣聊两句、阿珍／阿伯第 1 周、一句急性测试句。
 - 每做完一步，**按返回离开页面**，最后一行才会写出。
 - 每组做完应有 **15 行、4 个会话**。用控制台看，或用脚本按时间顺序看。
-- 脚本**只读测试员账号**。真实参与者一律拒绝，什么原文都不读。正式的、带审计记录的读取工具冻结后再做。
+- 脚本**只读测试员账号**，而且这个账号**不能有** RCT-、PB-、PILOT- 开头的研究编号（10/21 第 114 条）。真实参与者一律拒绝，什么原文都不读。正式的、带审计记录的读取工具冻结后再做。
 - 急性测试句只在测试员账号上打。测试员账号**不发告警电邮**；登记过的参与者账号会真的发电邮给你。
 
 ## 一、开始前（缺一项，原文就是空的）
@@ -18,7 +18,7 @@
 | 2 | 冻结分支的新 `firestore.rules` 已部署 | GitHub → Actions →「Deploy Firebase」→ Run workflow → 分支选 `claude/zealous-fermat-8rgqtg-freeze-1021`（PR #151）→ target 选 `rules` → 填 `loneliness-pilot-dev`。没部署的话，新 App 写的新格式（schema 2）行会被规则拒绝，App 不报错，原文里就什么都没有 |
 | 3 | 新 App | Build APK 第 22 次运行，冻结分支，提交 6833424，变体 `phase_b_templates`。下载：<https://github.com/Junyu-Andy/LonelinessCombatting/actions/runs/39464224386/artifacts/12284084140>（解压出 `app-release.apk`，直接装在旧版上面）。原文补全（决策 0069）已在里面。之后冻结分支只多了 07adb7e：规则组「好唔開心」那组的求助句改字、Hybrid「問下通通」换模型，和原文怎么存无关，这次测试不用重打包。下面 check-in 第一题按「幾好」，就碰不到那句旧求助句 |
 | 4 | 其他开关 | `checkInChatV2Enabled`、`reminiscenceV2Enabled`、`testerToolsEnabled`、`testerArmSwitchEnabled` 都是 `true`。前两个关着，小欣和阿珍／阿伯会走旧页面，下面的行数对不上 |
-| 5 | 两个测试员账号 | `users/{uid}.isTester` = `true`。查：`NODE_PATH=functions/node_modules node tool/set_tester.js --list --project=loneliness-pilot-dev --production-confirm=loneliness-pilot-dev`（只读，列出每个测试员的 uid 和电邮）。两个账号今天都**没做过 check-in**、都**没进过第 1 周回忆** |
+| 5 | 两个测试员账号 | `users/{uid}.isTester` = `true`。查：`NODE_PATH=functions/node_modules node tool/set_tester.js --list --project=loneliness-pilot-dev --production-confirm=loneliness-pilot-dev`（只读，列出每个测试员的 uid 和电邮）。两个账号今天都**没做过 check-in**、都**没进过第 1 周回忆**；都**没有** RCT-、PB-、PILOT- 开头的研究编号（有的话脚本会拒绝） |
 
 **切组（每个账号做一次）：**
 
@@ -110,11 +110,11 @@ unset FIRESTORE_EMULATOR_HOST
      --project=loneliness-pilot-dev --production-confirm=loneliness-pilot-dev \
      --since=2026-10-20
    ```
-   应看到「测试员（isTester = true）✓」和「会显示 15 行，4 个会话」（`--since` 换成测试当天的香港日期；之前测过的行也会算进去）。
+   应看到「测试员（isTester = true），没有正式研究编号 ✓」和「会显示 15 行，4 个会话」（`--since` 换成测试当天的香港日期；之前测过的行也会算进去）。
 2. **看原文**：同一条命令末尾加 `--production`。按会话分组，每组按时间排，香港时间；`replyText` 保留换行，气泡之间空一行。想存下来：命令后面加 `> tx-<uid>.txt`。
 3. 其他选项：`--limit=20` 只看最近 20 行；`--json` 输出 JSON。
 
-不是测试员的账号：脚本只读 `users/{uid}` 的 `isTester` 一个字段，然后拒绝（退出码 3），原文一行都不读。它从不显示研究编号、电邮、组别，也不碰分配序列。
+不是测试员的账号：脚本只读 `users/{uid}` 的 `isTester` 和 `cohort` 两个字段，然后拒绝（退出码 3），原文一行都不读。是测试员、但有 RCT-、PB-、PILOT- 开头的研究编号（或 cohort 是正式的三组之一）：同样拒绝，原文一行都不读；研究编号只用来比开头，从不显示。它从不显示研究编号、电邮、组别，也不碰分配序列和分配记录。
 
 模拟器（开发者自测用，没有手机数据）：设好 `FIRESTORE_EMULATOR_HOST`，去掉 `--project`、`--production-confirm`、`--production` 三个参数，直接显示。
 

@@ -42,8 +42,9 @@ class RuleReplyPool {
 
   /// Version lock — bump whenever an entry or [moodBands] changes.
   /// 2026-10-21 (decisions-log 10/21 item 113): X5-4 and Z5-4 point to the
-  /// real help entry, word for word as in the 小讀本.
-  static const String version = '2026-10-21-help-line';
+  /// real help entry, word for word as in the 小讀本; item 114 (1) puts back
+  /// each sentence's original ending.
+  static const String version = '2026-10-21-help-line-2';
 
   /// Marker that every unreviewed text starts with.
   static const String placeholderMarker = '【占位】';
@@ -191,7 +192,7 @@ class RuleReplyPool {
       id: 'X5-4',
       agent: 'siu_yan',
       band: 'very_unhappy',
-      zh: '如果覺得好辛苦，可以喺「睇今日」嗰頁最底，撳「睇更多支援熱線」，嗰度有可以即刻傾嘅熱線。',
+      zh: '如果覺得好辛苦，可以喺「睇今日」嗰頁最底，撳「睇更多支援熱線」，嗰度有可以即刻傾嘅熱線。你唔係一個人。',
     ),
     (
       id: 'Z1-1',
@@ -311,7 +312,7 @@ class RuleReplyPool {
       id: 'Z5-4',
       agent: 'ah_jan_ah_bak',
       band: 'very_unhappy',
-      zh: '如果覺得好辛苦，可以喺「睇今日」嗰頁最底，撳「睇更多支援熱線」，嗰度有可以即刻傾嘅熱線。',
+      zh: '如果覺得好辛苦，可以喺「睇今日」嗰頁最底，撳「睇更多支援熱線」，嗰度有可以即刻傾嘅熱線。今日辛苦你喇。',
     ),
     (
       id: 'G-1',
@@ -328,7 +329,7 @@ class RuleReplyPool {
   /// which stay as they were for the old check-in form (switch off).
   /// `docs/spec/copy/rule-templates.md` 「小欣：check-in 回应一」 is the
   /// source; test/final_copy_test.dart compares it word for word.
-  static const String checkInChatVersion = '2026-10-21-help-line';
+  static const String checkInChatVersion = '2026-10-21-help-line-2';
 
   static const List<RuleReplyEntry> checkInChatEntries = [
     (
@@ -449,7 +450,7 @@ class RuleReplyPool {
       id: 'X5-4',
       agent: 'siu_yan',
       band: 'very_unhappy',
-      zh: '如果覺得好辛苦，可以喺「睇今日」嗰頁最底，撳「睇更多支援熱線」，嗰度有可以即刻傾嘅熱線。',
+      zh: '如果覺得好辛苦，可以喺「睇今日」嗰頁最底，撳「睇更多支援熱線」，嗰度有可以即刻傾嘅熱線。你唔係一個人。',
     ),
   ];
 
