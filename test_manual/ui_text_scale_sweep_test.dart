@@ -77,11 +77,9 @@ import 'package:app_demo/features/rule_replies/data/rule_reply_history_store.dar
 import 'package:app_demo/features/crisis/presentation/pages/emergency_support_page.dart';
 import 'package:app_demo/features/crisis/presentation/widgets/safety_footer_card.dart';
 import 'package:app_demo/features/curious_companion/presentation/pages/tung_tung_page.dart';
-import 'package:app_demo/features/education/data/education_library.dart';
 import 'package:app_demo/features/education/data/reader_read_marks.dart';
 import 'package:app_demo/features/education/data/reader_test_unit.dart';
 import 'package:app_demo/features/education/data/reader_unit.dart';
-import 'package:app_demo/features/education/presentation/pages/education_article_page.dart';
 import 'package:app_demo/features/education/presentation/pages/education_library_page.dart';
 import 'package:app_demo/features/education/presentation/pages/reader_page.dart';
 import 'package:app_demo/features/education/presentation/reader/reader_surface.dart';
@@ -960,12 +958,9 @@ final _flows = <String, _Flow>{
     await c.shot('remembered_family_open');
   },
   '讀少少 小讀本（1020c）': (c) async {
-    // Switch on, two units (one with a long title, one ticked); the
-    // WebView is a stand-in here (platform views do not render in tests).
-    final saved = RemoteFeatureFlags.current;
-    RemoteFeatureFlags.current =
-        const RemoteFeatureFlags(htmlReadersEnabled: true);
-    addTearDown(() => RemoteFeatureFlags.current = saved);
+    // Two units (one with a long title, one ticked); the WebView is a
+    // stand-in here (platform views do not render in tests).  No switch
+    // since 10/21 (decisions-log 133 (1)).
     final source = _SweepReaderSource();
     await _pumpHome(
         c,
@@ -984,14 +979,6 @@ final _flows = <String, _Flow>{
     expect(find.byType(ReaderPage), findsOneWidget);
     expect(find.byKey(ReaderPage.askKey), _armB ? findsNothing : findsOneWidget);
     await c.shot('reader_page');
-    await _back(c);
-  },
-  '健康資訊文章页': (c) async {
-    await _pushPage(
-        c, EducationArticlePage(article: EducationLibrary.articles.first));
-    await c.shot('education_open');
-    await _send(c, '呢篇講乜嘢？');
-    await c.shot('education_chat');
     await _back(c);
   },
 };

@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/feature_flags/remote_feature_flags.dart';
-import '../../data/education_library.dart';
 import '../../data/reader_read_marks.dart';
 import '../../data/reader_unit.dart';
 import '../reader/reader_icons.dart';
 import '../reader/reader_surface.dart';
-import 'education_article_page.dart';
 import 'reader_page.dart';
 import '../../../../core/session/chat_session_recorder.dart';
 
 /// M8 library landing — identical in both arms (spec: library content
-/// is identical; only the "Ask me about this" dialogue is Arm A).
+/// is identical; only the 「?」 question to 通通 inside a 小讀本 is Arm A).
 ///
-/// 1020c §2 — with `htmlReadersEnabled` on and at least one packaged
-/// unit, a 「小讀本」 section sits on top; the 15 articles below are
-/// unchanged.  Switch off, or no unit: the page is exactly as before.
-/// Both arms see the same list.
+/// 10/21 (decisions-log 133 (1)) — the page lists only the 14 packaged
+/// 小讀本; the 15 old articles and their article page are gone, and the
+/// list no longer depends on `htmlReadersEnabled`.  No packaged unit:
+/// nothing below the title.  Both arms see the same list.
 ///
 /// 1021 T-R1 — the units are grouped by the manifest's `part`, each group
 /// headed 「第一部分：」 + `partTitleZh`; each row: the manifest's Material
@@ -48,7 +45,7 @@ class _EducationLibraryPageState extends State<EducationLibraryPage> {
   @override
   void initState() {
     super.initState();
-    if (RemoteFeatureFlags.current.htmlReadersEnabled) _loadReaders();
+    _loadReaders();
   }
 
   Future<void> _loadReaders() async {
@@ -80,8 +77,6 @@ class _EducationLibraryPageState extends State<EducationLibraryPage> {
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
     final theme = Theme.of(context);
-    final showReaders =
-        RemoteFeatureFlags.current.htmlReadersEnabled && _units.isNotEmpty;
     // M-7 — tool session: enter = start, leave = end.
     return ToolSessionScope(
       toolId: 'education',
@@ -105,34 +100,11 @@ class _EducationLibraryPageState extends State<EducationLibraryPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           children: [
-            if (showReaders) ...[
+            if (_units.isNotEmpty)
               _ReadersSection(
                 units: _units,
                 read: _read,
                 onOpen: _openReader,
-              ),
-              const SizedBox(height: 12),
-              Divider(color: theme.colorScheme.outlineVariant),
-              const SizedBox(height: 12),
-            ],
-            Text(
-              isEn
-                  ? 'Short pieces, plain language. Take what helps, skip '
-                      'the rest.'
-                  : '每篇短短，平實啲講。睇啱嘅，唔啱就過。',
-              style: theme.textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 16),
-            // Research Review v2 Item 1: filter by enabled flag so individual
-            // articles can be hidden without a code push during Phase A.
-            for (final a in EducationLibrary.articles.where((a) => a.enabled))
-              _ArticleCard(
-                article: a,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => EducationArticlePage(article: a),
-                  ),
-                ),
               ),
           ],
         ),
@@ -322,45 +294,6 @@ class _DoneBadge extends StatelessWidget {
                   ?.copyWith(color: primary, fontWeight: FontWeight.w700),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ArticleCard extends StatelessWidget {
-  final EducationArticle article;
-  final VoidCallback onTap;
-  const _ArticleCard({required this.article, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                Icon(Icons.menu_book_outlined,
-                    size: 28, color: theme.colorScheme.primary),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    isEn ? article.titleEn : article.titleZh,
-                    style: theme.textTheme.titleMedium,
-                  ),
-                ),
-                Icon(Icons.chevron_right_rounded,
-                    color: theme.colorScheme.primary),
-              ],
-            ),
-          ),
         ),
       ),
     );

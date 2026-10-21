@@ -221,12 +221,12 @@
 ///                               on (`ResearcherIntakeGate`).  Both arms
 ///                               identical.  Off = the flow is as before.
 ///   - [htmlReadersEnabled]    — 1020c (decision 0056-html-readers-webview):
-///                               the 「小讀本」 section at the top of 讀少少
-///                               (bundled HTML readers in a WebView,
-///                               `assets/readers/`).  Off (default) = 讀少少
-///                               exactly as before; on with no packaged
-///                               unit = still hidden.  Both arms identical
-///                               except 「問下通通」 (Hybrid only, C08).
+///                               used to gate the 「小讀本」 section of
+///                               讀少少.  Since 10/21 (decisions-log 133 (1))
+///                               it gates nothing: 讀少少 always lists the
+///                               packaged 小讀本 and the old articles are
+///                               gone.  Kept only so the stored value still
+///                               parses.
 ///   - [scaleDirectionCuesEnabled] — 1020k (decisions-log 10/20 items
 ///                               77–79): a line before the reverse items —
 ///                               Brief PR question 4, Weekly PR i1–i3 (now

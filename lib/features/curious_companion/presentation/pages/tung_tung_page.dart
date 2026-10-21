@@ -9,8 +9,9 @@
 ///     Tung Tung can ground its reply.
 ///
 /// Article context can be passed via the [articleContext] constructor
-/// argument — M8's "問下呢篇" button uses this so Tung Tung opens
-/// already aware of which article the user wants to discuss.
+/// argument — the 小讀本's 「?」 (問下通通, Hybrid only) uses this so Tung
+/// Tung opens already aware of which reader the user wants to discuss.
+/// (The old articles' "問下呢篇" button went with them, 10/21.)
 ///
 /// Arm B (rule-based) uses this same page so the surface stays identical;
 /// only the reply engine differs: openers from [TungTungRulePool], replies
@@ -58,7 +59,7 @@ import '../../../brief_pr/data/brief_pr_v2.dart';
 import '../../../crisis/presentation/widgets/crisis_chat_message.dart';
 
 class TungTungPage extends StatefulWidget {
-  /// Optional article body / title injected by M8's "問下呢篇" entry.
+  /// Optional article body / title injected by the 小讀本's 「?」.
   /// Tung Tung will ground answers in this text instead of search.
   final String? articleContext;
   final String? articleTitle;
