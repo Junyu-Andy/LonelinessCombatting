@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-21 冻结 tag 补打和冻结记录（decisions-log 10/21 第 131–136 条）
+
+- 结论：冻结版本就是 main 的 `e36ba0e`。上午装机用的安卓包（Build APK 第 33 次）、服务器部署（Deploy Firebase 第 20 次）都来自这个提交；tag `phase-b-freeze-20261020` 事后补打在同一提交上，内容一致。
+- 只读核对：Deploy Firebase 第 20 次选的是规则和 Functions 一起，从 `e36ba0e` 部署，10/21 12:08（香港时间）完成，不用重新部署。上一次部署是第 19 次（`7a96e30`，#151 合并后）。
+- iOS：TestFlight 由 Codemagic 打包，开发这边看不到 Codemagic 和 App Store Connect；从 `e36ba0e` 打的包版本号会是 1.0.1（build 4），和安卓一样。是否从这个提交打，要在 Codemagic 的构建页核对。
+
 ## 2026-10-21 冻结前收尾：回忆列表、读少少只留小读本、望一望心入面第 2 版、W8 卡第二行、版本号（第 131、132、133 条，决策 0073；收尾 PR）
 
 - 结论：冻结前最后一个 PR。合进 main 后再打 tag phase-b-freeze-20261020。两组相同，不加开关，不新增模型调用。
